@@ -33,7 +33,7 @@ COPY --from=builder /app/static ./static
 ENV NODE_ENV=production
 
 # Create a small start script to respect Dokku's PORT
-RUN echo "process.env.PORT = process.env.PORT || 3000;\nimport('./.svelte-kit/output/server/index.js');" > start.js
+RUN echo "process.env.PORT = process.env.PORT || 3000; import('./.svelte-kit/output/server/index.js');" > start.js
 
 # Run app via the start script
 CMD ["node", "start.js"]
