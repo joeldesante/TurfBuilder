@@ -27,13 +27,10 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy build output
-COPY --from=builder /app/.svelte-kit/output ./.svelte-kit/output
+COPY --from=builder /app/build
 COPY --from=builder /app/static ./static
 
 ENV NODE_ENV=production
 
-# Create a small start script to respect Dokku's PORT
-RUN echo "process.env.PORT = process.env.PORT || 3000; import('./.svelte-kit/output/server/index.js');" > start.js
-
 # Run app via the start script
-CMD ["node", "start.js"]
+CMD ["node", "-r", "dotenv/config", "build"]
