@@ -24,7 +24,7 @@ WORKDIR /app
 
 # Install only production dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy build output
 COPY --from=builder /app/.svelte-kit/output ./.svelte-kit/output
