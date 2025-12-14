@@ -27,7 +27,7 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy build output
-COPY --from=builder /app/build
+COPY --from=builder /app/build ./build
 COPY --from=builder /app/static ./static
 
 ENV NODE_ENV=production
