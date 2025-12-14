@@ -1,9 +1,9 @@
 import type { RequestHandler } from './$types';
 import { Pool } from 'pg';
-import { DATABASE_URL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 const pool = new Pool({
-    connectionString: DATABASE_URL
+    connectionString: env.DATABASE_URL
 });
 
 export const GET: RequestHandler = async ({ url }) => {
