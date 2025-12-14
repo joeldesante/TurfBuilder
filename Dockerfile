@@ -31,7 +31,9 @@ COPY --from=builder /app/.svelte-kit/output ./.svelte-kit/output
 COPY --from=builder /app/static ./static
 
 ENV NODE_ENV=production
-EXPOSE 3000
 
-# Use SvelteKit's start script
-CMD ["node", ".svelte-kit/output/server/index.js"]
+# Create a small start script to respect Dokku's PORT
+RUN echo "process.env.PORT = process.env.PORT || 3000;\nimport('./.svelte-kit/output/server/index.js');" > start.js
+
+# Run app via the start script
+CMD ["node", "start.js"]
