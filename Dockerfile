@@ -5,14 +5,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Install dependencies
 COPY package*.json ./
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the app
+# Build SvelteKit
 RUN npm run build
 
 # --------------------------
@@ -22,16 +22,16 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files and install only production dependencies
+# Install only production dependencies
 COPY package*.json ./
-RUN npm ci --production
+RUN npm ci --omit=dev
 
-# Copy SvelteKit build output
+# Copy build output
 COPY --from=builder /app/.svelte-kit/output ./.svelte-kit/output
 COPY --from=builder /app/static ./static
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# Start the server
-CMD ["node", ".svelte-kit/output/server/app.js"]
+# Use SvelteKit's start script
+CMD ["node", ".svelte-kit/output/server/index.js"]
