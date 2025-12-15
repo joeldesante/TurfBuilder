@@ -2,35 +2,25 @@
 # Builder stage
 # --------------------------
 FROM node:20-alpine AS builder
-
 WORKDIR /app
-
-# Install dependencies
 COPY package*.json ./
 RUN npm ci
-
-# Copy source code
 COPY . .
-
-# Build SvelteKit
 RUN npm run build
+RUN npm prune --production
 
 # --------------------------
 # Production stage
 # --------------------------
 FROM node:20-alpine
-
 WORKDIR /app
 
-# Install only production dependencies
-COPY package*.json ./
-RUN npm ci
+COPY --from=builder /app/build build/
+COPY --from=builder /app/static static/
+COPY --from=builder /app/node_modules node_modules/
 
-# Copy build output
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/static ./static
+COPY package.json .
 
 ENV NODE_ENV=production
 
-# Run app via the start script
-CMD ["node", "-r", "dotenv/config", "build"]
+CMD ["node", "build"]
