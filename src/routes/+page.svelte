@@ -1,109 +1,76 @@
 <script lang="ts">
+    import { authClient } from "$lib/client";
+    import { goto } from "$app/navigation";
+	import { onMount } from "svelte";
 
-    type Location = {
-        id: number;
-        loc_name: string;
-        category: string | null;
-        latitude: number;
-        longitude: number;
-        street: string | null;
-        locality: string | null;
-        postcode: string | null;
-        region: string | null;
-        country: string | null;
-    };
+    let code = $state("");
+    let error = $state("");
+    let input: HTMLElement;
+    const session = authClient.useSession();
+    let loading = $state(false);
 
-    import { onMount } from 'svelte';
-    import maplibregl from 'maplibre-gl';
-    import 'maplibre-gl/dist/maplibre-gl.css';
-
-    let mapContainer: HTMLDivElement;
-    const DEFAULT_ZOOM = 18;
-
-    let map: maplibregl.Map;
-    let locations: Location[] = [];
-    let markers: maplibregl.Marker[] = [];
-
-    async function fetchLocations(bounds: maplibregl.LngLatBounds) {
-        const response = await fetch(`/api/locations?` +
-            `lat_min=${bounds.getSouth()}&lat_max=${bounds.getNorth()}` +
-            `&lon_min=${bounds.getWest()}&lon_max=${bounds.getEast()}`);
-        locations = await response.json();
-        console.log('Loaded locations:', locations);
-
-        // Remove old markers first if you keep them in an array
-        if (markers) {
-            markers.forEach((m: maplibregl.Marker) => m.remove());
-        }
-        markers = [];
-
-        // Add new markers
-        locations.forEach((loc: Location) => {
-
-            const marker = new maplibregl.Marker()
-                .setLngLat([loc.longitude, loc.latitude])
-                .setPopup(new maplibregl.Popup().setText(loc.loc_name))
-                .addTo(map);
-
-            markers.push(marker);
-        });
-    }
+    $effect(() => {
+        loading = !$session.data?.user;
+    })
 
     onMount(() => {
-        map = new maplibregl.Map({
-            container: mapContainer,
-            style: 'https://tiles.openfreemap.org/styles/positron',
-            center: [-75.2238, 40.0259],
-            zoom: DEFAULT_ZOOM
-        });
-
-        // Add geolocate control to track user position
-        const geolocateControl = new maplibregl.GeolocateControl({
-            positionOptions: {
-                enableHighAccuracy: true
-            },
-            trackUserLocation: true, // Keep tracking as user moves
-            showAccuracyCircle: true,
-            fitBoundsOptions: {
-                zoom: DEFAULT_ZOOM
-            }
-        });
-
-        map.addControl(geolocateControl);
-
-        map.on('load', () => {
-            geolocateControl.trigger();
-            fetchLocations(map.getBounds());
-        });
-
-        // Fetch locations whenever map moves
-        map.on('moveend', () => {
-            fetchLocations(map.getBounds());
-        });
-
-        return () => {
-            map.remove();
-        };
+        input?.focus();
     });
+
+    async function loadMap() {
+
+        error = "";
+
+        code = code.toUpperCase();
+        if(code.length !== 6) {
+            error = "Code must be six characters long."
+            return;
+        }
+
+        let turfRequest = await fetch("/api/turf/resolve", { 
+            method: 'POST',
+            body: JSON.stringify({ code })
+        });
+
+        if(!turfRequest.ok) {
+            error = `${await turfRequest.text()}`
+            return;
+        }
+
+        const response = await turfRequest.json()
+        const turfId = response.turfId;
+        goto(`/map/${turfId}`);
+    }
+
 </script>
 
-<div>
-    <div bind:this={mapContainer} class="map-container"></div>
+<div class="w-screen h-screen flex justify-center items-center flex-col gap-2 wrapper">
+    
+    <h4 class="text-sm font-bold">ENTER MAP CODE</h4>
+    <input
+        bind:this={input}
+        bind:value={code}
+        type="text"
+        maxlength="6"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        class="outline-none text-4xl text-center uppercase tracking-widest font-bold w-64"
+    />
+
+    <button
+        class="bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-sm cursor-pointer disabled:opacity-50"
+        disabled={loading}
+        onclick={loadMap}
+    >
+        {loading ? "LOADING…" : "START CANVASSING"}
+    </button>
+
+    {#if error}
+        <p class="text-red-600 text-xs mt-2">{error}</p>
+    {/if}
 </div>
 
 <style>
-    .map-container {
-        width: 100vw;
-        height: 100vh;
-    }
-
-    .map-marker {
-        width: 20px;
-        height: 20px;
-        background-color: #ff5722; /* any color you want */
-        border: 2px solid white;   /* optional border */
-        border-radius: 50%;        /* makes it round */
-        box-shadow: 0 0 5px rgba(0,0,0,0.3); /* optional shadow */
-        z-index: 9999;
-    }
 </style>
