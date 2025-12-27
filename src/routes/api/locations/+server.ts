@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ url }) => {
                 SELECT ST_MakeEnvelope($1, $2, $3, $4, 4326) AS geom
             )
             SELECT id, loc_name, category, latitude, longitude, street, locality, postcode, region, country
-            FROM locations l
+            FROM location l
             JOIN viewport v
               ON l.geom && v.geom
             ORDER BY loc_name

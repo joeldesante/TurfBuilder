@@ -57,9 +57,10 @@
     "vitest-browser-svelte": "^2.0.1"
   },
   "dependencies": {
+    "@geoman-io/maplibre-geoman-free": "^0.6.1",
     "better-auth": "^1.4.9",
     "dotenv": "^17.2.3",
-    "maplibre-gl": "^5.13.0",
+    "maplibre-gl": "^5.15.0",
     "pg": "^8.16.3"
   }
 }

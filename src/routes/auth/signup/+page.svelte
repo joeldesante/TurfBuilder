@@ -2,21 +2,21 @@
 	import { goto } from "$app/navigation";
   import { authClient } from "$lib/client";
 
+  let username = "";
   let email = "";
   let password = "";
-  let rememberMe = false;
   let loading = false;
   let error: string | null = null;
 
-  async function signIn() {
+  async function signUp() {
       loading = true;
       error = null;
 
       try {
-          let response = await authClient.signIn.email({
-              email,
-              password,
-              rememberMe,
+          let response = await authClient.signUp.email({
+            name: username,
+            email: email,
+            password: password
           });
 
           if(response.error) {
@@ -40,8 +40,18 @@
 <h1>Sign In</h1>
 
 <form
-  on:submit|preventDefault={signIn}
+  on:submit|preventDefault={signUp}
 >
+  <div>
+    <label for="name">Username</label><br />
+    <input
+      id="name"
+      type="text"
+      bind:value={username}
+      required
+    />
+  </div>
+
   <div>
     <label for="email">Email</label><br />
     <input
@@ -60,22 +70,11 @@
       type="password"
       bind:value={password}
       required
-      autocomplete="current-password"
     />
   </div>
 
-  <div>
-    <label>
-      <input
-        type="checkbox"
-        bind:checked={rememberMe}
-      />
-      Remember me
-    </label>
-  </div>
-
   <button type="submit" disabled={loading}>
-    {loading ? "Signing in…" : "Sign In"}
+    {loading ? "Signing up…" : "Sign Up"}
   </button>
 </form>
 

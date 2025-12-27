@@ -1,21 +1,24 @@
-<script>
-    let { children } = $props();
+<script lang="ts">
+    const { children, title } = $props<{ 
+        children: () => any, 
+        title?: string 
+    }>();
 </script>
 
 <div class="wrapper">
     <aside>
         <ul>
             <li>
-                <a href="/admin/">Dashboard</a>
+                <a href="/system/">Dashboard</a>
             </li>
             <li>
                 <span>Turf</span>
                 <ul>
                     <li>
-                        <a href="/admin/turfs">Overview</a>
+                        <a href="/system/turfs">Overview</a>
                     </li>
                     <li>
-                        <a href="/admin/turfs/cut">Cut Turf</a>
+                        <a href="/system/turfs/cut">Cut Turf</a>
                     </li>
                 </ul>
             </li>
@@ -23,19 +26,7 @@
                 <span>People</span>
                 <ul>
                     <li>
-                        <a href="/admin/users">Accounts</a>
-                    </li>
-                    <li>
-                        <a href="/admin/users/unverified">Unverified Accounts</a>
-                    </li>
-                    <li>
-                        <a href="/admin/users/verified">Verified Accounts</a>
-                    </li>
-                    <li>
-                        <a href="/admin/users/admins">Admins</a>
-                    </li>
-                    <li>
-                        <a href="/admin/users/suspects">Suspicious Activity</a>
+                        <a href="/system/users">Users</a>
                     </li>
                 </ul>
             </li>
@@ -43,7 +34,7 @@
                 <span>Data</span>
                 <ul>
                     <li>
-                        <a href="/admin/data/locations">Locations</a>
+                        <a href="/system/data/locations">Locations</a>
                     </li>
                 </ul>
             </li>
@@ -51,10 +42,10 @@
                 <span>Utilities</span>
                 <ul>
                     <li>
-                        <a href="/admin/utils/notify">Send Notification</a>
+                        <a href="/system/utils/notify">Send Notification</a>
                     </li>
                     <li>
-                        <a href="/admin/utils/lockdown">Lockdown</a>   <!-- In the event that the data is being activly poisoned and the admins want to disable all new incoming data temporarily -->
+                        <a href="/system/utils/lockdown">Lockdown</a>   <!-- In the event that the data is being activly poisoned and the admins want to disable all new incoming data temporarily -->
                     </li>
                 </ul>
             </li>
@@ -63,7 +54,7 @@
     <main>
         <div>
             <div class="header">
-                <span>Dashboard</span>
+                <span>{ title ?? 'Dashboard' }</span>
             </div>
             <div class="content">
                 {@render children()}

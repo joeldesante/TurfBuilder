@@ -56,7 +56,7 @@
         autocorrect="off"
         autocapitalize="off"
         spellcheck="false"
-        class="outline-none text-4xl text-center uppercase tracking-widest font-bold w-64"
+        class="outline-none text-4xl text-center uppercase tracking-widest font-bold w-64 border-b-2"
     />
 
     <button
