@@ -16,6 +16,8 @@
     import maplibregl from 'maplibre-gl';
     import 'maplibre-gl/dist/maplibre-gl.css';
 
+    let { data } = $props()
+
     let mapContainer: HTMLDivElement;
     const DEFAULT_ZOOM = 18;
 
@@ -24,10 +26,7 @@
     let markers: maplibregl.Marker[] = [];
 
     async function fetchLocations(bounds: maplibregl.LngLatBounds) {
-        const response = await fetch(`/api/locations?` +
-            `lat_min=${bounds.getSouth()}&lat_max=${bounds.getNorth()}` +
-            `&lon_min=${bounds.getWest()}&lon_max=${bounds.getEast()}`);
-        locations = await response.json();
+        locations = data.locations;
         console.log('Loaded locations:', locations);
 
         // Remove old markers first if you keep them in an array

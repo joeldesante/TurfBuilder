@@ -17,6 +17,7 @@
 
     import 'maplibre-gl/dist/maplibre-gl.css';
     import '@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css';
+	import type { FeatureData, FeatureId, FeatureStore, Geoman } from '@geoman-io/maplibre-geoman-free';
 
     let mapContainer: HTMLDivElement;
     const DEFAULT_ZOOM = 18;
@@ -24,6 +25,7 @@
     let map: maplibregl.Map;
     let locations: Location[] = [];
     let markers: maplibregl.Marker[] = [];
+    let geoman: Geoman | undefined;
 
     async function fetchLocations(bounds: maplibregl.LngLatBounds) {
         const response = await fetch(`/api/locations?` +
@@ -51,7 +53,29 @@
     }
 
     async function saveTurfs() {
-        
+        if(!geoman) return;
+        geoman = geoman as Geoman;
+
+        const features = (geoman as Geoman).features;
+        const polygons = features.getAll().features.map((feature) => {
+            return {
+                code: null,
+                geometry: feature.geometry
+            }
+        });
+
+        console.log(polygons)
+
+        const request = await fetch('/api/turf/create', {
+            method: 'POST',
+            body: JSON.stringify({
+                polygons: polygons
+            })
+        })
+
+        if(request.ok) {
+            console.log(request.json());
+        }
     }
 
     onMount(() => {
@@ -67,7 +91,7 @@
             });
 
             // Initialize Geoman
-            const geoman = new Geoman(map, {
+            geoman = new Geoman(map, {
                 settings: {
                     controlsPosition: 'top-right',
                     controlsUiEnabledByDefault: false
@@ -113,7 +137,7 @@
 
 <div class="wrapper">
     <div bind:this={mapContainer} class="map-container"></div>
-    <div class="save rounded-sm bg-blue-500 shadow-lg font-bold text-white cursor-pointer select-none border-2 border-blue-600">
+    <div class="save rounded-sm bg-blue-500 shadow-lg font-bold text-white cursor-pointer select-none border-2 border-blue-600" onclick={saveTurfs}>
         <span>Save Turf</span>
     </div>
 </div>

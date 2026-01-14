@@ -22,8 +22,8 @@
         error = "";
 
         code = code.toUpperCase();
-        if(code.length !== 6) {
-            error = "Code must be six characters long."
+        if(code.length !== 12) {
+            error = "Code must be twelve characters long."
             return;
         }
 
@@ -51,7 +51,7 @@
         bind:this={input}
         bind:value={code}
         type="text"
-        maxlength="6"
+        maxlength="12"
         autocomplete="off"
         autocorrect="off"
         autocapitalize="off"

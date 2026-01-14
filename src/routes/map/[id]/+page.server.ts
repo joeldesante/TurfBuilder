@@ -6,7 +6,7 @@ const pool = new Pool({
     connectionString: env.DATABASE_URL
 });
 
-export async function load({ locals, params }) {
+export async function load({ locals, params, fetch }) {
 
     if(!locals.user) {
         redirect(302, '/');
@@ -15,19 +15,19 @@ export async function load({ locals, params }) {
     const client = await pool.connect();
     const turfId = params.id;
     const userId = locals.user.id;
-    const records = await client.query(
-        `
-        SELECT id 
-        FROM turf_user
-        WHERE turf_id = $1 AND user_id = $2 
-        LIMIT 1;
-        `,
-        [turfId, userId]
-    );
+    const request = await fetch(`/api/turf/${turfId}/locations`);
 
-    if(!records.rowCount || records.rowCount === 0) {
+    if(!request.ok) {
         redirect(302, '/');
     }
 
-    return {}
+    const records = await request.json() as Array<any>;
+
+    if(records.length === 0) {
+        redirect(302, '/');
+    }
+
+    return {
+        locations: records
+    }
 }
