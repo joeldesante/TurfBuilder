@@ -64,8 +64,6 @@
             }
         });
 
-        console.log(polygons)
-
         const request = await fetch('/api/turf/create', {
             method: 'POST',
             body: JSON.stringify({

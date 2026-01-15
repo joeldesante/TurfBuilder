@@ -37,48 +37,33 @@
   }
 </script>
 
-<h1>Sign In</h1>
 
-<form
-  on:submit|preventDefault={signIn}
->
-  <div>
-    <label for="email">Email</label><br />
-    <input
-      id="email"
-      type="email"
-      bind:value={email}
-      required
-      autocomplete="email"
-    />
+<div>
+
+  
+
+
+<form on:submit|preventDefault={signIn} class="flex flex-col gap-2">
+  <div class="max-w-sm space-y-3">
+    <input class="py-2.5 sm:py-3 px-4 block w-full border-gray-200 rounded-lg sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" id="email" type="email" placeholder="Email" bind:value={email} required autocomplete="email" />
   </div>
-
-  <div>
-    <label for="password">Password</label><br />
-    <input
-      id="password"
-      type="password"
-      bind:value={password}
-      required
-      autocomplete="current-password"
-    />
+  <div class="max-w-sm space-y-3">
+    <input class="py-2.5 sm:py-3 px-4 block w-full border-gray-200 rounded-lg sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" id="password" type="password" placeholder="Password" bind:value={password} required autocomplete="current-password" />
   </div>
+  <label>
+    <input type="checkbox" bind:checked={rememberMe} />
+    Remember me
+  </label>
 
-  <div>
-    <label>
-      <input
-        type="checkbox"
-        bind:checked={rememberMe}
-      />
-      Remember me
-    </label>
-  </div>
-
-  <button type="submit" disabled={loading}>
+  <button type="submit" disabled={loading} class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">
     {loading ? "Signing in…" : "Sign In"}
   </button>
+
+  
 </form>
 
 {#if error}
   <p>{error}</p>
 {/if}
+
+</div>
