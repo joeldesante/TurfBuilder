@@ -17,17 +17,22 @@ export async function load({ locals, params, fetch }) {
     const userId = locals.user.id;
     const request = await fetch(`/api/turf/${turfId}/locations`);
 
+    console.log(turfId)
+
     if(!request.ok) {
+        console.log(request.status, request.statusText)
         redirect(302, '/');
     }
 
     const records = await request.json() as Array<any>;
 
     if(records.length === 0) {
+        console.log("No waypoints.")
         redirect(302, '/');
     }
 
     return {
+        turfId: turfId,
         locations: records
     }
 }

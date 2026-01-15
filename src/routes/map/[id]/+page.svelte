@@ -12,9 +12,14 @@
         country: string | null;
     };
 
-    import { onMount } from 'svelte';
+    import { mount, onMount } from 'svelte';
     import maplibregl from 'maplibre-gl';
     import 'maplibre-gl/dist/maplibre-gl.css';
+	import MapMarker from '../../../stories/MapMarker.svelte';
+
+    let selectedLocationId = $state<number | null>(null);
+    let selectedLocation = $state<Location | null>(null);
+    let showPanel = $state(false);
 
     let { data } = $props()
 
@@ -26,25 +31,56 @@
     let markers: maplibregl.Marker[] = [];
 
     async function fetchLocations(bounds: maplibregl.LngLatBounds) {
-        locations = data.locations;
-        console.log('Loaded locations:', locations);
-
-        // Remove old markers first if you keep them in an array
-        if (markers) {
-            markers.forEach((m: maplibregl.Marker) => m.remove());
-        }
-        markers = [];
-
-        // Add new markers
-        locations.forEach((loc: Location) => {
-
-            const marker = new maplibregl.Marker()
-                .setLngLat([loc.longitude, loc.latitude])
-                .setPopup(new maplibregl.Popup().setText(loc.loc_name))
-                .addTo(map);
-
-            markers.push(marker);
+    locations = data.locations;
+    
+    if (markers) {
+        //@ts-ignore
+        markers.forEach((m) => m.marker.remove());
+    }
+    markers = [];
+    
+    locations.forEach((location: Location) => {
+        const markerDomElement = document.createElement('div');
+        
+        let state = $state({ 
+            isSelected: selectedLocationId === location.id 
         });
+        
+        markerDomElement.addEventListener('click', () => {
+            markers.forEach(m => {
+                //@ts-ignore
+                m.state.isSelected = false;
+            });
+        
+            state.isSelected = true;
+            selectedLocationId = location.id;
+            selectedLocation = location;
+            showPanel = true;
+        });
+        
+        const markerInstance = mount(MapMarker, {
+            target: markerDomElement,
+            props: { state },
+        });
+        
+        const marker = new maplibregl.Marker({ element: markerDomElement })
+            .setLngLat([location.longitude, location.latitude])
+            .addTo(map);
+        
+        //@ts-ignore
+        markers.push({ marker, state });
+    });
+    }
+
+    function closePanel() {
+    showPanel = false;
+    selectedLocation = null;
+    selectedLocationId = null;
+    
+    markers.forEach(m => {
+        //@ts-ignore
+        m.state.isSelected = false;
+    });
     }
 
     onMount(() => {
@@ -70,7 +106,7 @@
         map.addControl(geolocateControl);
 
         map.on('load', () => {
-            geolocateControl.trigger();
+            //geolocateControl.trigger();
             fetchLocations(map.getBounds());
         });
 
@@ -86,6 +122,25 @@
 </script>
 
 <div>
+    {#if showPanel }
+        <div class="panel flex flex-col gap-2">
+            <div class="flex justify-between items-start">
+                <h3>{ selectedLocation?.loc_name }</h3>
+                <button class="cursor-pointer" aria-label="close" onclick={() => { showPanel = false }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                        <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+            <div>
+                <p class="font-medium">{ selectedLocation?.street }</p>
+                <p class="text-sm">{ selectedLocation?.locality }, {selectedLocation?.region} { selectedLocation?.postcode }</p>
+            </div>
+            <div class="flex justify-end flex-col flex-1 mt-4">
+                <a href="/map/{data.turfId.toString()}/location/{selectedLocation?.id}" class="cursor-pointer bg-blue-500 px-3 py-2 rounded-full font-bold text-white block text-center">Open Location</a>
+            </div>
+        </div>
+    {/if}
     <div bind:this={mapContainer} class="map-container"></div>
 </div>
 
@@ -95,13 +150,21 @@
         height: 100vh;
     }
 
-    .map-marker {
-        width: 20px;
-        height: 20px;
-        background-color: #ff5722; /* any color you want */
-        border: 2px solid white;   /* optional border */
-        border-radius: 50%;        /* makes it round */
-        box-shadow: 0 0 5px rgba(0,0,0,0.3); /* optional shadow */
-        z-index: 9999;
+    .panel {
+        position: absolute;
+        width: calc(100vw - 20px);
+        height: auto;
+        z-index: 100000;
+        bottom: 10px;
+        left: 10px; 
+        background-color: #FFF;
+        border-radius: 5px;
+        box-shadow: 0px 0px 5px rgba(0,0,0,0.15);
+        padding: 15px;
+    }
+
+    .panel h3 {
+        font-size: 1.2rem;
+        font-weight: 600;
     }
 </style>
