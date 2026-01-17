@@ -2,6 +2,8 @@
 	import { goto } from "$app/navigation";
   import { authClient } from "$lib/client";
 
+  const { data } = $props();
+
   let email = $state("");
   let password = $state("")
   let rememberMe = $state(false);
@@ -64,6 +66,9 @@
   }
 </script>
 
+<svelte:head>
+  <title>Sign In | { data.config.application_name }</title>
+</svelte:head>
 
 <div class="flex w-screen h-screen justify-center items-center flex-col gap-4">
   <form onsubmit={signIn} class="flex flex-col gap-2 p-4 w-64 md:w-128">

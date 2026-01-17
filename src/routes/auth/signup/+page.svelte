@@ -2,6 +2,8 @@
 	import { goto } from "$app/navigation";
   import { authClient } from "$lib/client";
 
+  const { data } = $props();
+
   let username = "";
   let email = "";
   let password = "";
@@ -37,7 +39,11 @@
   }
 </script>
 
-<h1>Sign In</h1>
+<svelte:head>
+  <title>Sign Up | { data.config.application_name }</title>
+</svelte:head>
+
+<h1>Sign Up</h1>
 
 <form
   on:submit|preventDefault={signUp}

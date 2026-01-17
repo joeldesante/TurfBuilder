@@ -1,9 +1,19 @@
 <script lang="ts">
-    const { children, title } = $props<{ 
+	import type { ApplicationConfig } from "../../config";
+
+
+    const { children, title, data } = $props<{ 
         children: () => any, 
-        title?: string 
+        title?: string,
+        data: {
+            config: ApplicationConfig
+        }
     }>();
 </script>
+
+<svelte:head>
+  <title>{ title || 'Dashboard' } | { data.config.application_name }</title>
+</svelte:head>
 
 <div class="wrapper">
     <aside>

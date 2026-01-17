@@ -1,6 +1,6 @@
-test-results/
-node_modules/
-better-auth_migrations/
+test-results
+node_modules
+better-auth_migrations
 
 # Output
 .output
