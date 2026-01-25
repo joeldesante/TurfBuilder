@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: turfbuilder_postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.volumes/data/postgres:/var/lib/postgresql
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=db_password
+      - POSTGRES_DB=postgres
+      - TZ=${TZ}
+    shm_size: 128mb
+    restart: ${RESTART_POLICY}
+  
+  frontend:
+    container_name: turfbuilder_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
+    volumes:
+      - .:/app  # For development with live reload
+      - /app/node_modules  # Prevent overwriting node_modules
+    depends_on:
+      - postgres
+    restart: unless-stopped

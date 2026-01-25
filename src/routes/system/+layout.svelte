@@ -46,6 +46,9 @@
                     <li>
                         <a href="/system/data/locations">Locations</a>
                     </li>
+                    <li>
+                        <a href="/system/data/surveys">Surveys</a>
+                    </li>
                 </ul>
             </li>
             <li>

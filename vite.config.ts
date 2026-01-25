@@ -2,13 +2,15 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { SvelteKitPWA } from '@vite-pwa/sveltekit'
+import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { svelteTesting } from '@testing-library/svelte/vite';
 
 export default defineConfig({
 	plugins: [
 		tailwindcss(), 
 		sveltekit(),
-		SvelteKitPWA({ registerType: 'autoUpdate' })
+		SvelteKitPWA({ registerType: 'autoUpdate' }),
+		svelteTesting()
 	],
 	test: {
 		expect: { requireAssertions: true },
