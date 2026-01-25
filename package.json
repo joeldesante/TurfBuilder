@@ -18,7 +18,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "db:build": "node ./.schema/.script/index.cjs ./.schema"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.3",

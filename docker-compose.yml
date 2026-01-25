@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgres:latest
+    platform: linux/amd64
+    image: postgis/postgis:18-3.6
     container_name: turfbuilder_postgres
     ports:
       - "5432:5432"
@@ -25,9 +26,11 @@ services:
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
+      - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P   # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
+      - BETTER_AUTH_URL=http://localhost:5173
     volumes:
-      - .:/app  # For development with live reload
-      - /app/node_modules  # Prevent overwriting node_modules
+      - .:/app
+      - /app/node_modules
     depends_on:
       - postgres
     restart: unless-stopped
