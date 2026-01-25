@@ -61,7 +61,6 @@ Assuming everything worked as expected you should be able to access the applicat
 
 
 ## Key URLs
-
-Sign in: `/auth/signin`
-Sign up: `/auth/signup`
-Admin Dashboard: `/system`
+- Sign in: `/auth/signin`
+- Sign up: `/auth/signup`
+- Admin Dashboard: `/system`
