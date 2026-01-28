@@ -6,7 +6,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./.volumes/data/postgres:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=db_password
@@ -34,3 +34,5 @@ services:
     depends_on:
       - postgres
     restart: unless-stopped
+volumes:
+  postgres_data:
