@@ -64,6 +64,7 @@
   },
   "dependencies": {
     "@geoman-io/maplibre-geoman-free": "^0.6.1",
+    "@tanstack/table-core": "^8.21.3",
     "better-auth": "^1.4.9",
     "dotenv": "^17.2.3",
     "maplibre-gl": "^5.15.0",
