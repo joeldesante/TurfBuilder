@@ -15,7 +15,7 @@ export async function load({ locals, params, fetch }) {
     const id = params.id;
     const client = await pool.connect();
     const surveys = await client.query(
-        `SELECT * FROM survey WHERE id = $1`,
+        `SELECT * FROM survey WHERE id = $1;`,
         [ id ]
     )
 
@@ -24,7 +24,7 @@ export async function load({ locals, params, fetch }) {
     }
 
     const questions = await client.query(
-        `SELECT * FROM survey_question WHERE survey_id = $1`,
+        `SELECT * FROM survey_question WHERE survey_id = $1 ORDER BY order_index ASC;`,
         [ id ]
     )
 

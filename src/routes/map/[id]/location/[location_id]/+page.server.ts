@@ -14,7 +14,7 @@ export async function load({ locals, params, fetch }) {
 
     const client = await pool.connect();
     const turfId = params.id;
-    const turfLocationId = params.location_id;
+    const locationId = params.location_id;
     const userId = locals.user.id;
   
     try {
@@ -25,7 +25,7 @@ export async function load({ locals, params, fetch }) {
             FROM turf t
             INNER JOIN turf_location tl ON tl.turf_id = t.id
             WHERE tl.location_id = $1 AND t.id = $2`,
-            [turfLocationId, turfId]
+            [locationId, turfId]
         );
 
         if (surveyResult.rows.length === 0) {
@@ -36,12 +36,12 @@ export async function load({ locals, params, fetch }) {
 
         const location = await client.query(
             `SELECT loc_name, street, locality, postcode, region FROM location WHERE id = $1`,
-            [ turfLocationId ]
+            [ locationId ]
         )
 
         // 2. From the survey id, get all of the survey questions
         const questionsResult = await client.query(
-            `SELECT id, question_text, question_type
+            `SELECT id, question_text, question_type, question_choices, order_index, question_choices
             FROM survey_question
             WHERE survey_id = $1 
             ORDER BY order_index ASC`,
@@ -50,13 +50,20 @@ export async function load({ locals, params, fetch }) {
         const questions = questionsResult.rows;
 
         // 3. Create the location attempt if it doesn't already exist
+
+        const turfLocationResult = await client.query(
+            'SELECT id FROM turf_location WHERE turf_id = $1 AND location_id = $2;',
+            [ turfId, locationId ]
+        )
+        const turfLocationId = turfLocationResult.rows[0].id
+
         const locationAttemptResult = await client.query(
             `INSERT INTO location_attempt (turf_location_id, user_id)
             VALUES ($1, $2)
             ON CONFLICT (turf_location_id, user_id) 
             DO UPDATE SET updated_at = NOW()
             RETURNING id, contact_made, attempt_note`,
-            [turfId, userId]
+            [turfLocationId, userId]
         );
         const locationAttempt = locationAttemptResult.rows[0];
 

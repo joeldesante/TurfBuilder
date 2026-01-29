@@ -36,6 +36,11 @@ docker-compose up
 
 First, run:
 ```
+npm install
+```
+
+Then,
+```
 npx @better-auth/cli generate
 ```
 

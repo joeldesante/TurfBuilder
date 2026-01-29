@@ -14,7 +14,7 @@ declare global {
 		interface Locals {
 			session?: Session;
 			user?: User;
-			config: ApplicationConfig
+			config: ApplicationConfig,
 		}
 		// interface PageData {}
 		// interface PageState {}

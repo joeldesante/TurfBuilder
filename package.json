@@ -68,7 +68,8 @@
     "dotenv": "^17.2.3",
     "maplibre-gl": "^5.15.0",
     "nanoid": "^5.1.6",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^4.3.6"
   },
   "overrides": {
     "vitest": "$vitest"
