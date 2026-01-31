@@ -1,17 +1,26 @@
 <script lang="ts">
     import '../app.css';
-    import favicon from '$lib/assets/favicon.svg';
     
-    //@ts-ignore
     import { pwaInfo } from 'virtual:pwa-info';
+    import { pwaAssetsHead } from 'virtual:pwa-assets/head';
+
+    console.log(pwaInfo, pwaAssetsHead)
     
     let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
     let { children, data } = $props();
 </script>
 
 <svelte:head>
-    <link rel="icon" href={favicon} />
     <title>{ data.config.application_name }</title>
+
+    {#if pwaAssetsHead.themeColor}
+        <meta name="theme-color" content={pwaAssetsHead.themeColor.content} />
+    {/if}
+
+    {#each pwaAssetsHead.links as link}
+        <link {...link} />
+    {/each}
+
     {@html webManifestLink}
 </svelte:head>
 

@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { env } from '$env/dynamic/private';
-import { anonymous } from "better-auth/plugins";
+import { twoFactor, username } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { getRequestEvent } from "$app/server";
 import { organization } from "better-auth/plugins";
@@ -17,7 +17,8 @@ export const auth = betterAuth({
         enabled: true, 
     },
     plugins: [
-        anonymous(),
+        username(),
+        twoFactor(),
         sveltekitCookies(getRequestEvent),
         organization(),
         admin({

@@ -5,9 +5,9 @@ const { Pool } = require('pg');
 const pool = new Pool({
     user: 'postgres',
     host: 'localhost',
-    database: 'postgres',
-    password: 'db_password',
-    port: 5432,
+    database: 'deice_postgis_db',
+    password: 'b05ccd1decd0e3788e86dc2add0ca596',
+    port: 5433,
 });
 
 async function runAllSQLFiles(directory) {
