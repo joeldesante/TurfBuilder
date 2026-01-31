@@ -4,7 +4,7 @@
 
   const { data } = $props();
 
-  let email = $state("");
+  let username = $state("");
   let password = $state("")
   let rememberMe = $state(false);
   let loading = $state(false);
@@ -18,8 +18,8 @@
       error = null;
 
       try {
-          let response = await authClient.signIn.email({
-              email,
+          let response = await authClient.signIn.username({
+              username,
               password,
               rememberMe,
           });
@@ -40,30 +40,6 @@
           loading = false;
       }
   }
-
-  async function signInAnon() {
-    anonLoading = true
-    error = null;
-
-    try {
-        let response = await authClient.signIn.anonymous();
-
-        if(response.error) {
-            throw new Error(response.error.message);
-        }
-
-        goto("/");
-    } catch(e) {
-        if(e instanceof Error) {
-            error = e.message;
-        } else {
-            error = "Unkknown error."
-        }
-        console.warn(e);
-    } finally {
-        anonLoading = false;
-    }
-  }
 </script>
 
 <svelte:head>
@@ -75,7 +51,7 @@
     
     <h1 class="text-2xl font-medium mb-4">Sign In</h1>
 
-    <input class="py-2.5 sm:py-3 px-4 block w-full border-1 border-gray-200 rounded sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" id="email" type="email" placeholder="Email" bind:value={email} required autocomplete="email" />
+    <input class="py-2.5 sm:py-3 px-4 block w-full border-1 border-gray-200 rounded sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" id="email" type="text" placeholder="Username" bind:value={username} required autocomplete="username" />
     <input class="py-2.5 sm:py-3 px-4 block w-full border-1 border-gray-200 rounded sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" id="password" type="password" placeholder="Password" bind:value={password} required autocomplete="current-password" />
     
     <div class="flex">
@@ -93,16 +69,5 @@
       <p>{error}</p>
     {/if}
   </form>
-
-  <div class="font-bold">
-    OR
-  </div>
-
-  <div class="flex gap-2 items-center justify-center w-64 md:w-128 p-4 border-1 border-gray-200 rounded shadow-lg">
-    <span class="font-medium">You may also,</span>
-    <button type="button" disabled={anonLoading} onclick={signInAnon} class="cursor-pointer py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-500 hover:border-blue-600 hover:text-blue-600 focus:outline-hidden focus:border-blue-600 focus:text-blue-600 disabled:opacity-50 disabled:pointer-events-none">
-      {anonLoading ? "Signing in…" : "Sign In Anonymously"}
-    </button>
-  </div>
 
 </div>
