@@ -13,7 +13,12 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter({
 			out: 'build'
-		})
+		}),
+		alias: {
+			$components: 'src/stories/components',
+			$pages: 'src/stories/pages',
+			$config: 'src/config'
+		}
 	}
 };
 
