@@ -1,11 +1,13 @@
 <script lang="ts">
+	import Button from "../../../../components/inputs/button/Button.svelte";
 	import Pin from "../../../../components/inputs/pin/Pin.svelte";
 
     interface Props {
         onVerified: () => void
+        onBack: () => void
     }
 
-    let { onVerified = () => {} } = $props();
+    let { onVerified = () => {}, onBack = () => {} } = $props();
 
     function attemptVerification(pin: string) {
         onVerified();
@@ -18,4 +20,5 @@
     <div>
         <Pin length={6} onPinEntered={(pin: string) => { attemptVerification(pin) }} />
     </div>
+    <Button label="Back" onclick={onBack} />
 </div>
