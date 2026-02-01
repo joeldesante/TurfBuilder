@@ -43,6 +43,6 @@
     <Input type="text" label="Username" bind:value={username} />
     <Input type="password" label="Password" bind:value={password} />
     <Input type="password" label="Confirm Password" bind:value={confirmPassword} />
-    <Button label="Sign In" onclick={onSubmit} />
+    <Button label="Sign Up" onclick={onSubmit} />
     <p>{errorMessage}</p>
 </div>
