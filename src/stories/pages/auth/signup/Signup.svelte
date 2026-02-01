@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { authClient } from "$lib/client";
 	import type { ApplicationConfig } from "$config";
-	import BackupCodeStep from "./steps/BackupCodeStep.svelte";
-	import FormStep from "./steps/FormStep.svelte";
-	import ScanStep from "./steps/ScanStep.svelte";
-	import VerifyStep from "./steps/VerifyStep.svelte";
+	import BackupCodeStep from "../steps/BackupCodeStep.svelte";
+	import FormStep from "../steps/FormStep.svelte";
+	import ScanStep from "../steps/ScanStep.svelte";
+	import VerifyStep from "../steps/VerifyStep.svelte";
 
 	let { data } = $props();
 
