@@ -5,10 +5,10 @@
 	import Input from "../../../../components/inputs/input/Input.svelte";
 
     interface Props {
-        onComplete: (username: string, password: string) => void
+        onComplete: (username: string, password: string) => Promise<void>
     }
 
-    let { onComplete = (username: string, password: string) => {} } = $props();
+    let { onComplete = async (username: string, password: string) => {} } = $props();
 
     let username = $state("");
     let password = $state("");
