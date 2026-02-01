@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Button from "../../../../components/inputs/button/Button.svelte";
-	import Qrcode from "../../../../components/outputs/qrcode/Qrcode.svelte";
+	import Button from "$components/actions/button/Button.svelte";
+	import Qrcode from "$components/data-display/qrcode/Qrcode.svelte";
 
     interface Props {
         totpUri: string,

@@ -1,15 +1,26 @@
 <script lang="ts">
-	import Button from "../../../../components/inputs/button/Button.svelte";
-	import Pin from "../../../../components/inputs/pin/Pin.svelte";
+	import Button from "$components/actions/button/Button.svelte";
+	import Pin from "$components/data-inputs/pin/Pin.svelte";
+	import { authClient } from "$lib/client";
 
     interface Props {
         onVerified: () => void
         onBack: () => void
     }
 
-    let { onVerified = () => {}, onBack = () => {} } = $props();
+    let { onVerified = () => {}, onBack = () => {} }: Props = $props();
 
-    function attemptVerification(pin: string) {
+    async function attemptVerification(pin: string) {
+
+        const { error } = await authClient.twoFactor.verifyTotp({
+            code: pin
+        });
+
+        if(error) {
+            console.error(error.message)
+            return;
+        }
+
         onVerified();
     }
 

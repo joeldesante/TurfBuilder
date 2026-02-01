@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { authClient } from "$lib/client";
 	import { nanoid } from "nanoid";
-	import Button from "../../../../components/inputs/button/Button.svelte";
-	import Input from "../../../../components/inputs/input/Input.svelte";
+	import Button from "$components/actions/button/Button.svelte";
+	import Input from "$components/data-inputs/input/Input.svelte";
 
     interface Props {
         onComplete: (username: string, password: string) => Promise<void>

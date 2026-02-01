@@ -9,7 +9,7 @@ export interface ApplicationConfig {
 
 const config: ApplicationConfig = {
     application_name: "Turf Builder",
-    logo_src: "",
+    logo_src: "/logos/default_logo.svg",
     base_urls: [
         "turfbuilder.org",
         "www.turfbuilder.org"
