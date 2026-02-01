@@ -69,6 +69,7 @@
   "dependencies": {
     "@geoman-io/maplibre-geoman-free": "^0.6.1",
     "better-auth": "^1.4.9",
+    "bits-ui": "^2.15.5",
     "dotenv": "^17.2.3",
     "maplibre-gl": "^5.15.0",
     "nanoid": "^5.1.6",
