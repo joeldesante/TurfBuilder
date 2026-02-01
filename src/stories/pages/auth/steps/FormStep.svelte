@@ -8,7 +8,7 @@
         onComplete: (username: string, password: string) => Promise<void>
     }
 
-    let { onComplete = async (username: string, password: string) => {} } = $props();
+    let { onComplete = async (username: string, password: string) => {} }: Props = $props();
 
     let username = $state("");
     let password = $state("");
@@ -39,7 +39,7 @@
     }
 
 </script>
-<div class="flex flex-col gap-4">
+<div class="p-4 flex flex-col gap-4">
     <Input type="text" label="Username" bind:value={username} />
     <Input type="password" label="Password" bind:value={password} />
     <Input type="password" label="Confirm Password" bind:value={confirmPassword} />

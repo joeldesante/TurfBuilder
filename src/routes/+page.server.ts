@@ -6,5 +6,9 @@ export async function load({ locals, params, fetch }) {
         redirect(302, '/auth/signin');
     }
 
+    if(!locals.user.twoFactorEnabled) {
+        redirect(302, '/auth/2fa/setup');
+    }
+
     return {}
 }

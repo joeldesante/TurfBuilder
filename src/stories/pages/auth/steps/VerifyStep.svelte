@@ -26,10 +26,12 @@
 
 </script>
 
-<div>
-    <h1>Enter your one time passcode</h1>
-    <div>
-        <Pin length={6} onPinEntered={(pin: string) => { attemptVerification(pin) }} />
+<div class="p-4 flex flex-col gap-4">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-md font-medium">Enter your one time passcode</h1>
+        <div>
+            <Pin length={6} onPinEntered={(pin: string) => { attemptVerification(pin) }} />
+        </div>
     </div>
     <Button label="Back" onclick={onBack} />
 </div>
