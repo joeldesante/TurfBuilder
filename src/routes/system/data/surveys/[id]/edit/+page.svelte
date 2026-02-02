@@ -157,7 +157,7 @@
 </script>
 
 {#if unsavedChanges == true }
-    <div class="flex justify-between p-4 bg-gray-100 border-1 fadeInAndUp rounded absolute bottom-0 left-0 right-0 m-4 shadow-lg">
+    <div class="flex justify-between p-4 bg-gray-100 border fadeInAndUp rounded absolute bottom-0 left-0 right-0 m-4 shadow-lg">
         <p class="font-medium">You have unsaved changes</p>
         <button onclick={saveChanges}>Save Changes</button>
     </div>

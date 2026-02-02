@@ -33,6 +33,6 @@
 
 <div class="flex flex-row gap-2">
     {#each pin as _, index }
-        <input type="text" bind:value={pin[index]} oninput={(event) => { progressToNext(index, event.currentTarget.value) }} bind:this={inputRefs[index]} inputmode="numeric" maxlength="1" class="border-1 border-gray-500 rounded h-10 p-1 text-center aspect-square text-lg font-medium">
+        <input type="text" bind:value={pin[index]} oninput={(event) => { progressToNext(index, event.currentTarget.value) }} bind:this={inputRefs[index]} inputmode="numeric" maxlength="1" class="border border-outline rounded h-10 p-1 text-center aspect-square text-lg font-medium">
     {/each}
 </div>

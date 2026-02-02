@@ -1,5 +1,5 @@
-import type { Preview } from '@storybook/sveltekit'
-import '../src/routes/layout.css';
+import type { Preview } from '@storybook/sveltekit';
+import '../src/app.css';
 
 const preview: Preview = {
   parameters: {
@@ -10,6 +10,7 @@ const preview: Preview = {
       },
     },
   },
+  tags: ['autodocs'],      // TODO: make the autodoc page change theme along with the app
 };
 
 export default preview;
