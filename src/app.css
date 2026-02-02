@@ -1,1 +1,221 @@
 @import "tailwindcss";
+
+/* ==========================================================================
+   Theme uses Material 3 Color Roles, with a couple adjustments.
+   https://m3.material.io/styles/color/roles
+
+   Colors reference Tailwind's default palette.
+   Theme automatically switches based on OS preference.
+   ========================================================================== */
+
+@theme inline {
+	/* Primary */
+	--color-primary: var(--primary);
+	--color-on-primary: var(--on-primary);
+	--color-primary-container: var(--primary-container);
+	--color-on-primary-container: var(--on-primary-container);
+
+	/* Secondary */
+	--color-secondary: var(--secondary);
+	--color-on-secondary: var(--on-secondary);
+	--color-secondary-container: var(--secondary-container);
+	--color-on-secondary-container: var(--on-secondary-container);
+
+	/* Tertiary */
+	--color-tertiary: var(--tertiary);
+	--color-on-tertiary: var(--on-tertiary);
+	--color-tertiary-container: var(--tertiary-container);
+	--color-on-tertiary-container: var(--on-tertiary-container);
+
+	/* Error */
+	--color-error: var(--error);
+	--color-on-error: var(--on-error);
+	--color-error-container: var(--error-container);
+	--color-on-error-container: var(--on-error-container);
+
+	/* Success */
+	--color-success: var(--success);
+	--color-on-success: var(--on-success);
+	--color-success-container: var(--success-container);
+	--color-on-success-container: var(--on-success-container);
+
+	/* Warning */
+	--color-warning: var(--warning);
+	--color-on-warning: var(--on-warning);
+	--color-warning-container: var(--warning-container);
+	--color-on-warning-container: var(--on-warning-container);
+
+	/* Surface */
+	--color-surface: var(--surface);
+	--color-on-surface: var(--on-surface);
+	--color-surface-subtle: var(--surface-subtle);
+	--color-on-surface-subtle: var(--on-surface-subtle);
+	--color-surface-dim: var(--surface-dim);
+	--color-surface-bright: var(--surface-bright);
+	--color-surface-container-lowest: var(--surface-container-lowest);
+	--color-surface-container-low: var(--surface-container-low);
+	--color-surface-container: var(--surface-container);
+	--color-surface-container-high: var(--surface-container-high);
+	--color-surface-container-highest: var(--surface-container-highest);
+
+	/* Outline */
+	--color-outline: var(--outline);
+	--color-outline-subtle: var(--outline-subtle);
+
+	/* Inverse */
+	--color-inverse-surface: var(--inverse-surface);
+	--color-inverse-on-surface: var(--inverse-on-surface);
+	--color-inverse-primary: var(--inverse-primary);
+
+	/* Utility */
+	--color-scrim: var(--scrim);
+	--color-shadow: var(--shadow);
+}
+
+/* ==========================================================================
+   Light Theme (Default)
+   ========================================================================== */
+
+   /* TODO: replace the on-* colors to have better contrast */
+
+:root {
+	color-scheme: light dark;
+
+	/* Primary - Emerald */
+	--primary: var(--color-emerald-700);
+	--on-primary: var(--color-white);
+	--primary-container: var(--color-emerald-100);
+	--on-primary-container: var(--color-emerald-900);
+
+	/* Secondary - Slate */
+	--secondary: var(--color-slate-600);
+	--on-secondary: var(--color-white);
+	--secondary-container: var(--color-slate-100);
+	--on-secondary-container: var(--color-slate-900);
+
+	/* Tertiary - Teal */
+	--tertiary: var(--color-teal-600);
+	--on-tertiary: var(--color-white);
+	--tertiary-container: var(--color-teal-100);
+	--on-tertiary-container: var(--color-teal-900);
+
+	/* Error - Red */
+	--error: var(--color-red-600);
+	--on-error: var(--color-white);
+	--error-container: var(--color-red-100);
+	--on-error-container: var(--color-red-900);
+
+	/* Success - Green */
+	--success: var(--color-green-600);
+	--on-success: var(--color-white);
+	--success-container: var(--color-green-100);
+	--on-success-container: var(--color-green-900);
+
+	/* Warning - Amber */
+	--warning: var(--color-amber-600);
+	--on-warning: var(--color-white);
+	--warning-container: var(--color-amber-100);
+	--on-warning-container: var(--color-amber-900);
+
+	/* Surface - Zinc */
+	--surface: var(--color-zinc-50);
+	--on-surface: var(--color-zinc-900);
+	--surface-subtle: var(--color-zinc-100);
+	--on-surface-subtle: var(--color-zinc-600);
+	--surface-dim: var(--color-zinc-100);
+	--surface-bright: var(--color-white);
+	--surface-container-lowest: var(--color-white);
+	--surface-container-low: var(--color-zinc-50);
+	--surface-container: var(--color-zinc-100);
+	--surface-container-high: var(--color-zinc-200);
+	--surface-container-highest: var(--color-zinc-300);
+
+	/* Outline */
+	--outline: var(--color-zinc-400);
+	--outline-subtle: var(--color-zinc-200);
+
+	/* Inverse */
+	--inverse-surface: var(--color-zinc-800);
+	--inverse-on-surface: var(--color-zinc-100);
+	--inverse-primary: var(--color-emerald-300);
+
+	/* Utility */
+	--scrim: rgb(0 0 0 / 0.5);
+	--shadow: #000000;
+}
+
+/* ==========================================================================
+   Dark Theme
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		/* Primary - Emerald */
+		--primary: var(--color-emerald-500);
+		--on-primary: var(--color-emerald-950);
+		--primary-container: var(--color-emerald-900);
+		--on-primary-container: var(--color-emerald-100);
+
+		/* Secondary - Slate */
+		--secondary: var(--color-slate-300);
+		--on-secondary: var(--color-slate-900);
+		--secondary-container: var(--color-slate-800);
+		--on-secondary-container: var(--color-slate-100);
+
+		/* Tertiary - Teal */
+		--tertiary: var(--color-teal-300);
+		--on-tertiary: var(--color-teal-950);
+		--tertiary-container: var(--color-teal-900);
+		--on-tertiary-container: var(--color-teal-100);
+
+		/* Error - Red */
+		--error: var(--color-red-400);
+		--on-error: var(--color-red-950);
+		--error-container: var(--color-red-900);
+		--on-error-container: var(--color-red-100);
+
+		/* Success - Green */
+		--success: var(--color-green-400);
+		--on-success: var(--color-green-950);
+		--success-container: var(--color-green-900);
+		--on-success-container: var(--color-green-100);
+
+		/* Warning - Amber */
+		--warning: var(--color-amber-400);
+		--on-warning: var(--color-amber-950);
+		--warning-container: var(--color-amber-900);
+		--on-warning-container: var(--color-amber-100);
+
+		/* Surface - Zinc */
+		--surface: var(--color-zinc-900);
+		--on-surface: var(--color-zinc-100);
+		--surface-subtle: var(--color-zinc-800);
+		--on-surface-subtle: var(--color-zinc-400);
+		--surface-dim: var(--color-zinc-950);
+		--surface-bright: var(--color-zinc-800);
+		--surface-container-lowest: var(--color-zinc-950);
+		--surface-container-low: var(--color-zinc-900);
+		--surface-container: var(--color-zinc-800);
+		--surface-container-high: var(--color-zinc-800);
+		--surface-container-highest: var(--color-zinc-700);
+
+		/* Outline */
+		--outline: var(--color-zinc-500);
+		--outline-subtle: var(--color-zinc-700);
+
+		/* Inverse */
+		--inverse-surface: var(--color-zinc-100);
+		--inverse-on-surface: var(--color-zinc-800);
+		--inverse-primary: var(--color-emerald-700);
+	}
+}
+
+@layer base {
+    * {
+        @apply border-outline;
+    }
+
+    body {
+        @apply bg-surface text-on-surface;
+    }
+}

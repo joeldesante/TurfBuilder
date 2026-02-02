@@ -107,7 +107,7 @@
     <section class="p-4 flex flex-col gap-4">
         <div>
             <h4 class="text-lg font-medium">Notes:</h4>
-            <textarea class="border-gray-400 border-1 rounded p-1" placeholder="Any additional notes to share?" bind:value={ attemptNote }></textarea>
+            <textarea class="border-gray-400 border rounded p-1" placeholder="Any additional notes to share?" bind:value={ attemptNote }></textarea>
         </div>
     </section>
 
