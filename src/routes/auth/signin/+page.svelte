@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import Button from "$components/actions/button/Button.svelte";
   import { authClient } from "$lib/client";
 
   const { data } = $props();
@@ -60,14 +61,17 @@
     </div>
 
     <div class="mt-4">
-      <button type="submit" disabled={loading} class="cursor-pointer py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">
-        {loading ? "Signing in…" : "Sign In"}
-      </button>
+      <Button type="submit" disabled={loading} label={loading ? "Signing in…" : "Sign In"} />
     </div>
 
     {#if error}
       <p>{error}</p>
     {/if}
   </form>
+
+  <div class="flex flex-col items-center gap-4">
+    <p class="font-bold">OR</p>
+    <a class="underline text-blue-800" href="/auth/signup">Sign Up for an Account</a>
+  </div>
 
 </div>

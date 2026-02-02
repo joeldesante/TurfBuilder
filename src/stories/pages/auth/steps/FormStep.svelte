@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { authClient } from "$lib/client";
 	import { nanoid } from "nanoid";
-	import Button from "../../../../components/inputs/button/Button.svelte";
-	import Input from "../../../../components/inputs/input/Input.svelte";
+	import Button from "$components/actions/button/Button.svelte";
+	import Input from "$components/data-inputs/input/Input.svelte";
 
     interface Props {
         onComplete: (username: string, password: string) => Promise<void>
     }
 
-    let { onComplete = async (username: string, password: string) => {} } = $props();
+    let { onComplete = async (username: string, password: string) => {} }: Props = $props();
 
     let username = $state("");
     let password = $state("");
@@ -39,10 +39,10 @@
     }
 
 </script>
-<div class="flex flex-col gap-4">
+<div class="p-4 flex flex-col gap-4">
     <Input type="text" label="Username" bind:value={username} />
     <Input type="password" label="Password" bind:value={password} />
     <Input type="password" label="Confirm Password" bind:value={confirmPassword} />
-    <Button label="Sign In" onclick={onSubmit} />
+    <Button label="Sign Up" onclick={onSubmit} />
     <p>{errorMessage}</p>
 </div>
