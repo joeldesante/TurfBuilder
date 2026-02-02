@@ -7,6 +7,7 @@ import { getRequestEvent } from "$app/server";
 import { organization } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
 import { ac, userRole, fieldOrganizerRole, campaignManagerRole } from "$lib/permissions";
+import config from "$config";
 
 
 export const auth = betterAuth({
@@ -31,5 +32,8 @@ export const auth = betterAuth({
             defaultRole: 'user',
             adminRoles: ["fieldOrganizer", "campaignManager"],
         })
-    ]
+    ],
+    trustedOrigins: async (_) => {
+        return config.base_origins
+    },
 });

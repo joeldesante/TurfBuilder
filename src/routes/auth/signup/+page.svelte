@@ -8,4 +8,4 @@
 <svelte:head>
   <title>Sign Up | { data.config.application_name }</title>
 </svelte:head>
-<Signup />
+<Signup data={data} />

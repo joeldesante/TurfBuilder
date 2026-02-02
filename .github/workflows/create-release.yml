@@ -1,0 +1,72 @@
+name: Create CalVer Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  create-release:
+    # Only run if the PR was actually merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate CalVer version
+        id: calver
+        run: |
+          # Get current date components
+          YEAR=$(date +%y)
+          MONTH=$(date +%-m)
+          DAY=$(date +%-d)
+          
+          # Base version without micro
+          BASE_VERSION="${YEAR}.${MONTH}.${DAY}"
+          
+          # Fetch all tags
+          git fetch --tags
+          
+          # Find all tags matching today's date pattern
+          TODAY_TAGS=$(git tag -l "${BASE_VERSION}_*" | sort -V)
+          
+          # Calculate micro version
+          if [ -z "$TODAY_TAGS" ]; then
+            MICRO=0
+          else
+            # Get the last tag for today and extract the micro version
+            LAST_TAG=$(echo "$TODAY_TAGS" | tail -n 1)
+            LAST_MICRO=$(echo "$LAST_TAG" | cut -d'_' -f2)
+            MICRO=$((LAST_MICRO + 1))
+          fi
+          
+          # Create full version
+          VERSION="${BASE_VERSION}_${MICRO}"
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Generated version: ${VERSION}"
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.calver.outputs.version }}
+          release_name: ${{ steps.calver.outputs.version }}
+          body: |
+            ## Release ${{ steps.calver.outputs.version }}
+            
+            **Changes:**
+            Merged PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
+            
+            **Full Changelog:** ${{ github.event.pull_request.html_url }}
+          draft: false
+          prerelease: false

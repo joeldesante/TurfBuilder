@@ -3,8 +3,6 @@
     
     import { pwaInfo } from 'virtual:pwa-info';
     import { pwaAssetsHead } from 'virtual:pwa-assets/head';
-
-    console.log(pwaInfo, pwaAssetsHead)
     
     let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
     let { children, data } = $props();
