@@ -83,48 +83,48 @@
 
 	/* Primary - Emerald */
 	--primary: var(--color-emerald-700);
-	--on-primary: #ffffff;
+	--on-primary: var(--color-white);
 	--primary-container: var(--color-emerald-100);
 	--on-primary-container: var(--color-emerald-900);
 
 	/* Secondary - Slate */
 	--secondary: var(--color-slate-600);
-	--on-secondary: #ffffff;
+	--on-secondary: var(--color-white);
 	--secondary-container: var(--color-slate-100);
 	--on-secondary-container: var(--color-slate-900);
 
 	/* Tertiary - Teal */
 	--tertiary: var(--color-teal-600);
-	--on-tertiary: #ffffff;
+	--on-tertiary: var(--color-white);
 	--tertiary-container: var(--color-teal-100);
 	--on-tertiary-container: var(--color-teal-900);
 
 	/* Error - Red */
 	--error: var(--color-red-600);
-	--on-error: #ffffff;
+	--on-error: var(--color-white);
 	--error-container: var(--color-red-100);
 	--on-error-container: var(--color-red-900);
 
 	/* Success - Green */
 	--success: var(--color-green-600);
-	--on-success: #ffffff;
+	--on-success: var(--color-white);
 	--success-container: var(--color-green-100);
 	--on-success-container: var(--color-green-900);
 
 	/* Warning - Amber */
 	--warning: var(--color-amber-600);
-	--on-warning: #ffffff;
+	--on-warning: var(--color-white);
 	--warning-container: var(--color-amber-100);
 	--on-warning-container: var(--color-amber-900);
 
 	/* Surface - Zinc */
-	--surface: #ffffff;
+	--surface: var(--color-zinc-50);
 	--on-surface: var(--color-zinc-900);
 	--surface-subtle: var(--color-zinc-100);
 	--on-surface-subtle: var(--color-zinc-600);
 	--surface-dim: var(--color-zinc-100);
-	--surface-bright: #ffffff;
-	--surface-container-lowest: #ffffff;
+	--surface-bright: var(--color-white);
+	--surface-container-lowest: var(--color-white);
 	--surface-container-low: var(--color-zinc-50);
 	--surface-container: var(--color-zinc-100);
 	--surface-container-high: var(--color-zinc-200);
