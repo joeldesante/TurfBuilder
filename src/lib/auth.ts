@@ -36,4 +36,9 @@ export const auth = betterAuth({
     trustedOrigins: async (_) => {
         return config.base_origins
     },
+    advanced: {
+        database: {
+            generateId: false
+        }
+    }
 });
