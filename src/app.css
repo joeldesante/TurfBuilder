@@ -82,7 +82,7 @@
 	color-scheme: light dark;
 
 	/* Primary - Emerald */
-	--primary: var(--color-emerald-600);
+	--primary: var(--color-emerald-700);
 	--on-primary: #ffffff;
 	--primary-container: var(--color-emerald-100);
 	--on-primary-container: var(--color-emerald-900);
@@ -151,7 +151,7 @@
 @media (prefers-color-scheme: dark) {
 	:root {
 		/* Primary - Emerald */
-		--primary: var(--color-emerald-400);
+		--primary: var(--color-emerald-500);
 		--on-primary: var(--color-emerald-950);
 		--primary-container: var(--color-emerald-900);
 		--on-primary-container: var(--color-emerald-100);
