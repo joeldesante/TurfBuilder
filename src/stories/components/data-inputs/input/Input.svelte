@@ -6,5 +6,5 @@
     {#if label != "" }
         <label for="input">{ label }</label>
     {/if}
-    <input class="border-1 border-gray-500 rounded" id="input" bind:value={value} {...props} />
+    <input class="border border-outline rounded" id="input" bind:value={value} {...props} />
 </div>

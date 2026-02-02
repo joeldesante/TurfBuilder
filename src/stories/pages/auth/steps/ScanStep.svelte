@@ -14,8 +14,8 @@
     <Qrcode uri={totpUri} />
     <div class="flex flex-col gap-2">
         <p>You may also copy/paste the following code into your Two Factor Authentication app.</p>
-        <a target="_blank" class="underline text-blue-800" href="https://duo.com/product/multi-factor-authentication-mfa/duo-mobile-app#download-duo-mobile">DUO Mobile is our recommended authentication app.</a>
-        <p class="p-2 rounded bg-gray-200 text-nowrap overflow-y-scroll">
+        <a target="_blank" class="underline text-primary" href="https://duo.com/product/multi-factor-authentication-mfa/duo-mobile-app#download-duo-mobile">DUO Mobile is our recommended authentication app.</a>
+        <p class="p-2 rounded bg-surface-container text-on-surface-subtle text-nowrap overflow-y-scroll">
             { totpUri }
         </p>
     </div>
