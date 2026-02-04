@@ -69,3 +69,29 @@ Assuming everything worked as expected you should be able to access the applicat
 - Sign in: `/auth/signin`
 - Sign up: `/auth/signup`
 - Admin Dashboard: `/system`
+
+
+----
+
+## Credits
+
+### Developers
+> **Joel DeSante** - Engineer
+> - Responsible for implementing the core functionality of the application.
+>
+> [**View LinkedIn**](https://linkedin.com/in/joeldesante)
+
+### Artists
+
+> **Hillary Hersh** - Logo Designer
+> - Designed the TurfBuilder logos and favicons.
+
+### Quality Assurance
+> **Tealight** - QA
+> - Managed the Quality Assurance and beta testing of the software during intial testing phases.
+>
+> [**View LinkedIn**](#)
+
+
+
+
