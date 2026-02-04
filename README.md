@@ -81,10 +81,18 @@ Assuming everything worked as expected you should be able to access the applicat
 >
 > [**View LinkedIn**](https://linkedin.com/in/joeldesante)
 
+### UI/UX
+> **Chloe Atchue-Mamlet** - UI/UX
+> - Responsible for making core decisions regarding the direction of the applications UI/UX 
+>
+> [**View LinkedIn**](https://www.linkedin.com/in/chloeam/) - [**View Portfolio**](https://www.chloeam.com/)
+
 ### Artists
 
 > **Hillary Hersh** - Logo Designer
 > - Designed the TurfBuilder logos and favicons.
+> 
+> [**View LinkedIn**](#)
 
 ### Quality Assurance
 > **Tealight** - QA
