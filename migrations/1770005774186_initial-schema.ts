@@ -1,17 +1,17 @@
-import { ColumnDefinitions, MigrationBuilder, PgLiteral } from 'node-pg-migrate';
+import type { ColumnDefinitions, MigrationBuilder } from 'node-pg-migrate';
+import { PgLiteral } from 'node-pg-migrate';
 
 export const shorthands: ColumnDefinitions = {
     id: {
-        type: 'bigint',
+        type: 'uuid',
+        notNull: true,
         primaryKey: true,
-        sequenceGenerated: {
-            precedence: 'BY DEFAULT',
-        },
+        default: new PgLiteral('gen_random_uuid()'), 
     },
-    timeStamp: {
+    time_stamp: {
         type: 'timestamp',
         notNull: true,
-        default: new PgLiteral('current_timestamp'),
+        default: new PgLiteral('now()'),
     },
 };
 
@@ -19,11 +19,12 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     pgm.createExtension([
         "postgis",
         "postgis_topology"
-    ])
+    ], { ifNotExists: true })
 
     pgm.createFunction("update_geometry", [], {
         returns: "trigger",
-        language: "plpgsql"
+        language: "plpgsql",
+        replace: true
     }, `
         BEGIN
             NEW.geom = ST_SetSRID(
@@ -34,84 +35,172 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
         END;
     `)
 
+    pgm.createSchema('auth', {
+        ifNotExists: true
+    })
+
     // Users
     pgm.createTable({ schema: 'auth', name: 'user' }, {
         id: 'id',
         name: { type: 'text', notNull: true },
-        email: { type: 'text', notNull: true },
-        emailVerified: { type: 'boolean', notNull: true },
+        username: { type: 'text', notNull: true, unique: true },
+        display_username: { type: 'text', notNull: true },
+        email: { type: 'text', notNull: true, unique: true },
+        email_verified: { type: 'boolean', notNull: true },
         image: "text",
-        createdAt: "timeStamp",
-        updatedAt: "timeStamp"
+        two_factor_enabled: 'boolean',
+        role: 'text',
+        banned: 'boolean',
+        ban_reason: 'text',
+        ban_expires: { type: 'timestamp' },
+        impersonated_by: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'user' },
+            onDelete: 'SET NULL',
+            onUpdate: 'CASCADE'
+        },
+        created_at: "time_stamp",
+        updated_at: "time_stamp"
+    })
+
+    // Account
+    pgm.createTable({ schema: 'auth', name: 'account' }, {
+        id: 'id',
+        user_id: {
+            type: 'uuid',
+            notNull: true,
+            references: { schema: 'auth', name: 'user' },
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        },
+        account_id: { type: 'text', notNull: true },
+        provider_id: { type: 'text', notNull: true },
+        access_token: 'text',
+        refresh_token: 'text',
+        access_token_expires_at: { type: 'timestamp' },
+        refresh_token_expires_at: { type: 'timestamp' },
+        scope: 'text',
+        id_token: 'text',
+        password: 'text',
+        created_at: "time_stamp",
+        updated_at: "time_stamp"
+    })
+
+    pgm.createConstraint({ schema: 'auth', name: 'account' }, 'account_provider_account_unique', {
+        unique: ['provider_id', 'account_id']
+    })
+
+    // Verification
+    pgm.createTable({ schema: 'auth', name: 'verification' }, {
+        id: 'id',
+        identifier: { type: 'text', notNull: true },
+        value: { type: 'text', notNull: true },
+        expires_at: 'time_stamp',
+        created_at: "time_stamp",
+        updated_at: "time_stamp"
+    })
+
+    // Two Factor
+    pgm.createTable({ schema: 'auth', name: 'two_factor' }, {
+        id: 'id',
+        user_id: {
+            type: 'uuid',
+            notNull: true,
+            references: { schema: 'auth', name: 'user' },
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        },
+        secret: 'text',
+        backup_codes: 'text'
+    });
+
+    // Organization
+    pgm.createTable({ schema: 'auth', name: 'organization' }, {
+        id: 'id',
+        name: { type: 'text', notNull: true },
+        slug: { type: 'text', notNull: true, unique: true },
+        logo: { type: 'text' },
+        metadata: { type: 'text' },
+        created_at: 'time_stamp'
     })
 
     // Session
     pgm.createTable({ schema: 'auth', name: 'session' }, {
         id: 'id',
-        userId: {
-            type: 'bigint',
+        user_id: {
+            type: 'uuid',
             notNull: true,
-            references: 'user',
+            references: { schema: 'auth', name: 'user' },
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         },
-        token: { type: 'text', notNull: true },
-        expiresAt: 'timeStamp',
-        ipAddress: "text",
-        userAgent: "text",
-        createdAt: "timeStamp",
-        updatedAt: "timeStamp"
-    })
-
-    // Account
-    pgm.createTable('account', {
-        id: 'id',
-        userId: {
-            type: 'bigint',
-            notNull: true,
-            references: 'user',
+        token: { type: 'text', notNull: true, unique: true },
+        ip_address: "text",
+        user_agent: "text",
+        active_organization_id: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'organization' },
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         },
-        accountId: { type: 'text', notNull: true },
-        providerId: { type: 'text', notNull: true },
-        accessToken: 'text',
-        refreshToken: 'text',
-        accessTokenExpiresAt: { type: 'timestamp' },
-        refreshTokenExpiresAt: { type: 'timestamp' },
-        scope: 'text',
-        idToken: 'text',
-        password: 'text',
-        createdAt: "timeStamp",
-        updatedAt: "timeStamp"
+        expires_at: 'time_stamp',
+        created_at: "time_stamp",
+        updated_at: "time_stamp"
     })
-
-    // Verification
-    pgm.createTable('verification', {
-        id: 'id',
-        identifier: { type: 'text', notNull: true },
-        value: { type: 'text', notNull: true },
-        expiresAt: 'timeStamp',
-        createdAt: "timeStamp",
-        updatedAt: "timeStamp"
-    })
-
-    // Two Factor
 
     // Invitation
-
-    // Organization
+    pgm.createTable({ schema: 'auth', name: 'invitation' }, {
+        id: 'id',
+        email: { type: 'text', notNull: true },
+        inviter_id: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'user' },
+            notNull: true,
+            onUpdate: 'CASCADE',
+            onDelete: 'CASCADE'
+        },
+        organization_id: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'organization' },
+            notNull: true,
+            onUpdate: 'CASCADE',
+            onDelete: 'CASCADE'
+        },
+        role: { type: 'text' },
+        status: { type: 'text' },
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
+    })
 
     // Member (of the org)
+    pgm.createTable({ schema: 'auth', name: 'member' }, {
+        id: 'id',
+        user_id: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'user' },
+            notNull: true,
+            onUpdate: 'CASCADE',
+            onDelete: 'CASCADE'
+        },
+        organization_id: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'organization' },
+            notNull: true,
+            onUpdate: 'CASCADE',
+            onDelete: 'CASCADE'
+        },
+        role: { type: 'text', notNull: true },
+        created_at: 'time_stamp'
+    })
 
-    // Spacial Ref Sys (maybe auto gen by postgis??)
-
-    // Verification
+    pgm.createConstraint({ schema: 'auth', name: 'member' }, 'member_user_org_unique', {
+        unique: ['user_id', 'organization_id']
+    })
 
     // Locations
     pgm.createTable("location", {
         id: 'id',
-        locationName: 'text',
+        location_name: 'text',
         category: 'text',
         confidence: 'text',
         street: 'text',
@@ -122,9 +211,9 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
         latitude: { type: 'numeric(10, 8)', notNull: true },
         longitude: { type: 'numeric(11, 8)', notNull: true },
         geom: { type: 'geometry(point, 4326)' },
-        createdAt: 'timeStamp',
-        updatedAt: 'timeStamp'
-    })
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
+    });
 
     pgm.createIndex('location', 'category', {
         name: 'locations_category_idx'
@@ -153,39 +242,42 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     // Location Attempt
     pgm.createTable('location_attempt', {
         id: 'id',
-        turfLocation_id: {
-            type: 'bigint',
+        turf_location_id: {
+            type: 'uuid',
             references: 'location',
+            notNull: true,
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         },
         user_id: {
-            type: 'text',
+            type: 'uuid',
             references: { schema: 'auth', name: 'user' },
+            notNull: true,
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         },
         attempt_note: 'text',
         contact_made: 'boolean',
-        created_at: 'timeStamp',
-        updated_at: 'timeStamp'
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
     })
 
     // Surveys
     pgm.createTable('survey', {
         id: 'id',
         name: { type: 'text', notNull: true },
-        decription: 'text',
-        created_at: 'timeStamp',
-        updated_at: 'timeStamp',
+        description: 'text',
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp',
     })
 
     // Survey Questions
     pgm.createTable('survey_question', {
         id: 'id',
         survey_id: {
-            type: 'bigint',
+            type: 'uuid',
             references: 'survey',
+            notNull: true,
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         },
@@ -196,8 +288,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
             default: 0,
             notNull: true
         },
-        created_at: 'timeStamp',
-        updated_at: 'timeStamp'
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
     })
 
     // Survey Question Response
