@@ -4,6 +4,8 @@ export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
 
+    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'staging') { return; }   // Ignore me in production!
+
     pgm.addConstraint('location', 'location_name_unique', {
         unique: [ 'location_name' ]
     })
