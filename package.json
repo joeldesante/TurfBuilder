@@ -19,8 +19,8 @@
     "format": "prettier --write .",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
-    "db:build": "node ./.schema/.script/index.cjs ./.schema",
-    "db": "node-pg-migrate -j ts"
+    "db": "NODE_ENV=development node-pg-migrate -j ts",
+    "db:prod": "NODE_ENV=production node-pg-migrate -j ts"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.3",
