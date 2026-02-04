@@ -1,9 +1,9 @@
-import { ColumnDefinitions, MigrationBuilder } from 'node-pg-migrate';
+import type { ColumnDefinitions, MigrationBuilder } from 'node-pg-migrate';
 
 export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
-    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'staging') { return; }   // Ignore me in production!
+    if (process.env.NODE_ENV !== 'development') { return; }   // Ignore me in production!
 
     // Create a fake superuser
     pgm.sql(`
@@ -49,17 +49,15 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     // Add survey questions
     pgm.sql(`
         INSERT INTO public.survey_question
-            (id, survey_id, question_text, question_type, order_index, created_at, updated_at)
-            VALUES('74872073-da3d-418e-8c5d-bc2287c2d505'::uuid, '16c94ebc-d422-4769-9beb-deb03a8dfbe3'::uuid, 'Do you support the <cause> we are canvassing for?', 'radio', 0, '2026-02-04 17:34:26.886', '2026-02-04 17:34:26.886');
+        (id, survey_id, question_text, question_type, order_index, choices, created_at, updated_at)
+        VALUES('74872073-da3d-418e-8c5d-bc2287c2d505'::uuid, '16c94ebc-d422-4769-9beb-deb03a8dfbe3'::uuid, 'Do you support the <cause> we are canvassing for?', 'radio', 0, '{Yes,No}', '2026-02-04 17:34:26.886', '2026-02-04 17:34:26.886');
         INSERT INTO public.survey_question
-            (id, survey_id, question_text, question_type, order_index, created_at, updated_at)
-            VALUES('637f8ff6-a6ee-494c-9cf4-de02249f16ef'::uuid, '16c94ebc-d422-4769-9beb-deb03a8dfbe3'::uuid, 'What is your opinion on the current state of affairs?', 'text', 1, '2026-02-04 17:36:32.564', '2026-02-04 17:36:32.564');
+        (id, survey_id, question_text, question_type, order_index, choices, created_at, updated_at)
+        VALUES('637f8ff6-a6ee-494c-9cf4-de02249f16ef'::uuid, '16c94ebc-d422-4769-9beb-deb03a8dfbe3'::uuid, 'What is your opinion on the current state of affairs?', 'text', 1, '{}', '2026-02-04 17:36:32.564', '2026-02-04 17:36:32.564');
         INSERT INTO public.survey_question
-            (id, survey_id, question_text, question_type, order_index, created_at, updated_at)
-            VALUES('14e4a5ce-7f63-4caa-b9f5-a377210ebb0b'::uuid, '16c94ebc-d422-4769-9beb-deb03a8dfbe3'::uuid, 'What reasons are you inclined to support our cause?', 'check', 2, '2026-02-04 17:36:32.589', '2026-02-04 17:36:32.589');
+        (id, survey_id, question_text, question_type, order_index, choices, created_at, updated_at)
+        VALUES('14e4a5ce-7f63-4caa-b9f5-a377210ebb0b'::uuid, '16c94ebc-d422-4769-9beb-deb03a8dfbe3'::uuid, 'What reasons are you inclined to support our cause?', 'check', 2, '{"I like you","Tired and looking for a change","I think things need more cowbell"}', '2026-02-04 17:36:32.589', '2026-02-04 17:36:32.589');
     `);
-
-    // Add survey responses.
 
 }
 
