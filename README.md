@@ -91,14 +91,10 @@ Assuming everything worked as expected you should be able to access the applicat
 
 > **Hillary Hersh** - Logo Designer
 > - Designed the TurfBuilder logos and favicons.
-> 
-> [**View LinkedIn**](#)
 
 ### Quality Assurance
 > **Tealight** - QA
 > - Managed the Quality Assurance and beta testing of the software during intial testing phases.
->
-> [**View LinkedIn**](#)
 
 
 
