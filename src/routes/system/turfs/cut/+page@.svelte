@@ -1,7 +1,7 @@
 <script lang="ts">
     type Location = {
         id: number;
-        loc_name: string;
+        location_name: string;
         category: string | null;
         latitude: number;
         longitude: number;
@@ -44,7 +44,7 @@
 
             const marker = new maplibregl.Marker()
                 .setLngLat([loc.longitude, loc.latitude])
-                .setPopup(new maplibregl.Popup().setText(loc.loc_name))
+                .setPopup(new maplibregl.Popup().setText(loc.location_name))
                 .addTo(map);
 
             markers.push(marker);
