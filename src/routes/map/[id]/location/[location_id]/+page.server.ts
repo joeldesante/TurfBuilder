@@ -35,13 +35,13 @@ export async function load({ locals, params, fetch }) {
         const surveyId = surveyResult.rows[0].survey_id;        // NOTE: surveyId may be null!
 
         const location = await client.query(
-            `SELECT loc_name, street, locality, postcode, region FROM location WHERE id = $1`,
+            `SELECT location_name, street, locality, postcode, region FROM location WHERE id = $1`,
             [ locationId ]
         )
 
         // 2. From the survey id, get all of the survey questions
         const questionsResult = await client.query(
-            `SELECT id, question_text, question_type, question_choices, order_index, question_choices
+            `SELECT id, question_text, question_type, order_index, choices
             FROM survey_question
             WHERE survey_id = $1 
             ORDER BY order_index ASC`,
@@ -58,7 +58,7 @@ export async function load({ locals, params, fetch }) {
         const turfLocationId = turfLocationResult.rows[0].id
 
         const locationAttemptResult = await client.query(
-            `INSERT INTO location_attempt (turf_location_id, user_id)
+            `INSERT INTO turf_location_attempt (turf_location_id, user_id)
             VALUES ($1, $2)
             ON CONFLICT (turf_location_id, user_id) 
             DO UPDATE SET updated_at = NOW()
@@ -74,7 +74,7 @@ export async function load({ locals, params, fetch }) {
             const responsesResult = await client.query(
                 `SELECT survey_question_id, response_value, created_at
                 FROM survey_question_response 
-                WHERE location_attempt_id = $1 
+                WHERE turf_location_attempt_id = $1 
                 AND survey_question_id = ANY($2)`,
                 [locationAttempt.id, questionIds]
             );
