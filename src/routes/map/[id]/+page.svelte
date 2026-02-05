@@ -1,7 +1,7 @@
 <script lang="ts">
     type Location = {
         id: number;
-        loc_name: string;
+        location_name: string;
         category: string | null;
         latitude: number;
         longitude: number;
@@ -125,7 +125,7 @@
     {#if showPanel }
         <div class="panel flex flex-col gap-2">
             <div class="flex justify-between items-start">
-                <h3>{ selectedLocation?.loc_name }</h3>
+                <h3>{ selectedLocation?.location_name }</h3>
                 <button class="cursor-pointer" aria-label="close" onclick={() => { closePanel() }}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
                         <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
