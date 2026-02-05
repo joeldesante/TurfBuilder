@@ -20,49 +20,45 @@ To use Docker on your personal device, you will need to install [Docker Desktop]
 Find the `.env.example` file and rename it to `.env`.
 These environment variables will only impact the following database setup steps. Variables affecting your docker dev enviorment can be found in `docker-compose.yml`.
 
-### 3. Start the application
+### 3. Locally install dependancies
+Run `npm install` to locally install your dependancies.
+
+### 4. Start the application
 Via your prefered command line interface, navigate to root the directory where the source code lives. Then run the following command to start the application.
 
 ```
-docker compose up
+docker compose up --build
 ```
 
-Alternativly, sometimes you miay need to run this instead:
+Alternativly, sometimes you miy need to run this instead:
 ```
-docker-compose up
-```
-
-### 4. Setup your database
-
-First, run:
-```
-npm install
+docker-compose up --build
 ```
 
-Then,
+### 5. Setup your database
+
 ```
-npx @better-auth/cli generate
+npm run db up
 ```
 
-Then, run:
-```
-npx @better-auth/cli migrate
-```
+Assuming your `.env` is properly setup, meaning it has the `DATABASE_URL` value set. It should generate all of the tables required for the application along with the required seed data.
 
-Assuming your `.env` is properly setup, meaning it has the `DATABASE_URL` value set. It should generate the first set of tables required for the authentication component of this application.
-
-#### Next,
-We now need to set up the remainder of the schema.
-
-While your docker containers are running, execute the command
-```
-npm run db:build
-```
-in your terminal.
+Make sure your database container is currently running.
 
 
 ### 5. Done!
 Assuming everything worked as expected you should be able to access the application at [http://localhost:5173](http://localhost:5173)
+
+
+## Updating the database
+
+After installing, if you need to update the database schema, you may do soby running the 
+
+```
+npm run db up
+```
+
+command at anytime. It will automatically detect what changes have been made and then apply said changes to your database.
 
 
 ## Key URLs
