@@ -54,7 +54,7 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DOKKU_HOST }}
-          username: root
+          username: dokku
           key: ${{ secrets.DOKKU_SSH_PRIVATE_KEY }}
           script: |
-            dokku git:from-image deice ghcr.io/${{ github.repository_owner }}/deice:development
+            git:from-image deice ghcr.io/${{ github.repository_owner }}/deice:development
