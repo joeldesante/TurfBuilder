@@ -14,7 +14,7 @@ export async function POST({ request, fetch, locals }) {
     }
     
     const { code } = await request.json();
-    if (!code || typeof code !== "string" || code.length !== 12) {
+    if (!code || typeof code !== "string" || code.length !== 6) {
         return new Response("Invalid code format.", { status: 400 });
     }
 

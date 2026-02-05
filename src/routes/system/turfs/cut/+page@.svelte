@@ -32,7 +32,6 @@
             `lat_min=${bounds.getSouth()}&lat_max=${bounds.getNorth()}` +
             `&lon_min=${bounds.getWest()}&lon_max=${bounds.getEast()}`);
         locations = await response.json();
-        console.log('Loaded locations:', locations);
 
         // Remove old markers first if you keep them in an array
         if (markers) {

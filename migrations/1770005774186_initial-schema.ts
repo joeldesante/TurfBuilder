@@ -197,6 +197,65 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
         unique: ['user_id', 'organization_id']
     })
 
+    // Surveys
+    pgm.createTable('survey', {
+        id: 'id',
+        name: { type: 'text', notNull: true },
+        description: 'text',
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp',
+    })
+
+    // Survey Questions
+    pgm.createTable('survey_question', {
+        id: 'id',
+        survey_id: {
+            type: 'uuid',
+            references: 'survey',
+            notNull: true,
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        },
+        question_text: { type: 'text', notNull: true },
+        question_type: { type: 'text', notNull: true },
+        order_index: {
+            type: 'integer',
+            default: 0,
+            notNull: true
+        },
+        choices: {
+            type: 'text[]',
+            notNull: true,
+            default: pgm.func('ARRAY[]::text[]')
+        },
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
+    })
+
+    // Turf
+    pgm.createTable('turf', {
+        id: 'id',
+        code: { type: 'text', notNull: true, unique: true },
+        author_id: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'user' },
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
+            notNull: true
+        },
+        survey_id: {
+            type: 'uuid',
+            references: 'survey',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
+            notNull: true
+        },
+        bounds: { type: 'geometry' },
+        expires_at: 'time_stamp',
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
+    });
+
     // Locations
     pgm.createTable("location", {
         id: 'id',
@@ -239,114 +298,6 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
         level: 'ROW',
     });
 
-    // Location Attempt
-    pgm.createTable('location_attempt', {
-        id: 'id',
-        turf_location_id: {
-            type: 'uuid',
-            references: 'location',
-            notNull: true,
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        },
-        user_id: {
-            type: 'uuid',
-            references: { schema: 'auth', name: 'user' },
-            notNull: true,
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        },
-        attempt_note: 'text',
-        contact_made: 'boolean',
-        created_at: 'time_stamp',
-        updated_at: 'time_stamp'
-    })
-
-    // Surveys
-    pgm.createTable('survey', {
-        id: 'id',
-        name: { type: 'text', notNull: true },
-        description: 'text',
-        created_at: 'time_stamp',
-        updated_at: 'time_stamp',
-    })
-
-    // Survey Questions
-    pgm.createTable('survey_question', {
-        id: 'id',
-        survey_id: {
-            type: 'uuid',
-            references: 'survey',
-            notNull: true,
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        },
-        question_text: { type: 'text', notNull: true },
-        question_type: { type: 'text', notNull: true },
-        order_index: {
-            type: 'integer',
-            default: 0,
-            notNull: true
-        },
-        choices: {
-            type: 'text[]',
-            notNull: true,
-            default: pgm.func('ARRAY[]::text[]')
-        },
-        created_at: 'time_stamp',
-        updated_at: 'time_stamp'
-    })
-
-    // Survey Question Response
-    pgm.createTable('survey_question_response', {
-        id: 'id',
-        response_value: 'text',
-        survey_question_id: {
-            type: 'uuid',
-            references: 'survey_question',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE',
-            notNull: true
-        },
-        location_attempt_id: {
-            type: 'uuid',
-            references: 'location_attempt',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE',
-            notNull: true
-        },
-        created_at: 'time_stamp',
-        updated_at: 'time_stamp'
-    });
-
-    pgm.addConstraint('survey_question_response', 'survey_question_response_unique', {
-        unique: [ 'survey_question_id', 'location_attempt_id' ]
-    });
-
-    // Turf
-    pgm.createTable('turf', {
-        id: 'id',
-        code: { type: 'text', notNull: true, unique: true },
-        author_id: {
-            type: 'uuid',
-            references: { schema: 'auth', name: 'user' },
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE',
-            notNull: true
-        },
-        survey_id: {
-            type: 'uuid',
-            references: 'survey',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE',
-            notNull: true
-        },
-        bounds: { type: 'geometry' },
-        expires_at: 'time_stamp',
-        created_at: 'time_stamp',
-        updated_at: 'time_stamp'
-    });
-
     // Turf Location
     pgm.createTable('turf_location', {
         id: 'id',
@@ -370,6 +321,59 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     pgm.addConstraint('turf_location', 'turf_locations_turf_id_location_id_key', {
         unique: [ 'turf_id', 'location_id' ]
     })
+
+    // Location Attempt (MOVED HERE - before survey_question_response)
+    pgm.createTable('turf_location_attempt', {
+        id: 'id',
+        turf_location_id: {
+            type: 'uuid',
+            references: 'turf_location',
+            notNull: true,
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        },
+        user_id: {
+            type: 'uuid',
+            references: { schema: 'auth', name: 'user' },
+            notNull: true,
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        },
+        attempt_note: 'text',
+        contact_made: 'boolean',
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
+    })
+
+    pgm.addConstraint('turf_location_attempt', 'turf_location_user_unique', {
+        unique: [ 'turf_location_id', 'user_id' ]
+    });
+
+    // Survey Question Response (MOVED HERE - after turf_location_attempt)
+    pgm.createTable('survey_question_response', {
+        id: 'id',
+        response_value: 'text',
+        survey_question_id: {
+            type: 'uuid',
+            references: 'survey_question',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
+            notNull: true
+        },
+        turf_location_attempt_id: {
+            type: 'uuid',
+            references: 'turf_location_attempt',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
+            notNull: true
+        },
+        created_at: 'time_stamp',
+        updated_at: 'time_stamp'
+    });
+
+    pgm.addConstraint('survey_question_response', 'survey_question_response_unique', {
+        unique: [ 'survey_question_id', 'turf_location_attempt_id' ]
+    });
 
     // Turf User
     pgm.createTable('turf_user', {

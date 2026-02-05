@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
-
     interface SurveyQuestion {
         db_id: number,
         type: string,
@@ -16,10 +15,10 @@
     let attemptNote = $state(data.locationAttempt.attempt_note)
     let questions: SurveyQuestion[] = $state(data.questions.map((q) => {
         return {
-            db_id: parseInt(q.id),
+            db_id: q.id,
             type: q.question_type,
             text: q.question_text,
-            choices: q.question_choices,
+            choices: q.choices,
             index: parseInt(q.order_index),
             response: data.responses.filter((response) => { 
                 return response.survey_question_id == q.id ? response : "" })[0]?.response_value || ""
@@ -33,10 +32,13 @@
 
     async function saveAttempt() {
         // Save the attempt then redirect to the map...
+
+
+
         const r = await fetch(`/api/surveys/${data.surveyId}/attempts/${data.locationAttempt.id}/`, {
             method: "POST",
             body: JSON.stringify({
-                turf_id: parseInt(data.turfId),
+                turf_id: data.turfId,
                 contactMade: contactMade,
                 attemptNote: attemptNote,
                 questions: questions
@@ -90,7 +92,14 @@
                         {:else if question.type == 'check' }
                             {#each question.choices as choice }
                                 <label>
-                                    <input type="checkbox" name={`check_${index}`} value={choice} checked={ question.response.split(',').find((c) => c == choice) != undefined }>
+                                    <input onchange={(e) => {
+                                        const currentResponses = question.response ? question.response.split(',').filter(r => r) : [];
+                                        if (e.currentTarget.checked) {
+                                            updateQuestionResponse(index, [...currentResponses, choice].join(','));
+                                        } else {
+                                            updateQuestionResponse(index, currentResponses.filter(c => c !== choice).join(','));
+                                        }
+                                    }} type="checkbox" name={`check_${index}`} value={choice} checked={ question.response.split(',').find((c) => c == choice) != undefined }>
                                     { choice }
                                 </label>
                             {/each}
