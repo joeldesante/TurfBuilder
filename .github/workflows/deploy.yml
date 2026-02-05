@@ -32,9 +32,9 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/deice:development
+            ghcr.io/${{ github.repository_owner }}/deice:latest
             ghcr.io/${{ github.repository_owner }}/deice:${{ github.sha }}
-          target: development 
+          target: production 
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

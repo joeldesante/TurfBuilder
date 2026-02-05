@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --omit dev
 
 # Copy source code and build
 COPY . .
@@ -24,10 +24,10 @@ COPY . .
 ENV NODE_ENV=development
 
 # Expose Vite dev server port
-EXPOSE 3000
+EXPOSE 5173
 
 # Start dev server with host binding
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # --- Production stage ---
 FROM node:22-alpine AS production
@@ -39,7 +39,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY package.json .
 
 # Set environment variables
-ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
