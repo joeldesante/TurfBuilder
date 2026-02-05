@@ -37,6 +37,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
             NULL, 
             NULL
         );
+        INSERT INTO auth.account (id, user_id, account_id, provider_id, access_token, refresh_token, access_token_expires_at, refresh_token_expires_at, "scope", id_token, "password", created_at, updated_at) VALUES('fb4bca38-cbb9-4d89-bf03-a93d34ee7b2f'::uuid, 'bf2ae2f9-a2db-4516-9c52-3510cfa8f50c'::uuid, 'c02e537c-8088-4ded-9921-9a2e0b906385', 'credential', NULL, NULL, NULL, NULL, NULL, NULL, '1362c96c1412f019d163628166429a18:0393f2ca4c33e193cfc9334f6f7e8b0f2b7e8496a89bc52ead51787fafacbe2d8dd71ee09def48d86c036d39921e9b007426ced68378928e82857331a769956a', '2026-02-04 23:21:57.746', '2026-02-04 23:21:57.746');
     `);
 
     // Create a dummy survey
