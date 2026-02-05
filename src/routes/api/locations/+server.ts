@@ -18,11 +18,11 @@ export const GET: RequestHandler = async ({ url }) => {
             `WITH viewport AS (
                 SELECT ST_MakeEnvelope($1, $2, $3, $4, 4326) AS geom
             )
-            SELECT id, loc_name, category, latitude, longitude, street, locality, postcode, region, country
+            SELECT id, location_name, category, latitude, longitude, street, locality, postcode, region, country
             FROM location l
             JOIN viewport v
               ON l.geom && v.geom
-            ORDER BY loc_name
+            ORDER BY location_name
             LIMIT 500;`,  // optional limit for performance
             [lon_min, lat_min, lon_max, lat_max]
         );

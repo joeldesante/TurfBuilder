@@ -22,8 +22,8 @@
         error = "";
 
         code = code.toUpperCase();
-        if(code.length !== 12) {
-            error = "Code must be twelve characters long."
+        if(code.length !== 6) {
+            error = "Code must be six characters long."
             return;
         }
 
