@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy and install dependencies
 COPY package*.json ./
-RUN npm ci --omit dev
+RUN npm ci
 
 # Copy source code and build
 COPY . .
@@ -35,8 +35,9 @@ WORKDIR /app
 
 # Copy the build output and node_modules from builder
 COPY --from=builder /app/build ./build
-COPY --from=builder /app/node_modules ./node_modules
-COPY package.json .
+COPY package*.json .
+
+RUN npm ci --omit dev
 
 # Set environment variables
 ENV HOST=0.0.0.0
