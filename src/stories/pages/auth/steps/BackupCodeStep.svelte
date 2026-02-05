@@ -16,13 +16,13 @@
         <small>They will be the only way to regain access to your account in the event that your authenticator is lost or stolen.</small>
     </div>
     
-    <div class="grid grid-cols-2 gap-1 p-2 bg-gray-100 rounded border border-gray-200">
+    <div class="grid grid-cols-2 gap-1 p-2 bg-surface-container rounded border border-outline">
         {#each codes as code }
             <pre>{ code }</pre>
         {/each}
     </div>
 
-    <div class="flex flex-col gap-2 p-4 bg-gray-200 rounded border border-gray-400">
+    <div class="flex flex-col gap-2 p-4 bg-surface-container rounded border border-outline">
         <label>
             <input type="checkbox" bind:checked={confirm} />
             I verify that I have saved these backup codes in a secure and memorable location.

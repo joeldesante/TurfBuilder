@@ -83,10 +83,9 @@
     }
 
     aside {
-        background-color: #EEE;
+        background-color: var(--color-surface-dim);
         height: 100vh;  
         padding-top: calc(1rem + 0.5rem);
-        color: #000;
     }
 
     aside li {
@@ -100,7 +99,13 @@
     }
 
     aside > ul > li > ul > li:hover {
-        background-color: #BBB;
+        background-color: var(--color-surface);
+        cursor: pointer;
+    }
+
+    aside > ul > li > ul > li > a {
+        color: var(--color-on-surface-subtle);
+        text-decoration: none;
     }
 
     main {
@@ -108,14 +113,14 @@
         flex-direction: column;
         gap: 10px;
         padding: 10px;
-        background-color: #FFF;
+        background-color: var(--color-surface);
     }
 
     main > div {
         padding: 10px 20px;
         border-radius: 10px;
         overflow: hidden;
-        background-color: #FFF;
+        background-color: var(--color-surface);
         min-height: 100%;
     }
 

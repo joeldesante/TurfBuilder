@@ -60,7 +60,7 @@
     />
 
     <button
-        class="bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-sm cursor-pointer disabled:opacity-50"
+        class="bg-primary text-on-primary font-bold text-xs px-4 py-2 rounded-sm cursor-pointer disabled:opacity-50"
         disabled={loading}
         onclick={loadMap}
     >
@@ -68,7 +68,7 @@
     </button>
 
     {#if error}
-        <p class="text-red-600 text-xs mt-2">{error}</p>
+        <p class="text-error text-xs mt-2">{error}</p>
     {/if}
 </div>
 

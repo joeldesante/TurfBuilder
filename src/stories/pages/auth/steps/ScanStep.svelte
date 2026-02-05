@@ -14,7 +14,7 @@
     <Qrcode uri={totpUri} />
     <div class="flex flex-col gap-2">
         <a target="_blank" class="underline text-primary" href="https://duo.com/product/multi-factor-authentication-mfa/duo-mobile-app#download-duo-mobile">DUO Mobile is our recommended authentication app.</a>
-        <a href={totpUri} class="underline text-blue-800">Click here add this account to your phones authentication app.</a>
+        <a href={totpUri} class="underline text-primary">Click here add this account to your phones authentication app.</a>
     </div>
 
     <Button label="Next" onclick={onNext} />
