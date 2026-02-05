@@ -59,7 +59,7 @@
     <a href={`/map/${data.turfId}/`}>Back to Map</a>
 
     <section class="mb-4 p-4">
-        <h1 class="text-2xl font-bold">{ data.location.loc_name }</h1>
+        <h1 class="text-2xl font-bold">{ data.location.location_name }</h1>
         <div>
             <p>{ data.location.street }</p>
             <p>{ data.location.locality } { data.location.region }. { data.location.postcode }</p>
