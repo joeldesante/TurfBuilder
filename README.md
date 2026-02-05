@@ -81,6 +81,11 @@ Assuming everything worked as expected you should be able to access the applicat
 >
 > [**View LinkedIn**](https://linkedin.com/in/joeldesante)
 
+> **Andrew Stitt** - Engineer
+> - Contributed to the development of the application.
+>
+> [**View LinkedIn**](https://www.linkedin.com/in/andrewstitt) - [**View Portfolio**](https://andystitt.com/)
+
 ### UI/UX
 > **Chloe Atchue-Mamlet** - UI/UX
 > - Responsible for making core decisions regarding the direction of the applications UI/UX 
