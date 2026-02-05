@@ -50,16 +50,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push prod image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/deice:production
-          target: production 
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
       - name: Deploy to Dokku
         uses: appleboy/ssh-action@master
         with:
