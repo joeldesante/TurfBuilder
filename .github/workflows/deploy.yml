@@ -32,8 +32,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/deice:latest
-            ghcr.io/${{ github.repository_owner }}/deice:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/turfbuilder:latest
+            ghcr.io/${{ github.repository_owner }}/turfbuilder:${{ github.sha }}
           target: production 
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -45,4 +45,4 @@ jobs:
           username: dokku
           key: ${{ secrets.DOKKU_SSH_PRIVATE_KEY }}
           script: |
-            git:from-image deice ghcr.io/${{ github.repository_owner }}/deice:${{ github.sha }}
+            git:from-image deice ghcr.io/${{ github.repository_owner }}/turfbuilder:${{ github.sha }}
