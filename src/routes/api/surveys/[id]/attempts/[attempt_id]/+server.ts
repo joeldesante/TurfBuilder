@@ -14,11 +14,11 @@ export async function POST({ request, locals, params }) {
   }
 
   let schema = z.object({
-    turf_id: z.number().min(0),
+    turf_id: z.uuidv4(),
     contactMade: z.boolean().default(false),
     attemptNote: z.string().default(""),
     questions: z.array(z.object({
-      db_id: z.number().min(0),
+      db_id: z.uuidv4(),
       type: z.string().optional(),
       text: z.string().optional(),
       choices: z.array(z.string()).optional(),
@@ -47,21 +47,22 @@ export async function POST({ request, locals, params }) {
         'SELECT id FROM turf_user WHERE turf_id = $1 AND user_id = $2',
         [ turf_id, locals.user.id ]
       )
+
       if(response.rowCount == 0 || response.rowCount == null) {
         throw new Error("User must be a turf user to make a location attempt.");
       }
 
       await client.query(
-        'UPDATE location_attempt SET attempt_note = $1, contact_made = $2, updated_at = NOW() WHERE user_id = $3 AND id = $4',
+        'UPDATE turf_location_attempt SET attempt_note = $1, contact_made = $2, updated_at = NOW() WHERE user_id = $3 AND id = $4',
         [ val.attemptNote, val.contactMade, locals.user.id, attempt_id ]
       )
 
       // Now we need to update the response if it already exists and insert if it doesn't
       for(let i = 0; i < questions.length; i++) {
         await client.query(
-          `INSERT INTO survey_question_response (response_value, survey_question_id, location_attempt_id)
+          `INSERT INTO survey_question_response (response_value, survey_question_id, turf_location_attempt_id)
           VALUES ($1, $2, $3)
-          ON CONFLICT (survey_question_id, location_attempt_id)
+          ON CONFLICT (survey_question_id, turf_location_attempt_id)
           DO UPDATE SET response_value = $1, updated_at = NOW();`,
           [val.questions[i].response, val.questions[i].db_id, attempt_id]
         );

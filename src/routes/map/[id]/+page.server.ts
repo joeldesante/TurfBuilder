@@ -18,7 +18,6 @@ export async function load({ locals, params, fetch }) {
     const request = await fetch(`/api/turf/${turfId}/locations`);
 
     if(!request.ok) {
-        console.log(request.status, request.statusText)
         redirect(302, '/');
     }
 

@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
     try {
         const res = await client.query(
             `
-                SELECT l.id, l.loc_name, l.category, l.latitude, l.longitude, l.street, l.locality, l.postcode, l.region, l.country
+                SELECT l.id, l.location_name, l.category, l.latitude, l.longitude, l.street, l.locality, l.postcode, l.region, l.country
                 FROM location l
                 JOIN turf_location tl ON tl.location_id = l.id
                 WHERE tl.turf_id = $1
