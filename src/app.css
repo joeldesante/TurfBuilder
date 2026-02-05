@@ -212,10 +212,14 @@
 
 @layer base {
     * {
-        @apply border-outline;
+        @apply border-outline-subtle;
     }
 
     body {
         @apply bg-surface text-on-surface;
     }
+
+	a {
+		@apply text-primary underline;
+	}
 }

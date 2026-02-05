@@ -128,7 +128,7 @@
 
 <style>
     .error {
-        color: red;
+        color: var(--color-error);
         padding: 1rem;
     }
     
@@ -144,7 +144,7 @@
     th, td {
         text-align: left;
         padding: 0.5rem;
-        border-bottom: 1px solid #ddd;
+        border-bottom: 1px solid var(--color-outline-subtle);
     }
     
     .user-id {
