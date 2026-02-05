@@ -22,7 +22,7 @@ export async function POST({ request, locals }) {
       return json({ error: 'Invalid polygons data' }, { status: 400 });
     }
 
-    const nanoid = customAlphabet('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12)
+    const nanoid = customAlphabet('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6)
 
     // Calculate expiration date
     const expirationDate = new Date();
@@ -36,14 +36,14 @@ export async function POST({ request, locals }) {
       
       for (const polygon of polygons) {
 
-        const turf_id = nanoid();
+        const turf_code = nanoid();
 
         const result = await client.query(
           `INSERT INTO turf (code, bounds, author_id, created_at, expires_at)
            VALUES ($1, $2, $3, NOW(), $4)
            RETURNING *`,
           [
-            turf_id,
+            turf_code,
             JSON.stringify(polygon.geometry), // Store GeoJSON geometry
             locals.user.id,
             expirationDate
@@ -61,7 +61,7 @@ export async function POST({ request, locals }) {
         
         if (locations.rows.length > 0) {
           const values = locations.rows.map(location => 
-            `(${result.rows[0].id}, ${location.id})`
+            `('${result.rows[0].id}', '${location.id}')`
           ).join(', ');
 
           await client.query(
