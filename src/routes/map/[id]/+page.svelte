@@ -157,7 +157,7 @@
         z-index: 100000;
         bottom: 10px;
         left: 10px; 
-        background-color: #FFF;
+        background-color: var(--color-surface);
         border-radius: 5px;
         box-shadow: 0px 0px 5px rgba(0,0,0,0.15);
         padding: 15px;
