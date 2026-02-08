@@ -35,7 +35,7 @@ export async function POST({ request, locals, params }) {
 
         if(schemaResult[i].db_id) {
             await client.query(
-                'UPDATE survey_question SET question_text = $1, question_type = $2, order_index = $3, question_choices = $4 WHERE survey_id = $5 AND id = $6;',
+                'UPDATE survey_question SET question_text = $1, question_type = $2, order_index = $3, choices = $4 WHERE survey_id = $5 AND id = $6;',
                 [ schemaResult[i].text, schemaResult[i].type, i, schemaResult[i].choices, id, schemaResult[i].db_id ]
             );
             continue;
@@ -43,7 +43,7 @@ export async function POST({ request, locals, params }) {
 
         // Create the question if it does't exist already...
         await client.query(
-            'INSERT INTO survey_question (question_text, survey_id, question_type, order_index, question_choices) VALUES ($1, $2, $3, $4, $5);',
+            'INSERT INTO survey_question (question_text, survey_id, question_type, order_index, choices) VALUES ($1, $2, $3, $4, $5);',
             [ schemaResult[i].text, id, schemaResult[i].type, i, schemaResult[i].choices ]
         );
       }
