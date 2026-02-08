@@ -157,8 +157,8 @@
 </script>
 
 {#if unsavedChanges == true }
-    <div class="flex justify-between p-4 bg-gray-100 border fadeInAndUp rounded absolute bottom-0 left-0 right-0 m-4 shadow-lg">
-        <p class="font-medium">You have unsaved changes</p>
+    <div class="flex justify-between p-4 bg-surface border fadeInAndUp rounded absolute bottom-0 left-0 right-0 m-4 shadow-lg">
+        <p class="font-medium text-primary">You have unsaved changes</p>
         <button onclick={saveChanges}>Save Changes</button>
     </div>
 {/if}
@@ -187,7 +187,7 @@
 
 <h2 class="text-lg font-medium mb-2">Questions</h2>
 <button onclick={addQuestion}>Add Question</button>
-<div class="space-y-4">
+<div class="space-y-4 overflow-y-scroll">
     {#each survey.questions as question, index }
         <div class="p-4 rounded shadow">
             <div class="flex flex-row font-medium justify-between items-center">
