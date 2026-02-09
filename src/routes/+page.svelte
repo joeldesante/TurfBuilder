@@ -63,7 +63,7 @@
         <p class="text-error text-xs mt-2">{error}</p>
     {/if}
 
-    {#if $session.data?.user.role === 'admin'}
+    {#if $session.data?.user.role === 'admin' || $session.data?.user.role === 'campaignManager' || $session.data?.user.role === 'fieldOrganizer'}
     <a href="/system">Admin dashboard</a>
     {/if}
 </div>
