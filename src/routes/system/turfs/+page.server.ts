@@ -17,7 +17,7 @@ export async function load({ locals, params }) {
         `
         SELECT t.code, t.author_id, t.created_at, t.expires_at, u.username
         FROM turf t
-        JOIN "user" u ON t.author_id = u.id
+        JOIN auth."user" u ON t.author_id = u.id
         WHERE t.expires_at > NOW()
         ORDER BY t.expires_at ASC
         LIMIT 100;
