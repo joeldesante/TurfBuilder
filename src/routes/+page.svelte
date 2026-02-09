@@ -1,6 +1,5 @@
 <script lang="ts">
     import { authClient } from "$lib/client";
-    import { hasSystemAccess } from "$lib/auth-helpers";
     import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
 	import Pin from "$components/data-inputs/pin/Pin.svelte";
@@ -64,7 +63,7 @@
         <p class="text-error text-xs mt-2">{error}</p>
     {/if}
 
-    {#if hasSystemAccess('admin')}
+    {#if $session.data?.user.role === 'admin'}
     <a href="/system">Admin dashboard</a>
     {/if}
 </div>
