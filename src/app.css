@@ -33,6 +33,12 @@
 	--color-error-container: var(--error-container);
 	--color-on-error-container: var(--on-error-container);
 
+	/* Info */
+	--color-info: var(--info);
+	--color-on-info: var(--on-info);
+	--color-info-container: var(--info-container);
+	--color-on-info-container: var(--on-info-container);
+
 	/* Success */
 	--color-success: var(--success);
 	--color-on-success: var(--on-success);
@@ -87,11 +93,11 @@
 	--primary-container: var(--color-emerald-100);
 	--on-primary-container: var(--color-emerald-900);
 
-	/* Secondary - Slate */
-	--secondary: var(--color-slate-600);
+	/* Secondary - Zinc */
+	--secondary: var(--color-zinc-600);
 	--on-secondary: var(--color-white);
-	--secondary-container: var(--color-slate-100);
-	--on-secondary-container: var(--color-slate-900);
+	--secondary-container: var(--color-zinc-300);
+	--on-secondary-container: var(--color-zinc-900);
 
 	/* Tertiary - Teal */
 	--tertiary: var(--color-teal-600);
@@ -104,6 +110,12 @@
 	--on-error: var(--color-white);
 	--error-container: var(--color-red-100);
 	--on-error-container: var(--color-red-900);
+
+	/* Info - Blue */
+	--info: var(--color-blue-600);
+	--on-info: var(--color-white);
+	--info-container: var(--color-blue-100);
+	--on-info-container: var(--color-blue-900);
 
 	/* Success - Green */
 	--success: var(--color-green-600);
@@ -131,7 +143,7 @@
 	--surface-container-highest: var(--color-zinc-300);
 
 	/* Outline */
-	--outline: var(--color-zinc-400);
+	--outline: var(--color-zinc-300);
 	--outline-subtle: var(--color-zinc-200);
 
 	/* Inverse */
@@ -156,11 +168,11 @@
 		--primary-container: var(--color-emerald-900);
 		--on-primary-container: var(--color-emerald-100);
 
-		/* Secondary - Slate */
-		--secondary: var(--color-slate-300);
-		--on-secondary: var(--color-slate-900);
-		--secondary-container: var(--color-slate-800);
-		--on-secondary-container: var(--color-slate-100);
+		/* Secondary - Zinc */
+		--secondary: var(--color-zinc-300);
+		--on-secondary: var(--color-zinc-900);
+		--secondary-container: var(--color-zinc-700);
+		--on-secondary-container: var(--color-zinc-100);
 
 		/* Tertiary - Teal */
 		--tertiary: var(--color-teal-300);
@@ -173,6 +185,12 @@
 		--on-error: var(--color-red-950);
 		--error-container: var(--color-red-900);
 		--on-error-container: var(--color-red-100);
+
+		/* Info - Blue */
+		--info: var(--color-blue-400);
+		--on-info: var(--color-blue-950);
+		--info-container: var(--color-blue-900);
+		--on-info-container: var(--color-blue-100);
 
 		/* Success - Green */
 		--success: var(--color-green-400);
@@ -200,7 +218,7 @@
 		--surface-container-highest: var(--color-zinc-700);
 
 		/* Outline */
-		--outline: var(--color-zinc-500);
+		--outline: var(--color-zinc-600);
 		--outline-subtle: var(--color-zinc-700);
 
 		/* Inverse */
