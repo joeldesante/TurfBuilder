@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Time from 'svelte-time/Time.svelte';
+
   let { data } = $props();
   
   // Now you can access data.turfs
@@ -13,10 +15,11 @@
       <p>Expires</p>
     </div>
   {#each turfs as turf}
-    <div class="grid grid-cols-3 gap-2 border-b">
+    <div class="grid grid-cols-4 gap-2 border-b">
       <p>{turf.code}</p>
-      <p>{turf.created_at}</p>
-      <p>{turf.expires_at}</p>
+      <p>{turf.username}</p>
+      <p><Time timestamp={turf.created_at} format="MMM DD, YYYY" /></p>
+      <p><Time timestamp={turf.expires_at} format="MMM DD, YYYY" /></p>
     </div>
   {/each}
 </div>
