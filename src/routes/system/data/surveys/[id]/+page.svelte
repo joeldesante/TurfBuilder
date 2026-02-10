@@ -14,7 +14,7 @@
 <hr>
 
 <h2 class="text-lg font-medium mb-2">Questions</h2>
-<div class="space-y-4 overflow-y-scroll">
+<div class="space-y-4">
     {#each data.questions as question }
         <div class="p-4 rounded shadow">
             <p>{ question.question_text }</p>
