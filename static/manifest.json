@@ -1,0 +1,14 @@
+{
+    "name": "Turf Builder",
+    "description": "An open source community building tool.",
+    "display": "standalone",
+    "start_url": "/",
+    "icons": [
+        {
+            "src": "turf_builder_app_icon.png",
+            "sizes": "1280x1280",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

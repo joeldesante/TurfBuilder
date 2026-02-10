@@ -1,26 +1,16 @@
 <script lang="ts">
     import '../app.css';
-    
-    import { pwaInfo } from 'virtual:pwa-info';
-    import { pwaAssetsHead } from 'virtual:pwa-assets/head';
     import { CubeIcon } from "phosphor-svelte";
-    
-    let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
+
     let { children, data } = $props();
 </script>
 
 <svelte:head>
     <title>{ data.config.application_name }</title>
 
-    {#if pwaAssetsHead.themeColor}
-        <meta name="theme-color" content={pwaAssetsHead.themeColor.content} />
-    {/if}
-
-    {#each pwaAssetsHead.links as link}
-        <link {...link} />
-    {/each}
-
-    {@html webManifestLink}
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content={data.config.application_name}>
+    <link rel="apple-touch-icon" href={"/turf_builder_app_icon.png"}>
 </svelte:head>
 
 
