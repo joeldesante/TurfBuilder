@@ -1,16 +1,17 @@
 <script>
+
 	import Button from "$components/actions/button/Button.svelte";
 	import Input from "$components/data-inputs/input/Input.svelte";
-
-    let name = $state("");
-
-    async function createSurvey() {
-        return null;
-    }
+	import { Form } from "$lib/client/formstorm/form.svelte";
+	import CreateSurveySchema from "./CreateSurvey.schema";    
+    
+    let form = new Form(CreateSurveySchema, async (data) => {
+        console.log(data.name);
+    });
+    let err = $derived(JSON.stringify(form.errors))
 
 </script>
-<h1>Create Survey</h1>
-<p>Create a new survey</p>
 
-<Input label="Survey Name" bind:value={name} />
-<Button label="Create" onclick={createSurvey} />
+<h1>Create Survey</h1>
+<Input label="Survey Name" errors={form.errors['name'] || []} bind:value={form.values.name} onblur={form.validate} dirty={form.dirty} />
+<Button label="Create" onclick={() => form.submit()} />
