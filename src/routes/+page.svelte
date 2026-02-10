@@ -62,6 +62,10 @@
     {#if error}
         <p class="text-error text-xs mt-2">{error}</p>
     {/if}
+
+    {#if $session.data?.user.role === 'admin' || $session.data?.user.role === 'campaignManager' || $session.data?.user.role === 'fieldOrganizer'}
+    <a class="hidden sm:block" href="/system">Admin dashboard</a>
+    {/if}
 </div>
 
 <style>
