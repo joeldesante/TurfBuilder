@@ -69,7 +69,7 @@
             <div class="header">
                 <span>{ title ?? 'Dashboard' }</span>
             </div>
-            <div class="content">
+            <div class="content overflow-y-scroll">
                 {@render children()}
             </div>
         </div>

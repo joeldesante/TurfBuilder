@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Button from "$components/actions/button/Button.svelte";
+	import Input from "$components/data-inputs/input/Input.svelte";
+
     const { data } = $props();
     console.log(data)
 
@@ -157,23 +160,22 @@
 </script>
 
 {#if unsavedChanges == true }
-    <div class="flex justify-between p-4 bg-surface border fadeInAndUp rounded absolute bottom-0 left-0 right-0 m-4 shadow-lg">
+    <div class="flex justify-between items-center p-2 px-4 bg-surface border fadeInAndUp rounded absolute bottom-0 left-0 right-0 m-4 shadow-lg">
         <p class="font-medium text-primary">You have unsaved changes</p>
-        <button onclick={saveChanges}>Save Changes</button>
+        <Button label="Save Changes" onclick={saveChanges} />
     </div>
 {/if}
 
-<div>
-    <button>Preview</button>
-    <button onclick={saveChanges}>Save</button>
-    <button>Publish</button>
+<div class="m-2 flex flex-row gap-2">
+    <Button label="Save Changes" onclick={saveChanges} />
+    <Button label="Publish" onclick={null} />
 </div>
 
 <div class="flex flex-col gap-4">
 
     <div class="flex flex-col">
         <label for="name" class="font-medium">Name</label>
-        <input id="name" type="text" value={ survey.name } oninput={ (e) => updateSurveyName(e.currentTarget.value) } placeholder="Survey name..." />
+        <Input id="name" type="text" value={ survey.name } oninput={ (e: any) => updateSurveyName(e.currentTarget.value) } placeholder="Survey name..." />
     </div>
 
     <div class="flex flex-col">
@@ -186,8 +188,8 @@
 <hr>
 
 <h2 class="text-lg font-medium mb-2">Questions</h2>
-<button onclick={addQuestion}>Add Question</button>
-<div class="space-y-4 overflow-y-scroll">
+<Button label="Add Question" onclick={addQuestion} />
+<div class="space-y-4">
     {#each survey.questions as question, index }
         <div class="p-4 rounded shadow">
             <div class="flex flex-row font-medium justify-between items-center">
