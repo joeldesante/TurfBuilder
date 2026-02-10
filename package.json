@@ -79,7 +79,8 @@
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
     "svelte-time": "^2.1.0",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zod-empty": "^2.0.2"
   },
   "overrides": {
     "vitest": "$vitest"
