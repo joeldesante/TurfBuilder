@@ -3,7 +3,7 @@
 > If you are looking for the main website, please visit:
 > https://turfbuilder.org
 
-# Turf Builder
+<img src="https://github.com/joeldesante/TurfBuilder/blob/fc4327063caae9f5c8a9bf545ced8101eb2c408a/static/logos/default-logo.svg" alt="Turf Builder" width="300px" height="auto" />
 A free and open source canvassing tool for grassroots movements and campaigns.
 
 
