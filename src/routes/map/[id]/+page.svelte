@@ -31,45 +31,45 @@
     let markers: maplibregl.Marker[] = [];
 
     async function fetchLocations(bounds: maplibregl.LngLatBounds) {
-    locations = data.locations;
-    
-    if (markers) {
-        //@ts-ignore
-        markers.forEach((m) => m.marker.remove());
-    }
-    markers = [];
-    
-    locations.forEach((location: Location) => {
-        const markerDomElement = document.createElement('div');
+        locations = data.locations;
         
-        let state = $state({ 
-            isSelected: selectedLocationId === location.id 
-        });
+        if (markers) {
+            //@ts-ignore
+            markers.forEach((m) => m.marker.remove());
+        }
+        markers = [];
         
-        markerDomElement.addEventListener('click', () => {
-            markers.forEach(m => {
-                //@ts-ignore
-                m.state.isSelected = false;
+        locations.forEach((location: Location) => {
+            const markerDomElement = document.createElement('div');
+            
+            let state = $state({ 
+                isSelected: selectedLocationId === location.id 
             });
-        
-            state.isSelected = true;
-            selectedLocationId = location.id;
-            selectedLocation = location;
-            showPanel = true;
+            
+            markerDomElement.addEventListener('click', () => {
+                markers.forEach(m => {
+                    //@ts-ignore
+                    m.state.isSelected = false;
+                });
+            
+                state.isSelected = true;
+                selectedLocationId = location.id;
+                selectedLocation = location;
+                showPanel = true;
+            });
+            
+            const markerInstance = mount(MapMarker, {
+                target: markerDomElement,
+                props: { state },
+            });
+            
+            const marker = new maplibregl.Marker({ element: markerDomElement })
+                .setLngLat([location.longitude, location.latitude])
+                .addTo(map);
+            
+            //@ts-ignore
+            markers.push({ marker, state });
         });
-        
-        const markerInstance = mount(MapMarker, {
-            target: markerDomElement,
-            props: { state },
-        });
-        
-        const marker = new maplibregl.Marker({ element: markerDomElement })
-            .setLngLat([location.longitude, location.latitude])
-            .addTo(map);
-        
-        //@ts-ignore
-        markers.push({ marker, state });
-    });
     }
 
     function closePanel() {
@@ -84,10 +84,13 @@
     }
 
     onMount(() => {
+
+        console.log(data.center.longitude, data.center.latitude)
+
         map = new maplibregl.Map({
             container: mapContainer,
             style: 'https://tiles.openfreemap.org/styles/positron',
-            center: [-75.2238, 40.0259],
+            center: [data.center.lng, data.center.lat],
             zoom: DEFAULT_ZOOM
         });
 
