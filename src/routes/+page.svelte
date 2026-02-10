@@ -64,7 +64,7 @@
     {/if}
 
     {#if $session.data?.user.role === 'admin' || $session.data?.user.role === 'campaignManager' || $session.data?.user.role === 'fieldOrganizer'}
-    <a href="/system">Admin dashboard</a>
+    <a class="hidden sm:block" href="/system">Admin dashboard</a>
     {/if}
 </div>
 
