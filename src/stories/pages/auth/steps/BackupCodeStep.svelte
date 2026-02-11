@@ -27,7 +27,7 @@
             <input type="checkbox" bind:checked={confirm} />
             I verify that I have saved these backup codes in a secure and memorable location.
         </label>
-        <Button label="Confirm" disabled={!confirm} onclick={() => goto("/")} />
+        <Button disabled={!confirm} onclick={() => goto("/")}>Confirm</Button>
     </div>
 
 </div>

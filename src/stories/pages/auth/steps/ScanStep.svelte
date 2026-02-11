@@ -17,5 +17,5 @@
         <a href={totpUri} class="underline text-primary">Click here add this account to your phones authentication app.</a>
     </div>
 
-    <Button label="Next" onclick={onNext} />
+    <Button onclick={onNext}>Next</Button>
 </div>
