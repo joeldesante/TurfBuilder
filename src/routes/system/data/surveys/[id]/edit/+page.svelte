@@ -162,13 +162,13 @@
 {#if unsavedChanges == true }
     <div class="flex justify-between items-center p-2 px-4 bg-surface border fadeInAndUp rounded absolute bottom-0 left-0 right-0 m-4 shadow-lg">
         <p class="font-medium text-primary">You have unsaved changes</p>
-        <Button label="Save Changes" onclick={saveChanges} />
+        <Button onclick={saveChanges}>Save Changes</Button>
     </div>
 {/if}
 
 <div class="m-2 flex flex-row gap-2">
-    <Button label="Save Changes" onclick={saveChanges} />
-    <Button label="Publish" onclick={null} />
+    <Button onclick={saveChanges}>Save Changes</Button>
+    <Button onclick={null}>Publish</Button>
 </div>
 
 <div class="flex flex-col gap-4">
@@ -188,7 +188,7 @@
 <hr>
 
 <h2 class="text-lg font-medium mb-2">Questions</h2>
-<Button label="Add Question" onclick={addQuestion} />
+<Button onclick={addQuestion}>Add Question</Button>
 <div class="space-y-4">
     {#each survey.questions as question, index }
         <div class="p-4 rounded shadow">
@@ -197,7 +197,7 @@
                     <p>{ index + 1 }.</p>
                     <input class="block w-full" type="text" value={question.text} oninput={(e) => updateQuestionText(index, e.currentTarget.value)} />
                 </div>
-                <button class="cursor-pointer" onclick={() => deleteQuestion(index)}>Delete</button>
+                <Button onclick={() => deleteQuestion(index)}>Delete</Button>
             </div>
 
             <select value={question.type} oninput={(e) => { updateQuestionType(index, e.currentTarget.value) }}>
