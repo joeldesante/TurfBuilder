@@ -61,7 +61,9 @@
     </div>
 
     <div class="mt-4">
-      <Button type="submit" disabled={loading} label={loading ? "Signing in…" : "Sign In"} />
+      <Button type="submit" disabled={loading}>
+        {loading ? "Signing in…" : "Sign In"}
+      </Button>
     </div>
 
     {#if error}
