@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from 'bits-ui'
 	import SpinnerGapIcon from 'phosphor-svelte/lib/SpinnerGapIcon'
+	import { dev } from '$app/environment'
 	import type { Snippet } from 'svelte'
 
 	type Variant = 'primary' | 'outline' | 'ghost' | 'destructive'
@@ -36,7 +37,7 @@
 		loading && !disabled ? { onclick: (e: MouseEvent) => e.preventDefault() } : {}
 	)
 
-	if (import.meta.env.DEV) {
+	if (dev) {
 		$effect(() => {
 			if (iconOnly && !ariaLabel) {
 				console.warn(
