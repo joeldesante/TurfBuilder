@@ -233,6 +233,10 @@
         @apply border-outline-subtle;
     }
 
+	*:focus-visible {
+		@apply outline-primary;
+	}
+
     body {
         @apply bg-surface text-on-surface;
     }
