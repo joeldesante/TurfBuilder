@@ -31,7 +31,7 @@
 
             <div class="flex flex-col gap-2">
                 <Input label="Please enter your password." bind:value={password} type="password" />
-                <Button label="Authorize" onclick={async () => {
+                <Button onclick={async () => {
                     const { data: tfaData, error: tfaError } = await authClient.twoFactor.enable({
                         password: password,
                         issuer: data.config.application_name,
@@ -47,7 +47,9 @@
                     backupCodes = tfaData.backupCodes;
 
                     nextStep();
-                }} />
+                }}>
+                    Authorize
+                </Button>
             </div>
             <p>{errorMessage}</p>
         </div>
