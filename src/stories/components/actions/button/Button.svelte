@@ -3,7 +3,7 @@
 	import SpinnerGapIcon from 'phosphor-svelte/lib/SpinnerGapIcon'
 	import type { Snippet } from 'svelte'
 
-	type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive'
+	type Variant = 'primary' | 'outline' | 'ghost' | 'destructive'
 	type ButtonType = 'button' | 'submit' | 'reset'
 
 	interface Props {
@@ -32,7 +32,9 @@
 		...restProps
 	}: Props = $props()
 
-	let isDisabled = $derived(disabled || loading)
+	let loadingGuard = $derived(
+		loading && !disabled ? { onclick: (e: MouseEvent) => e.preventDefault() } : {}
+	)
 
 	if (import.meta.env.DEV) {
 		$effect(() => {
@@ -46,8 +48,6 @@
 
 	const variantClasses: Record<Variant, string> = {
 		primary: 'bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80',
-		secondary:
-			'bg-secondary text-on-secondary hover:bg-secondary/90 active:bg-secondary/80',
 		outline:
 			'border border-outline bg-transparent text-on-surface hover:bg-surface-container active:bg-surface-container-high',
 		ghost: 'bg-transparent text-on-surface hover:bg-surface-container active:bg-surface-container-high',
@@ -56,14 +56,15 @@
 	}
 
 	const baseClasses =
-		'h-12 md:h-10 min-w-12 md:min-w-10 no-underline inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+		'h-12 md:h-10 min-w-12 md:min-w-10 [&>svg]:size-5 no-underline inline-flex items-center justify-center gap-2 rounded-lg text-sm cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2'
 
 	let computedClass = $derived(
 		[
 			baseClasses,
 			variantClasses[variant],
 			iconOnly ? 'p-2' : 'px-4 py-2',
-			isDisabled ? 'opacity-50 cursor-not-allowed' : '',
+			disabled ? 'opacity-50' : '',
+			disabled || loading ? 'pointer-events-none' : '',
 			className
 		]
 			.filter(Boolean)
@@ -78,12 +79,29 @@
 	{@render children()}
 {/snippet}
 
-{#if href && !isDisabled}
-	<Button.Root {href} aria-label={ariaLabel} class={computedClass} {...restProps}>
+{#if href && !disabled}
+	<Button.Root
+		{href}
+		aria-disabled={loading || undefined}
+		aria-busy={loading || undefined}
+		aria-label={ariaLabel}
+		class={computedClass}
+		{...restProps}
+		{...loadingGuard}
+	>
 		{@render content()}
 	</Button.Root>
 {:else}
-	<Button.Root {type} disabled={isDisabled} aria-busy={loading} aria-label={ariaLabel} class={computedClass} {...restProps}>
+	<Button.Root
+		{type}
+		disabled={disabled || undefined}
+		aria-disabled={loading && !disabled ? true : undefined}
+		aria-busy={loading || undefined}
+		aria-label={ariaLabel}
+		class={computedClass}
+		{...restProps}
+		{...loadingGuard}
+	>
 		{@render content()}
 	</Button.Root>
 {/if}

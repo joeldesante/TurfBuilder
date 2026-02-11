@@ -12,7 +12,7 @@
 		argTypes: {
 			variant: {
 				control: { type: 'select' },
-				options: ['primary', 'secondary', 'outline', 'ghost', 'destructive']
+				options: ['primary', 'outline', 'ghost', 'destructive']
 			},
 			type: {
 				control: { type: 'select' },
@@ -25,11 +25,6 @@
 
 <Story name="Primary">
 	Primary Button
-</Story>
-
-<Story name="Secondary" args={{ variant: 'secondary' }}>
-	<PlusIcon />
-	Secondary with icon
 </Story>
 
 <Story name="Outline" args={{ variant: 'outline' }}>
@@ -48,7 +43,6 @@
 <Story name="Disabled" asChild>
   <div class="flex flex-wrap gap-6">
     <Button disabled>Primary</Button>
-	<Button variant="secondary" disabled>Secondary</Button>
 	<Button variant="outline" disabled>Outline</Button>
     <Button variant="ghost" disabled>Ghost</Button>
     <Button variant="destructive" disabled>Destructive</Button>
