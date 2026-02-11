@@ -14,4 +14,4 @@
 
 <h1>Create Survey</h1>
 <Input label="Survey Name" errors={form.errors['name'] || []} bind:value={form.values.name} onblur={form.validate} dirty={form.dirty} />
-<Button label="Create" onclick={() => form.submit()} />
+<Button onclick={() => form.submit()}>Create</Button>

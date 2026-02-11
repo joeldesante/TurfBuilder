@@ -33,5 +33,5 @@
             <Pin length={6} onPinEntered={(pin: string) => { attemptVerification(pin) }} />
         </div>
     </div>
-    <Button label="Back" onclick={onBack} />
+    <Button onclick={onBack}>Back</Button>
 </div>
