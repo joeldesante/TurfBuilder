@@ -52,7 +52,9 @@
     
     <h1 class="text-2xl font-medium mb-4">Sign In</h1>
 
+    <label class="sr-only" for="email">Username</label>
     <input class="py-2.5 sm:py-3 px-4 block w-full border border-outline rounded sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" id="email" type="text" placeholder="Username" bind:value={username} required autocomplete="username" />
+    <label class="sr-only" for="password">Password</label>
     <input class="py-2.5 sm:py-3 px-4 block w-full border border-outline rounded sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" id="password" type="password" placeholder="Password" bind:value={password} required autocomplete="current-password" />
     
     <div class="flex">
