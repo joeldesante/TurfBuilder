@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ApplicationConfig } from "../../config";
-
+    import { authClient } from "$lib/client";
 
     const { children, title, data } = $props<{ 
         children: () => any, 
@@ -9,6 +9,11 @@
             config: ApplicationConfig
         }
     }>();
+
+    async function logout() {
+        await authClient.signOut();
+        location.href = "/login";
+    }
 </script>
 
 <svelte:head>
@@ -61,6 +66,10 @@
                         <a href="/system/utils/lockdown">Lockdown</a>   <!-- In the event that the data is being activly poisoned and the admins want to disable all new incoming data temporarily -->
                     </li>
                 </ul>
+            </li>
+            <li>
+                <button onClick={logout}>Sign Out
+                </button>
             </li>
         </ul>
     </aside>
