@@ -1,13 +1,14 @@
 <script lang="ts">
-	import type { ApplicationConfig } from '../../config';
+	import type { ApplicationConfig } from "../../config";
 
-	const { children, title, data } = $props<{
-		children: () => any;
-		title?: string;
-		data: {
-			config: ApplicationConfig;
-		};
-	}>();
+
+    const { children, title, data } = $props<{ 
+        children: () => any, 
+        title?: string,
+        data: {
+            config: ApplicationConfig
+        }
+    }>();
 </script>
 
 <svelte:head>
@@ -15,65 +16,64 @@
 </svelte:head>
 
 <div class="wrapper">
-	<aside>
-		<ul>
-			<li>
-				<a href="/system/">Dashboard</a>
-			</li>
-			<li>
-				<span>Turf</span>
-				<ul>
-					<li>
-						<a href="/system/turfs">Overview</a>
-					</li>
-					<li>
-						<a href="/system/turfs/cut">Cut Turf</a>
-					</li>
-				</ul>
-			</li>
-			<li>
-				<span>People</span>
-				<ul>
-					<li>
-						<a href="/system/users">Users</a>
-					</li>
-				</ul>
-			</li>
-			<li>
-				<span>Data</span>
-				<ul>
-					<li>
-						<a href="/system/data/locations">Locations</a>
-					</li>
-					<li>
-						<a href="/system/data/surveys">Surveys</a>
-					</li>
-				</ul>
-			</li>
-			<li>
-				<span>Utilities</span>
-				<ul>
-					<li>
-						<a href="/system/utils/notify">Send Notification</a>
-					</li>
-					<li>
-						<a href="/system/utils/lockdown">Lockdown</a>
-						<!-- In the event that the data is being activly poisoned and the admins want to disable all new incoming data temporarily -->
-					</li>
-				</ul>
-			</li>
-		</ul>
-	</aside>
-	<main>
-		<div>
-			<div class="header">
-				<span>{title ?? 'Dashboard'}</span>
-			</div>
-			<div class="content overflow-y-scroll">
-				{@render children()}
-			</div>
-		</div>
-	</main>
+    <aside>
+        <ul>
+            <li>
+                <a href="/system/">Dashboard</a>
+            </li>
+            <li>
+                <span>Turf</span>
+                <ul>
+                    <li>
+                        <a href="/system/turfs">Overview</a>
+                    </li>
+                    <li>
+                        <a href="/system/turfs/cut">Cut Turf</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <span>People</span>
+                <ul>
+                    <li>
+                        <a href="/system/users">Users</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <span>Data</span>
+                <ul>
+                    <li>
+                        <a href="/system/data/locations">Locations</a>
+                    </li>
+                    <li>
+                        <a href="/system/data/surveys">Surveys</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <span>Utilities</span>
+                <ul>
+                    <li>
+                        <a href="/system/utils/notify">Send Notification</a>
+                    </li>
+                    <li>
+                        <a href="/system/utils/lockdown">Lockdown</a>   <!-- In the event that the data is being activly poisoned and the admins want to disable all new incoming data temporarily -->
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </aside>
+    <main>
+        <div>
+            <div class="header">
+                <span>{ title ?? 'Dashboard' }</span>
+            </div>
+            <div class="content overflow-y-scroll">
+                {@render children()}
+            </div>
+        </div>
+    </main>
 </div>
 
 <style>
