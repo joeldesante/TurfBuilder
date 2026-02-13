@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte'
 	import { setContext } from 'svelte'
+	import { WarningIcon } from 'phosphor-svelte';
 
 	interface Props {
 		label: string
@@ -68,7 +69,7 @@
 	>
 		{label}
 		{#if requirement === 'required'}
-			<span class="text-error text-xs font-normal ml-1">Required</span>
+			<span class="text-error text-xs font-normal">*</span>
 		{:else if requirement === 'optional'}
 			<span class="text-on-surface-subtle text-xs font-normal ml-1">Optional</span>
 		{/if}
@@ -81,7 +82,8 @@
 	{/if}
 
 	{#if invalid}
-		<div id={errorId} role="alert" class="text-xs text-error">
+		<div id={errorId} role="alert" class="text-xs text-error flex items-center gap-1">
+			<WarningIcon />
 			{#each errors as error}
 				<p>{error}</p>
 			{/each}
