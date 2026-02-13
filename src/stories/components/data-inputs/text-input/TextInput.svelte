@@ -43,7 +43,7 @@
 		[
 			'w-full text-base text-on-surface bg-surface placeholder:text-on-surface-subtle',
 			'h-12 md:h-10 px-3 rounded-md',
-			'focus:outline-2 focus:outline-primary focus:-outline-offset-1',
+			grouped ? 'focus:outline-none' : 'focus:outline-2 focus:outline-primary focus:-outline-offset-1',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			!grouped && 'border',
 			!grouped && isInvalid ? 'border-error' : !grouped ? 'border-outline' : '',
