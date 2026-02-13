@@ -18,7 +18,7 @@
 
 <Story name="Default" args={{ placeholder: 'Enter text...' }} />
 
-<Story name="With FormField" asChild>
+<Story name="Within FormField Wrapper" asChild>
 	<FormField label="Email address" helperText="We'll only use this to contact you.">
 		<TextInput type="email" placeholder="you@example.com" />
 	</FormField>
