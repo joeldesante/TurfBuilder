@@ -8,6 +8,7 @@
 		indeterminate?: boolean
 		onCheckedChange?: (checked: boolean) => void
 		disabled?: boolean
+		invalid?: boolean
 		name?: string
 		value?: string
 		id?: string
@@ -21,6 +22,7 @@
 		indeterminate = $bindable(false),
 		onCheckedChange,
 		disabled = false,
+		invalid,
 		name,
 		value,
 		id,
@@ -40,13 +42,13 @@
 	>('formField')
 
 	let checkboxId = $derived(id ?? ctx?.id)
-	let isInvalid = $derived(ctx?.invalid ?? false)
+	let isInvalid = $derived(invalid ?? ctx?.invalid ?? false)
 	let isDisabled = $derived(disabled || (ctx?.disabled ?? false))
 	let describedBy = $derived(ctx?.describedBy)
 
 	let boxClass = $derived(
 		[
-			'size-5 shrink-0 rounded border inline-flex items-center justify-center',
+			'size-5 shrink-0 rounded-sm border inline-flex items-center justify-center',
 			'focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-1',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			'data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-on-primary',

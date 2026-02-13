@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ToggleGroup as ToggleGroupPrimitive } from 'bits-ui'
+	import { WarningIcon } from 'phosphor-svelte';
 
 	interface ToggleItem {
 		value: string
@@ -85,9 +86,10 @@
 			'border transition-colors',
 			'focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-1',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
-			invalid ? 'border-error' : 'border-outline',
+			invalid ? 'border-error' : 'border-outline-subtle',
 			'data-[state=on]:bg-primary data-[state=on]:text-on-primary data-[state=on]:border-primary',
 			'data-[state=off]:bg-surface data-[state=off]:text-on-surface',
+			'hover:not-disabled:cursor-pointer',
 			'hover:not-disabled:data-[state=off]:bg-surface-container'
 		]
 			.filter(Boolean)
@@ -101,10 +103,10 @@
 	{disabled}
 	{...restProps}
 >
-	<legend class="text-sm font-medium text-on-surface">
+	<legend class="text-sm font-medium text-on-surface mb-1.5">
 		{label}
 		{#if requirement === 'required'}
-			<span class="text-error text-xs font-normal ml-1">Required</span>
+			<span class="text-error text-xs font-normal">*</span>
 		{:else if requirement === 'optional'}
 			<span class="text-on-surface-subtle text-xs font-normal ml-1">Optional</span>
 		{/if}
@@ -159,7 +161,8 @@
 	{/if}
 
 	{#if invalid}
-		<div id={errorId} role="alert" class="text-xs text-error">
+		<div id={errorId} role="alert" class="text-xs text-error flex items-center gap-1">
+			<WarningIcon />
 			{#each errors as error}
 				<p>{error}</p>
 			{/each}
