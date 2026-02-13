@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { RadioGroup as RadioGroupPrimitive } from 'bits-ui'
+	import { WarningIcon } from 'phosphor-svelte';
 
 	interface RadioItem {
 		value: string
@@ -27,7 +28,7 @@
 
 	let {
 		label,
-		value = $bindable(),
+		value = $bindable(''),
 		onValueChange,
 		items,
 		orientation = 'vertical',
@@ -68,10 +69,10 @@
 	{disabled}
 	{...restProps}
 >
-	<legend class="text-sm font-medium text-on-surface">
+	<legend class="text-sm font-medium text-on-surface mb-2">
 		{label}
 		{#if requirement === 'required'}
-			<span class="text-error text-xs font-normal ml-1">Required</span>
+			<span class="text-error text-xs font-normal">*</span>
 		{:else if requirement === 'optional'}
 			<span class="text-on-surface-subtle text-xs font-normal ml-1">Optional</span>
 		{/if}
@@ -133,7 +134,8 @@
 	{/if}
 
 	{#if invalid}
-		<div id={errorId} role="alert" class="text-xs text-error">
+		<div id={errorId} role="alert" class="text-xs text-error flex items-center gap-1">
+			<WarningIcon />
 			{#each errors as error}
 				<p>{error}</p>
 			{/each}

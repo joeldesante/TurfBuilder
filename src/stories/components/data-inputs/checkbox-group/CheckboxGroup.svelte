@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Checkbox as CheckboxPrimitive } from 'bits-ui'
+	import Checkbox from '../checkbox/Checkbox.svelte'
+	import { WarningIcon } from 'phosphor-svelte';
 
 	interface CheckboxItem {
 		value: string
@@ -60,10 +62,10 @@
 	{disabled}
 	{...restProps}
 >
-	<legend class="text-sm font-medium text-on-surface">
+	<legend class="text-sm font-medium text-on-surface mb-2">
 		{label}
 		{#if requirement === 'required'}
-			<span class="text-error text-xs font-normal ml-1">Required</span>
+			<span class="text-error text-xs font-normal">*</span>
 		{:else if requirement === 'optional'}
 			<span class="text-on-surface-subtle text-xs font-normal ml-1">Optional</span>
 		{/if}
@@ -72,54 +74,14 @@
 	<CheckboxPrimitive.Group bind:value {disabled}>
 		<div class={listClass}>
 			{#each items as item (item.value)}
-				{@const itemId = `${groupId}-${item.value}`}
-				<div class="inline-flex items-center gap-2">
-					<CheckboxPrimitive.Root
-						id={itemId}
-						value={item.value}
-						disabled={item.disabled}
-						class={[
-							'size-5 shrink-0 rounded border inline-flex items-center justify-center',
-							'focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-1',
-							'disabled:opacity-50 disabled:cursor-not-allowed',
-							'data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-on-primary',
-							invalid ? 'border-error' : 'border-outline'
-						]
-							.filter(Boolean)
-							.join(' ')}
-					>
-						{#snippet children({ checked })}
-							{#if checked}
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="3"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<polyline points="20 6 9 17 4 12" />
-								</svg>
-							{/if}
-						{/snippet}
-					</CheckboxPrimitive.Root>
-					<label
-						for={itemId}
-						class={[
-							'text-sm text-on-surface select-none',
-							item.disabled || disabled
-								? 'opacity-50 cursor-not-allowed'
-								: 'cursor-pointer'
-						]
-							.filter(Boolean)
-							.join(' ')}
-					>
-						{item.label}
-					</label>
-				</div>
+				<Checkbox
+					id={`${groupId}-${item.value}`}
+					value={item.value}
+					disabled={item.disabled}
+					{invalid}
+				>
+					{item.label}
+				</Checkbox>
 			{/each}
 		</div>
 	</CheckboxPrimitive.Group>
@@ -129,7 +91,8 @@
 	{/if}
 
 	{#if invalid}
-		<div id={errorId} role="alert" class="text-xs text-error">
+		<div id={errorId} role="alert" class="text-xs text-error flex items-center gap-1">
+			<WarningIcon />
 			{#each errors as error}
 				<p>{error}</p>
 			{/each}
