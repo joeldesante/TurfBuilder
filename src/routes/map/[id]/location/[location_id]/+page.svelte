@@ -68,7 +68,7 @@
 
     <hr>
 
-    <label class="flex flex-row gap-1 items-center">
+    <label class="flex flex-row gap-1 items-center p-5">
         <input type="checkbox" bind:checked={contactMade}>
         Was Contact Made?
     </label>
