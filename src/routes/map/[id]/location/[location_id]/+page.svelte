@@ -108,7 +108,7 @@
                                 </label>
                             {/each}
                         {:else}
-                            <textarea oninput={(e) => updateQuestionResponse(index, e.currentTarget.value)} class="bg-gray-200 p-2" value={question.response}></textarea>
+                            <textarea oninput={(e) => updateQuestionResponse(index, e.currentTarget.value)} class="border-outline border rounded p-1 bg-surface" value={question.response}></textarea>
                         {/if}
                     </div>
                 </div>
