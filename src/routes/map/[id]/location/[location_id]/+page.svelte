@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import Button from '$components/actions/button/Button.svelte';
 
     interface SurveyQuestion {
         db_id: number,
@@ -92,7 +93,7 @@
                                     { choice }
                                 </label>
                             {/each}
-                            <button onclick={() => updateQuestionResponse(index, "")}>Deselect Value</button>
+                            <Button variant="destructive" onclick={() => updateQuestionResponse(index, "")}>Deselect Value</Button>
                         {:else if question.type == 'check' }
                             {#each question.choices as choice }
                                 <label>
