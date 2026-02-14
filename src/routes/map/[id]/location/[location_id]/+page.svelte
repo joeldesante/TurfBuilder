@@ -68,8 +68,11 @@
 
     <hr>
 
-    <button class="bg-gray-500 p-2 px-4 text-white" onclick={() => { contactMade = !contactMade }}>Contact Was {#if contactMade}Not{/if} Made</button>
-    
+    <label class="flex flex-row gap-1 items-center">
+        <input type="checkbox" bind:checked={contactMade}>
+        Was Contact Made?
+    </label>
+
     <hr>
 
     {#if contactMade && data.questions.length > 0}
