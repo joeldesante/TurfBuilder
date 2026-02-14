@@ -9,7 +9,6 @@
   let password = $state("")
   let rememberMe = $state(false);
   let loading = $state(false);
-  let anonLoading = $state(false);
   let error: string | null = $state("");
 
   async function signIn(event: Event) {

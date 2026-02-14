@@ -16,7 +16,7 @@ export async function POST({ request, locals, params }) {
   let schema = z.object({
     turf_id: z.uuidv4(),
     contactMade: z.boolean().default(false),
-    attemptNote: z.string().default(""),
+    attemptNote: z.string().optional().default(""),
     questions: z.array(z.object({
       db_id: z.uuidv4(),
       type: z.string().optional(),
