@@ -37,7 +37,7 @@ export async function POST({ request, locals, params }) {
       let val = schema.parse({
         turf_id: turf_id,
         contactMade: contactMade,
-        attemptNote: attemptNote,
+        attemptNote: attemptNote || "",
         questions: questions
       });
 
