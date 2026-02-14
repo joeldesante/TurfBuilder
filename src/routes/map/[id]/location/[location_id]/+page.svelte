@@ -89,6 +89,7 @@
                                     { choice }
                                 </label>
                             {/each}
+                            <button onclick={() => updateQuestionResponse(index, "")}>Deselect Value</button>
                         {:else if question.type == 'check' }
                             {#each question.choices as choice }
                                 <label>
@@ -116,7 +117,7 @@
     <section class="p-4 flex flex-col gap-4">
         <div>
             <h4 class="text-lg font-medium">Notes:</h4>
-            <textarea class="border-gray-400 border rounded p-1" placeholder="Any additional notes to share?" bind:value={ attemptNote }></textarea>
+            <textarea class="border-outline border rounded p-1 bg-surface" placeholder="Any additional notes to share?" bind:value={ attemptNote }></textarea>
         </div>
     </section>
 
