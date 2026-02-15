@@ -1,10 +1,5 @@
-import { Pool } from "pg";
-import { env } from "$env/dynamic/private";
 import { json } from "@sveltejs/kit";
-
-const pool = new Pool({
-    connectionString: env.DATABASE_URL
-});
+import { POOL } from "$lib/server/database.js";
 
 export async function POST({ request, fetch, locals }) {
     
@@ -18,7 +13,7 @@ export async function POST({ request, fetch, locals }) {
         return new Response("Invalid code format.", { status: 400 });
     }
 
-    const client = await pool.connect();
+    const client = await POOL.connect();
     try {
         const turfResult = await client.query(
             `

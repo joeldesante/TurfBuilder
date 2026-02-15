@@ -1,10 +1,5 @@
 import type { RequestHandler } from './$types';
-import { Pool } from 'pg';
-import { env } from '$env/dynamic/private';
-
-const pool = new Pool({
-    connectionString: env.DATABASE_URL
-});
+import { POOL } from '$lib/server/database.js';
 
 export const GET: RequestHandler = async ({ url }) => {
     const lat_min = parseFloat(url.searchParams.get('lat_min') || '0');
@@ -12,7 +7,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const lon_min = parseFloat(url.searchParams.get('lon_min') || '0');
     const lon_max = parseFloat(url.searchParams.get('lon_max') || '0');
 
-    const client = await pool.connect();
+    const client = await POOL.connect();
     try {
         const res = await client.query(
             `WITH viewport AS (
