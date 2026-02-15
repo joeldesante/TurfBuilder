@@ -18,7 +18,7 @@
     {/if}
     <input class="border border-outline rounded" id="input" bind:value={value} {...props} />
     <div>
-        <small class="text-red-500">
+        <small class="text-error">
             {#if errors.length > 0 && dirty }
                 { errors[0] }
             {/if}
