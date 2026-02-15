@@ -55,8 +55,8 @@
 
 	let listClass = $derived(
 		[
-			'flex gap-3',
-			orientation === 'vertical' ? 'flex-col' : 'flex-row flex-wrap'
+			'flex',
+			orientation === 'vertical' ? 'flex-col gap-3' : 'flex-row flex-wrap gap-5'
 		]
 			.filter(Boolean)
 			.join(' ')
