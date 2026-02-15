@@ -1,5 +1,4 @@
 import { betterAuth } from "better-auth";
-import { Pool } from "pg";
 import { env } from '$env/dynamic/private';
 import { twoFactor, username } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
@@ -8,13 +7,11 @@ import { organization } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
 import { ac, userRole, fieldOrganizerRole, campaignManagerRole } from "$lib/permissions";
 import config from "$config";
+import { AUTH_POOL } from "$lib/server/database.js";
 
 
 export const auth = betterAuth({
-    database: new Pool({
-        connectionString: env.DATABASE_URL,
-        options: "-c search_path=auth"
-    }),
+    database: AUTH_POOL,
     emailAndPassword: { 
         enabled: true, 
     },

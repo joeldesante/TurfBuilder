@@ -1,12 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { Pool } from 'pg';
 import { hasSystemAccess } from '$lib/auth-helpers.js';
 import * as z from "zod";
-
-const pool = new Pool({
-  connectionString: env.DATABASE_URL
-});
+import { POOL } from '$lib/server/database.js';
 
 export async function POST({ request, locals, params }) {
 
@@ -26,7 +21,7 @@ export async function POST({ request, locals, params }) {
   try {
     const { questions } = await request.json();
     const { id } = params;
-    const client = await pool.connect();
+    const client = await POOL.connect();
 
     let schemaResult = SurveyQuestionsSchema.parse(questions);
     

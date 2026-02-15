@@ -1,10 +1,5 @@
 import { redirect } from "@sveltejs/kit";
-import { env } from "$env/dynamic/private";
-import { Pool } from "pg";
-
-const pool = new Pool({
-    connectionString: env.DATABASE_URL
-});
+import { POOL } from "$lib/server/database.js";
 
 export async function load({ locals, params, fetch }) {
 
@@ -12,7 +7,7 @@ export async function load({ locals, params, fetch }) {
         redirect(302, '/');
     }
 
-    const client = await pool.connect();
+    const client = await POOL.connect();
     const surveys = await client.query(
         `SELECT * FROM survey`,
         []

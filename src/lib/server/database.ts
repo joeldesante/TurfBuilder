@@ -5,6 +5,11 @@ export const POOL = new Pool({
     connectionString: env.DATABASE_URL
 });
 
+export const AUTH_POOL = new Pool({
+    connectionString: env.DATABASE_URL,
+    options: "-c search_path=auth"
+});
+
 POOL.on('error', (err) => {
     console.error('Unexpected Database Error:', err)
 });
