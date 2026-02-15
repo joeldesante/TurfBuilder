@@ -1,12 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { Pool } from 'pg';
 import { hasSystemAccess } from '$lib/auth-helpers.js';
 import { customAlphabet } from 'nanoid';
-
-const pool = new Pool({
-  connectionString: env.DATABASE_URL
-});
+import { POOL } from '$lib/server/database.js';
 
 export async function POST({ request, locals }) {
   // Check authentication
@@ -28,7 +23,7 @@ export async function POST({ request, locals }) {
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + daysUntilExpiration);
 
-    const client = await pool.connect();
+    const client = await POOL.connect();
     
     try {
       // Insert each polygon as a turf

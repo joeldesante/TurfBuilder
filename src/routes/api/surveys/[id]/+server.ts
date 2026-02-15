@@ -1,11 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { Pool } from 'pg';
 import { hasSystemAccess } from '$lib/auth-helpers.js';
-
-const pool = new Pool({
-  connectionString: env.DATABASE_URL
-});
+import { POOL } from '$lib/server/database.js';
 
 export async function PUT({ request, locals, params }) {
   // Check authentication
@@ -16,7 +11,7 @@ export async function PUT({ request, locals, params }) {
   try {
     const { name, description }: { name: string, description: string } = await request.json();
     const { id } = params;
-    const client = await pool.connect();
+    const client = await POOL.connect();
 
     if(!name || !description) {
         throw new Error("Requires both a name and a description.");

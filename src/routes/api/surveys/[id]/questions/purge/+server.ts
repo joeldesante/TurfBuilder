@@ -1,11 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { Pool } from 'pg';
 import { hasSystemAccess } from '$lib/auth-helpers.js';
-
-const pool = new Pool({
-  connectionString: env.DATABASE_URL
-});
+import { POOL } from '$lib/server/database.js';
 
 export async function POST({ request, locals, params }) {
   // Check authentication
@@ -16,7 +11,7 @@ export async function POST({ request, locals, params }) {
   try {
     const { exclude }: { exclude: number[] | undefined } = await request.json();
     const { id } = params;
-    const client = await pool.connect();
+    const client = await POOL.connect();
     
     try {
 
