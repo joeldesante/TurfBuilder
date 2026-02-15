@@ -16,9 +16,9 @@
 	{#if label != ''}
 		<label for="input">{label}</label>
 	{/if}
-	<input class="border border-outline rounded" id="input" bind:value {...props} />
+	<input class="border border-outline rounded-lg" id="input" bind:value {...props} />
 	<div>
-		<small class="text-red-500">
+		<small class="text-error">
 			{#if errors.length > 0 && dirty}
 				{errors[0]}
 			{/if}

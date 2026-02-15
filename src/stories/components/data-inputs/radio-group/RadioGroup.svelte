@@ -97,9 +97,9 @@
 						disabled={item.disabled}
 						class={[
 							'size-5 shrink-0 rounded-full border inline-flex items-center justify-center',
-							'focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-1',
+							'focus-visible:outline-2 focus-visible:outline-offset-2',
 							'disabled:opacity-50 disabled:cursor-not-allowed',
-							invalid ? 'border-error' : 'border-outline',
+							invalid ? 'border-error focus-visible:outline-error' : 'border-outline',
 							'data-[state=checked]:border-primary'
 						]
 							.filter(Boolean)

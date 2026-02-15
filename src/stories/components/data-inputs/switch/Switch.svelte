@@ -46,10 +46,10 @@
 		[
 			'inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-transparent',
 			'transition-colors duration-150',
-			'focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-1',
+			'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			'data-[state=checked]:bg-primary data-[state=unchecked]:bg-surface-container-highest',
-			isInvalid ? 'ring-2 ring-error' : '',
+			isInvalid ? 'focus-visible:outline-error' : '',
 			className
 		]
 			.filter(Boolean)

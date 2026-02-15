@@ -35,10 +35,10 @@
 
 	let computedClass = $derived(
 		[
-			'flex items-center rounded-md border',
-			'has-[:focus]:outline-2 has-[:focus]:outline-primary has-[:focus]:-outline-offset-1',
+			'flex items-center rounded-lg border',
+			'has-[:focus]:outline-2 has-[:focus]:outline-offset-2',
 			isDisabled && 'opacity-50 cursor-not-allowed',
-			isInvalid ? 'border-error' : 'border-outline',
+			isInvalid ? 'border-error has-[:focus]:outline-error' : 'border-outline has-[:focus]:outline-primary',
 			className
 		]
 			.filter(Boolean)

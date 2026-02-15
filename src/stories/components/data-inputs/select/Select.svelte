@@ -54,10 +54,10 @@
 	let computedClass = $derived(
 		[
 			'w-full text-base text-on-surface bg-surface',
-			'h-12 md:h-10 px-3 rounded-md border appearance-none',
-			'focus:outline-2 focus:outline-primary focus:-outline-offset-1',
+			'h-12 md:h-10 px-3 rounded-lg border appearance-none',
+			'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
-			isInvalid ? 'border-error' : 'border-outline',
+			isInvalid ? 'border-error focus-visible:outline-error' : 'border-outline',
 			className
 		]
 			.filter(Boolean)

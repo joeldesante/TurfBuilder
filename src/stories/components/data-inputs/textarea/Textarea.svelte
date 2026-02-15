@@ -41,8 +41,8 @@
 	let computedClass = $derived(
 		[
 			'w-full text-base text-on-surface bg-surface placeholder:text-on-surface-subtle',
-			'px-3 py-2 rounded-md border',
-			'focus:outline-2 focus:outline-primary focus:-outline-offset-1',
+			'px-3 py-2 rounded-lg border',
+			'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			isInvalid ? 'border-error' : 'border-outline',
 			className
