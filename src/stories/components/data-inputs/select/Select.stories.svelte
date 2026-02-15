@@ -42,7 +42,7 @@
 		parameters: {
 			docs: {
 				subtitle:
-					'A styled native HTML select element. Nest within FormField for labels, helper text, and validation.'
+					'A styled native HTML Select element. Nest within FormField for labels, helper text, and validation.'
 			}
 		}
 	})

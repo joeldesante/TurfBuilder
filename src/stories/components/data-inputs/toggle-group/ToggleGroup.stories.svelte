@@ -62,7 +62,7 @@
 		parameters: {
 			docs: {
 				subtitle:
-					"A self-contained group of selectable toggle buttons built on bits-ui. type='single' behaves like radios, type='multiple' behaves like checkboxes."
+					"A self-contained group of selectable toggle buttons. type='single' behaves like radios, type='multiple' behaves like checkboxes."
 			}
 		}
 	})

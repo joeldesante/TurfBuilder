@@ -15,7 +15,7 @@
 			disabled: {
 				control: 'boolean',
 				description:
-					'Whether the switch is disabled. Can also be inherited from a parent FormField.'
+					'Whether the switch is disabled. Can also be inherited from a parent `FormField`.'
 			},
 			children: {
 				control: false,
@@ -26,13 +26,13 @@
 				control: false,
 				table: { category: 'Derived Props' },
 				description:
-					'The id attribute. Auto-inherited from FormField context if not provided.'
+					'The id attribute. Auto-inherited from `FormField` context if not provided.'
 			}
 		},
 		parameters: {
 			docs: {
 				subtitle:
-					'A toggle switch built on bits-ui. Renders its own inline label when children are provided. Wrap in FormField for validation and helper text.'
+					'A toggle switch that renders its own inline label when children are provided. Wrap in `FormField` for validation and helper text.'
 			}
 		}
 	})

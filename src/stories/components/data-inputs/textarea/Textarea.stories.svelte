@@ -14,7 +14,7 @@
 			},
 			placeholder: {
 				control: 'text',
-				description: 'A short hint shown when the textarea is empty.'
+				description: 'A short hint that demonstrates the expected format of the textarea when empty. This should only be used when needed.'
 			},
 			rows: {
 				control: 'number',
@@ -23,7 +23,7 @@
 			disabled: {
 				control: 'boolean',
 				description:
-					'Whether the textarea is disabled. Can also be inherited from a parent FormField.'
+					'Whether the textarea is disabled. Can also be inherited from a parent `FormField`.'
 			},
 			readonly: {
 				control: 'boolean',
@@ -34,7 +34,7 @@
 				control: false,
 				table: { category: 'Derived Props' },
 				description:
-					'The id attribute. Auto-inherited from FormField context if not provided.'
+					'The id attribute. Auto-inherited from `FormField` context if not provided.'
 			}
 		},
 		parameters: {

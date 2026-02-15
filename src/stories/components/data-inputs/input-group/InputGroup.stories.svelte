@@ -3,7 +3,7 @@
 	import InputGroup from './InputGroup.svelte'
 	import TextInput from '../text-input/TextInput.svelte'
 	import FormField from '../form-field/FormField.svelte'
-	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon'
+	import { MagnifyingGlassIcon } from 'phosphor-svelte'
 	import { CurrencyDollarIcon } from 'phosphor-svelte'
 
 	const { Story } = defineMeta({
@@ -19,7 +19,7 @@
 			trailing: {
 				control: false,
 				description:
-					"A Svelte snippet rendered after the input. Typically a unit label like 'USD'."
+					"A Svelte snippet rendered after the input. Typically an icon or unit label like 'USD'."
 			},
 			disabled: {
 				control: 'boolean',

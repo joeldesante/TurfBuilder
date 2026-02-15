@@ -77,7 +77,7 @@
 
 	{@render children()}
 
-	{#if helperText && !invalid}
+	{#if helperText}
 		<p id={helperId} class="text-xs text-on-surface-subtle">{helperText}</p>
 	{/if}
 
