@@ -6,7 +6,35 @@
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/Switch',
 		component: Switch,
-		tags: ['autodocs']
+		tags: ['autodocs'],
+		argTypes: {
+			checked: {
+				control: 'boolean',
+				description: 'Whether the switch is on. This is a bindable prop.'
+			},
+			disabled: {
+				control: 'boolean',
+				description:
+					'Whether the switch is disabled. Can also be inherited from a parent FormField.'
+			},
+			children: {
+				control: false,
+				description:
+					'Optional label text rendered as an inline `<label>`. When omitted, the switch renders without a label.'
+			},
+			id: {
+				control: false,
+				table: { category: 'Derived Props' },
+				description:
+					'The id attribute. Auto-inherited from FormField context if not provided.'
+			}
+		},
+		parameters: {
+			docs: {
+				subtitle:
+					'A toggle switch built on bits-ui. Renders its own inline label when children are provided. Wrap in FormField for validation and helper text.'
+			}
+		}
 	})
 </script>
 

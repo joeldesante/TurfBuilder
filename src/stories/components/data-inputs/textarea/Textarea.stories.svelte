@@ -6,7 +6,43 @@
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/Textarea',
 		component: Textarea,
-		tags: ['autodocs']
+		tags: ['autodocs'],
+		argTypes: {
+			value: {
+				control: 'text',
+				description: 'The current value of the textarea. This is a bindable prop.'
+			},
+			placeholder: {
+				control: 'text',
+				description: 'A short hint shown when the textarea is empty.'
+			},
+			rows: {
+				control: 'number',
+				description: 'The visible number of text lines.'
+			},
+			disabled: {
+				control: 'boolean',
+				description:
+					'Whether the textarea is disabled. Can also be inherited from a parent FormField.'
+			},
+			readonly: {
+				control: 'boolean',
+				description:
+					'Whether the textarea is read-only. Prevents user input but does not disable the element.'
+			},
+			id: {
+				control: false,
+				table: { category: 'Derived Props' },
+				description:
+					'The id attribute. Auto-inherited from FormField context if not provided.'
+			}
+		},
+		parameters: {
+			docs: {
+				subtitle:
+					'A styled native HTML textarea element. Nest within FormField for labels, helper text, and validation.'
+			}
+		}
 	})
 </script>
 

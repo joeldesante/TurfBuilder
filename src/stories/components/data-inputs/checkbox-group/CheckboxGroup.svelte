@@ -14,7 +14,7 @@
 		value?: string[]
 		items: CheckboxItem[]
 		orientation?: 'vertical' | 'horizontal'
-		requirement?: 'required' | 'optional' | 'none'
+		requirementIndicator?: 'required' | 'optional' | 'none'
 		helperText?: string
 		errors?: string[]
 		dirty?: boolean
@@ -28,7 +28,7 @@
 		value = $bindable([]),
 		items,
 		orientation = 'vertical',
-		requirement = 'none',
+		requirementIndicator = 'none',
 		helperText,
 		errors = [],
 		dirty = false,
@@ -64,9 +64,9 @@
 >
 	<legend class="text-sm font-medium text-on-surface mb-2">
 		{label}
-		{#if requirement === 'required'}
+		{#if requirementIndicator === 'required'}
 			<span class="text-error text-xs font-normal">*</span>
-		{:else if requirement === 'optional'}
+		{:else if requirementIndicator === 'optional'}
 			<span class="text-on-surface-subtle text-xs font-normal ml-1">Optional</span>
 		{/if}
 	</legend>
@@ -77,7 +77,7 @@
 				<Checkbox
 					id={`${groupId}-${item.value}`}
 					value={item.value}
-					disabled={item.disabled}
+					disabled={item.disabled || disabled}
 					{invalid}
 				>
 					{item.label}

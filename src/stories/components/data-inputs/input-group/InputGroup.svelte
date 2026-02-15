@@ -48,7 +48,7 @@
 
 <div class={computedClass} {...restProps}>
 	{#if leading}
-		<span class="flex items-center pl-3 text-on-surface-subtle shrink-0">
+		<span class="flex items-center pl-3 text-on-surface-subtle text-sm shrink-0 [&>svg]:size-5">
 			{@render leading()}
 		</span>
 	{/if}
@@ -56,7 +56,7 @@
 	{@render children()}
 
 	{#if trailing}
-		<span class="flex items-center pr-3 text-on-surface-subtle shrink-0">
+		<span class="flex items-center pr-3 text-on-surface-subtle text-sm shrink-0 [&>svg]:size-5">
 			{@render trailing()}
 		</span>
 	{/if}

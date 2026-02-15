@@ -44,7 +44,7 @@
 			'px-3 py-2 rounded-lg border',
 			'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
-			isInvalid ? 'border-error' : 'border-outline',
+			isInvalid ? 'border-error focus-visible:outline-error' : 'border-outline',
 			className
 		]
 			.filter(Boolean)
