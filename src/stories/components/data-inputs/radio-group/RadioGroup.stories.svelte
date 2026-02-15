@@ -55,7 +55,7 @@
 		parameters: {
 			docs: {
 				subtitle:
-					'A self-contained radio group built on bits-ui inside a fieldset with legend, helper text, and error rendering. No FormField wrapper needed.'
+					'A self-contained radio group inside a fieldset with legend, helper text, and error rendering.'
 			}
 		}
 	})

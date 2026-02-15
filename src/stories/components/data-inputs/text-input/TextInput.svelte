@@ -3,6 +3,7 @@
 
 	type InputType = 'text' | 'email' | 'password' | 'url' | 'tel' | 'search' | 'number'
 
+	// TODO: Make grouped prop apply automatically when inside an InputGroup context, and remove the prop from the public API
 	interface Props {
 		value?: string
 		type?: InputType
