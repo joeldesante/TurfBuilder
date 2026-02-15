@@ -6,7 +6,45 @@
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/Select',
 		component: Select,
-		tags: ['autodocs']
+		tags: ['autodocs'],
+		argTypes: {
+			items: {
+				control: 'object',
+				description:
+					'Flat array of options, each with `value`, `label`, and optional `disabled`. Use `items` or `groups`, not both.'
+			},
+			groups: {
+				control: 'object',
+				description:
+					'Array of option groups, each with a `heading` and nested `items` array. Renders as `<optgroup>` elements.'
+			},
+			value: {
+				control: 'text',
+				description: 'The currently selected value. This is a bindable prop.'
+			},
+			placeholder: {
+				control: 'text',
+				description:
+					'Placeholder text shown as a disabled first option when no value is selected.'
+			},
+			disabled: {
+				control: 'boolean',
+				description:
+					'Whether the select is disabled. Can also be inherited from a parent FormField.'
+			},
+			id: {
+				control: false,
+				table: { category: 'Derived Props' },
+				description:
+					'The id attribute. Auto-inherited from FormField context if not provided.'
+			}
+		},
+		parameters: {
+			docs: {
+				subtitle:
+					'A styled native HTML select element. Nest within FormField for labels, helper text, and validation.'
+			}
+		}
 	})
 
 	const stateItems = [

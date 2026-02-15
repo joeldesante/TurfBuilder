@@ -7,13 +7,55 @@
 		component: CheckboxGroup,
 		tags: ['autodocs'],
 		argTypes: {
+			label: {
+				control: 'text',
+				description:
+					'The group label rendered as a `<legend>` inside the `<fieldset>`.'
+			},
+			items: {
+				control: 'object',
+				description:
+					'Array of checkbox items, each with `value`, `label`, and optional `disabled`.'
+			},
+			value: {
+				control: 'object',
+				description: 'Array of selected values. This is a bindable prop.'
+			},
 			orientation: {
 				control: { type: 'radio' },
-				options: ['vertical', 'horizontal']
+				options: ['vertical', 'horizontal'],
+				description: 'Layout direction of the checkbox items.'
 			},
-			requirement: {
-				control: { type: 'select' },
-				options: ['none', 'required', 'optional']
+			requirementIndicator: {
+				control: { type: 'radio' },
+				options: ['none', 'required', 'optional'],
+				description:
+					"Displays a visual indicator (asterisk or 'Optional' text) next to the label. UX only — does not enforce validation."
+			},
+			helperText: {
+				control: 'text',
+				description:
+					'Guidance text providing more context about the checkbox group.'
+			},
+			errors: {
+				control: 'object',
+				description:
+					'Array of error messages shown when the field is dirty and invalid.'
+			},
+			dirty: {
+				control: 'boolean',
+				description:
+					'Whether the group has been interacted with. Errors only display when dirty.'
+			},
+			disabled: {
+				control: 'boolean',
+				description: 'Disables all checkboxes in the group.'
+			}
+		},
+		parameters: {
+			docs: {
+				subtitle:
+					'A self-contained group of Checkbox components inside a fieldset with legend, optional helper text, and error rendering'
 			}
 		}
 	})
@@ -48,7 +90,7 @@
 
 <Story
 	name="Required"
-	args={{ label: 'Notifications', items: notificationItems, requirement: 'required' }}
+	args={{ label: 'Notifications', items: notificationItems, requirementIndicator: 'required' }}
 />
 
 <Story

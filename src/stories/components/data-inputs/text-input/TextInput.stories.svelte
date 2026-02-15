@@ -10,7 +10,39 @@
 		argTypes: {
 			type: {
 				control: { type: 'select' },
-				options: ['text', 'email', 'password', 'url', 'tel', 'search', 'number']
+				options: ['text', 'email', 'password', 'url', 'tel', 'search', 'number'],
+				description: 'The type of input, which determines the expected format and may trigger specific virtual keyboards on mobile devices.'
+			},
+			placeholder: {
+				control: 'text',
+				description: 'A short hint that demonstrates the expected format of the input. This should only be used when needed.'
+			},
+			value: {
+				control: 'text',
+				description: 'The current value of the input. This is a bindable prop.'
+			},
+			id: {
+				table: { category: 'Derived Props' },
+				control: false,
+				description: 'The id attribute for the input element.'
+			},
+			grouped: {
+				description: 'Whether the input is visually grouped with other inputs, which affects focus and border styles. This is typically used when the input is wrapped in an InputGroup component.',
+				control: false,
+				table: { category: 'Derived Props' }
+			},
+			disabled: {
+				description: 'Whether the input is disabled. This can also be inherited from a parent FormField component.',
+				control: 'boolean'
+			},
+			readonly: {
+				description: 'Whether the input is read-only. This prevents user input but does not disable the element.',
+				control: 'boolean'
+			}
+		},
+		parameters: {
+			docs: {
+				subtitle: 'A styled native HTML Input element. To use with a label, helper text, validation, etc., nest within the FormField component.'
 			}
 		}
 	})

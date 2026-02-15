@@ -7,17 +7,62 @@
 		component: ToggleGroup,
 		tags: ['autodocs'],
 		argTypes: {
+			label: {
+				control: 'text',
+				description:
+					'The group label rendered as a `<legend>` inside the `<fieldset>`.'
+			},
+			items: {
+				control: 'object',
+				description:
+					'Array of toggle items, each with `value`, `label`, and optional `disabled`.'
+			},
 			type: {
 				control: { type: 'radio' },
-				options: ['single', 'multiple']
+				options: ['single', 'multiple'],
+				description:
+					"Selection mode. 'single' allows one selection (value is a string), 'multiple' allows many (value is a string array)."
+			},
+			value: {
+				control: false,
+				description:
+					"The selected value(s). String when type='single', string array when type='multiple'. This is a bindable prop."
 			},
 			orientation: {
 				control: { type: 'radio' },
-				options: ['vertical', 'horizontal']
+				options: ['vertical', 'horizontal'],
+				description: 'Layout direction of the toggle items.'
 			},
 			requirement: {
 				control: { type: 'select' },
-				options: ['none', 'required', 'optional']
+				options: ['none', 'required', 'optional'],
+				description:
+					"Displays a visual indicator (asterisk or 'Optional' text) next to the label. UX only — does not enforce validation."
+			},
+			helperText: {
+				control: 'text',
+				description:
+					'Guidance text shown below the group. Hidden when errors are visible.'
+			},
+			errors: {
+				control: 'object',
+				description:
+					'Array of error messages shown when the field is dirty and invalid.'
+			},
+			dirty: {
+				control: 'boolean',
+				description:
+					'Whether the group has been interacted with. Errors only display when dirty.'
+			},
+			disabled: {
+				control: 'boolean',
+				description: 'Disables all toggle items in the group.'
+			}
+		},
+		parameters: {
+			docs: {
+				subtitle:
+					"A self-contained group of selectable toggle buttons built on bits-ui. type='single' behaves like radios, type='multiple' behaves like checkboxes."
 			}
 		}
 	})

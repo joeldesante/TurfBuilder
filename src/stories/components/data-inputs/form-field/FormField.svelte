@@ -7,7 +7,7 @@
 		label: string
 		labelVisibility?: 'visible' | 'sr-only'
 		id?: string
-		requirement?: 'required' | 'optional' | 'none'
+		requirementIndicator?: 'required' | 'optional' | 'none'
 		helperText?: string
 		errors?: string[]
 		dirty?: boolean
@@ -21,7 +21,7 @@
 		label,
 		labelVisibility = 'visible',
 		id,
-		requirement = 'none',
+		requirementIndicator = 'none',
 		helperText,
 		errors = [],
 		dirty = false,
@@ -68,9 +68,9 @@
 			.join(' ')}
 	>
 		{label}
-		{#if requirement === 'required'}
+		{#if requirementIndicator === 'required'}
 			<span class="text-error text-xs font-normal">*</span>
-		{:else if requirement === 'optional'}
+		{:else if requirementIndicator === 'optional'}
 			<span class="text-on-surface-subtle text-xs font-normal ml-1">Optional</span>
 		{/if}
 	</label>

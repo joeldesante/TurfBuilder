@@ -3,77 +3,90 @@
 	import InputGroup from './InputGroup.svelte'
 	import TextInput from '../text-input/TextInput.svelte'
 	import FormField from '../form-field/FormField.svelte'
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon'
+	import { CurrencyDollarIcon } from 'phosphor-svelte'
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/InputGroup',
 		component: InputGroup,
-		tags: ['autodocs']
+		tags: ['autodocs'],
+		argTypes: {
+			leading: {
+				control: false,
+				description:
+					"A Svelte snippet rendered before the input. Typically an icon or short text prefix like 'https://'."
+			},
+			trailing: {
+				control: false,
+				description:
+					"A Svelte snippet rendered after the input. Typically a unit label like 'USD'."
+			},
+			disabled: {
+				control: 'boolean',
+				description:
+					'Whether the group appears disabled. Can also be inherited from FormField context.'
+			},
+			children: {
+				control: false,
+				description:
+					'The input element (typically a TextInput with `grouped` prop) placed between leading and trailing addons.'
+			}
+		},
+		parameters: {
+			docs: {
+				subtitle:
+					'A layout wrapper that visually groups a text input with leading and/or trailing addons (icons, text). Reads FormField context for invalid and disabled states.'
+			}
+		}
 	})
 </script>
 
 <Story name="With Leading Text" asChild>
-	<FormField label="Website">
-		<InputGroup>
-			{#snippet leading()}
-				<span class="text-sm">https://</span>
-			{/snippet}
-			<TextInput placeholder="example.com" grouped />
-		</InputGroup>
-	</FormField>
+	<InputGroup>
+		{#snippet leading()}
+			https://
+		{/snippet}
+		<TextInput placeholder="example.com" type="url" grouped />
+	</InputGroup>
+</Story>
+
+<Story name="With Leading Icon" asChild>
+	<InputGroup>
+		{#snippet leading()}
+			<MagnifyingGlassIcon />
+		{/snippet}
+		<TextInput placeholder="Search..." grouped />
+	</InputGroup>
 </Story>
 
 <Story name="With Trailing Text" asChild>
-	<FormField label="Price">
-		<InputGroup>
-			<TextInput type="number" placeholder="0.00" grouped />
-			{#snippet trailing()}
-				<span class="text-sm">USD</span>
-			{/snippet}
-		</InputGroup>
-	</FormField>
+	<InputGroup>
+		<TextInput type="number" placeholder="0.00" grouped />
+		{#snippet trailing()}
+			USD
+		{/snippet}
+	</InputGroup>
 </Story>
 
-<Story name="With Leading and Trailing" asChild>
+<Story name="With Leading, Trailing, and Within FormField" asChild>
 	<FormField label="Amount" helperText="Enter the donation amount.">
 		<InputGroup>
 			{#snippet leading()}
-				<span class="text-sm font-medium">$</span>
+				<CurrencyDollarIcon />
 			{/snippet}
 			<TextInput type="number" placeholder="0.00" grouped />
 			{#snippet trailing()}
-				<span class="text-sm">USD</span>
+				USD
 			{/snippet}
-		</InputGroup>
-	</FormField>
-</Story>
-
-<Story name="With Errors" asChild>
-	<FormField label="Website" errors={['Please enter a valid URL.']} dirty={true}>
-		<InputGroup>
-			{#snippet leading()}
-				<span class="text-sm">https://</span>
-			{/snippet}
-			<TextInput placeholder="example.com" grouped />
 		</InputGroup>
 	</FormField>
 </Story>
 
 <Story name="Disabled" asChild>
-	<FormField label="Website" disabled={true}>
-		<InputGroup>
-			{#snippet leading()}
-				<span class="text-sm">https://</span>
-			{/snippet}
-			<TextInput placeholder="example.com" grouped />
-		</InputGroup>
-	</FormField>
-</Story>
-
-<Story name="Standalone" asChild>
 	<InputGroup>
 		{#snippet leading()}
-			<span class="text-sm">Search:</span>
+			https://
 		{/snippet}
-		<TextInput placeholder="Type to search..." grouped />
+		<TextInput placeholder="example.com" disabled grouped />
 	</InputGroup>
 </Story>

@@ -7,6 +7,12 @@ const preview: Preview = {
 			matchers: {
 				color: /(background|color)$/i,
 				date: /Date$/i
+			},
+			sort: 'requiredFirst'
+		},
+		docs: {
+			argTypes: {
+				sort: 'requiredFirst'
 			}
 		}
 	},
