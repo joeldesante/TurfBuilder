@@ -1,13 +1,13 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import FormField from './FormField.svelte'
-	import TextInput from '../text-input/TextInput.svelte'
-	import Textarea from '../textarea/Textarea.svelte'
-	import Select from '../select/Select.svelte'
-	import InputGroup from '../input-group/InputGroup.svelte'
-	import Checkbox from '../checkbox/Checkbox.svelte'
-	import Switch from '../switch/Switch.svelte'
-	import { AtIcon } from 'phosphor-svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import FormField from './FormField.svelte';
+	import TextInput from '../text-input/TextInput.svelte';
+	import Textarea from '../textarea/Textarea.svelte';
+	import Select from '../select/Select.svelte';
+	import InputGroup from '../input-group/InputGroup.svelte';
+	import Checkbox from '../checkbox/Checkbox.svelte';
+	import Switch from '../switch/Switch.svelte';
+	import { AtIcon } from 'phosphor-svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/FormField',
@@ -16,8 +16,7 @@
 		argTypes: {
 			label: {
 				control: 'text',
-				description:
-					'The text label for the form field, which describes the purpose of the input.'
+				description: 'The text label for the form field, which describes the purpose of the input.'
 			},
 			children: {
 				control: false,
@@ -48,8 +47,7 @@
 			},
 			errors: {
 				control: 'object',
-				description:
-					'An array of error messages to display when the input is in an invalid state.'
+				description: 'An array of error messages to display when the input is in an invalid state.'
 			},
 			dirty: {
 				control: 'boolean',
@@ -68,7 +66,7 @@
 					'A wrapper component for form fields that provides a label, helper text, and error messages. It also manages disabled state and visual grouping for nested input components.'
 			}
 		}
-	})
+	});
 </script>
 
 <Story name="TextInput" asChild>
@@ -120,13 +118,23 @@
 </Story>
 
 <Story name="Textarea with Error" asChild>
-	<FormField label="Bio" helperText="Tell us a little about yourself." errors={['Bio must be at least 10 characters.']} dirty={true}>
+	<FormField
+		label="Bio"
+		helperText="Tell us a little about yourself."
+		errors={['Bio must be at least 10 characters.']}
+		dirty={true}
+	>
 		<Textarea value="Too short" />
 	</FormField>
 </Story>
 
 <Story name="Textarea with Multiple Errors" asChild>
-	<FormField label="Bio" helperText="Tell us a little about yourself." errors={['Bio must be at least 10 characters.', 'Bio cannot contain special characters.']} dirty={true}>
+	<FormField
+		label="Bio"
+		helperText="Tell us a little about yourself."
+		errors={['Bio must be at least 10 characters.', 'Bio cannot contain special characters.']}
+		dirty={true}
+	>
 		<Textarea value="Too short" />
 	</FormField>
 </Story>
@@ -205,7 +213,11 @@
 </Story>
 
 <Story name="Checkbox with Helper Text" asChild>
-	<FormField label="Marketing" labelVisibility="sr-only" helperText="You can unsubscribe at any time.">
+	<FormField
+		label="Marketing"
+		labelVisibility="sr-only"
+		helperText="You can unsubscribe at any time."
+	>
 		<Checkbox>Send me marketing emails</Checkbox>
 	</FormField>
 </Story>

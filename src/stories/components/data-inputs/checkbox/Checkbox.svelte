@@ -1,20 +1,20 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte'
-	import { getContext } from 'svelte'
-	import { Checkbox as CheckboxPrimitive } from 'bits-ui'
+	import type { Snippet } from 'svelte';
+	import { getContext } from 'svelte';
+	import { Checkbox as CheckboxPrimitive } from 'bits-ui';
 
 	interface Props {
-		checked?: boolean
-		indeterminate?: boolean
-		onCheckedChange?: (checked: boolean) => void
-		disabled?: boolean
-		invalid?: boolean
-		name?: string
-		value?: string
-		id?: string
-		children?: Snippet
-		class?: string
-		[key: string]: unknown
+		checked?: boolean;
+		indeterminate?: boolean;
+		onCheckedChange?: (checked: boolean) => void;
+		disabled?: boolean;
+		invalid?: boolean;
+		name?: string;
+		value?: string;
+		id?: string;
+		children?: Snippet;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -29,22 +29,22 @@
 		children,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
 	const ctx = getContext<
 		| {
-				id: string
-				invalid: boolean
-				disabled: boolean
-				describedBy: string | undefined
-			}
+				id: string;
+				invalid: boolean;
+				disabled: boolean;
+				describedBy: string | undefined;
+		  }
 		| undefined
-	>('formField')
+	>('formField');
 
-	let checkboxId = $derived(id ?? ctx?.id)
-	let isInvalid = $derived(invalid ?? ctx?.invalid ?? false)
-	let isDisabled = $derived(disabled || (ctx?.disabled ?? false))
-	let describedBy = $derived(ctx?.describedBy)
+	let checkboxId = $derived(id ?? ctx?.id);
+	let isInvalid = $derived(invalid ?? ctx?.invalid ?? false);
+	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
+	let describedBy = $derived(ctx?.describedBy);
 
 	let boxClass = $derived(
 		[
@@ -58,7 +58,7 @@
 		]
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 {#if children}

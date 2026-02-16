@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { getContext } from 'svelte'
+	import { getContext } from 'svelte';
 
 	interface Props {
-		value?: string
-		placeholder?: string
-		rows?: number
-		id?: string
-		disabled?: boolean
-		readonly?: boolean
-		class?: string
-		[key: string]: unknown
+		value?: string;
+		placeholder?: string;
+		rows?: number;
+		id?: string;
+		disabled?: boolean;
+		readonly?: boolean;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -21,22 +21,22 @@
 		readonly = false,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
 	const ctx = getContext<
 		| {
-				id: string
-				invalid: boolean
-				disabled: boolean
-				describedBy: string | undefined
-			}
+				id: string;
+				invalid: boolean;
+				disabled: boolean;
+				describedBy: string | undefined;
+		  }
 		| undefined
-	>('formField')
+	>('formField');
 
-	let inputId = $derived(id ?? ctx?.id)
-	let isInvalid = $derived(ctx?.invalid ?? false)
-	let isDisabled = $derived(disabled || (ctx?.disabled ?? false))
-	let describedBy = $derived(ctx?.describedBy)
+	let inputId = $derived(id ?? ctx?.id);
+	let isInvalid = $derived(ctx?.invalid ?? false);
+	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
+	let describedBy = $derived(ctx?.describedBy);
 
 	let computedClass = $derived(
 		[
@@ -49,7 +49,7 @@
 		]
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 <textarea

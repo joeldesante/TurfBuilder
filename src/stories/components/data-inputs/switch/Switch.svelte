@@ -1,18 +1,18 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte'
-	import { getContext } from 'svelte'
-	import { Switch as SwitchPrimitive } from 'bits-ui'
+	import type { Snippet } from 'svelte';
+	import { getContext } from 'svelte';
+	import { Switch as SwitchPrimitive } from 'bits-ui';
 
 	interface Props {
-		checked?: boolean
-		onCheckedChange?: (checked: boolean) => void
-		disabled?: boolean
-		name?: string
-		value?: string
-		id?: string
-		children?: Snippet
-		class?: string
-		[key: string]: unknown
+		checked?: boolean;
+		onCheckedChange?: (checked: boolean) => void;
+		disabled?: boolean;
+		name?: string;
+		value?: string;
+		id?: string;
+		children?: Snippet;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -25,22 +25,22 @@
 		children,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
 	const ctx = getContext<
 		| {
-				id: string
-				invalid: boolean
-				disabled: boolean
-				describedBy: string | undefined
-			}
+				id: string;
+				invalid: boolean;
+				disabled: boolean;
+				describedBy: string | undefined;
+		  }
 		| undefined
-	>('formField')
+	>('formField');
 
-	let switchId = $derived(id ?? ctx?.id)
-	let isInvalid = $derived(ctx?.invalid ?? false)
-	let isDisabled = $derived(disabled || (ctx?.disabled ?? false))
-	let describedBy = $derived(ctx?.describedBy)
+	let switchId = $derived(id ?? ctx?.id);
+	let isInvalid = $derived(ctx?.invalid ?? false);
+	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
+	let describedBy = $derived(ctx?.describedBy);
 
 	let trackClass = $derived(
 		[
@@ -54,7 +54,7 @@
 		]
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 {#if children}

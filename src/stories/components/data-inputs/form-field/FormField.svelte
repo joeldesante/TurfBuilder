@@ -1,20 +1,20 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte'
-	import { setContext } from 'svelte'
+	import type { Snippet } from 'svelte';
+	import { setContext } from 'svelte';
 	import { WarningIcon } from 'phosphor-svelte';
 
 	interface Props {
-		label: string
-		labelVisibility?: 'visible' | 'sr-only'
-		id?: string
-		requirementIndicator?: 'required' | 'optional' | 'none'
-		helperText?: string
-		errors?: string[]
-		dirty?: boolean
-		disabled?: boolean
-		children: Snippet
-		class?: string
-		[key: string]: unknown
+		label: string;
+		labelVisibility?: 'visible' | 'sr-only';
+		id?: string;
+		requirementIndicator?: 'required' | 'optional' | 'none';
+		helperText?: string;
+		errors?: string[];
+		dirty?: boolean;
+		disabled?: boolean;
+		children: Snippet;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -29,41 +29,36 @@
 		children,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
-	let fieldId = $derived(id ?? `field-${crypto.randomUUID().slice(0, 8)}`)
-	let invalid = $derived(dirty && errors.length > 0)
-	let helperId = $derived(helperText ? `${fieldId}-helper` : undefined)
-	let errorId = $derived(invalid ? `${fieldId}-error` : undefined)
-	let describedBy = $derived(
-		[errorId, helperId].filter(Boolean).join(' ') || undefined
-	)
+	let fieldId = $derived(id ?? `field-${Math.random().toString(36).slice(2, 10)}`);
+	let invalid = $derived(dirty && errors.length > 0);
+	let helperId = $derived(helperText ? `${fieldId}-helper` : undefined);
+	let errorId = $derived(invalid ? `${fieldId}-error` : undefined);
+	let describedBy = $derived([errorId, helperId].filter(Boolean).join(' ') || undefined);
 
 	setContext('formField', {
 		get id() {
-			return fieldId
+			return fieldId;
 		},
 		get invalid() {
-			return invalid
+			return invalid;
 		},
 		get disabled() {
-			return disabled
+			return disabled;
 		},
 		get describedBy() {
-			return describedBy
+			return describedBy;
 		}
-	})
+	});
 
-	let computedClass = $derived(['flex flex-col gap-1.5', className].filter(Boolean).join(' '))
+	let computedClass = $derived(['flex flex-col gap-1.5', className].filter(Boolean).join(' '));
 </script>
 
 <div class={computedClass} {...restProps}>
 	<label
 		for={fieldId}
-		class={[
-			'text-sm font-medium text-on-surface',
-			labelVisibility === 'sr-only' && 'sr-only'
-		]
+		class={['text-sm font-medium text-on-surface', labelVisibility === 'sr-only' && 'sr-only']
 			.filter(Boolean)
 			.join(' ')}
 	>

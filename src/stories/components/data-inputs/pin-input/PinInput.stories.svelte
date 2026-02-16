@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import PinInput from './PinInput.svelte'
-	import FormField from '../form-field/FormField.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import PinInput from './PinInput.svelte';
+	import FormField from '../form-field/FormField.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/PinInput',
@@ -38,8 +38,12 @@
 			},
 			name: {
 				control: 'text',
+				description: 'The name attribute for the hidden input element, used for form submission.'
+			},
+			autofocus: {
+				control: 'boolean',
 				description:
-					'The name attribute for the hidden input element, used for form submission.'
+					'Whether the input should automatically receive focus when the component mounts.'
 			},
 			disabled: {
 				control: 'boolean',
@@ -59,7 +63,7 @@
 					'A pin/OTP input for entering verification codes, 2FA tokens, or multi-factor authentication codes. Nest within FormField for labels, helper text, and validation.'
 			}
 		}
-	})
+	});
 </script>
 
 <Story name="Default" />
@@ -79,16 +83,12 @@
 </Story>
 
 <Story name="With Errors" asChild>
-	<FormField
-		label="Verification code"
-		errors={['The code you entered is incorrect.']}
-		dirty={true}
-	>
+	<FormField label="Verification code" errors={['The code you entered is incorrect.']} dirty={true}>
 		<PinInput value="123456" />
 	</FormField>
 </Story>
 
-<Story name="Disabled" args={{ disabled: true}} />
+<Story name="Disabled" args={{ disabled: true }} />
 
 <Story name="Disabled with FormField" asChild>
 	<FormField label="Verification code" disabled={true}>

@@ -1,6 +1,6 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import ToggleGroup from './ToggleGroup.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import ToggleGroup from './ToggleGroup.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/ToggleGroup',
@@ -9,13 +9,11 @@
 		argTypes: {
 			label: {
 				control: 'text',
-				description:
-					'The group label rendered as a `<legend>` inside the `<fieldset>`.'
+				description: 'The group label rendered as a `<legend>` inside the `<fieldset>`.'
 			},
 			items: {
 				control: 'object',
-				description:
-					'Array of toggle items, each with `value`, `label`, and optional `disabled`.'
+				description: 'Array of toggle items, each with `value`, `label`, and optional `disabled`.'
 			},
 			type: {
 				control: { type: 'radio' },
@@ -41,18 +39,15 @@
 			},
 			helperText: {
 				control: 'text',
-				description:
-					'Guidance text shown below the group. Hidden when errors are visible.'
+				description: 'Guidance text shown below the group. Hidden when errors are visible.'
 			},
 			errors: {
 				control: 'object',
-				description:
-					'Array of error messages shown when the field is dirty and invalid.'
+				description: 'Array of error messages shown when the field is dirty and invalid.'
 			},
 			dirty: {
 				control: 'boolean',
-				description:
-					'Whether the group has been interacted with. Errors only display when dirty.'
+				description: 'Whether the group has been interacted with. Errors only display when dirty.'
 			},
 			disabled: {
 				control: 'boolean',
@@ -65,13 +60,13 @@
 					"A self-contained group of selectable toggle buttons. type='single' behaves like radios, type='multiple' behaves like checkboxes."
 			}
 		}
-	})
+	});
 
 	const viewItems = [
 		{ value: 'list', label: 'List' },
 		{ value: 'grid', label: 'Grid' },
 		{ value: 'map', label: 'Map' }
-	]
+	];
 
 	const dayItems = [
 		{ value: 'mon', label: 'Mon' },
@@ -81,13 +76,10 @@
 		{ value: 'fri', label: 'Fri' },
 		{ value: 'sat', label: 'Sat', disabled: true },
 		{ value: 'sun', label: 'Sun', disabled: true }
-	]
+	];
 </script>
 
-<Story
-	name="Default"
-	args={{ label: 'View', items: viewItems, type: 'single' }}
-/>
+<Story name="Default" args={{ label: 'View', items: viewItems, type: 'single' }} />
 
 <Story
 	name="With Preselected"
@@ -130,10 +122,7 @@
 	}}
 />
 
-<Story
-	name="Disabled"
-	args={{ label: 'View', items: viewItems, type: 'single', disabled: true }}
-/>
+<Story name="Disabled" args={{ label: 'View', items: viewItems, type: 'single', disabled: true }} />
 
 <Story
 	name="With Disabled Items"

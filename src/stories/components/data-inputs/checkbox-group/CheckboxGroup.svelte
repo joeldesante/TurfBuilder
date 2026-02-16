@@ -1,26 +1,26 @@
 <script lang="ts">
-	import { Checkbox as CheckboxPrimitive } from 'bits-ui'
-	import Checkbox from '../checkbox/Checkbox.svelte'
+	import { Checkbox as CheckboxPrimitive } from 'bits-ui';
+	import Checkbox from '../checkbox/Checkbox.svelte';
 	import { WarningIcon } from 'phosphor-svelte';
 
 	interface CheckboxItem {
-		value: string
-		label: string
-		disabled?: boolean
+		value: string;
+		label: string;
+		disabled?: boolean;
 	}
 
 	interface Props {
-		label: string
-		value?: string[]
-		items: CheckboxItem[]
-		orientation?: 'vertical' | 'horizontal'
-		requirementIndicator?: 'required' | 'optional' | 'none'
-		helperText?: string
-		errors?: string[]
-		dirty?: boolean
-		disabled?: boolean
-		class?: string
-		[key: string]: unknown
+		label: string;
+		value?: string[];
+		items: CheckboxItem[];
+		orientation?: 'vertical' | 'horizontal';
+		requirementIndicator?: 'required' | 'optional' | 'none';
+		helperText?: string;
+		errors?: string[];
+		dirty?: boolean;
+		disabled?: boolean;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -35,25 +35,20 @@
 		disabled = false,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
-	let groupId = `checkbox-group-${crypto.randomUUID().slice(0, 8)}`
-	let invalid = $derived(dirty && errors.length > 0)
-	let helperId = $derived(helperText ? `${groupId}-helper` : undefined)
-	let errorId = $derived(invalid ? `${groupId}-error` : undefined)
+	let groupId = `checkbox-group-${crypto.randomUUID().slice(0, 8)}`;
+	let invalid = $derived(dirty && errors.length > 0);
+	let helperId = $derived(helperText ? `${groupId}-helper` : undefined);
+	let errorId = $derived(invalid ? `${groupId}-error` : undefined);
 
-	let computedClass = $derived(
-		['flex flex-col space-y-2', className].filter(Boolean).join(' ')
-	)
+	let computedClass = $derived(['flex flex-col space-y-2', className].filter(Boolean).join(' '));
 
 	let listClass = $derived(
-		[
-			'flex',
-			orientation === 'vertical' ? 'flex-col gap-3' : 'flex-row flex-wrap gap-5'
-		]
+		['flex', orientation === 'vertical' ? 'flex-col gap-3' : 'flex-row flex-wrap gap-5']
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 <fieldset

@@ -1,48 +1,48 @@
 <script lang="ts">
-	import { ToggleGroup as ToggleGroupPrimitive } from 'bits-ui'
+	import { ToggleGroup as ToggleGroupPrimitive } from 'bits-ui';
 	import { WarningIcon } from 'phosphor-svelte';
 
 	interface ToggleItem {
-		value: string
-		label: string
-		disabled?: boolean
+		value: string;
+		label: string;
+		disabled?: boolean;
 	}
 
 	interface SingleProps {
-		label: string
-		type?: 'single'
-		value?: string
-		items: ToggleItem[]
-		orientation?: 'vertical' | 'horizontal'
-		requirement?: 'required' | 'optional' | 'none'
-		helperText?: string
-		errors?: string[]
-		dirty?: boolean
-		disabled?: boolean
-		loop?: boolean
-		rovingFocus?: boolean
-		class?: string
-		[key: string]: unknown
+		label: string;
+		type?: 'single';
+		value?: string;
+		items: ToggleItem[];
+		orientation?: 'vertical' | 'horizontal';
+		requirement?: 'required' | 'optional' | 'none';
+		helperText?: string;
+		errors?: string[];
+		dirty?: boolean;
+		disabled?: boolean;
+		loop?: boolean;
+		rovingFocus?: boolean;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	interface MultipleProps {
-		label: string
-		type: 'multiple'
-		value?: string[]
-		items: ToggleItem[]
-		orientation?: 'vertical' | 'horizontal'
-		requirement?: 'required' | 'optional' | 'none'
-		helperText?: string
-		errors?: string[]
-		dirty?: boolean
-		disabled?: boolean
-		loop?: boolean
-		rovingFocus?: boolean
-		class?: string
-		[key: string]: unknown
+		label: string;
+		type: 'multiple';
+		value?: string[];
+		items: ToggleItem[];
+		orientation?: 'vertical' | 'horizontal';
+		requirement?: 'required' | 'optional' | 'none';
+		helperText?: string;
+		errors?: string[];
+		dirty?: boolean;
+		disabled?: boolean;
+		loop?: boolean;
+		rovingFocus?: boolean;
+		class?: string;
+		[key: string]: unknown;
 	}
 
-	type Props = SingleProps | MultipleProps
+	type Props = SingleProps | MultipleProps;
 
 	let {
 		label,
@@ -59,25 +59,20 @@
 		rovingFocus = true,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
-	let groupId = `toggle-group-${crypto.randomUUID().slice(0, 8)}`
-	let invalid = $derived(dirty && errors.length > 0)
-	let helperId = $derived(helperText ? `${groupId}-helper` : undefined)
-	let errorId = $derived(invalid ? `${groupId}-error` : undefined)
+	let groupId = `toggle-group-${crypto.randomUUID().slice(0, 8)}`;
+	let invalid = $derived(dirty && errors.length > 0);
+	let helperId = $derived(helperText ? `${groupId}-helper` : undefined);
+	let errorId = $derived(invalid ? `${groupId}-error` : undefined);
 
-	let computedClass = $derived(
-		['flex flex-col gap-1.5', className].filter(Boolean).join(' ')
-	)
+	let computedClass = $derived(['flex flex-col gap-1.5', className].filter(Boolean).join(' '));
 
 	let itemListClass = $derived(
-		[
-			'flex gap-2',
-			orientation === 'vertical' ? 'flex-col' : 'flex-row flex-wrap'
-		]
+		['flex gap-2', orientation === 'vertical' ? 'flex-col' : 'flex-row flex-wrap']
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 
 	function itemClass(invalid: boolean): string {
 		return [
@@ -93,7 +88,7 @@
 			'hover:not-disabled:data-[state=off]:bg-surface-container'
 		]
 			.filter(Boolean)
-			.join(' ')
+			.join(' ');
 	}
 </script>
 
