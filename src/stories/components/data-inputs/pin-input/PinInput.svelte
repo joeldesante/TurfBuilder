@@ -97,7 +97,9 @@
 				{#if cell.char}
 					{cell.char}
 				{:else if cell.hasFakeCaret}
-					<span class="animate-pulse text-on-surface-subtle">|</span>
+					<div class="animate-caret-blink">
+						<div class="h-8 w-px bg-on-surface-subtle"></div>
+					</div>
 				{/if}
 			</PinInputPrimitive.Cell>
 		{/each}

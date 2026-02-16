@@ -26,11 +26,6 @@
 				control: false,
 				description: 'The id attribute for the input element. Auto-inherited from `FormField` context if not provided.'
 			},
-			grouped: {
-				description: 'Whether the input is visually grouped with other inputs, which affects focus and border styles. This is typically used when the input is wrapped in an `InputGroup` component.',
-				control: false,
-				table: { category: 'Derived Props' }
-			},
 			disabled: {
 				description: 'Whether the input is disabled. This can also be inherited from a parent `FormField` component.',
 				control: 'boolean'

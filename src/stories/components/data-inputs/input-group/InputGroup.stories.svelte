@@ -29,7 +29,7 @@
 			children: {
 				control: false,
 				description:
-					'The input element (typically a TextInput with `grouped` prop) placed between leading and trailing addons.'
+					'The input element (typically a TextInput) placed between leading and trailing addons.'
 			}
 		},
 		parameters: {
@@ -46,7 +46,7 @@
 		{#snippet leading()}
 			https://
 		{/snippet}
-		<TextInput placeholder="example.com" type="url" grouped />
+		<TextInput placeholder="example.com" type="url" />
 	</InputGroup>
 </Story>
 
@@ -55,13 +55,13 @@
 		{#snippet leading()}
 			<MagnifyingGlassIcon />
 		{/snippet}
-		<TextInput placeholder="Search..." grouped />
+		<TextInput placeholder="Search..." />
 	</InputGroup>
 </Story>
 
 <Story name="With Trailing Text" asChild>
 	<InputGroup>
-		<TextInput type="number" placeholder="0.00" grouped />
+		<TextInput type="number" placeholder="0.00" />
 		{#snippet trailing()}
 			USD
 		{/snippet}
@@ -74,7 +74,7 @@
 			{#snippet leading()}
 				<CurrencyDollarIcon />
 			{/snippet}
-			<TextInput type="number" placeholder="0.00" grouped />
+			<TextInput type="number" placeholder="0.00" />
 			{#snippet trailing()}
 				USD
 			{/snippet}
@@ -87,6 +87,6 @@
 		{#snippet leading()}
 			https://
 		{/snippet}
-		<TextInput placeholder="example.com" disabled grouped />
+		<TextInput placeholder="example.com" disabled />
 	</InputGroup>
 </Story>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte'
-	import { getContext } from 'svelte'
+	import { getContext, setContext } from 'svelte'
 
 	interface Props {
 		leading?: Snippet
@@ -29,6 +29,8 @@
 			}
 		| undefined
 	>('formField')
+
+	setContext('inputGroup', true)
 
 	let isInvalid = $derived(ctx?.invalid ?? false)
 	let isDisabled = $derived(disabled || (ctx?.disabled ?? false))

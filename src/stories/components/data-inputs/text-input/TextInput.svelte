@@ -3,7 +3,6 @@
 
 	type InputType = 'text' | 'email' | 'password' | 'url' | 'tel' | 'search' | 'number'
 
-	// TODO: Make grouped prop apply automatically when inside an InputGroup context, and remove the prop from the public API
 	interface Props {
 		value?: string
 		type?: InputType
@@ -11,7 +10,6 @@
 		id?: string
 		disabled?: boolean
 		readonly?: boolean
-		grouped?: boolean
 		class?: string
 		[key: string]: unknown
 	}
@@ -23,10 +21,11 @@
 		id,
 		disabled = false,
 		readonly = false,
-		grouped = false,
 		class: className = '',
 		...restProps
 	}: Props = $props()
+
+	const grouped = !!getContext<boolean | undefined>('inputGroup')
 
 	const ctx = getContext<{
 		id: string

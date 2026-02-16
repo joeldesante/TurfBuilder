@@ -182,7 +182,7 @@
 			{#snippet leading()}
 				<AtIcon />
 			{/snippet}
-			<TextInput placeholder="you@example.com" type="email" grouped />
+			<TextInput placeholder="you@example.com" type="email" />
 		</InputGroup>
 	</FormField>
 </Story>
@@ -190,7 +190,7 @@
 <Story name="InputGroup with Trailing Text" asChild>
 	<FormField label="Price">
 		<InputGroup>
-			<TextInput type="number" placeholder="0.00" grouped />
+			<TextInput type="number" placeholder="0.00" />
 			{#snippet trailing()}
 				USD
 			{/snippet}
