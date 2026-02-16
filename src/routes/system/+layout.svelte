@@ -11,8 +11,13 @@
     }>();
 
     async function logout() {
-        await authClient.signOut();
-        location.href = "/login";
+        await authClient.signOut({
+            fetchOptions: {
+                onSuccess: () => {
+                    location.href = "/auth/signin"; // redirect to login page
+                },
+            },
+        });
     }
 </script>
 
@@ -67,8 +72,8 @@
                     </li>
                 </ul>
             </li>
-            <li>
-                <button onClick={logout}>Sign Out
+            <li class="hover:bg-(--color-surface)">
+                <button class="text-(--color-on-surface-subtle) hover:cursor-pointer" onclick={logout}>Sign Out
                 </button>
             </li>
         </ul>
