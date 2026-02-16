@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ==========================================================================
    Theme uses Material 3 Color Roles, with a couple adjustments.
@@ -82,7 +82,7 @@
    Light Theme (Default)
    ========================================================================== */
 
-   /* TODO: replace the on-* colors to have better contrast */
+/* TODO: replace the on-* colors to have better contrast */
 
 :root {
 	color-scheme: light dark;
@@ -229,17 +229,17 @@
 }
 
 @layer base {
-    * {
-        @apply border-outline-subtle;
-    }
+	* {
+		@apply border-outline-subtle;
+	}
 
 	*:focus-visible {
 		@apply outline-primary;
 	}
 
-    body {
-        @apply bg-surface text-on-surface;
-    }
+	body {
+		@apply bg-surface text-on-surface;
+	}
 
 	a {
 		@apply text-primary underline;

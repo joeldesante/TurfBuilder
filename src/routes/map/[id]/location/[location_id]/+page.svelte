@@ -2,128 +2,157 @@
 	import { goto } from '$app/navigation';
 	import Button from '$components/actions/button/Button.svelte';
 
-    interface SurveyQuestion {
-        db_id: number,
-        type: string,
-        text: string,
-        choices: string[],
-        index: number,
-        response: string
-    }
+	interface SurveyQuestion {
+		db_id: number;
+		type: string;
+		text: string;
+		choices: string[];
+		index: number;
+		response: string;
+	}
 
-    const { data } = $props();
-    let contactMade = $state(data.locationAttempt.contact_made)
-    let attemptNote = $state(data.locationAttempt.attempt_note)
-    let questions: SurveyQuestion[] = $state(data.questions.map((q) => {
-        return {
-            db_id: q.id,
-            type: q.question_type,
-            text: q.question_text,
-            choices: q.choices,
-            index: parseInt(q.order_index),
-            response: data.responses.filter((response) => { 
-                return response.survey_question_id == q.id ? response : "" })[0]?.response_value || ""
-            }
-    }))
+	const { data } = $props();
+	let contactMade = $state(data.locationAttempt.contact_made);
+	let attemptNote = $state(data.locationAttempt.attempt_note);
+	let questions: SurveyQuestion[] = $state(
+		data.questions.map((q) => {
+			return {
+				db_id: q.id,
+				type: q.question_type,
+				text: q.question_text,
+				choices: q.choices,
+				index: parseInt(q.order_index),
+				response:
+					data.responses.filter((response) => {
+						return response.survey_question_id == q.id ? response : '';
+					})[0]?.response_value || ''
+			};
+		})
+	);
 
-    function updateQuestionResponse(index: number, response: string) {
-        questions[index].response = response;
-        questions = questions;
-    }
+	function updateQuestionResponse(index: number, response: string) {
+		questions[index].response = response;
+		questions = questions;
+	}
 
-    async function saveAttempt() {
-        // Save the attempt then redirect to the map...
+	async function saveAttempt() {
+		// Save the attempt then redirect to the map...
 
+		const r = await fetch(`/api/surveys/${data.surveyId}/attempts/${data.locationAttempt.id}/`, {
+			method: 'POST',
+			body: JSON.stringify({
+				turf_id: data.turfId,
+				contactMade: contactMade,
+				attemptNote: attemptNote,
+				questions: questions
+			})
+		});
 
+		if (!r.ok) {
+			throw new Error('Failed to save.');
+		}
 
-        const r = await fetch(`/api/surveys/${data.surveyId}/attempts/${data.locationAttempt.id}/`, {
-            method: "POST",
-            body: JSON.stringify({
-                turf_id: data.turfId,
-                contactMade: contactMade,
-                attemptNote: attemptNote,
-                questions: questions
-            })
-        });
-
-        if(!r.ok) {
-            throw new Error("Failed to save.");
-        }
-
-        goto(`/map/${data.turfId}/`);
-    }
-
+		goto(`/map/${data.turfId}/`);
+	}
 </script>
 
 <div>
+	<a href={`/map/${data.turfId}/`}>Back to Map</a>
 
-    <a href={`/map/${data.turfId}/`}>Back to Map</a>
+	<section class="mb-4 p-4">
+		<h1 class="text-2xl font-bold">{data.location.location_name}</h1>
+		<div>
+			<p>{data.location.street}</p>
+			<p>{data.location.locality} {data.location.region}. {data.location.postcode}</p>
+		</div>
+	</section>
 
-    <section class="mb-4 p-4">
-        <h1 class="text-2xl font-bold">{ data.location.location_name }</h1>
-        <div>
-            <p>{ data.location.street }</p>
-            <p>{ data.location.locality } { data.location.region }. { data.location.postcode }</p>
-        </div>
-    </section>
+	<hr />
 
-    <hr>
+	<label class="flex flex-row gap-1 items-center p-5">
+		<input type="checkbox" bind:checked={contactMade} />
+		Was Contact Made?
+	</label>
 
-    <label class="flex flex-row gap-1 items-center p-5">
-        <input type="checkbox" bind:checked={contactMade}>
-        Was Contact Made?
-    </label>
+	<hr />
 
-    <hr>
+	{#if contactMade && data.questions.length > 0}
+		<section class="p-4 flex flex-col gap-4">
+			{#each questions as question, index}
+				<div class="flex flex-col gap-1">
+					<div class="flex flex-row gap-1 font-medium">
+						<p>{index + 1}.</p>
+						<p>{question.text}</p>
+					</div>
 
-    {#if contactMade && data.questions.length > 0}
-        <section class="p-4 flex flex-col gap-4">
-            {#each questions as question, index }
-                <div class="flex flex-col gap-1">
-                    <div class="flex flex-row gap-1 font-medium">
-                        <p>{ index + 1 }.</p>
-                        <p>{ question.text }</p>
-                    </div>
+					<div class="flex flex-col gap-1">
+						{#if question.type == 'radio'}
+							{#each question.choices as choice}
+								<label>
+									<input
+										oninput={(e) => updateQuestionResponse(index, e.currentTarget.value)}
+										type="radio"
+										name={`radio_${index}`}
+										value={choice}
+										checked={choice == question.response}
+									/>
+									{choice}
+								</label>
+							{/each}
+							<Button variant="destructive" onclick={() => updateQuestionResponse(index, '')}
+								>Deselect Value</Button
+							>
+						{:else if question.type == 'check'}
+							{#each question.choices as choice}
+								<label>
+									<input
+										onchange={(e) => {
+											const currentResponses = question.response
+												? question.response.split(',').filter((r) => r)
+												: [];
+											if (e.currentTarget.checked) {
+												updateQuestionResponse(index, [...currentResponses, choice].join(','));
+											} else {
+												updateQuestionResponse(
+													index,
+													currentResponses.filter((c) => c !== choice).join(',')
+												);
+											}
+										}}
+										type="checkbox"
+										name={`check_${index}`}
+										value={choice}
+										checked={question.response.split(',').find((c) => c == choice) != undefined}
+									/>
+									{choice}
+								</label>
+							{/each}
+						{:else}
+							<textarea
+								oninput={(e) => updateQuestionResponse(index, e.currentTarget.value)}
+								class="border-outline border rounded p-1 bg-surface"
+								value={question.response}
+							></textarea>
+						{/if}
+					</div>
+				</div>
+			{/each}
+		</section>
+		<hr />
+	{/if}
 
-                    <div class="flex flex-col gap-1">
-                        {#if question.type == 'radio' }
-                            {#each question.choices as choice }
-                                <label>
-                                    <input oninput={(e) => updateQuestionResponse(index, e.currentTarget.value)} type="radio" name={`radio_${index}`} value={choice} checked={choice == question.response}>
-                                    { choice }
-                                </label>
-                            {/each}
-                            <Button variant="destructive" onclick={() => updateQuestionResponse(index, "")}>Deselect Value</Button>
-                        {:else if question.type == 'check' }
-                            {#each question.choices as choice }
-                                <label>
-                                    <input onchange={(e) => {
-                                        const currentResponses = question.response ? question.response.split(',').filter(r => r) : [];
-                                        if (e.currentTarget.checked) {
-                                            updateQuestionResponse(index, [...currentResponses, choice].join(','));
-                                        } else {
-                                            updateQuestionResponse(index, currentResponses.filter(c => c !== choice).join(','));
-                                        }
-                                    }} type="checkbox" name={`check_${index}`} value={choice} checked={ question.response.split(',').find((c) => c == choice) != undefined }>
-                                    { choice }
-                                </label>
-                            {/each}
-                        {:else}
-                            <textarea oninput={(e) => updateQuestionResponse(index, e.currentTarget.value)} class="border-outline border rounded p-1 bg-surface" value={question.response}></textarea>
-                        {/if}
-                    </div>
-                </div>
-            {/each}
-        </section>
-        <hr>
-    {/if}
+	<section class="p-4 flex flex-col gap-4">
+		<div>
+			<h4 class="text-lg font-medium">Notes:</h4>
+			<textarea
+				class="border-outline border rounded p-1 bg-surface"
+				placeholder="Any additional notes to share?"
+				bind:value={attemptNote}
+			></textarea>
+		</div>
+	</section>
 
-    <section class="p-4 flex flex-col gap-4">
-        <div>
-            <h4 class="text-lg font-medium">Notes:</h4>
-            <textarea class="border-outline border rounded p-1 bg-surface" placeholder="Any additional notes to share?" bind:value={ attemptNote }></textarea>
-        </div>
-    </section>
-
-    <button class="bg-gray-500 p-2 px-4 text-white" type="submit" onclick={saveAttempt}>Submit Response</button>
+	<button class="bg-gray-500 p-2 px-4 text-white" type="submit" onclick={saveAttempt}
+		>Submit Response</button
+	>
 </div>

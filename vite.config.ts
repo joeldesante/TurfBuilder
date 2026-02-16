@@ -6,11 +6,7 @@ import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import { svelteTesting } from '@testing-library/svelte/vite';
 
 export default defineConfig({
-	plugins: [
-		tailwindcss(), 
-		sveltekit(),
-		svelteTesting()
-	],
+	plugins: [tailwindcss(), sveltekit(), svelteTesting()],
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

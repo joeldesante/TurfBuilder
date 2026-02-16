@@ -1,11 +1,10 @@
 <script lang="ts">
-	import Signup from "../../../stories/pages/auth/signup/Signup.svelte";
+	import Signup from '../../../stories/pages/auth/signup/Signup.svelte';
 
-  let { data } = $props();
-
+	let { data } = $props();
 </script>
 
 <svelte:head>
-  <title>Sign Up | { data.config.application_name }</title>
+	<title>Sign Up | {data.config.application_name}</title>
 </svelte:head>
-<Signup data={data} />
+<Signup {data} />

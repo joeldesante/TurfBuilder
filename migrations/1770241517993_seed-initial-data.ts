@@ -3,14 +3,15 @@ import type { ColumnDefinitions, MigrationBuilder } from 'node-pg-migrate';
 export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
+	if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'staging') {
+		return;
+	} // Ignore me in production!
 
-    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'staging') { return; }   // Ignore me in production!
+	pgm.addConstraint('location', 'location_name_unique', {
+		unique: ['location_name']
+	});
 
-    pgm.addConstraint('location', 'location_name_unique', {
-        unique: [ 'location_name' ]
-    })
-
-    pgm.sql(`
+	pgm.sql(`
         INSERT INTO public."location" (location_name,category,confidence,street,locality,postcode,region,country,latitude,longitude,geom,created_at,updated_at) VALUES
             ('Dominican Diva''s Beauty Salon',NULL,NULL,'5601 N 12th St','Philadelphia','19141-4101','PA','US',40.03829220,-75.14092680,'SRID=4326;POINT (-75.1409268 40.0382922)'::public.geometry,'2025-12-14 14:34:25.431495','2025-12-14 14:34:25.431495'),
             ('Solis Mammography A Department of Einstein Medical Center Philadelphia',NULL,NULL,'5501 Old York Rd','Philadelphia','19141-3018','PA','US',40.03650800,-75.14237100,'SRID=4326;POINT (-75.142371 40.036508)'::public.geometry,'2025-12-14 14:34:25.431495','2025-12-14 14:34:25.431495'),
@@ -5157,7 +5158,6 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
             ('Charleys Cheesesteaks',NULL,NULL,'8248 Ogontz Ave Ste B','Wyncote','19095','PA','US',40.07818730,-75.15967590,'SRID=4326;POINT (-75.1596759 40.0781873)'::public.geometry,'2025-12-14 14:34:25.431495','2025-12-14 14:34:25.431495'),
             ('Cedarbrook Middle School',NULL,NULL,'300 Longfellow Rd','Wyncote','19095-2915','PA','US',40.07923860,-75.15751650,'SRID=4326;POINT (-75.1575165 40.0792386)'::public.geometry,'2025-12-14 14:34:25.431495','2025-12-14 14:34:25.431495') ON CONFLICT (location_name) DO NOTHING;  
     `);
-
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {}

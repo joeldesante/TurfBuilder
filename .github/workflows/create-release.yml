@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,16 +28,16 @@ jobs:
           YEAR=$(date +%y)
           MONTH=$(date +%-m)
           DAY=$(date +%-d)
-          
+
           # Base version without micro
           BASE_VERSION="${YEAR}.${MONTH}.${DAY}"
-          
+
           # Fetch all tags
           git fetch --tags
-          
+
           # Find all tags matching today's date pattern
           TODAY_TAGS=$(git tag -l "${BASE_VERSION}_*" | sort -V)
-          
+
           # Calculate micro version
           if [ -z "$TODAY_TAGS" ]; then
             MICRO=0
@@ -47,10 +47,10 @@ jobs:
             LAST_MICRO=$(echo "$LAST_TAG" | cut -d'_' -f2)
             MICRO=$((LAST_MICRO + 1))
           fi
-          
+
           # Create full version
           VERSION="${BASE_VERSION}_${MICRO}"
-          
+
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Generated version: ${VERSION}"
 
@@ -63,10 +63,10 @@ jobs:
           release_name: ${{ steps.calver.outputs.version }}
           body: |
             ## Release ${{ steps.calver.outputs.version }}
-            
+
             **Changes:**
             Merged PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
-            
+
             **Full Changelog:** ${{ github.event.pull_request.html_url }}
           draft: false
           prerelease: false

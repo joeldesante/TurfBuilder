@@ -4,7 +4,7 @@ services:
     image: postgis/postgis:18-3.6
     container_name: turfbuilder_postgres
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql
     environment:
@@ -14,7 +14,7 @@ services:
       - TZ=${TZ}
     shm_size: 128mb
     restart: ${RESTART_POLICY}
-  
+
   frontend:
     container_name: turfbuilder_app
     build:
@@ -22,11 +22,11 @@ services:
       dockerfile: Dockerfile
       target: development
     ports:
-      - "5173:5173"
+      - '5173:5173'
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
-      - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P   # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
+      - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
       - BETTER_AUTH_URL=http://localhost:5173
     volumes:
       - .:/app

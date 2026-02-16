@@ -1,5 +1,5 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export default z.object({
-    name: z.string().nonempty()
+	name: z.string().nonempty()
 });

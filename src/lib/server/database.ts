@@ -1,28 +1,28 @@
-import { Pool } from "pg";
-import { env } from "$env/dynamic/private";
+import { Pool } from 'pg';
+import { env } from '$env/dynamic/private';
 
 export const POOL = new Pool({
-    connectionString: env.DATABASE_URL
+	connectionString: env.DATABASE_URL
 });
 
 export const AUTH_POOL = new Pool({
-    connectionString: env.DATABASE_URL,
-    options: "-c search_path=auth"
+	connectionString: env.DATABASE_URL,
+	options: '-c search_path=auth'
 });
 
 POOL.on('error', (err) => {
-    console.error('Unexpected Database Error:', err)
+	console.error('Unexpected Database Error:', err);
 });
 
 POOL.on('connect', () => {
-    console.error('Pool Connected...')
+	console.error('Pool Connected...');
 });
 
 POOL.on('release', () => {
-    console.error('Pool Released Connection...')
+	console.error('Pool Released Connection...');
 });
 
 process.on('SIGTERM', async () => {
-    await POOL.end();
-    process.exit(0);
+	await POOL.end();
+	process.exit(0);
 });

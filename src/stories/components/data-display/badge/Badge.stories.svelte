@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import Badge from './Badge.svelte'
-	import { CheckCircleIcon, WarningIcon, XCircleIcon, InfoIcon, StarIcon } from 'phosphor-svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import Badge from './Badge.svelte';
+	import { CheckCircleIcon, WarningIcon, XCircleIcon, InfoIcon, StarIcon } from 'phosphor-svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Display/Badge',
@@ -17,20 +17,14 @@
 				options: ['sm', 'md']
 			}
 		}
-	})
+	});
 </script>
 
-<Story name="Default">
-	Default badge
-</Story>
+<Story name="Default">Default badge</Story>
 
-<Story name="Primary" args={{ variant: 'primary' }}>
-	Primary badge
-</Story>
+<Story name="Primary" args={{ variant: 'primary' }}>Primary badge</Story>
 
-<Story name="Secondary" args={{ variant: 'secondary' }}>
-	Secondary badge
-</Story>
+<Story name="Secondary" args={{ variant: 'secondary' }}>Secondary badge</Story>
 
 <Story name="Success" args={{ variant: 'success' }}>
 	<CheckCircleIcon />

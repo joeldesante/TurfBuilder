@@ -1,30 +1,26 @@
-import { redirect } from "@sveltejs/kit";
-import { POOL } from "$lib/server/database.js";
+import { redirect } from '@sveltejs/kit';
+import { POOL } from '$lib/server/database.js';
 
 export async function load({ locals, params, fetch }) {
+	if (!locals.user) {
+		redirect(302, '/');
+	}
 
-    if(!locals.user) {
-        redirect(302, '/');
-    }
+	const id = params.id;
+	const client = await POOL.connect();
+	const surveys = await client.query(`SELECT * FROM survey WHERE id = $1;`, [id]);
 
-    const id = params.id;
-    const client = await POOL.connect();
-    const surveys = await client.query(
-        `SELECT * FROM survey WHERE id = $1;`,
-        [ id ]
-    )
+	if (surveys.rows.length == 0) {
+		throw new Error('Survey not found.');
+	}
 
-    if(surveys.rows.length == 0) {
-        throw new Error("Survey not found.")
-    }
+	const questions = await client.query(
+		`SELECT * FROM survey_question WHERE survey_id = $1 ORDER BY order_index ASC;`,
+		[id]
+	);
 
-    const questions = await client.query(
-        `SELECT * FROM survey_question WHERE survey_id = $1 ORDER BY order_index ASC;`,
-        [ id ]
-    )
-
-    return {
-        survey: surveys.rows[0],
-        questions: questions.rows
-    }
+	return {
+		survey: surveys.rows[0],
+		questions: questions.rows
+	};
 }

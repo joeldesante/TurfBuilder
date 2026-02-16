@@ -2,16 +2,16 @@ name: Build and Deploy to Dokku
 
 on:
   push:
-    branches: [main]  # Change to 'master' if that's your default branch
+    branches: [main] # Change to 'master' if that's your default branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: read
-      packages: write  # Required for pushing to ghcr.io
-    
+      packages: write # Required for pushing to ghcr.io
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/turfbuilder:latest
             ghcr.io/${{ github.repository_owner }}/turfbuilder:${{ github.sha }}
-          target: production 
+          target: production
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

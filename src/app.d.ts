@@ -5,8 +5,8 @@
 /// <reference types="@vite-pwa/sveltekit" />
 /// <reference types="vite-plugin-pwa/client" />
 
-import type { Session, User } from "better-auth";
-import { ApplicationConfig } from "./config";
+import type { Session, User } from 'better-auth';
+import { ApplicationConfig } from './config';
 
 declare global {
 	namespace App {
@@ -14,7 +14,7 @@ declare global {
 		interface Locals {
 			session?: Session;
 			user?: User;
-			config: ApplicationConfig,
+			config: ApplicationConfig;
 		}
 		// interface PageData {}
 		// interface PageState {}
