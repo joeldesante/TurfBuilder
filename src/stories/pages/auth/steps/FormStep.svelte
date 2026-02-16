@@ -2,7 +2,8 @@
 	import { authClient } from '$lib/client';
 	import { nanoid } from 'nanoid';
 	import Button from '$components/actions/button/Button.svelte';
-	import Input from '$components/data-inputs/input/Input.svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 
 	interface Props {
 		onComplete: (username: string, password: string) => Promise<void>;
@@ -39,10 +40,36 @@
 	}
 </script>
 
-<div class="p-4 flex flex-col gap-4">
-	<Input type="text" label="Username" bind:value={username} />
-	<Input type="password" label="Password" bind:value={password} />
-	<Input type="password" label="Confirm Password" bind:value={confirmPassword} />
-	<Button onclick={onSubmit}>Sign Up</Button>
-	<p>{errorMessage}</p>
+<div class="p-6 gap-6 flex justify-center items-center flex-col min-h-svh">
+	<form class="w-full max-w-sm gap-6 flex flex-col">
+		<h1 class="text-2xl">Sign Up</h1>
+
+		<div class="space-y-3">
+			<FormField label="Username">
+				<TextInput bind:value={username} required autocomplete="username" />
+			</FormField>
+
+			<FormField label="Password">
+				<TextInput type="password" bind:value={password} required autocomplete="new-password" />
+			</FormField>
+
+			<FormField label="Confirm Password">
+				<TextInput
+					type="password"
+					bind:value={confirmPassword}
+					required
+					autocomplete="new-password"
+				/>
+			</FormField>
+		</div>
+
+		<Button onclick={onSubmit}>Sign Up</Button>
+
+		{#if errorMessage}
+			<p class="text-error">{errorMessage}</p>
+		{/if}
+	</form>
+	<div class="text-center">
+		<p class="text-sm">Already have an account? <a href="/auth/signin">Sign in</a></p>
+	</div>
 </div>
