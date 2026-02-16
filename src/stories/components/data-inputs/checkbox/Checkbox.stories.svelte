@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import Checkbox from './Checkbox.svelte'
-	import FormField from '../form-field/FormField.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import Checkbox from './Checkbox.svelte';
+	import FormField from '../form-field/FormField.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/Checkbox',
@@ -40,24 +40,16 @@
 					'A styled checkbox that renders its own inline label when children are provided. Use in CheckboxGroup to add a Legend and validation, or in FormField if there should only be a single checkbox with a label.'
 			}
 		}
-	})
+	});
 </script>
 
-<Story name="Default">
-	Accept terms and conditions
-</Story>
+<Story name="Default">Accept terms and conditions</Story>
 
-<Story name="Checked" args={{ checked: true }}>
-	Accept terms and conditions
-</Story>
+<Story name="Checked" args={{ checked: true }}>Accept terms and conditions</Story>
 
-<Story name="Indeterminate" args={{ indeterminate: true }}>
-	Select all items
-</Story>
+<Story name="Indeterminate" args={{ indeterminate: true }}>Select all items</Story>
 
-<Story name="Disabled" args={{ disabled: true }}>
-	Disabled option
-</Story>
+<Story name="Disabled" args={{ disabled: true }}>Disabled option</Story>
 
 <Story name="Disabled Checked" args={{ disabled: true, checked: true }}>
 	Disabled checked option

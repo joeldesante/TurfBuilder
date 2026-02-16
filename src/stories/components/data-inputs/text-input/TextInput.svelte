@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { getContext } from 'svelte'
+	import { getContext } from 'svelte';
 
-	type InputType = 'text' | 'email' | 'password' | 'url' | 'tel' | 'search' | 'number'
+	type InputType = 'text' | 'email' | 'password' | 'url' | 'tel' | 'search' | 'number';
 
 	interface Props {
-		value?: string
-		type?: InputType
-		placeholder?: string
-		id?: string
-		disabled?: boolean
-		readonly?: boolean
-		class?: string
-		[key: string]: unknown
+		value?: string;
+		type?: InputType;
+		placeholder?: string;
+		id?: string;
+		disabled?: boolean;
+		readonly?: boolean;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -23,21 +23,24 @@
 		readonly = false,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
-	const grouped = !!getContext<boolean | undefined>('inputGroup')
+	const grouped = !!getContext<boolean | undefined>('inputGroup');
 
-	const ctx = getContext<{
-		id: string
-		invalid: boolean
-		disabled: boolean
-		describedBy: string | undefined
-	} | undefined>('formField')
+	const ctx = getContext<
+		| {
+				id: string;
+				invalid: boolean;
+				disabled: boolean;
+				describedBy: string | undefined;
+		  }
+		| undefined
+	>('formField');
 
-	let inputId = $derived(id ?? ctx?.id)
-	let isInvalid = $derived(ctx?.invalid ?? false)
-	let isDisabled = $derived(disabled || (ctx?.disabled ?? false))
-	let describedBy = $derived(ctx?.describedBy)
+	let inputId = $derived(id ?? ctx?.id);
+	let isInvalid = $derived(ctx?.invalid ?? false);
+	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
+	let describedBy = $derived(ctx?.describedBy);
 
 	let computedClass = $derived(
 		[
@@ -46,12 +49,16 @@
 			grouped ? 'focus:outline-none' : 'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			!grouped && 'border',
-			!grouped && isInvalid ? 'border-error focus-visible:outline-error' : !grouped ? 'border-outline' : '',
+			!grouped && isInvalid
+				? 'border-error focus-visible:outline-error'
+				: !grouped
+					? 'border-outline'
+					: '',
 			className
 		]
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 <input

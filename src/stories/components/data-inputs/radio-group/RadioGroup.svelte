@@ -1,29 +1,29 @@
 <script lang="ts">
-	import { RadioGroup as RadioGroupPrimitive } from 'bits-ui'
+	import { RadioGroup as RadioGroupPrimitive } from 'bits-ui';
 	import { WarningIcon } from 'phosphor-svelte';
 
 	interface RadioItem {
-		value: string
-		label: string
-		disabled?: boolean
+		value: string;
+		label: string;
+		disabled?: boolean;
 	}
 
 	interface Props {
-		label: string
-		value?: string
-		onValueChange?: (value: string) => void
-		items: RadioItem[]
-		orientation?: 'vertical' | 'horizontal'
-		requirement?: 'required' | 'optional' | 'none'
-		helperText?: string
-		errors?: string[]
-		dirty?: boolean
-		disabled?: boolean
-		required?: boolean
-		name?: string
-		loop?: boolean
-		class?: string
-		[key: string]: unknown
+		label: string;
+		value?: string;
+		onValueChange?: (value: string) => void;
+		items: RadioItem[];
+		orientation?: 'vertical' | 'horizontal';
+		requirement?: 'required' | 'optional' | 'none';
+		helperText?: string;
+		errors?: string[];
+		dirty?: boolean;
+		disabled?: boolean;
+		required?: boolean;
+		name?: string;
+		loop?: boolean;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -42,25 +42,20 @@
 		loop = false,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
-	let groupId = `radio-group-${crypto.randomUUID().slice(0, 8)}`
-	let invalid = $derived(dirty && errors.length > 0)
-	let helperId = $derived(helperText ? `${groupId}-helper` : undefined)
-	let errorId = $derived(invalid ? `${groupId}-error` : undefined)
+	let groupId = `radio-group-${crypto.randomUUID().slice(0, 8)}`;
+	let invalid = $derived(dirty && errors.length > 0);
+	let helperId = $derived(helperText ? `${groupId}-helper` : undefined);
+	let errorId = $derived(invalid ? `${groupId}-error` : undefined);
 
-	let computedClass = $derived(
-		['flex flex-col space-y-2', className].filter(Boolean).join(' ')
-	)
+	let computedClass = $derived(['flex flex-col space-y-2', className].filter(Boolean).join(' '));
 
 	let listClass = $derived(
-		[
-			'flex',
-			orientation === 'vertical' ? 'flex-col gap-3' : 'flex-row flex-wrap gap-5'
-		]
+		['flex', orientation === 'vertical' ? 'flex-col gap-3' : 'flex-row flex-wrap gap-5']
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 <fieldset
@@ -119,9 +114,7 @@
 						for={itemId}
 						class={[
 							'text-sm text-on-surface select-none',
-							item.disabled || disabled
-								? 'opacity-50 cursor-not-allowed'
-								: 'cursor-pointer'
+							item.disabled || disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
 						]
 							.filter(Boolean)
 							.join(' ')}

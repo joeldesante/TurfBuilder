@@ -1,10 +1,10 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import InputGroup from './InputGroup.svelte'
-	import TextInput from '../text-input/TextInput.svelte'
-	import FormField from '../form-field/FormField.svelte'
-	import { MagnifyingGlassIcon } from 'phosphor-svelte'
-	import { CurrencyDollarIcon } from 'phosphor-svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import InputGroup from './InputGroup.svelte';
+	import TextInput from '../text-input/TextInput.svelte';
+	import FormField from '../form-field/FormField.svelte';
+	import { MagnifyingGlassIcon } from 'phosphor-svelte';
+	import { CurrencyDollarIcon } from 'phosphor-svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/InputGroup',
@@ -38,7 +38,7 @@
 					'A layout wrapper that visually groups a text input with leading and/or trailing addons (icons, text). Reads FormField context for invalid and disabled states.'
 			}
 		}
-	})
+	});
 </script>
 
 <Story name="With Leading Text" asChild>

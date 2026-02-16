@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import Textarea from './Textarea.svelte'
-	import FormField from '../form-field/FormField.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import Textarea from './Textarea.svelte';
+	import FormField from '../form-field/FormField.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/Textarea',
@@ -14,7 +14,8 @@
 			},
 			placeholder: {
 				control: 'text',
-				description: 'A short hint that demonstrates the expected format of the textarea when empty. This should only be used when needed.'
+				description:
+					'A short hint that demonstrates the expected format of the textarea when empty. This should only be used when needed.'
 			},
 			rows: {
 				control: 'number',
@@ -33,8 +34,7 @@
 			id: {
 				control: false,
 				table: { category: 'Derived Props' },
-				description:
-					'The id attribute. Auto-inherited from `FormField` context if not provided.'
+				description: 'The id attribute. Auto-inherited from `FormField` context if not provided.'
 			}
 		},
 		parameters: {
@@ -43,7 +43,7 @@
 					'A styled native HTML textarea element. Nest within FormField for labels, helper text, and validation.'
 			}
 		}
-	})
+	});
 </script>
 
 <Story name="Default" args={{ placeholder: 'Enter your message...' }} />

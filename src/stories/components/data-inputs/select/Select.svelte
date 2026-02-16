@@ -1,27 +1,27 @@
 <script lang="ts">
-	import { getContext } from 'svelte'
+	import { getContext } from 'svelte';
 
 	interface SelectItem {
-		value: string
-		label: string
-		disabled?: boolean
+		value: string;
+		label: string;
+		disabled?: boolean;
 	}
 
 	interface SelectGroup {
-		heading: string
-		items: SelectItem[]
+		heading: string;
+		items: SelectItem[];
 	}
 
 	interface Props {
-		value?: string
-		items?: SelectItem[]
-		groups?: SelectGroup[]
-		placeholder?: string
-		disabled?: boolean
-		name?: string
-		id?: string
-		class?: string
-		[key: string]: unknown
+		value?: string;
+		items?: SelectItem[];
+		groups?: SelectGroup[];
+		placeholder?: string;
+		disabled?: boolean;
+		name?: string;
+		id?: string;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -34,22 +34,22 @@
 		id,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
 	const ctx = getContext<
 		| {
-				id: string
-				invalid: boolean
-				disabled: boolean
-				describedBy: string | undefined
-			}
+				id: string;
+				invalid: boolean;
+				disabled: boolean;
+				describedBy: string | undefined;
+		  }
 		| undefined
-	>('formField')
+	>('formField');
 
-	let selectId = $derived(id ?? ctx?.id)
-	let isInvalid = $derived(ctx?.invalid ?? false)
-	let isDisabled = $derived(disabled || (ctx?.disabled ?? false))
-	let describedBy = $derived(ctx?.describedBy)
+	let selectId = $derived(id ?? ctx?.id);
+	let isInvalid = $derived(ctx?.invalid ?? false);
+	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
+	let describedBy = $derived(ctx?.describedBy);
 
 	let computedClass = $derived(
 		[
@@ -62,7 +62,7 @@
 		]
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 <select

@@ -55,18 +55,12 @@
 		<h1 class="text-2xl">Sign In</h1>
 
 		<div class="space-y-3">
-			<FormField label="Username">
-				<TextInput bind:value={username} id="username" required autocomplete="username" />
+			<FormField label="Username" id="username">
+				<TextInput bind:value={username} required autocomplete="username" />
 			</FormField>
 
-			<FormField label="Password">
-				<TextInput
-					bind:value={password}
-					id="password"
-					type="password"
-					required
-					autocomplete="current-password"
-				/>
+			<FormField label="Password" id="password">
+				<TextInput bind:value={password} type="password" required autocomplete="current-password" />
 			</FormField>
 		</div>
 

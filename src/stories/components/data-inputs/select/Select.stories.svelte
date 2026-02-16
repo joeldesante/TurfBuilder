@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import Select from './Select.svelte'
-	import FormField from '../form-field/FormField.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import Select from './Select.svelte';
+	import FormField from '../form-field/FormField.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/Select',
@@ -24,8 +24,7 @@
 			},
 			placeholder: {
 				control: 'text',
-				description:
-					'Placeholder text shown as a disabled first option when no value is selected.'
+				description: 'Placeholder text shown as a disabled first option when no value is selected.'
 			},
 			disabled: {
 				control: 'boolean',
@@ -35,8 +34,7 @@
 			id: {
 				control: false,
 				table: { category: 'Derived Props' },
-				description:
-					'The id attribute. Auto-inherited from FormField context if not provided.'
+				description: 'The id attribute. Auto-inherited from FormField context if not provided.'
 			}
 		},
 		parameters: {
@@ -45,20 +43,20 @@
 					'A styled native HTML Select element. Nest within FormField for labels, helper text, and validation.'
 			}
 		}
-	})
+	});
 
 	const stateItems = [
 		{ value: 'ca', label: 'California' },
 		{ value: 'ny', label: 'New York' },
 		{ value: 'tx', label: 'Texas' },
 		{ value: 'fl', label: 'Florida' }
-	]
+	];
 
 	const roleItems = [
 		{ value: 'user', label: 'User' },
 		{ value: 'fieldOrganizer', label: 'Field Organizer' },
 		{ value: 'campaignManager', label: 'Campaign Manager' }
-	]
+	];
 
 	const regionGroups = [
 		{
@@ -77,7 +75,7 @@
 				{ value: 'fl', label: 'Florida' }
 			]
 		}
-	]
+	];
 </script>
 
 <Story name="Default" args={{ items: stateItems, placeholder: 'Select a state...' }} />

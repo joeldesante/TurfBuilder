@@ -1,6 +1,6 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import CheckboxGroup from './CheckboxGroup.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import CheckboxGroup from './CheckboxGroup.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/CheckboxGroup',
@@ -9,13 +9,11 @@
 		argTypes: {
 			label: {
 				control: 'text',
-				description:
-					'The group label rendered as a `<legend>` inside the `<fieldset>`.'
+				description: 'The group label rendered as a `<legend>` inside the `<fieldset>`.'
 			},
 			items: {
 				control: 'object',
-				description:
-					'Array of checkbox items, each with `value`, `label`, and optional `disabled`.'
+				description: 'Array of checkbox items, each with `value`, `label`, and optional `disabled`.'
 			},
 			value: {
 				control: 'object',
@@ -34,18 +32,15 @@
 			},
 			helperText: {
 				control: 'text',
-				description:
-					'Guidance text providing more context about the checkbox group.'
+				description: 'Guidance text providing more context about the checkbox group.'
 			},
 			errors: {
 				control: 'object',
-				description:
-					'Array of error messages shown when the field is dirty and invalid.'
+				description: 'Array of error messages shown when the field is dirty and invalid.'
 			},
 			dirty: {
 				control: 'boolean',
-				description:
-					'Whether the group has been interacted with. Errors only display when dirty.'
+				description: 'Whether the group has been interacted with. Errors only display when dirty.'
 			},
 			disabled: {
 				control: 'boolean',
@@ -58,25 +53,22 @@
 					'A self-contained group of Checkbox components inside a fieldset with legend, optional helper text, and error rendering'
 			}
 		}
-	})
+	});
 
 	const notificationItems = [
 		{ value: 'email', label: 'Email notifications' },
 		{ value: 'sms', label: 'SMS notifications' },
 		{ value: 'push', label: 'Push notifications' }
-	]
+	];
 
 	const permissionItems = [
 		{ value: 'read', label: 'Read access' },
 		{ value: 'write', label: 'Write access' },
 		{ value: 'admin', label: 'Admin access', disabled: true }
-	]
+	];
 </script>
 
-<Story
-	name="Default"
-	args={{ label: 'Notifications', items: notificationItems }}
-/>
+<Story name="Default" args={{ label: 'Notifications', items: notificationItems }} />
 
 <Story
 	name="With Preselected"
@@ -117,7 +109,4 @@
 	args={{ label: 'Notifications', items: notificationItems, disabled: true }}
 />
 
-<Story
-	name="With Disabled Items"
-	args={{ label: 'Permissions', items: permissionItems }}
-/>
+<Story name="With Disabled Items" args={{ label: 'Permissions', items: permissionItems }} />
