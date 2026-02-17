@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ApplicationConfig } from "../../config";
-
+    import { authClient } from "$lib/client";
+    import Button from "$components/actions/button/Button.svelte";
 
     const { children, title, data } = $props<{ 
         children: () => any, 
@@ -12,7 +13,7 @@
 
     async function logout() {
         await authClient.signOut();
-        location.href = "/login";
+        location.href = "/auth/signin/";
     }
 </script>
 
@@ -68,8 +69,7 @@
                 </ul>
             </li>
             <li>
-                <button onClick={logout}>Sign Out
-                </button>
+                <Button onclick={logout}>Sign Out</Button>
             </li>
         </ul>
     </aside>
