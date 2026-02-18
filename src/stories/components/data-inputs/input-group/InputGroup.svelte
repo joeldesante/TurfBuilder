@@ -37,7 +37,7 @@
 
 	let computedClass = $derived(
 		[
-			'flex items-center rounded-lg border',
+			'flex items-center rounded-lg border bg-surface',
 			'has-[:focus]:outline-2 has-[:focus]:outline-offset-2',
 			isDisabled && 'opacity-50 cursor-not-allowed',
 			isInvalid
