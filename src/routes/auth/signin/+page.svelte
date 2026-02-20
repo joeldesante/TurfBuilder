@@ -2,6 +2,9 @@
 	import { goto } from '$app/navigation';
 	import Button from '$components/actions/button/Button.svelte';
 	import { authClient } from '$lib/client';
+	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 
 	const { data } = $props();
 
@@ -47,54 +50,34 @@
 	<title>Sign In | {data.config.application_name}</title>
 </svelte:head>
 
-<div class="flex w-screen h-screen justify-center items-center flex-col gap-4">
-	<form onsubmit={signIn} class="flex flex-col gap-2 p-4 w-64 md:w-lg">
-		<h1 class="text-2xl font-medium mb-4">Sign In</h1>
+<div class="flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
+	<form onsubmit={signIn} class="w-full max-w-sm gap-6 flex flex-col">
+		<h1 class="text-2xl">Sign In</h1>
 
-		<label class="sr-only" for="email">Username</label>
-		<input
-			class="py-2.5 sm:py-3 px-4 block w-full border border-outline rounded sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none"
-			id="email"
-			type="text"
-			placeholder="Username"
-			bind:value={username}
-			required
-			autocomplete="username"
-		/>
-		<label class="sr-only" for="password">Password</label>
-		<input
-			class="py-2.5 sm:py-3 px-4 block w-full border border-outline rounded sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none"
-			id="password"
-			type="password"
-			placeholder="Password"
-			bind:value={password}
-			required
-			autocomplete="current-password"
-		/>
+		<div class="space-y-3">
+			<FormField label="Username" id="username">
+				<TextInput bind:value={username} required autocomplete="username" />
+			</FormField>
 
-		<div class="flex">
-			<input
-				type="checkbox"
-				bind:checked={rememberMe}
-				class="shrink-0 mt-0.5 border-outline rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none"
-				id="rememberMe"
-			/>
-			<label for="rememberMe" class="text-sm text-on-surface-subtle ms-3">Remember me</label>
+			<FormField label="Password" id="password">
+				<TextInput bind:value={password} type="password" required autocomplete="current-password" />
+			</FormField>
 		</div>
 
-		<div class="mt-4">
-			<Button type="submit" disabled={loading}>
-				{loading ? 'Signing in…' : 'Sign In'}
-			</Button>
-		</div>
+		<FormField label="Remember me" labelVisibility="sr-only">
+			<Checkbox bind:checked={rememberMe}>Remember me</Checkbox>
+		</FormField>
+
+		<Button type="submit">
+			{loading ? 'Signing in…' : 'Sign In'}
+		</Button>
 
 		{#if error}
-			<p>{error}</p>
+			<p class="text-error">{error}</p>
 		{/if}
 	</form>
 
-	<div class="flex flex-col items-center gap-4">
-		<p class="font-bold">OR</p>
-		<a class="underline text-primary" href="/auth/signup">Sign Up for an Account</a>
+	<div class="text-center">
+		<p class="text-sm">Don't have an account? <a href="/auth/signup">Sign up</a></p>
 	</div>
 </div>

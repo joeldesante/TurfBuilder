@@ -1,0 +1,67 @@
+<script lang="ts">
+	import type { Snippet } from 'svelte';
+	import { getContext, setContext } from 'svelte';
+
+	interface Props {
+		leading?: Snippet;
+		trailing?: Snippet;
+		disabled?: boolean;
+		children: Snippet;
+		class?: string;
+		[key: string]: unknown;
+	}
+
+	let {
+		leading,
+		trailing,
+		disabled = false,
+		children,
+		class: className = '',
+		...restProps
+	}: Props = $props();
+
+	const ctx = getContext<
+		| {
+				id: string;
+				invalid: boolean;
+				disabled: boolean;
+				describedBy: string | undefined;
+		  }
+		| undefined
+	>('formField');
+
+	setContext('inputGroup', true);
+
+	let isInvalid = $derived(ctx?.invalid ?? false);
+	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
+
+	let computedClass = $derived(
+		[
+			'flex items-center rounded-lg border bg-surface',
+			'has-[:focus]:outline-2 has-[:focus]:outline-offset-2',
+			isDisabled && 'opacity-50 cursor-not-allowed',
+			isInvalid
+				? 'border-error has-[:focus]:outline-error'
+				: 'border-outline has-[:focus]:outline-primary',
+			className
+		]
+			.filter(Boolean)
+			.join(' ')
+	);
+</script>
+
+<div class={computedClass} {...restProps}>
+	{#if leading}
+		<span class="flex items-center pl-3 text-on-surface-subtle text-sm shrink-0 [&>svg]:size-5">
+			{@render leading()}
+		</span>
+	{/if}
+
+	{@render children()}
+
+	{#if trailing}
+		<span class="flex items-center pr-3 text-on-surface-subtle text-sm shrink-0 [&>svg]:size-5">
+			{@render trailing()}
+		</span>
+	{/if}
+</div>

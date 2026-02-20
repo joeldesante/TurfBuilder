@@ -3,7 +3,8 @@
 	import BackupCodeStep from '$pages/auth/steps/BackupCodeStep.svelte';
 	import ScanStep from '$pages/auth/steps/ScanStep.svelte';
 	import VerifyStep from '$pages/auth/steps/VerifyStep.svelte';
-	import Input from '$components/data-inputs/input/Input.svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 
 	let { data } = $props();
@@ -31,7 +32,9 @@
 			</h1>
 
 			<div class="flex flex-col gap-2">
-				<Input label="Please enter your password." bind:value={password} type="password" />
+				<FormField label="Please enter your password.">
+					<TextInput bind:value={password} type="password" />
+				</FormField>
 				<Button
 					onclick={async () => {
 						const { data: tfaData, error: tfaError } = await authClient.twoFactor.enable({

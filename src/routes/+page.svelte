@@ -1,22 +1,16 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import Pin from '$components/data-inputs/pin/Pin.svelte';
-	import Button from "$components/actions/button/Button.svelte";
+	import PinInput from '$components/data-inputs/pin-input/PinInput.svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 
 	const CODE_LENGTH = 6;
 	let error = $state('');
-	let input: HTMLElement;
 	const session = authClient.useSession();
 	let loading = $state(false);
 
 	$effect(() => {
 		loading = !$session.data?.user;
-	});
-
-	onMount(() => {
-		input?.focus();
 	});
 
 	async function loadMap(code: string) {
@@ -40,7 +34,7 @@
 
 			const response = await turfRequest.json();
 			const turfId = response.turfId;
-			goto(`/map/${turfId}`);
+			await goto(`/map/${turfId}`);
 		} catch (e: Error | any) {
 			error = e.message;
 		} finally {
@@ -54,18 +48,20 @@
     }
 </script>
 
-<div class="w-screen h-screen flex justify-center items-center flex-col gap-2 wrapper">
-	<h4 class="text-sm font-bold">ENTER MAP CODE</h4>
+<div class="flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
+	<h1 class="text-xl">Enter map code</h1>
 
 	{#if loading == true}
 		<p>Loading...</p>
 		<!-- Replace me with a spinner! -->
 	{:else}
-		<Pin length={CODE_LENGTH} onPinEntered={loadMap} />
+		<FormField label="Map code" labelVisibility="sr-only">
+			<PinInput maxlength={CODE_LENGTH} onComplete={loadMap} autofocus={true} />
+		</FormField>
 	{/if}
 
 	{#if error}
-		<p class="text-error text-xs mt-2">{error}</p>
+		<p class="text-error">{error}</p>
 	{/if}
 
 	{#if $session.data?.user.role === 'admin' || $session.data?.user.role === 'campaignManager' || $session.data?.user.role === 'fieldOrganizer'}

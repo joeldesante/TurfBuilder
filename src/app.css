@@ -76,6 +76,21 @@
 	/* Utility */
 	--color-scrim: var(--scrim);
 	--color-shadow: var(--shadow);
+
+	/* Animations */
+	--animate-caret-blink: caret-blink 1200ms ease-out infinite;
+
+	@keyframes caret-blink {
+		0%,
+		70%,
+		100% {
+			opacity: 1;
+		}
+		20%,
+		50% {
+			opacity: 0;
+		}
+	}
 }
 
 /* ==========================================================================
