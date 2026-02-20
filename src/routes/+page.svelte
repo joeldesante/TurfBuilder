@@ -41,6 +41,11 @@
 			loading = false;
 		}
 	}
+
+	async function logout() {
+        await authClient.signOut();
+        location.href = "/auth/signin/";
+    }
 </script>
 
 <div class="flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
@@ -62,6 +67,8 @@
 	{#if $session.data?.user.role === 'admin' || $session.data?.user.role === 'campaignManager' || $session.data?.user.role === 'fieldOrganizer'}
 		<a class="hidden sm:block" href="/system">Admin dashboard</a>
 	{/if}
+
+	<Button onclick={logout}>Sign Out</Button>
 </div>
 
 <style>
