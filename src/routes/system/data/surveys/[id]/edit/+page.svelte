@@ -1,6 +1,9 @@
 <script lang="ts">
 	import Button from '$components/actions/button/Button.svelte';
-	import Input from '$components/data-inputs/input/Input.svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import Select from '$components/data-inputs/select/Select.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
+	import Textarea from '$components/data-inputs/textarea/Textarea.svelte';
 
 	const { data } = $props();
 	console.log(data);
@@ -171,78 +174,81 @@
 {/if}
 
 <div class="m-2 flex flex-row gap-2">
-	<Button onclick={saveChanges}>Save Changes</Button>
+	<Button variant="outline" onclick={saveChanges}>Save Changes</Button>
 	<Button onclick={null}>Publish</Button>
 </div>
 
-<div class="flex flex-col gap-4">
-	<div class="flex flex-col">
-		<label for="name" class="font-medium">Name</label>
-		<Input
-			id="name"
-			type="text"
+<div class="flex flex-col gap-4 my-4">
+	<FormField label="Survey name">
+		<TextInput
 			value={survey.name}
-			oninput={(e: any) => updateSurveyName(e.currentTarget.value)}
-			placeholder="Survey name..."
+			oninput={(e: Event) => updateSurveyName((e.currentTarget as HTMLInputElement).value)}
 		/>
-	</div>
+	</FormField>
 
-	<div class="flex flex-col">
-		<label for="description" class="font-medium">Description</label>
-		<textarea
-			id="description"
+	<FormField label="Description">
+		<Textarea
 			value={survey.description}
-			oninput={(e) => updateSurveyDescription(e.currentTarget.value)}
-			placeholder="Survey description..."
-		></textarea>
-	</div>
+			oninput={(e: Event) =>
+				updateSurveyDescription((e.currentTarget as HTMLTextAreaElement).value)}
+		/>
+	</FormField>
 </div>
-
-<hr />
 
 <h2 class="text-lg font-medium mb-2">Questions</h2>
 <Button onclick={addQuestion}>Add Question</Button>
 <div class="space-y-4">
 	{#each survey.questions as question, index}
-		<div class="p-4 rounded shadow">
-			<div class="flex flex-row font-medium justify-between items-center">
-				<div class="flex flex-row gap-1">
+		<div class="p-4 rounded shadow space-y-3">
+			<div class="flex flex-row font-medium justify-between items-center gap-2">
+				<div class="flex flex-row items-center gap-1 flex-1">
 					<p>{index + 1}.</p>
-					<input
-						class="block w-full"
-						type="text"
+					<TextInput
 						value={question.text}
-						oninput={(e) => updateQuestionText(index, e.currentTarget.value)}
+						oninput={(e: Event) =>
+							updateQuestionText(index, (e.currentTarget as HTMLInputElement).value)}
 					/>
 				</div>
 				<Button onclick={() => deleteQuestion(index)}>Delete</Button>
 			</div>
 
-			<select
-				value={question.type}
-				oninput={(e) => {
-					updateQuestionType(index, e.currentTarget.value);
-				}}
-			>
-				<option value="text">Text Response</option>
-				<option value="radio">Choose One Response</option>
-				<option value="check">Choose Many Response</option>
-			</select>
+			<FormField label="Question type" labelVisibility="sr-only">
+				<Select
+					value={question.type}
+					items={[
+						{ value: 'text', label: 'Text Response' },
+						{ value: 'radio', label: 'Choose One Response' },
+						{ value: 'check', label: 'Choose Many Response' }
+					]}
+					oninput={(e: Event) =>
+						updateQuestionType(index, (e.currentTarget as HTMLSelectElement).value)}
+				/>
+			</FormField>
 
 			<div>
 				{#if question.type == 'text'}
-					<p class="p-2 bg-gray-200 rounded mt-2">Users will submit a text response...</p>
+					<p class="p-2 bg-surface-container-high rounded-lg mt-2">
+						Users will submit a text response...
+					</p>
 				{:else if question.type == 'radio' || question.type == 'check'}
-					<button onclick={() => addQuestionChoice(index, 'New Choice')}>Add Choice</button>
-					<ul>
+					<Button variant="outline" onclick={() => addQuestionChoice(index, 'New Choice')}
+						>Add Choice</Button
+					>
+					<ul class="space-y-2 mt-2">
 						{#each question.choices as choice, choiceIndex}
-							<li>
-								<input
-									type="text"
+							<li class="flex items-center gap-2">
+								<TextInput
 									value={choice}
-									oninput={(e) => updateQuestionChoice(index, choiceIndex, e.currentTarget.value)}
+									oninput={(e: Event) =>
+										updateQuestionChoice(
+											index,
+											choiceIndex,
+											(e.currentTarget as HTMLInputElement).value
+										)}
 								/>
-								<button onclick={() => deleteQuestionChoice(index, choiceIndex)}>Delete</button>
+								<Button variant="outline" onclick={() => deleteQuestionChoice(index, choiceIndex)}
+									>Delete</Button
+								>
 							</li>
 						{/each}
 					</ul>
@@ -250,7 +256,6 @@
 					<p>Please select a valid question type...</p>
 				{/if}
 			</div>
-			<!-- Here based on the type we will render the correct input. Type is selected when adding question. It can not be changed later. -->
 		</div>
 	{/each}
 </div>

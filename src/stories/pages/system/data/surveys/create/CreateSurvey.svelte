@@ -1,6 +1,7 @@
 <script>
 	import Button from '$components/actions/button/Button.svelte';
-	import Input from '$components/data-inputs/input/Input.svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import { Form } from '$lib/client/formstorm/form.svelte';
 	import CreateSurveySchema from './CreateSurvey.schema';
 
@@ -11,11 +12,7 @@
 </script>
 
 <h1>Create Survey</h1>
-<Input
-	label="Survey Name"
-	errors={form.errors['name'] || []}
-	bind:value={form.values.name}
-	onblur={form.validate}
-	dirty={form.dirty}
-/>
+<FormField label="Survey Name" class="my-4" errors={form.errors['name'] || []} dirty={form.dirty}>
+	<TextInput bind:value={form.values.name} onblur={form.validate} />
+</FormField>
 <Button onclick={() => form.submit()}>Create</Button>
