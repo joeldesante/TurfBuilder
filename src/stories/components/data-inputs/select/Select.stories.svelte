@@ -87,7 +87,7 @@
 </Story>
 
 <Story name="Required with FormField" asChild>
-	<FormField label="Role" requirement="required">
+	<FormField label="Role" requirementIndicator="required" requirement="required">
 		<Select items={roleItems} placeholder="Choose a role..." />
 	</FormField>
 </Story>

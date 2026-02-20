@@ -58,7 +58,7 @@
 </Story>
 
 <Story name="Required with FormField" asChild>
-	<FormField label="Email address" requirement="required">
+	<FormField label="Email address" requirementIndicator="required" requirement="required">
 		<TextInput type="email" placeholder="you@example.com" required />
 	</FormField>
 </Story>

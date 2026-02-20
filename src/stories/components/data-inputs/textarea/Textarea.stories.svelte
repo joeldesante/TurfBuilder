@@ -57,7 +57,7 @@
 </Story>
 
 <Story name="Required with FormField" asChild>
-	<FormField label="Notes" requirement="required">
+	<FormField label="Notes" requirementIndicator="required" requirement="required">
 		<Textarea placeholder="Add your notes..." rows={4} />
 	</FormField>
 </Story>
