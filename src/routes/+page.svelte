@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
 	import { goto } from '$app/navigation';
+	import Button from '$components/actions/button/Button.svelte';
 	import PinInput from '$components/data-inputs/pin-input/PinInput.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 
