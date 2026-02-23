@@ -15,7 +15,22 @@
 	import { mount, onMount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import MapMarker from '../../../stories/MapMarker.svelte';
+	import MapMarker, {
+		type Variant
+	} from '../../../stories/components/data-display/map-marker/MapMarker.svelte';
+
+	function categoryToVariant(category: string | null): Variant {
+		switch (category) {
+			case 'contacted':
+				return 'contacted';
+			case 'no-contact':
+				return 'no-contact';
+			case 'hostile':
+				return 'hostile';
+			default:
+				return 'unvisited';
+		}
+	}
 
 	let selectedLocationId = $state<number | null>(null);
 	let selectedLocation = $state<Location | null>(null);
@@ -60,7 +75,12 @@
 
 			const markerInstance = mount(MapMarker, {
 				target: markerDomElement,
-				props: { state }
+				props: {
+					get isSelected() {
+						return state.isSelected;
+					},
+					variant: categoryToVariant(location.category)
+				}
 			});
 
 			const marker = new maplibregl.Marker({ element: markerDomElement })
