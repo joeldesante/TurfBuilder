@@ -66,7 +66,7 @@
 		<AppDropdownMenu items={userMenuItems} side="bottom" align="end" sideOffset={8}>
 			{#snippet children()}
 				<Avatar
-					username={$session.data.user.name ?? $session.data.user.email ?? '?'}
+					username={$session.data?.user.name ?? $session.data?.user.email ?? '?'}
 					variant="primary"
 				/>
 			{/snippet}
