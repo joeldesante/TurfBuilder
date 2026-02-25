@@ -1,20 +1,46 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
 	import { CubeIcon } from 'phosphor-svelte';
-	import { DropdownMenu } from 'bits-ui';
+	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
+	import SunIcon from 'phosphor-svelte/lib/Sun';
+	import MoonIcon from 'phosphor-svelte/lib/Moon';
+	import DesktopIcon from 'phosphor-svelte/lib/Desktop';
 	import { authClient } from '$lib/client';
+	import { themeStore } from '$lib/theme.svelte';
 	import Avatar from '$components/data-display/avatar/Avatar.svelte';
+	import AppDropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
+	import type { DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 
 	let { children, data } = $props();
 
 	const session = authClient.useSession();
 
-	let theme = $state<'system' | 'light' | 'dark'>('system');
+	onMount(() => themeStore.init());
 
 	async function logout() {
 		await authClient.signOut();
 		location.href = '/auth/signin/';
 	}
+
+	type Theme = 'light' | 'dark' | 'system';
+
+	const themeIcons: Record<Theme, typeof SunIcon> = {
+		light: SunIcon,
+		dark: MoonIcon,
+		system: DesktopIcon,
+	};
+
+	let userMenuItems = $derived<DropdownMenuEntry[]>([
+		...(['light', 'dark', 'system'] as Theme[]).map((t) => ({
+			label: t.charAt(0).toUpperCase() + t.slice(1),
+			icon: themeIcons[t],
+			onclick: () => themeStore.setTheme(t),
+			active: themeStore.theme === t,
+		})),
+		{ separator: true as const },
+		{ label: 'Sign Out', icon: SignOutIcon, onclick: logout },
+	]);
 </script>
 
 <svelte:head>
@@ -37,47 +63,14 @@
 
 {#if $session.data?.user.role === 'user'}
 	<div class="fixed top-4 right-4 z-[9999]">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
+		<AppDropdownMenu items={userMenuItems} side="bottom" align="end" sideOffset={8}>
+			{#snippet children()}
 				<Avatar
 					username={$session.data.user.name ?? $session.data.user.email ?? '?'}
 					variant="primary"
 				/>
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Portal>
-				<DropdownMenu.Content
-					align="end"
-					side="bottom"
-					sideOffset={8}
-					class="z-50 min-w-48 rounded-lg border border-outline bg-surface p-1 shadow-md outline-none"
-				>
-					<div class="px-3 py-2">
-						<p class="text-sm font-medium text-on-surface mb-2">Theme</p>
-						{#each ['system', 'light', 'dark'] as option (option)}
-							<label
-								class="flex items-center gap-3 h-9 cursor-pointer text-sm text-on-surface"
-							>
-								<input
-									type="radio"
-									name="theme"
-									value={option}
-									bind:group={theme}
-									class="accent-primary"
-								/>
-								{option.charAt(0).toUpperCase() + option.slice(1)}
-							</label>
-						{/each}
-					</div>
-					<DropdownMenu.Separator class="my-1 h-px bg-outline-subtle mx-1" />
-					<DropdownMenu.Item
-						onclick={logout}
-						class="flex items-center px-3 h-9 w-full rounded-md text-sm cursor-pointer outline-none select-none text-on-surface data-[highlighted]:bg-surface-container-high"
-					>
-						Log out
-					</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Portal>
-		</DropdownMenu.Root>
+			{/snippet}
+		</AppDropdownMenu>
 	</div>
 {/if}
 

@@ -3,6 +3,7 @@
 	import type { User } from 'better-auth';
 	import { page } from '$app/stores';
 	import { authClient } from '$lib/client';
+	import { themeStore } from '$lib/theme.svelte';
 	import Sidebar from '$components/layout/sidebar/Sidebar.svelte';
 	import { systemNav } from './sidebar-nav';
 	import Button from '$components/actions/button/Button.svelte';
@@ -33,6 +34,8 @@
 		nav={systemNav}
 		currentPath={$page.url.pathname}
 		username={data.user.name}
+		theme={themeStore.theme}
+		onthemechange={themeStore.setTheme}
 		bind:mobileOpen
 		onsignout={logout}
 	/>
