@@ -1,27 +1,27 @@
 <script lang="ts">
-	import { DropdownMenu } from 'bits-ui'
-	import type { Snippet, Component } from 'svelte'
+	import { DropdownMenu } from 'bits-ui';
+	import type { Snippet, Component } from 'svelte';
 
 	export interface DropdownMenuItem {
-		label: string
-		icon?: Component
-		onclick?: () => void
-		href?: string
-		disabled?: boolean
-		variant?: 'default' | 'destructive'
-		active?: boolean
+		label: string;
+		icon?: Component;
+		onclick?: () => void;
+		href?: string;
+		disabled?: boolean;
+		variant?: 'default' | 'destructive';
+		active?: boolean;
 	}
 
-	export type DropdownMenuEntry = DropdownMenuItem | { separator: true }
+	export type DropdownMenuEntry = DropdownMenuItem | { separator: true };
 
 	interface Props {
-		children: Snippet
-		items: DropdownMenuEntry[]
-		open?: boolean
-		align?: 'start' | 'center' | 'end'
-		side?: 'top' | 'bottom' | 'left' | 'right'
-		sideOffset?: number
-		class?: string
+		children: Snippet;
+		items: DropdownMenuEntry[];
+		open?: boolean;
+		align?: 'start' | 'center' | 'end';
+		side?: 'top' | 'bottom' | 'left' | 'right';
+		sideOffset?: number;
+		class?: string;
 	}
 
 	let {
@@ -31,23 +31,27 @@
 		align = 'end',
 		side = 'bottom',
 		sideOffset = 4,
-		class: className = '',
-	}: Props = $props()
+		class: className = ''
+	}: Props = $props();
 
-	type Variant = 'default' | 'destructive'
+	type Variant = 'default' | 'destructive';
 
 	const itemVariantClasses: Record<Variant, string> = {
 		default: 'text-on-surface data-[highlighted]:bg-surface-container-high',
-		destructive: 'text-error data-[highlighted]:bg-error/10',
-	}
+		destructive: 'text-error data-[highlighted]:bg-error/10'
+	};
 
 	const itemBaseClasses =
-		'flex items-center gap-2 px-3 h-9 w-full rounded-md text-sm cursor-pointer outline-none no-underline select-none [&>svg]:size-4 [&>svg]:shrink-0 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed data-[disabled]:pointer-events-none'
+		'flex items-center gap-2 px-3 h-9 w-full rounded-md text-sm cursor-pointer outline-none no-underline select-none [&>svg]:size-4 [&>svg]:shrink-0 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed data-[disabled]:pointer-events-none';
 
 	function itemClass(item: DropdownMenuItem) {
-		return [itemBaseClasses, itemVariantClasses[item.variant ?? 'default'], item.active ? 'bg-surface-container' : '']
+		return [
+			itemBaseClasses,
+			itemVariantClasses[item.variant ?? 'default'],
+			item.active ? 'bg-surface-container' : ''
+		]
 			.filter(Boolean)
-			.join(' ')
+			.join(' ');
 	}
 </script>
 
@@ -62,7 +66,7 @@
 			{sideOffset}
 			class={[
 				'z-50 min-w-48 rounded-lg border border-outline-subtle bg-surface p-1 shadow-md outline-none',
-				className,
+				className
 			]
 				.filter(Boolean)
 				.join(' ')}

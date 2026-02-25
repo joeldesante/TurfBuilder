@@ -1,42 +1,42 @@
-export type Theme = 'system' | 'light' | 'dark'
+export type Theme = 'system' | 'light' | 'dark';
 
 function createThemeStore() {
-	let theme = $state<Theme>('system')
-	let mediaQuery: MediaQueryList | null = null
+	let theme = $state<Theme>('system');
+	let mediaQuery: MediaQueryList | null = null;
 
 	function applyToDOM(t: Theme) {
-		if (typeof document === 'undefined') return
-		const isDark = t === 'dark' || (t === 'system' && mediaQuery?.matches === true)
-		document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+		if (typeof document === 'undefined') return;
+		const isDark = t === 'dark' || (t === 'system' && mediaQuery?.matches === true);
+		document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
 	}
 
 	function apply(t: Theme) {
-		theme = t
+		theme = t;
 		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem('theme', t)
+			localStorage.setItem('theme', t);
 		}
-		applyToDOM(t)
+		applyToDOM(t);
 	}
 
 	function init() {
-		if (typeof window === 'undefined') return
+		if (typeof window === 'undefined') return;
 
-		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', () => {
-			if (theme === 'system') applyToDOM('system')
-		})
+			if (theme === 'system') applyToDOM('system');
+		});
 
-		const saved = localStorage.getItem('theme') as Theme | null
-		apply(saved ?? 'system')
+		const saved = localStorage.getItem('theme') as Theme | null;
+		apply(saved ?? 'system');
 	}
 
 	return {
 		get theme() {
-			return theme
+			return theme;
 		},
 		setTheme: apply,
-		init,
-	}
+		init
+	};
 }
 
-export const themeStore = createThemeStore()
+export const themeStore = createThemeStore();

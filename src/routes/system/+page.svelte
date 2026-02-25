@@ -9,8 +9,7 @@
 	<title>Dashboard | {data.config.application_name}</title>
 </svelte:head>
 
-<PageHeader 
+<PageHeader
 	title="Dashboard"
-	subheading="This will be the main portal for the system, giving a high level overview of important data and quick links to other pages." 
+	subheading="This will be the main portal for the system, giving a high level overview of important data and quick links to other pages."
 />
-

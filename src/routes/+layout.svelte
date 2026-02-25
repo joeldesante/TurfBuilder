@@ -28,7 +28,7 @@
 	const themeIcons: Record<Theme, typeof SunIcon> = {
 		light: SunIcon,
 		dark: MoonIcon,
-		system: DesktopIcon,
+		system: DesktopIcon
 	};
 
 	let userMenuItems = $derived<DropdownMenuEntry[]>([
@@ -36,10 +36,10 @@
 			label: t.charAt(0).toUpperCase() + t.slice(1),
 			icon: themeIcons[t],
 			onclick: () => themeStore.setTheme(t),
-			active: themeStore.theme === t,
+			active: themeStore.theme === t
 		})),
 		{ separator: true as const },
-		{ label: 'Sign Out', icon: SignOutIcon, onclick: logout },
+		{ label: 'Sign Out', icon: SignOutIcon, onclick: logout }
 	]);
 </script>
 

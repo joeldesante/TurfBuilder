@@ -43,5 +43,9 @@
 		{@const Icon = item.icon}
 		<Icon />
 	{/if}
-	<span class="whitespace-nowrap overflow-hidden transition-[max-width] duration-200 {collapsed ? 'max-w-0' : 'max-w-[200px]'}">{item.label}</span>
+	<span
+		class="whitespace-nowrap overflow-hidden transition-[max-width] duration-200 {collapsed
+			? 'max-w-0'
+			: 'max-w-[200px]'}">{item.label}</span
+	>
 </a>

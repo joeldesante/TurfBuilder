@@ -1,18 +1,18 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte'
+	import type { Snippet } from 'svelte';
 
 	interface BreadcrumbItem {
-		label: string
-		href?: string
+		label: string;
+		href?: string;
 	}
 
 	interface Props {
-		title: string
-		subheading?: string
-		breadcrumbs?: BreadcrumbItem[]
-		actions?: Snippet
-		class?: string
-		[key: string]: unknown
+		title: string;
+		subheading?: string;
+		breadcrumbs?: BreadcrumbItem[];
+		actions?: Snippet;
+		class?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -22,11 +22,9 @@
 		actions,
 		class: className = '',
 		...restProps
-	}: Props = $props()
+	}: Props = $props();
 
-	let containerClass = $derived(
-		['pt-4 pb-10', className].filter(Boolean).join(' ')
-	)
+	let containerClass = $derived(['pt-4 pb-10', className].filter(Boolean).join(' '));
 </script>
 
 <div class={containerClass} {...restProps}>
@@ -39,7 +37,10 @@
 					{/if}
 					<li>
 						{#if crumb.href}
-							<a href={crumb.href} class="text-on-surface-subtle hover:text-on-surface no-underline transition-colors duration-150">
+							<a
+								href={crumb.href}
+								class="text-on-surface-subtle hover:text-on-surface no-underline transition-colors duration-150"
+							>
 								{crumb.label}
 							</a>
 						{:else}

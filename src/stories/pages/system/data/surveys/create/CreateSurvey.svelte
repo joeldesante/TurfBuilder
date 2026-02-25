@@ -14,10 +14,7 @@
 
 <PageHeader
 	title="Create Survey"
-	breadcrumbs={[
-		{ label: 'Surveys', href: '/system/data/surveys' },
-		{ label: 'Create' }
-	]}
+	breadcrumbs={[{ label: 'Surveys', href: '/system/data/surveys' }, { label: 'Create' }]}
 />
 <FormField label="Survey Name" class="my-4" errors={form.errors['name'] || []} dirty={form.dirty}>
 	<TextInput bind:value={form.values.name} onblur={form.validate} />

@@ -3,42 +3,46 @@
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { SmileyAngryIcon } from 'phosphor-svelte';
 
-	export type Variant = 'unvisited' | 'contacted' | 'no-contact' | 'hostile'
+	export type Variant = 'unvisited' | 'contacted' | 'no-contact' | 'hostile';
 
 	interface Props {
-		variant?: Variant
-		isSelected?: boolean
-		class?: string
-		[key: string]: unknown
+		variant?: Variant;
+		isSelected?: boolean;
+		class?: string;
+		[key: string]: unknown;
 	}
 
-	let { variant = 'unvisited', isSelected = false, class: className = '', ...restProps }: Props =
-		$props()
+	let {
+		variant = 'unvisited',
+		isSelected = false,
+		class: className = '',
+		...restProps
+	}: Props = $props();
 
 	const variantFillClasses: Record<Variant, string> = {
 		unvisited: 'fill-location-unvisited',
 		contacted: 'fill-location-contacted',
 		'no-contact': 'fill-location-no-contact',
 		hostile: 'fill-location-hostile'
-	}
+	};
 
 	const variantIconColorClasses: Record<Variant, string> = {
 		unvisited: 'text-on-location-unvisited',
 		contacted: 'text-on-location-contacted',
 		'no-contact': 'text-on-location-no-contact',
 		hostile: 'text-on-location-hostile'
-	}
+	};
 
 	const variantIcons: Record<Variant, Component | null> = {
 		unvisited: null,
 		contacted: CheckCircleIcon,
 		'no-contact': null,
 		hostile: SmileyAngryIcon
-	}
+	};
 
-	let icon = $derived(variantIcons[variant])
-	let fillClass = $derived(variantFillClasses[variant])
-	let iconColorClass = $derived(variantIconColorClasses[variant])
+	let icon = $derived(variantIcons[variant]);
+	let fillClass = $derived(variantFillClasses[variant]);
+	let iconColorClass = $derived(variantIconColorClasses[variant]);
 
 	let computedClass = $derived(
 		[
@@ -48,7 +52,7 @@
 		]
 			.filter(Boolean)
 			.join(' ')
-	)
+	);
 </script>
 
 <div class={computedClass} role="img" aria-label="{variant} location marker" {...restProps}>
