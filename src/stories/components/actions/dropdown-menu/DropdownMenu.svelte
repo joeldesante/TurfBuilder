@@ -52,7 +52,7 @@
 </script>
 
 <DropdownMenu.Root bind:open>
-	<DropdownMenu.Trigger>
+	<DropdownMenu.Trigger class="w-full">
 		{@render children()}
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Portal>

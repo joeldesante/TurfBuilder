@@ -25,7 +25,7 @@
 	}: Props = $props()
 
 	let containerClass = $derived(
-		['pt-2 pb-6', className].filter(Boolean).join(' ')
+		['pt-4 pb-10', className].filter(Boolean).join(' ')
 	)
 </script>
 
