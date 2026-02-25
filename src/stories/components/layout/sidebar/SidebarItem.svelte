@@ -22,7 +22,7 @@
 			'flex items-center gap-3 px-3 h-10 md:h-9 rounded-lg text-sm no-underline',
 			'transition-colors duration-150 [&>svg]:size-5',
 			active
-				? 'bg-primary-container text-on-primary-container font-medium'
+				? 'bg-primary-container dark:bg-primary-container/50 text-on-primary-container font-medium'
 				: 'text-on-surface-subtle hover:bg-surface-container hover:text-on-surface',
 			collapsed ? 'justify-center px-0' : '',
 			className

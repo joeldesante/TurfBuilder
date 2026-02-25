@@ -4,11 +4,7 @@
 	import type { SidebarNavEntry } from './types'
 	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour'
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold'
-	import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets'
-	import ScissorsIcon from 'phosphor-svelte/lib/Scissors'
-	import UsersIcon from 'phosphor-svelte/lib/Users'
 	import UserIcon from 'phosphor-svelte/lib/User'
-	import DatabaseIcon from 'phosphor-svelte/lib/Database'
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin'
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText'
 	import WrenchIcon from 'phosphor-svelte/lib/Wrench'
@@ -21,34 +17,20 @@
 			item: { label: 'Dashboard', href: '/system/', icon: SquaresFourIcon },
 		},
 		{
-			kind: 'section',
-			section: {
-				label: 'Turf',
-				icon: MapTrifoldIcon,
-				items: [
-					{ label: 'Overview', href: '/system/turfs', icon: ListBulletsIcon },
-					{ label: 'Cut Turf', href: '/system/turfs/cut', icon: ScissorsIcon },
-				],
-			},
+			kind: 'item',
+			item: { label: 'Turfs', href: '/system/turfs', icon: MapTrifoldIcon },
 		},
 		{
-			kind: 'section',
-			section: {
-				label: 'People',
-				icon: UsersIcon,
-				items: [{ label: 'Users', href: '/system/users', icon: UserIcon }],
-			},
+			kind: 'item',
+			item: { label: 'Users', href: '/system/users', icon: UserIcon },
 		},
 		{
-			kind: 'section',
-			section: {
-				label: 'Data',
-				icon: DatabaseIcon,
-				items: [
-					{ label: 'Locations', href: '/system/data/locations', icon: MapPinIcon },
-					{ label: 'Surveys', href: '/system/data/surveys', icon: ClipboardTextIcon },
-				],
-			},
+			kind: 'item',
+			item: { label: 'Locations', href: '/system/data/locations', icon: MapPinIcon },
+		},
+		{
+			kind: 'item',
+			item: { label: 'Surveys', href: '/system/data/surveys', icon: ClipboardTextIcon },
 		},
 		{
 			kind: 'section',
@@ -84,9 +66,22 @@
 				control: { type: 'boolean' },
 				description: 'Whether the mobile overlay sidebar is visible.',
 			},
+			username: {
+				control: { type: 'text' },
+				description: 'Display name shown in the user menu trigger.',
+			},
+			theme: {
+				control: { type: 'select' },
+				options: ['light', 'dark', 'system'],
+				description: 'Active theme, highlighted in the theme switcher.',
+			},
 			onsignout: {
 				control: false,
-				description: 'Callback fired when the Sign Out button is clicked.',
+				description: 'Callback fired when Sign Out is clicked.',
+			},
+			onthemechange: {
+				control: false,
+				description: 'Callback fired with the selected theme string.',
 			},
 		},
 		parameters: {
@@ -104,7 +99,9 @@
 		<Sidebar
 			nav={sampleNav}
 			currentPath="/system/"
+			username="Sabina Organizer"
 			onsignout={() => alert('Sign out clicked')}
+			onthemechange={(t) => alert(`Theme: ${t}`)}
 		/>
 		<main class="flex-1 bg-surface p-6">
 			<h1 class="text-2xl font-bold text-on-surface">Dashboard</h1>
@@ -118,7 +115,9 @@
 		<Sidebar
 			nav={sampleNav}
 			currentPath="/system/data/surveys"
+			username="Sabina Organizer"
 			onsignout={() => alert('Sign out clicked')}
+			onthemechange={(t) => alert(`Theme: ${t}`)}
 		/>
 		<main class="flex-1 bg-surface p-6">
 			<h1 class="text-2xl font-bold text-on-surface">Surveys</h1>
@@ -132,8 +131,10 @@
 		<Sidebar
 			nav={sampleNav}
 			currentPath="/system/"
+			username="Sabina Organizer"
 			collapsed={true}
 			onsignout={() => alert('Sign out clicked')}
+			onthemechange={(t) => alert(`Theme: ${t}`)}
 		/>
 		<main class="flex-1 bg-surface p-6">
 			<h1 class="text-2xl font-bold text-on-surface">Dashboard</h1>
