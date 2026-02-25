@@ -64,7 +64,7 @@
 
 	let sidebarClass = $derived(
 		[
-			'flex flex-col bg-surface-dim h-dvh border-r border-outline-subtle overflow-hidden',
+			'flex flex-col bg-surface-container-lowest h-dvh border-r border-outline-subtle overflow-hidden',
 			// Mobile: fixed overlay, slide in/out
 			'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
 			mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',

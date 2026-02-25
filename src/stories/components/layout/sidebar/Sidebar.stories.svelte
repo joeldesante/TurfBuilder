@@ -104,24 +104,7 @@
 			onthemechange={(t) => alert(`Theme: ${t}`)}
 		/>
 		<main class="flex-1 bg-surface p-6">
-			<h1 class="text-2xl font-bold text-on-surface">Dashboard</h1>
 			<p class="mt-2 text-on-surface-subtle">Main content area</p>
-		</main>
-	</div>
-</Story>
-
-<Story name="With Active Item" asChild>
-	<div class="flex h-screen">
-		<Sidebar
-			nav={sampleNav}
-			currentPath="/system/data/surveys"
-			username="Sabina Organizer"
-			onsignout={() => alert('Sign out clicked')}
-			onthemechange={(t) => alert(`Theme: ${t}`)}
-		/>
-		<main class="flex-1 bg-surface p-6">
-			<h1 class="text-2xl font-bold text-on-surface">Surveys</h1>
-			<p class="mt-2 text-on-surface-subtle">The Data section auto-opens because Surveys is active</p>
 		</main>
 	</div>
 </Story>
@@ -137,8 +120,7 @@
 			onthemechange={(t) => alert(`Theme: ${t}`)}
 		/>
 		<main class="flex-1 bg-surface p-6">
-			<h1 class="text-2xl font-bold text-on-surface">Dashboard</h1>
-			<p class="mt-2 text-on-surface-subtle">Sidebar is in collapsed icon-only mode</p>
+			<p class="mt-2 text-on-surface-subtle">Main content area</p>
 		</main>
 	</div>
 </Story>
