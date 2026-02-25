@@ -83,7 +83,7 @@
 	const themeIcons: Record<Theme, typeof SunIcon> = {
 		light: SunIcon,
 		dark: MoonIcon,
-		system: DesktopIcon,
+		system: DesktopIcon
 	};
 
 	let userTriggerClass = $derived(
@@ -102,16 +102,20 @@
 			label: t.charAt(0).toUpperCase() + t.slice(1),
 			icon: themeIcons[t],
 			onclick: () => onthemechange?.(t),
-			active: theme === t,
+			active: theme === t
 		})),
 		{ separator: true as const },
-		{ label: 'Sign Out', icon: SignOutIcon, onclick: onsignout },
-	])
+		{ label: 'Sign Out', icon: SignOutIcon, onclick: onsignout }
+	]);
 </script>
 
 <!-- Mobile backdrop -->
 {#if mobileOpen}
-	<div class="fixed inset-0 z-40 bg-scrim md:hidden" aria-hidden="true" onclick={() => (mobileOpen = false)}></div>
+	<div
+		class="fixed inset-0 z-40 bg-scrim md:hidden"
+		aria-hidden="true"
+		onclick={() => (mobileOpen = false)}
+	></div>
 {/if}
 
 <!-- Sidebar -->
@@ -124,7 +128,9 @@
 	<!-- Top bar: collapse toggle (desktop) / close button (mobile) -->
 	<div class="flex items-center shrink-0 px-2 pt-3 pb-1">
 		{#if !collapsed}
-			<span class="pl-4 text-sm font-semibold text-on-surface truncate">{config.application_name}</span>
+			<span class="pl-4 text-sm font-semibold text-on-surface truncate"
+				>{config.application_name}</span
+			>
 		{/if}
 		<div class="hidden md:block {collapsed ? 'mx-auto' : 'ml-auto'}">
 			<Button
@@ -138,12 +144,7 @@
 			</Button>
 		</div>
 		<div class="flex md:hidden ml-auto">
-			<Button
-				variant="ghost"
-				iconOnly
-				aria-label="Close menu"
-				onclick={() => (mobileOpen = false)}
-			>
+			<Button variant="ghost" iconOnly aria-label="Close menu" onclick={() => (mobileOpen = false)}>
 				<XIcon />
 			</Button>
 		</div>

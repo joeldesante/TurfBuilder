@@ -1,6 +1,6 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import Avatar from './Avatar.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import Avatar from './Avatar.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Display/Avatar',
@@ -16,7 +16,7 @@
 				options: ['sm', 'md', 'lg']
 			}
 		}
-	})
+	});
 </script>
 
 <Story name="Default" args={{ username: 'Jane Doe' }} />

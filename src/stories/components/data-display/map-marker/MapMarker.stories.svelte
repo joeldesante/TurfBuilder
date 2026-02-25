@@ -1,8 +1,8 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import MapMarker, { type Variant } from './MapMarker.svelte'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import MapMarker, { type Variant } from './MapMarker.svelte';
 
-	const allVariants: Variant[] = ['unvisited', 'contacted', 'no-contact', 'hostile']
+	const allVariants: Variant[] = ['unvisited', 'contacted', 'no-contact', 'hostile'];
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Display/Map Marker',
@@ -25,7 +25,7 @@
 					'A map pin marker indicating the canvassing status of a location. Designed for use with MapLibre GL via Svelte mount().'
 			}
 		}
-	})
+	});
 </script>
 
 <Story name="Unvisited" args={{ variant: 'unvisited' }} />

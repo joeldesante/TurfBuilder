@@ -1,38 +1,38 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf'
-	import Sidebar from './Sidebar.svelte'
-	import type { SidebarNavEntry } from './types'
-	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour'
-	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold'
-	import UserIcon from 'phosphor-svelte/lib/User'
-	import MapPinIcon from 'phosphor-svelte/lib/MapPin'
-	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText'
-	import WrenchIcon from 'phosphor-svelte/lib/Wrench'
-	import BellIcon from 'phosphor-svelte/lib/Bell'
-	import LockIcon from 'phosphor-svelte/lib/Lock'
-	import Button from '$components/actions/button/Button.svelte'
-	import ListIcon from 'phosphor-svelte/lib/List'
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import Sidebar from './Sidebar.svelte';
+	import type { SidebarNavEntry } from './types';
+	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
+	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
+	import UserIcon from 'phosphor-svelte/lib/User';
+	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
+	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText';
+	import WrenchIcon from 'phosphor-svelte/lib/Wrench';
+	import BellIcon from 'phosphor-svelte/lib/Bell';
+	import LockIcon from 'phosphor-svelte/lib/Lock';
+	import Button from '$components/actions/button/Button.svelte';
+	import ListIcon from 'phosphor-svelte/lib/List';
 
 	const sampleNav: SidebarNavEntry[] = [
 		{
 			kind: 'item',
-			item: { label: 'Dashboard', href: '/system/', icon: SquaresFourIcon },
+			item: { label: 'Dashboard', href: '/system/', icon: SquaresFourIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Turfs', href: '/system/turfs', icon: MapTrifoldIcon },
+			item: { label: 'Turfs', href: '/system/turfs', icon: MapTrifoldIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Users', href: '/system/users', icon: UserIcon },
+			item: { label: 'Users', href: '/system/users', icon: UserIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Locations', href: '/system/data/locations', icon: MapPinIcon },
+			item: { label: 'Locations', href: '/system/data/locations', icon: MapPinIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Surveys', href: '/system/data/surveys', icon: ClipboardTextIcon },
+			item: { label: 'Surveys', href: '/system/data/surveys', icon: ClipboardTextIcon }
 		},
 		{
 			kind: 'section',
@@ -41,11 +41,11 @@
 				icon: WrenchIcon,
 				items: [
 					{ label: 'Send Notification', href: '/system/utils/notify', icon: BellIcon },
-					{ label: 'Lockdown', href: '/system/utils/lockdown', icon: LockIcon },
-				],
-			},
-		},
-	]
+					{ label: 'Lockdown', href: '/system/utils/lockdown', icon: LockIcon }
+				]
+			}
+		}
+	];
 
 	const { Story } = defineMeta({
 		title: 'Components/Layout/Sidebar',
@@ -54,50 +54,50 @@
 		argTypes: {
 			nav: {
 				control: false,
-				description: 'Array of navigation entries (items or collapsible sections).',
+				description: 'Array of navigation entries (items or collapsible sections).'
 			},
 			currentPath: {
 				control: { type: 'text' },
-				description: 'Current URL path for active state detection.',
+				description: 'Current URL path for active state detection.'
 			},
 			collapsed: {
 				control: { type: 'boolean' },
-				description: 'Whether the sidebar is in collapsed (icon-only) mode.',
+				description: 'Whether the sidebar is in collapsed (icon-only) mode.'
 			},
 			mobileOpen: {
 				control: { type: 'boolean' },
-				description: 'Whether the mobile overlay sidebar is visible.',
+				description: 'Whether the mobile overlay sidebar is visible.'
 			},
 			username: {
 				control: { type: 'text' },
-				description: 'Display name shown in the user menu trigger.',
+				description: 'Display name shown in the user menu trigger.'
 			},
 			theme: {
 				control: { type: 'select' },
 				options: ['light', 'dark', 'system'],
-				description: 'Active theme, highlighted in the theme switcher.',
+				description: 'Active theme, highlighted in the theme switcher.'
 			},
 			onsignout: {
 				control: false,
-				description: 'Callback fired when Sign Out is clicked.',
+				description: 'Callback fired when Sign Out is clicked.'
 			},
 			onthemechange: {
 				control: false,
-				description: 'Callback fired with the selected theme string.',
-			},
+				description: 'Callback fired with the selected theme string.'
+			}
 		},
 		parameters: {
 			docs: {
 				subtitle:
-					'A responsive, collapsible sidebar for dashboard navigation. Accepts a data-driven nav config with icons and sections.',
+					'A responsive, collapsible sidebar for dashboard navigation. Accepts a data-driven nav config with icons and sections.'
 			},
-			layout: 'fullscreen',
-		},
-	})
+			layout: 'fullscreen'
+		}
+	});
 </script>
 
 <script lang="ts">
-	let mobileOpen = $state(false)
+	let mobileOpen = $state(false);
 </script>
 
 <Story name="Default" asChild>

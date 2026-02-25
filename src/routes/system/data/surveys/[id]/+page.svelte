@@ -11,10 +11,7 @@
 
 <PageHeader
 	title={data.survey.name}
-	breadcrumbs={[
-		{ label: 'Surveys', href: '/system/data/surveys' },
-		{ label: data.survey.name }
-	]}
+	breadcrumbs={[{ label: 'Surveys', href: '/system/data/surveys' }, { label: data.survey.name }]}
 >
 	{#snippet actions()}
 		<Button variant="outline" href="/system/data/surveys/{data.survey.id}/edit">Edit</Button>

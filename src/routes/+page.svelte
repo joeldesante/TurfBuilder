@@ -44,9 +44,9 @@
 	}
 
 	async function logout() {
-        await authClient.signOut();
-        location.href = "/auth/signin/";
-    }
+		await authClient.signOut();
+		location.href = '/auth/signin/';
+	}
 </script>
 
 <div class="flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
