@@ -9,11 +9,8 @@
 	<title>Dashboard | {data.config.application_name}</title>
 </svelte:head>
 
-<PageHeader title="Dashboard" />
+<PageHeader 
+	title="Dashboard"
+	subheading="This will be the main portal for the system, giving a high level overview of important data and quick links to other pages." 
+/>
 
-<div>
-	<p>
-		Main portal with a grand overview of important data. includes links to certain pages like the
-		list of users, list of turfs, maybe even a master location list
-	</p>
-</div>
