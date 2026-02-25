@@ -16,7 +16,7 @@
 		tags: ['autodocs'],
 		argTypes: {
 			align: {
-				control: { type: 'select' },
+				control: { type: 'radio' },
 				options: ['start', 'center', 'end'],
 				description: 'Horizontal alignment of the menu content relative to the trigger.',
 			},

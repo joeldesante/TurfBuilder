@@ -9,6 +9,7 @@
 		href?: string
 		disabled?: boolean
 		variant?: 'default' | 'destructive'
+		active?: boolean
 	}
 
 	export type DropdownMenuEntry = DropdownMenuItem | { separator: true }
@@ -41,10 +42,12 @@
 	}
 
 	const itemBaseClasses =
-		'flex items-center gap-2 px-3 h-9 w-full rounded-md text-sm cursor-pointer outline-none select-none [&>svg]:size-4 [&>svg]:shrink-0 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed data-[disabled]:pointer-events-none'
+		'flex items-center gap-2 px-3 h-9 w-full rounded-md text-sm cursor-pointer outline-none no-underline select-none [&>svg]:size-4 [&>svg]:shrink-0 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed data-[disabled]:pointer-events-none'
 
 	function itemClass(item: DropdownMenuItem) {
-		return [itemBaseClasses, itemVariantClasses[item.variant ?? 'default']].join(' ')
+		return [itemBaseClasses, itemVariantClasses[item.variant ?? 'default'], item.active ? 'bg-surface-container' : '']
+			.filter(Boolean)
+			.join(' ')
 	}
 </script>
 
@@ -58,7 +61,7 @@
 			{align}
 			{sideOffset}
 			class={[
-				'z-50 min-w-48 rounded-lg border border-outline bg-surface p-1 shadow-md outline-none',
+				'z-50 min-w-48 rounded-lg border border-outline-subtle bg-surface p-1 shadow-md outline-none',
 				className,
 			]
 				.filter(Boolean)
