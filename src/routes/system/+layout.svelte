@@ -8,9 +8,8 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import ListIcon from 'phosphor-svelte/lib/List';
 
-	const { children, title, data } = $props<{
+	const { children, data } = $props<{
 		children: () => any;
-		title?: string;
 		data: {
 			config: ApplicationConfig;
 			user: User;
@@ -26,7 +25,7 @@
 </script>
 
 <svelte:head>
-	<title>{title || 'Dashboard'} | {data.config.application_name}</title>
+	<title>Dashboard | {data.config.application_name}</title>
 </svelte:head>
 
 <div class="flex h-dvh">
@@ -39,17 +38,10 @@
 	/>
 
 	<main class="flex-1 flex flex-col bg-surface overflow-hidden">
-		<div class="flex items-center gap-3 px-5 pt-4 pb-2">
-			<Button
-				variant="ghost"
-				iconOnly
-				aria-label="Open menu"
-				class="md:hidden"
-				onclick={() => (mobileOpen = true)}
-			>
+		<div class="md:hidden flex items-center px-4 pt-3 pb-1">
+			<Button variant="ghost" iconOnly aria-label="Open menu" onclick={() => (mobileOpen = true)}>
 				<ListIcon />
 			</Button>
-			<h1 class="text-2xl font-bold">{title ?? 'Dashboard'}</h1>
 		</div>
 		<div class="flex-1 overflow-y-auto px-5 pb-5">
 			{@render children()}
