@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ApplicationConfig } from '../../config';
+	import type { User } from 'better-auth';
 	import { page } from '$app/stores';
 	import { authClient } from '$lib/client';
 	import Sidebar from '$components/layout/sidebar/Sidebar.svelte';
@@ -12,6 +13,7 @@
 		title?: string;
 		data: {
 			config: ApplicationConfig;
+			user: User;
 		};
 	}>();
 
@@ -31,6 +33,7 @@
 	<Sidebar
 		nav={systemNav}
 		currentPath={$page.url.pathname}
+		username={data.user.name}
 		bind:mobileOpen
 		onsignout={logout}
 	/>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Time from 'svelte-time/Time.svelte';
+	import Button from '$components/actions/button/Button.svelte';
 
 	let { data } = $props();
 
@@ -9,6 +10,9 @@
 </script>
 
 <div>
+	<div class="mb-4">
+		<Button variant="primary" href="/system/turfs/cut">Cut Turfs</Button>
+	</div>
 	<div class="grid grid-cols-3 gap-2 border-b">
 		<p>Code</p>
 		<p>Created</p>

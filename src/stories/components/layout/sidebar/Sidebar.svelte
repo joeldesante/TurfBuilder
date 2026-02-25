@@ -3,17 +3,27 @@
 	import SidebarSection from './SidebarSection.svelte';
 	import SidebarItem from './SidebarItem.svelte';
 	import Button from '$components/actions/button/Button.svelte';
+	import Avatar from '$components/data-display/avatar/Avatar.svelte';
+	import { DropdownMenu } from 'bits-ui';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
-	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
-	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import SunIcon from 'phosphor-svelte/lib/Sun';
+	import MoonIcon from 'phosphor-svelte/lib/Moon';
+	import DesktopIcon from 'phosphor-svelte/lib/Desktop';
+	import SidebarSimpleIcon from 'phosphor-svelte/lib/SidebarSimpleIcon';
 	import XIcon from 'phosphor-svelte/lib/X';
+	import config from '$lib/../config';
+
+	type Theme = 'light' | 'dark' | 'system';
 
 	interface Props {
 		nav: SidebarNavEntry[];
 		currentPath?: string;
 		collapsed?: boolean;
 		mobileOpen?: boolean;
+		username?: string;
+		theme?: Theme;
 		onsignout?: () => void;
+		onthemechange?: (theme: Theme) => void;
 		class?: string;
 		[key: string]: unknown;
 	}
@@ -23,7 +33,10 @@
 		currentPath = '',
 		collapsed = $bindable(false),
 		mobileOpen = $bindable(false),
+		username = 'User',
+		theme = 'system',
 		onsignout,
+		onthemechange,
 		class: className = '',
 		...restProps
 	}: Props = $props();
@@ -66,16 +79,27 @@
 			.join(' ')
 	);
 
-	let signOutClass = $derived(
+	const themeIcons: Record<Theme, typeof SunIcon> = {
+		light: SunIcon,
+		dark: MoonIcon,
+		system: DesktopIcon,
+	};
+
+	let userTriggerClass = $derived(
 		[
-			'flex items-center gap-3 w-full px-3 h-10 md:h-9 rounded-lg text-sm',
-			'text-on-surface-subtle hover:bg-surface-container hover:text-on-surface',
-			'transition-colors duration-150 cursor-pointer [&>svg]:size-5',
+			'flex items-center gap-3 w-full px-3 h-10 md:h-9 rounded-lg',
+			'text-on-surface hover:bg-surface-container',
+			'transition-colors duration-150 cursor-pointer',
 			collapsed ? 'justify-center px-0' : ''
 		]
 			.filter(Boolean)
 			.join(' ')
 	);
+
+	const itemBaseClass =
+		'flex items-center gap-2 px-3 h-9 w-full rounded-md text-sm cursor-pointer outline-none select-none [&>svg]:size-4 [&>svg]:shrink-0';
+	const itemDefaultClass = `${itemBaseClass} text-on-surface data-[highlighted]:bg-surface-container-high`;
+	const itemDestructiveClass = `${itemBaseClass} text-error data-[highlighted]:bg-error/10`;
 </script>
 
 <!-- Mobile backdrop -->
@@ -92,18 +116,18 @@
 >
 	<!-- Top bar: collapse toggle (desktop) / close button (mobile) -->
 	<div class="flex items-center shrink-0 px-2 pt-3 pb-1">
-		<div class="hidden md:block ml-auto">
+		{#if !collapsed}
+			<span class="pl-4 text-sm font-semibold text-on-surface truncate">{config.application_name}</span>
+		{/if}
+		<div class="hidden md:block {collapsed ? 'mx-auto' : 'ml-auto'}">
 			<Button
 				variant="ghost"
 				iconOnly
 				aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 				onclick={() => (collapsed = !collapsed)}
+				class="text-on-surface-subtle hover:text-on-surface"
 			>
-				{#if collapsed}
-					<CaretRightIcon />
-				{:else}
-					<CaretLeftIcon />
-				{/if}
+				<SidebarSimpleIcon />
 			</Button>
 		</div>
 		<div class="flex md:hidden ml-auto">
@@ -131,13 +155,39 @@
 		</div>
 	</div>
 
-	<!-- Sign out -->
+	<!-- User menu -->
 	<div class="shrink-0 border-t border-outline-subtle px-2 py-3">
-		<button type="button" onclick={onsignout} class={signOutClass} title={collapsed ? 'Sign Out' : undefined}>
-			<SignOutIcon />
-			{#if !collapsed}
-				<span>Sign Out</span>
-			{/if}
-		</button>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger class={userTriggerClass} title={collapsed ? username : undefined}>
+				<Avatar {username} size="sm" />
+				{#if !collapsed}
+					<span class="truncate text-sm font-medium">{username}</span>
+				{/if}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Portal>
+				<DropdownMenu.Content
+					side="top"
+					align="start"
+					sideOffset={8}
+					class="z-50 min-w-52 rounded-lg border border-outline bg-surface p-1 shadow-md outline-none"
+				>
+					{#each (['light', 'dark', 'system'] as Theme[]) as t}
+						{@const Icon = themeIcons[t]}
+						<DropdownMenu.Item
+							onclick={() => onthemechange?.(t)}
+							class="{itemDefaultClass} capitalize {theme === t ? 'bg-surface-container' : ''}"
+						>
+							<Icon />
+							{t}
+						</DropdownMenu.Item>
+					{/each}
+					<DropdownMenu.Separator class="my-1 h-px bg-outline-subtle mx-1" />
+					<DropdownMenu.Item onclick={onsignout} class={itemDestructiveClass}>
+						<SignOutIcon />
+						Sign Out
+					</DropdownMenu.Item>
+				</DropdownMenu.Content>
+			</DropdownMenu.Portal>
+		</DropdownMenu.Root>
 	</div>
 </nav>
