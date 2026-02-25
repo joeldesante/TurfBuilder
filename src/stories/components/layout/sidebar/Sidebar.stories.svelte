@@ -10,6 +10,8 @@
 	import WrenchIcon from 'phosphor-svelte/lib/Wrench'
 	import BellIcon from 'phosphor-svelte/lib/Bell'
 	import LockIcon from 'phosphor-svelte/lib/Lock'
+	import Button from '$components/actions/button/Button.svelte'
+	import ListIcon from 'phosphor-svelte/lib/List'
 
 	const sampleNav: SidebarNavEntry[] = [
 		{
@@ -94,17 +96,33 @@
 	})
 </script>
 
+<script lang="ts">
+	let mobileOpen = $state(false)
+</script>
+
 <Story name="Default" asChild>
 	<div class="flex h-screen">
 		<Sidebar
 			nav={sampleNav}
 			currentPath="/system/"
 			username="Sabina Organizer"
+			bind:mobileOpen
 			onsignout={() => alert('Sign out clicked')}
 			onthemechange={(t) => alert(`Theme: ${t}`)}
 		/>
 		<main class="flex-1 bg-surface p-6">
-			<p class="mt-2 text-on-surface-subtle">Main content area</p>
+			<div class="flex items-center gap-3 mb-4">
+				<Button
+					variant="ghost"
+					iconOnly
+					aria-label="Open menu"
+					class="md:hidden"
+					onclick={() => (mobileOpen = true)}
+				>
+					<ListIcon />
+				</Button>
+			</div>
+			<p class="text-on-surface-subtle">Main content area</p>
 		</main>
 	</div>
 </Story>
@@ -116,11 +134,23 @@
 			currentPath="/system/"
 			username="Sabina Organizer"
 			collapsed={true}
+			bind:mobileOpen
 			onsignout={() => alert('Sign out clicked')}
 			onthemechange={(t) => alert(`Theme: ${t}`)}
 		/>
 		<main class="flex-1 bg-surface p-6">
-			<p class="mt-2 text-on-surface-subtle">Main content area</p>
+			<div class="flex items-center gap-3 mb-4">
+				<Button
+					variant="ghost"
+					iconOnly
+					aria-label="Open menu"
+					class="md:hidden"
+					onclick={() => (mobileOpen = true)}
+				>
+					<ListIcon />
+				</Button>
+			</div>
+			<p class="text-on-surface-subtle">Main content area</p>
 		</main>
 	</div>
 </Story>
