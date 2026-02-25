@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { Component } from 'svelte'
-	import Check from 'phosphor-svelte/lib/Check'
-	import Warning from 'phosphor-svelte/lib/Warning'
+	import type { Component } from 'svelte';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
+	import { SmileyAngryIcon } from 'phosphor-svelte';
 
 	export type Variant = 'unvisited' | 'contacted' | 'no-contact' | 'hostile'
 
@@ -31,9 +31,9 @@
 
 	const variantIcons: Record<Variant, Component | null> = {
 		unvisited: null,
-		contacted: Check,
+		contacted: CheckCircleIcon,
 		'no-contact': null,
-		hostile: Warning
+		hostile: SmileyAngryIcon
 	}
 
 	let icon = $derived(variantIcons[variant])
@@ -58,17 +58,15 @@
 			d="M12 0C5.373 0 0 5.373 0 12c0 6.627 12 20 12 20S24 18.627 24 12C24 5.373 18.627 0 12 0z"
 			class={fillClass}
 		/>
-		<!-- White inner circle centered at cy=11, r=5.5 -->
-		<circle cx="12" cy="11" r="5.5" fill="white" fill-opacity="0.9" />
 		<!-- Icon centered inside the white circle via foreignObject -->
 		{#if icon}
 			{@const Icon = icon}
-			<foreignObject x="5.5" y="4.5" width="13" height="13">
+			<foreignObject x="4" y="4" width="16" height="16">
 				<div
 					xmlns="http://www.w3.org/1999/xhtml"
 					class="w-full h-full flex items-center justify-center {iconColorClass}"
 				>
-					<Icon size="10" weight="bold" />
+					<Icon size="16" />
 				</div>
 			</foreignObject>
 		{/if}

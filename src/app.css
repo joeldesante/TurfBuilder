@@ -157,12 +157,12 @@
 	/* Location Status */
 	--location-unvisited: var(--color-blue-500);
 	--on-location-unvisited: var(--color-blue-700);
-	--location-contacted: var(--color-green-600);
-	--on-location-contacted: var(--color-green-800);
-	--location-no-contact: var(--color-orange-500);
-	--on-location-no-contact: var(--color-orange-700);
-	--location-hostile: var(--color-red-600);
-	--on-location-hostile: var(--color-red-800);
+	--location-contacted: var(--color-green-700);
+	--on-location-contacted: var(--color-white);
+	--location-no-contact: var(--color-zinc-400);
+	--on-location-no-contact: var(--color-zinc-800);
+	--location-hostile: var(--color-red-800);
+	--on-location-hostile: var(--color-white);
 
 	/* Surface - Zinc */
 	--surface: var(--color-zinc-50);
@@ -239,16 +239,6 @@
 	--on-warning: var(--color-amber-950);
 	--warning-container: var(--color-amber-900);
 	--on-warning-container: var(--color-amber-100);
-
-	/* Location Status */
-	--location-unvisited: var(--color-blue-400);
-	--on-location-unvisited: var(--color-blue-800);
-	--location-contacted: var(--color-green-400);
-	--on-location-contacted: var(--color-green-800);
-	--location-no-contact: var(--color-orange-400);
-	--on-location-no-contact: var(--color-orange-800);
-	--location-hostile: var(--color-red-400);
-	--on-location-hostile: var(--color-red-800);
 
 	/* Surface - Zinc */
 	--surface: var(--color-zinc-900);

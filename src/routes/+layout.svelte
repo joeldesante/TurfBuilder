@@ -62,7 +62,7 @@
 {/if}
 
 {#if $session.data?.user.role === 'user'}
-	<div class="fixed top-4 right-4 z-[9999]">
+	<div class="fixed top-4 right-4 z-9999">
 		<AppDropdownMenu items={userMenuItems} side="bottom" align="end" sideOffset={8}>
 			{#snippet children()}
 				<Avatar
