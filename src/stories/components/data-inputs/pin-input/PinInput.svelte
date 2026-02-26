@@ -7,6 +7,7 @@
 		onValueChange?: (value: string) => void;
 		onComplete?: (value: string) => void;
 		maxlength?: number;
+		inputmode?: 'text' | 'numeric' | 'none' | 'search' | 'email' | 'tel' | 'url' | 'decimal';
 		pattern?: string;
 		pasteTransformer?: (text: string) => string;
 		autofocus?: boolean;
@@ -22,6 +23,7 @@
 		onValueChange,
 		onComplete,
 		maxlength = 6,
+		inputmode = 'text',
 		pattern = REGEXP_ONLY_DIGITS_AND_CHARS,
 		pasteTransformer,
 		autofocus = false,
@@ -83,6 +85,7 @@
 		{onValueChange}
 		onComplete={onComplete ? () => onComplete(value) : undefined}
 		{maxlength}
+		{inputmode}
 		{pattern}
 		{pasteTransformer}
 		disabled={isDisabled}
