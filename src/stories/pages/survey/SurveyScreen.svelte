@@ -96,11 +96,13 @@
 
 	<hr class="border-outline-subtle" />
 
-	<FormField label="Notes" helperText="Add any additional context about your interaction or the location that you'd like to share." for="attemptNote">
+	<FormField
+		label="Notes"
+		helperText="Add any additional context about your interaction or the location that you'd like to share."
+		for="attemptNote"
+	>
 		<Textarea bind:value={attemptNote} />
 	</FormField>
 
-	<Button onclick={onSubmit} {loading} disabled={loading} class="w-full">
-		Submit Response
-	</Button>
+	<Button onclick={onSubmit} {loading} disabled={loading} class="w-full">Submit Response</Button>
 </div>

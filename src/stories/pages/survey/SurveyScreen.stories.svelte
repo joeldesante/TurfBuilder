@@ -16,7 +16,7 @@
 	});
 
 	const sampleLocation = {
-		location_name: 'Sabina\'s Yummy Tacos',
+		location_name: "Sabina's Yummy Tacos",
 		street: '742 Germantown Ave',
 		locality: 'Philadelphia',
 		region: 'PA',

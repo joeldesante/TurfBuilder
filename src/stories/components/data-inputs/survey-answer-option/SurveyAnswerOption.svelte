@@ -43,7 +43,7 @@
 			'shrink-0 inline-flex items-center justify-center border transition-colors duration-150',
 			type === 'radio' ? 'size-6 md:size-5 rounded-full' : 'size-6 md:size-5 rounded-md',
 			selected ? 'border-primary' : 'border-outline',
-		type === 'checkbox' && selected ? 'bg-primary' : ''
+			type === 'checkbox' && selected ? 'bg-primary' : ''
 		]
 			.filter(Boolean)
 			.join(' ')
