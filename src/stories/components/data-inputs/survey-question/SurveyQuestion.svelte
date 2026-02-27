@@ -1,7 +1,6 @@
 <script lang="ts">
 	import SurveyAnswerOption from '../survey-answer-option/SurveyAnswerOption.svelte';
 	import Textarea from '../textarea/Textarea.svelte';
-	import Button from '$components/actions/button/Button.svelte';
 
 	type QuestionType = 'radio' | 'check' | 'text';
 
@@ -48,11 +47,6 @@
 		}
 	}
 
-	function clearRadioSelection() {
-		if (disabled) return;
-		value = '';
-	}
-
 	let computedClass = $derived(['flex flex-col gap-3', className].filter(Boolean).join(' '));
 </script>
 
@@ -76,11 +70,6 @@
 				/>
 			{/each}
 		</div>
-		{#if value && !disabled}
-			<Button variant="ghost" onclick={clearRadioSelection} class="self-start">
-				Clear selection
-			</Button>
-		{/if}
 	{:else if questionType === 'check'}
 		<div class="flex flex-col gap-2" role="group" aria-label={questionText}>
 			{#each choices as choice (choice)}
