@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
 	import { onMount } from 'svelte';
+	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	const { data } = $props();
 
 	// State management - using descriptive names
 	let users = $state<any[]>([]);
@@ -62,6 +64,12 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<title>Users | {data.config.application_name}</title>
+</svelte:head>
+
+<PageHeader title="Users" />
 
 <div>
 	{#if isLoading}

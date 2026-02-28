@@ -7,9 +7,13 @@ export async function load({ locals, params, fetch }) {
 	}
 
 	const client = await POOL.connect();
-	const surveys = await client.query(`SELECT * FROM survey`, []);
+	try {
+		const surveys = await client.query(`SELECT * FROM survey`, []);
 
-	return {
-		surveys: surveys.rows
-	};
+		return {
+			surveys: surveys.rows
+		};
+	} finally {
+		client.release();
+	}
 }
