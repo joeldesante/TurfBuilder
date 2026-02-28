@@ -10,5 +10,5 @@ export async function load({ locals }) {
 		throw redirect(303, '/');
 	}
 
-	return {};
+	return { user: locals.user };
 }

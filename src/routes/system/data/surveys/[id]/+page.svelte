@@ -1,16 +1,29 @@
 <script lang="ts">
+	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import Button from '$components/actions/button/Button.svelte';
 	const { data } = $props();
 	console.log(data);
 </script>
+
+<svelte:head>
+	<title>{data.survey.name} | {data.config.application_name}</title>
+</svelte:head>
+
+<PageHeader
+	title={data.survey.name}
+	breadcrumbs={[{ label: 'Surveys', href: '/system/data/surveys' }, { label: data.survey.name }]}
+>
+	{#snippet actions()}
+		<Button variant="outline" href="/system/data/surveys/{data.survey.id}/edit">Edit</Button>
+	{/snippet}
+</PageHeader>
 
 <p>
 	This survey has no responses yet. Once this survey recieves its first response you will not be
 	able to modify it.
 </p>
 
-<h1>{data.survey.name}</h1>
 <p>{data.survey.descripton}</p>
-<a href="/system/data/surveys/{data.survey.id.toString()}/edit">Edit</a>
 
 <hr />
 

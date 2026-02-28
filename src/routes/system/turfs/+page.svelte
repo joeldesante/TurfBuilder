@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Time from 'svelte-time/Time.svelte';
+	import Button from '$components/actions/button/Button.svelte';
+	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
 
 	let { data } = $props();
 
@@ -7,6 +9,16 @@
 	//@ts-ignore
 	const turfs = data.turfs;
 </script>
+
+<svelte:head>
+	<title>Turfs | {data.config.application_name}</title>
+</svelte:head>
+
+<PageHeader title="Turfs">
+	{#snippet actions()}
+		<Button variant="primary" href="/system/turfs/cut">Cut Turfs</Button>
+	{/snippet}
+</PageHeader>
 
 <div>
 	<div class="grid grid-cols-3 gap-2 border-b">
