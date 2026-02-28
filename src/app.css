@@ -73,6 +73,16 @@
 	--color-inverse-on-surface: var(--inverse-on-surface);
 	--color-inverse-primary: var(--inverse-primary);
 
+	/* Location Status */
+	--color-location-unvisited: var(--location-unvisited);
+	--color-on-location-unvisited: var(--on-location-unvisited);
+	--color-location-contacted: var(--location-contacted);
+	--color-on-location-contacted: var(--on-location-contacted);
+	--color-location-no-contact: var(--location-no-contact);
+	--color-on-location-no-contact: var(--on-location-no-contact);
+	--color-location-hostile: var(--location-hostile);
+	--color-on-location-hostile: var(--on-location-hostile);
+
 	/* Utility */
 	--color-scrim: var(--scrim);
 	--color-shadow: var(--shadow);
@@ -100,7 +110,7 @@
 /* TODO: replace the on-* colors to have better contrast */
 
 :root {
-	color-scheme: light dark;
+	color-scheme: light;
 
 	/* Primary - Emerald */
 	--primary: var(--color-emerald-700);
@@ -144,6 +154,16 @@
 	--warning-container: var(--color-amber-100);
 	--on-warning-container: var(--color-amber-900);
 
+	/* Location Status */
+	--location-unvisited: var(--color-blue-500);
+	--on-location-unvisited: var(--color-blue-700);
+	--location-contacted: var(--color-green-700);
+	--on-location-contacted: var(--color-white);
+	--location-no-contact: var(--color-zinc-400);
+	--on-location-no-contact: var(--color-zinc-800);
+	--location-hostile: var(--color-red-800);
+	--on-location-hostile: var(--color-white);
+
 	/* Surface - Zinc */
 	--surface: var(--color-zinc-50);
 	--on-surface: var(--color-zinc-900);
@@ -175,72 +195,72 @@
    Dark Theme
    ========================================================================== */
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		/* Primary - Emerald */
-		--primary: var(--color-emerald-500);
-		--on-primary: var(--color-emerald-950);
-		--primary-container: var(--color-emerald-900);
-		--on-primary-container: var(--color-emerald-100);
+:root[data-theme='dark'] {
+	color-scheme: dark;
 
-		/* Secondary - Zinc */
-		--secondary: var(--color-zinc-300);
-		--on-secondary: var(--color-zinc-900);
-		--secondary-container: var(--color-zinc-700);
-		--on-secondary-container: var(--color-zinc-100);
+	/* Primary - Emerald */
+	--primary: var(--color-emerald-500);
+	--on-primary: var(--color-emerald-950);
+	--primary-container: var(--color-emerald-900);
+	--on-primary-container: var(--color-emerald-100);
 
-		/* Tertiary - Teal */
-		--tertiary: var(--color-teal-300);
-		--on-tertiary: var(--color-teal-950);
-		--tertiary-container: var(--color-teal-900);
-		--on-tertiary-container: var(--color-teal-100);
+	/* Secondary - Zinc */
+	--secondary: var(--color-zinc-300);
+	--on-secondary: var(--color-zinc-900);
+	--secondary-container: var(--color-zinc-700);
+	--on-secondary-container: var(--color-zinc-100);
 
-		/* Error - Red */
-		--error: var(--color-red-400);
-		--on-error: var(--color-red-950);
-		--error-container: var(--color-red-900);
-		--on-error-container: var(--color-red-100);
+	/* Tertiary - Teal */
+	--tertiary: var(--color-teal-300);
+	--on-tertiary: var(--color-teal-950);
+	--tertiary-container: var(--color-teal-900);
+	--on-tertiary-container: var(--color-teal-100);
 
-		/* Info - Blue */
-		--info: var(--color-blue-400);
-		--on-info: var(--color-blue-950);
-		--info-container: var(--color-blue-900);
-		--on-info-container: var(--color-blue-100);
+	/* Error - Red */
+	--error: var(--color-red-400);
+	--on-error: var(--color-red-950);
+	--error-container: var(--color-red-900);
+	--on-error-container: var(--color-red-100);
 
-		/* Success - Green */
-		--success: var(--color-green-400);
-		--on-success: var(--color-green-950);
-		--success-container: var(--color-green-900);
-		--on-success-container: var(--color-green-100);
+	/* Info - Blue */
+	--info: var(--color-blue-400);
+	--on-info: var(--color-blue-950);
+	--info-container: var(--color-blue-900);
+	--on-info-container: var(--color-blue-100);
 
-		/* Warning - Amber */
-		--warning: var(--color-amber-400);
-		--on-warning: var(--color-amber-950);
-		--warning-container: var(--color-amber-900);
-		--on-warning-container: var(--color-amber-100);
+	/* Success - Green */
+	--success: var(--color-green-400);
+	--on-success: var(--color-green-950);
+	--success-container: var(--color-green-900);
+	--on-success-container: var(--color-green-100);
 
-		/* Surface - Zinc */
-		--surface: var(--color-zinc-900);
-		--on-surface: var(--color-zinc-100);
-		--surface-subtle: var(--color-zinc-800);
-		--on-surface-subtle: var(--color-zinc-400);
-		--surface-dim: var(--color-zinc-950);
-		--surface-bright: var(--color-zinc-800);
-		--surface-container-lowest: var(--color-zinc-950);
-		--surface-container-low: var(--color-zinc-900);
-		--surface-container: var(--color-zinc-800);
-		--surface-container-high: var(--color-zinc-800);
-		--surface-container-highest: var(--color-zinc-700);
+	/* Warning - Amber */
+	--warning: var(--color-amber-400);
+	--on-warning: var(--color-amber-950);
+	--warning-container: var(--color-amber-900);
+	--on-warning-container: var(--color-amber-100);
 
-		/* Outline */
-		--outline: var(--color-zinc-600);
-		--outline-subtle: var(--color-zinc-700);
+	/* Surface - Zinc */
+	--surface: var(--color-zinc-900);
+	--on-surface: var(--color-zinc-100);
+	--surface-subtle: var(--color-zinc-800);
+	--on-surface-subtle: var(--color-zinc-400);
+	--surface-dim: var(--color-zinc-950);
+	--surface-bright: var(--color-zinc-800);
+	--surface-container-lowest: var(--color-zinc-950);
+	--surface-container-low: var(--color-zinc-900);
+	--surface-container: var(--color-zinc-800);
+	--surface-container-high: var(--color-zinc-800);
+	--surface-container-highest: var(--color-zinc-700);
 
-		/* Inverse */
-		--inverse-surface: var(--color-zinc-100);
-		--inverse-on-surface: var(--color-zinc-800);
-		--inverse-primary: var(--color-emerald-700);
-	}
+	/* Outline */
+	--outline: var(--color-zinc-600);
+	--outline-subtle: var(--color-zinc-700);
+
+	/* Inverse */
+	--inverse-surface: var(--color-zinc-100);
+	--inverse-on-surface: var(--color-zinc-800);
+	--inverse-primary: var(--color-emerald-700);
 }
 
 @layer base {

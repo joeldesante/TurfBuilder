@@ -1,145 +1,53 @@
 <script lang="ts">
-	import type { ApplicationConfig } from "../../config";
-    import { authClient } from "$lib/client";
-    import Button from "$components/actions/button/Button.svelte";
+	import type { ApplicationConfig } from '../../config';
+	import type { User } from 'better-auth';
+	import { page } from '$app/stores';
+	import { authClient } from '$lib/client';
+	import { themeStore } from '$lib/theme.svelte';
+	import Sidebar from '$components/layout/sidebar/Sidebar.svelte';
+	import { systemNav } from './sidebar-nav';
+	import Button from '$components/actions/button/Button.svelte';
+	import ListIcon from 'phosphor-svelte/lib/List';
 
-    const { children, title, data } = $props<{ 
-        children: () => any, 
-        title?: string,
-        data: {
-            config: ApplicationConfig
-        }
-    }>();
+	const { children, data } = $props<{
+		children: () => any;
+		data: {
+			config: ApplicationConfig;
+			user: User;
+		};
+	}>();
 
-    async function logout() {
-        await authClient.signOut();
-        location.href = "/auth/signin/";
-    }
+	let mobileOpen = $state(false);
+
+	async function logout() {
+		await authClient.signOut();
+		location.href = '/auth/signin/';
+	}
 </script>
 
 <svelte:head>
-	<title>{title || 'Dashboard'} | {data.config.application_name}</title>
+	<title>Dashboard | {data.config.application_name}</title>
 </svelte:head>
 
-<div class="wrapper">
-    <aside>
-        <ul>
-            <li>
-                <a href="/system/">Dashboard</a>
-            </li>
-            <li>
-                <span>Turf</span>
-                <ul>
-                    <li>
-                        <a href="/system/turfs">Overview</a>
-                    </li>
-                    <li>
-                        <a href="/system/turfs/cut">Cut Turf</a>
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <span>People</span>
-                <ul>
-                    <li>
-                        <a href="/system/users">Users</a>
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <span>Data</span>
-                <ul>
-                    <li>
-                        <a href="/system/data/locations">Locations</a>
-                    </li>
-                    <li>
-                        <a href="/system/data/surveys">Surveys</a>
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <span>Utilities</span>
-                <ul>
-                    <li>
-                        <a href="/system/utils/notify">Send Notification</a>
-                    </li>
-                    <li>
-                        <a href="/system/utils/lockdown">Lockdown</a>   <!-- In the event that the data is being activly poisoned and the admins want to disable all new incoming data temporarily -->
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <Button onclick={logout}>Sign Out</Button>
-            </li>
-        </ul>
-    </aside>
-    <main>
-        <div>
-            <div class="header">
-                <span>{ title ?? 'Dashboard' }</span>
-            </div>
-            <div class="content overflow-y-scroll">
-                {@render children()}
-            </div>
-        </div>
-    </main>
+<div class="flex h-dvh">
+	<Sidebar
+		nav={systemNav}
+		currentPath={$page.url.pathname}
+		username={data.user.name}
+		theme={themeStore.theme}
+		onthemechange={themeStore.setTheme}
+		bind:mobileOpen
+		onsignout={logout}
+	/>
+
+	<main class="flex-1 flex flex-col bg-surface overflow-hidden">
+		<div class="md:hidden flex items-center px-4 pt-3 pb-1">
+			<Button variant="ghost" iconOnly aria-label="Open menu" onclick={() => (mobileOpen = true)}>
+				<ListIcon />
+			</Button>
+		</div>
+		<div class="flex-1 overflow-y-auto px-5 pb-5">
+			{@render children()}
+		</div>
+	</main>
 </div>
-
-<style>
-	.wrapper {
-		display: grid;
-		grid-template-columns: 250px auto;
-	}
-
-	aside {
-		background-color: var(--color-surface-dim);
-		height: 100vh;
-		padding-top: calc(1rem + 0.5rem);
-	}
-
-	aside li {
-		padding: 0.5rem 1rem;
-		border-radius: 5px;
-	}
-
-	aside > ul > li > span {
-		font-weight: 700;
-		margin-top: 50px;
-	}
-
-	aside > ul > li > ul > li:hover {
-		background-color: var(--color-surface);
-		cursor: pointer;
-	}
-
-	aside > ul > li > ul > li > a {
-		color: var(--color-on-surface-subtle);
-		text-decoration: none;
-	}
-
-	main {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		padding: 10px;
-		background-color: var(--color-surface);
-	}
-
-	main > div {
-		padding: 10px 20px;
-		border-radius: 10px;
-		overflow: hidden;
-		background-color: var(--color-surface);
-		min-height: 100%;
-	}
-
-	main div.header {
-		font-size: 1.65rem;
-		font-weight: bold;
-		padding-top: 0.75rem;
-	}
-
-	main div.content {
-		border-radius: 10px;
-	}
-</style>
