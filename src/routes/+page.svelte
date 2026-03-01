@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
 	import { goto } from '$app/navigation';
-	import Button from '$components/actions/button/Button.svelte';
 	import PinInput from '$components/data-inputs/pin-input/PinInput.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 
@@ -42,11 +41,6 @@
 			loading = false;
 		}
 	}
-
-	async function logout() {
-		await authClient.signOut();
-		location.href = '/auth/signin/';
-	}
 </script>
 
 <div class="flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
@@ -68,8 +62,6 @@
 	{#if $session.data?.user.role === 'admin' || $session.data?.user.role === 'campaignManager' || $session.data?.user.role === 'fieldOrganizer'}
 		<a class="hidden sm:block" href="/system">Admin dashboard</a>
 	{/if}
-
-	<Button onclick={logout}>Sign Out</Button>
 </div>
 
 <style>
