@@ -13,7 +13,9 @@
 	};
 
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import maplibregl from 'maplibre-gl';
+	import Button from '$components/actions/button/Button.svelte';
 
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import '@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css';
@@ -31,6 +33,9 @@
 	let locations: Location[] = [];
 	let markers: maplibregl.Marker[] = [];
 	let geoman: Geoman | undefined;
+
+	let saving = $state(false);
+	let saved = $state(false);
 
 	async function fetchLocations(bounds: maplibregl.LngLatBounds) {
 		const response = await fetch(
@@ -58,8 +63,10 @@
 	}
 
 	async function saveTurfs() {
-		if (!geoman) return;
-		geoman = geoman as Geoman;
+		if (!geoman || saving) return;
+
+		saving = true;
+		saved = false;
 
 		const features = (geoman as Geoman).features;
 		const polygons = features.getAll().features.map((feature) => {
@@ -76,8 +83,11 @@
 			})
 		});
 
+		saving = false;
+
 		if (request.ok) {
-			console.log(request.json());
+			saved = true;
+			await goto('/system/turfs');
 		}
 	}
 
@@ -140,11 +150,11 @@
 
 <div class="wrapper">
 	<div bind:this={mapContainer} class="map-container"></div>
-	<div
-		class="save rounded-sm bg-blue-500 shadow-lg font-bold text-white cursor-pointer select-none border-2 border-blue-600"
-		onclick={saveTurfs}
-	>
-		<span>Save Turf</span>
+	<div class="toolbar">
+		<Button variant="outline" href="/system/turfs" class="!bg-surface">← Back to Turfs</Button>
+		<Button onclick={saveTurfs} loading={saving} disabled={saved}>
+			{saving ? 'Saving turf...' : saved ? 'Saved!' : 'Save Turf'}
+		</Button>
 	</div>
 </div>
 
@@ -158,24 +168,12 @@
 		height: 100vh;
 	}
 
-	.map-marker {
-		width: 20px;
-		height: 20px;
-		background-color: #000;
-		border-radius: 100%;
-		box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-		z-index: 9999;
-	}
-
-	.save {
+	.toolbar {
 		position: absolute;
-		right: 50px;
 		top: 10px;
-		width: 200px;
-		height: 50px;
-		padding: 5px;
+		left: 10px;
 		display: flex;
+		gap: 8px;
 		align-items: center;
-		justify-content: center;
 	}
 </style>
