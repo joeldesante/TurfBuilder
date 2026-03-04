@@ -37,12 +37,19 @@
 
 	const variantBadgeProps: Record<
 		Variant,
-		{ label: string; variant: 'default' | 'success' | 'warning' | 'error' }
+		{
+			label: string;
+			variant:
+				| 'location-unvisited'
+				| 'location-contacted'
+				| 'location-no-contact'
+				| 'location-hostile';
+		}
 	> = {
-		unvisited: { label: 'Unvisited', variant: 'default' },
-		contacted: { label: 'Contacted', variant: 'success' },
-		'no-contact': { label: 'No Contact', variant: 'warning' },
-		hostile: { label: 'Hostile', variant: 'error' }
+		unvisited: { label: 'Unvisited', variant: 'location-unvisited' },
+		contacted: { label: 'Contacted', variant: 'location-contacted' },
+		'no-contact': { label: 'No Contact', variant: 'location-no-contact' },
+		hostile: { label: 'Hostile', variant: 'location-hostile' }
 	};
 
 	let selectedLocationId = $state<number | null>(null);
