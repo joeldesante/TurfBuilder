@@ -63,7 +63,8 @@
 	}
 
 	async function saveTurfs() {
-		if (!geoman || saving) return;
+		if (!geoman) return;
+		if (saving) return;
 
 		saving = true;
 		saved = false;
