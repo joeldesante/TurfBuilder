@@ -6,10 +6,12 @@
 
 	type Variant = 'primary' | 'outline' | 'ghost' | 'destructive';
 	type ButtonType = 'button' | 'submit' | 'reset';
+	type Size = 'default' | 'sm';
 
 	interface Props {
 		children: Snippet;
 		variant?: Variant;
+		size?: Size;
 		type?: ButtonType;
 		href?: string;
 		disabled?: boolean;
@@ -23,6 +25,7 @@
 	let {
 		children,
 		variant = 'primary',
+		size = 'default',
 		type = 'button',
 		href,
 		disabled = false,
@@ -56,13 +59,29 @@
 	};
 
 	const baseClasses =
-		'h-12 md:h-10 min-w-12 md:min-w-10 [&>svg]:size-5 no-underline inline-flex items-center justify-center gap-2 rounded-lg text-sm cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2';
+		'no-underline inline-flex items-center justify-center rounded-lg cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2';
+
+	const sizeClasses: Record<Size, string> = {
+		default: 'h-12 md:h-10 min-w-12 md:min-w-10 [&>svg]:size-5 text-sm gap-2',
+		sm: 'h-8 min-w-8 [&>svg]:size-4 text-sm gap-1.5'
+	};
+
+	const iconOnlyPadding: Record<Size, string> = {
+		default: 'p-2',
+		sm: 'p-1'
+	};
+
+	const defaultPadding: Record<Size, string> = {
+		default: 'px-4 py-2',
+		sm: 'px-3 py-1'
+	};
 
 	let computedClass = $derived(
 		[
 			baseClasses,
+			sizeClasses[size],
 			variantClasses[variant],
-			iconOnly ? 'p-2' : 'px-4 py-2',
+			iconOnly ? iconOnlyPadding[size] : defaultPadding[size],
 			disabled ? 'opacity-50' : '',
 			disabled || loading ? 'pointer-events-none' : '',
 			className
