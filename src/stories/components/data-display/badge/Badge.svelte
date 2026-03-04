@@ -2,7 +2,18 @@
 	import type { Snippet } from 'svelte';
 
 	interface Props {
-		variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
+		variant?:
+			| 'default'
+			| 'primary'
+			| 'secondary'
+			| 'success'
+			| 'warning'
+			| 'error'
+			| 'info'
+			| 'location-unvisited'
+			| 'location-contacted'
+			| 'location-no-contact'
+			| 'location-hostile';
 		size?: 'sm' | 'md';
 		children: Snippet;
 		[key: string]: unknown;
@@ -17,7 +28,11 @@
 		success: 'bg-success-container text-on-success-container',
 		warning: 'bg-warning-container text-on-warning-container',
 		error: 'bg-error-container text-on-error-container',
-		info: 'bg-info-container text-on-info-container'
+		info: 'bg-info-container text-on-info-container',
+		'location-unvisited': 'bg-location-unvisited text-on-location-unvisited',
+		'location-contacted': 'bg-location-contacted text-on-location-contacted',
+		'location-no-contact': 'bg-location-no-contact text-on-location-no-contact',
+		'location-hostile': 'bg-location-hostile text-on-location-hostile'
 	};
 
 	const sizeClasses: Record<string, string> = {
