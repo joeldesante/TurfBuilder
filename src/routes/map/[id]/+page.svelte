@@ -18,6 +18,8 @@
 	import MapMarker, {
 		type Variant
 	} from '../../../stories/components/data-display/map-marker/MapMarker.svelte';
+	import Badge from '../../../stories/components/data-display/badge/Badge.svelte';
+	import Button from '../../../stories/components/actions/button/Button.svelte';
 
 	function categoryToVariant(category: string | null): Variant {
 		switch (category) {
@@ -32,9 +34,22 @@
 		}
 	}
 
+	const variantBadgeProps: Record<
+		Variant,
+		{ label: string; variant: 'default' | 'success' | 'warning' | 'error' }
+	> = {
+		unvisited: { label: 'Unvisited', variant: 'default' },
+		contacted: { label: 'Contacted', variant: 'success' },
+		'no-contact': { label: 'No Contact', variant: 'warning' },
+		hostile: { label: 'Hostile', variant: 'error' }
+	};
+
 	let selectedLocationId = $state<number | null>(null);
 	let selectedLocation = $state<Location | null>(null);
 	let showPanel = $state(false);
+
+	let selectedVariant = $derived(categoryToVariant(selectedLocation?.category ?? null));
+	let badgeProps = $derived(variantBadgeProps[selectedVariant]);
 
 	let { data } = $props();
 
@@ -145,11 +160,14 @@
 
 <div>
 	{#if showPanel}
-		<div class="panel flex flex-col gap-2">
+		<div class="panel flex flex-col gap-3">
 			<div class="flex justify-between items-start">
-				<h3>{selectedLocation?.location_name}</h3>
+				<div class="flex flex-col gap-1.5">
+					<Badge variant={badgeProps.variant} size="sm">{badgeProps.label}</Badge>
+					<h3>{selectedLocation?.location_name}</h3>
+				</div>
 				<button
-					class="cursor-pointer"
+					class="cursor-pointer text-on-surface-variant hover:text-on-surface transition-colors"
 					aria-label="close"
 					onclick={() => {
 						closePanel();
@@ -169,20 +187,16 @@
 					</svg>
 				</button>
 			</div>
-			<div>
-				<p class="font-medium">{selectedLocation?.street}</p>
-				<p class="text-sm">
-					{selectedLocation?.locality}, {selectedLocation?.region}
-					{selectedLocation?.postcode}
-				</p>
-			</div>
-			<div class="flex justify-end flex-col flex-1 mt-4">
-				<a
-					href="/map/{data.turfId.toString()}/location/{selectedLocation?.id}"
-					class="cursor-pointer bg-blue-500 px-3 py-2 rounded-full font-bold text-white block text-center"
-					>Open Location</a
-				>
-			</div>
+			{#if selectedLocation?.street}
+				<p class="text-on-surface-variant text-sm">{selectedLocation.street}</p>
+			{/if}
+			<Button
+				href="/map/{data.turfId.toString()}/location/{selectedLocation?.id}"
+				variant="primary"
+				class="w-full"
+			>
+				Open Location
+			</Button>
 		</div>
 	{/if}
 	<div bind:this={mapContainer} class="map-container"></div>
@@ -208,7 +222,8 @@
 	}
 
 	.panel h3 {
-		font-size: 1.2rem;
-		font-weight: 600;
+		font-size: 1.1rem;
+		font-weight: 700;
+		line-height: 1.3;
 	}
 </style>
