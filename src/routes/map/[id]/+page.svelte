@@ -15,6 +15,8 @@
 	import { mount, onMount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
+	import GpsIcon from 'phosphor-svelte/lib/Gps';
 	import MapMarker, {
 		type Variant
 	} from '../../../stories/components/data-display/map-marker/MapMarker.svelte';
@@ -36,6 +38,11 @@
 	let selectedLocation = $state<Location | null>(null);
 	let showPanel = $state(false);
 
+	// Geolocation state
+	type GeolocateState = 'idle' | 'locating' | 'tracking' | 'error';
+	let geolocateState = $state<GeolocateState>('idle');
+	let watchId = $state<number | null>(null);
+
 	let { data } = $props();
 
 	let mapContainer: HTMLDivElement;
@@ -44,6 +51,43 @@
 	let map: maplibregl.Map;
 	let locations: Location[] = [];
 	let markers: maplibregl.Marker[] = [];
+
+	function stopTracking() {
+		if (watchId !== null) {
+			navigator.geolocation.clearWatch(watchId);
+			watchId = null;
+		}
+		geolocateState = 'idle';
+	}
+
+	function toggleGeolocate() {
+		if (geolocateState === 'tracking' || geolocateState === 'locating') {
+			stopTracking();
+			return;
+		}
+
+		if (!navigator.geolocation) {
+			geolocateState = 'error';
+			return;
+		}
+
+		geolocateState = 'locating';
+
+		watchId = navigator.geolocation.watchPosition(
+			(position) => {
+				geolocateState = 'tracking';
+				map.flyTo({
+					center: [position.coords.longitude, position.coords.latitude],
+					zoom: DEFAULT_ZOOM
+				});
+			},
+			() => {
+				geolocateState = 'error';
+				watchId = null;
+			},
+			{ enableHighAccuracy: true }
+		);
+	}
 
 	async function fetchLocations(bounds: maplibregl.LngLatBounds) {
 		locations = data.locations;
@@ -113,35 +157,45 @@
 			zoom: DEFAULT_ZOOM
 		});
 
-		// Add geolocate control to track user position
-		const geolocateControl = new maplibregl.GeolocateControl({
-			positionOptions: {
-				enableHighAccuracy: true
-			},
-			trackUserLocation: true, // Keep tracking as user moves
-			showAccuracyCircle: true,
-			fitBoundsOptions: {
-				zoom: DEFAULT_ZOOM
-			}
-		});
-
-		map.addControl(geolocateControl);
-
 		map.on('load', () => {
-			//geolocateControl.trigger();
 			fetchLocations(map.getBounds());
 		});
 
-		// Fetch locations whenever map moves
 		map.on('moveend', () => {
 			fetchLocations(map.getBounds());
 		});
 
 		return () => {
+			stopTracking();
 			map.remove();
 		};
 	});
 </script>
+
+<!-- Back button -->
+<a
+	href="/"
+	class="fixed top-4 left-4 z-20 size-10 rounded-full bg-surface text-on-surface inline-flex items-center justify-center shadow"
+	aria-label="Back to home"
+>
+	<ArrowLeftIcon size={20} weight="bold" />
+</a>
+
+<!-- Custom geolocate button — sits below the avatar (top-4 + size-10 + gap-3 = top-[68px]) -->
+<button
+	onclick={toggleGeolocate}
+	aria-label={geolocateState === 'tracking' ? 'Stop tracking location' : 'Find my location'}
+	class={[
+		'fixed top-[68px] right-4 z-20 size-10 rounded-full inline-flex items-center justify-center shadow transition-colors',
+		geolocateState === 'tracking'
+			? 'bg-success-container text-on-success-container'
+			: geolocateState === 'error'
+				? 'bg-error-container text-on-error-container'
+				: 'bg-surface text-on-surface'
+	].join(' ')}
+>
+	<GpsIcon size={20} weight={geolocateState === 'tracking' ? 'fill' : 'bold'} />
+</button>
 
 <div>
 	{#if showPanel}
