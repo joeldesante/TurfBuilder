@@ -20,6 +20,7 @@
 	} from '../../../stories/components/data-display/map-marker/MapMarker.svelte';
 	import Badge from '../../../stories/components/data-display/badge/Badge.svelte';
 	import Button from '../../../stories/components/actions/button/Button.svelte';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 
 	function categoryToVariant(category: string | null): Variant {
 		switch (category) {
@@ -160,36 +161,28 @@
 
 <div>
 	{#if showPanel}
-		<div class="panel flex flex-col gap-3">
-			<div class="flex justify-between items-start">
-				<div class="flex flex-col gap-1.5">
-					<Badge variant={badgeProps.variant} size="sm">{badgeProps.label}</Badge>
-					<h3>{selectedLocation?.location_name}</h3>
-				</div>
-				<button
-					class="cursor-pointer text-on-surface-variant hover:text-on-surface transition-colors"
-					aria-label="close"
-					onclick={() => {
-						closePanel();
-					}}
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						fill="currentColor"
-						class="size-6"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z"
-							clip-rule="evenodd"
-						/>
-					</svg>
-				</button>
+		<div
+			class="flex flex-col gap-5 rounded-xl absolute bottom-3 left-3 right-3 bg-surface p-4 shadow-lg z-10"
+		>
+			<Button
+				variant="ghost"
+				iconOnly
+				aria-label="close"
+				class="absolute top-1 right-1"
+				onclick={() => closePanel()}
+			>
+				<XIcon />
+			</Button>
+			<div class="self-start">
+				<Badge variant={badgeProps.variant} size="sm">{badgeProps.label}</Badge>
 			</div>
-			{#if selectedLocation?.street}
-				<p class="text-on-surface-variant text-sm">{selectedLocation.street}</p>
-			{/if}
+			<div class="space-y-1 mb-6">
+				<h3 class="text-lg font-semibold">{selectedLocation?.location_name}</h3>
+				{#if selectedLocation?.street}
+					<p class="text-on-surface-variant text-sm">{selectedLocation.street}</p>
+				{/if}
+			</div>
+
 			<Button
 				href="/map/{data.turfId.toString()}/location/{selectedLocation?.id}"
 				variant="primary"
@@ -206,24 +199,5 @@
 	.map-container {
 		width: 100vw;
 		height: 100vh;
-	}
-
-	.panel {
-		position: absolute;
-		width: calc(100vw - 20px);
-		height: auto;
-		z-index: 100000;
-		bottom: 10px;
-		left: 10px;
-		background-color: var(--color-surface);
-		border-radius: 5px;
-		box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.15);
-		padding: 15px;
-	}
-
-	.panel h3 {
-		font-size: 1.1rem;
-		font-weight: 700;
-		line-height: 1.3;
 	}
 </style>
