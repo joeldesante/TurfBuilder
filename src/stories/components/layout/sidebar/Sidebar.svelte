@@ -167,12 +167,12 @@
 	<div class="shrink-0 border-t border-outline-subtle px-2 py-3">
 		<AppDropdownMenu items={userMenuItems} side="top" align="start" sideOffset={8}>
 			{#snippet children()}
-				<button class={userTriggerClass} title={collapsed ? username : undefined}>
+				<div class={userTriggerClass} title={collapsed ? username : undefined}>
 					<Avatar {username} size="sm" />
 					{#if !collapsed}
 						<span class="truncate text-sm font-medium">{username}</span>
 					{/if}
-				</button>
+				</div>
 			{/snippet}
 		</AppDropdownMenu>
 	</div>
