@@ -179,6 +179,21 @@
 			zoom: DEFAULT_ZOOM
 		});
 
+		// Add geolocate control to track user position
+		const geolocateControl = new maplibregl.GeolocateControl({
+			positionOptions: {
+				enableHighAccuracy: true
+			},
+			trackUserLocation: true,
+			showUserLocation: true,
+			showAccuracyCircle: true,
+			fitBoundsOptions: {
+				zoom: DEFAULT_ZOOM
+			}
+		});
+
+		map.addControl(geolocateControl);
+
 		map.on('load', () => {
 			fetchLocations(map.getBounds());
 		});
@@ -259,5 +274,41 @@
 	.map-container {
 		width: 100vw;
 		height: 100vh;
+	}
+
+	/* Restore MapLibre user location dot — Tailwind preflight resets border-width: 0
+	   on ::after which breaks the white ring, and background-color can be reset too */
+	:global(.maplibregl-user-location-dot),
+	:global(.maplibregl-user-location-dot::before) {
+		background-color: #1da1f2;
+		border-radius: 50%;
+		height: 15px;
+		width: 15px;
+	}
+
+	:global(.maplibregl-user-location-dot::before) {
+		animation: maplibregl-user-location-dot-pulse 2s infinite;
+		content: '';
+		position: absolute;
+	}
+
+	:global(.maplibregl-user-location-dot::after) {
+		border: 2px solid #fff;
+		border-radius: 50%;
+		box-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
+		box-sizing: border-box;
+		content: '';
+		height: 19px;
+		left: -2px;
+		position: absolute;
+		top: -2px;
+		width: 19px;
+	}
+
+	:global(.maplibregl-user-location-accuracy-circle) {
+		background-color: rgba(29, 161, 242, 0.2);
+		border-radius: 100%;
+		height: 1px;
+		width: 1px;
 	}
 </style>
