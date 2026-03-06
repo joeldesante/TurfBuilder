@@ -2,5 +2,18 @@
 	"files.associations": {
 		"*.css": "css"
 	},
+
+	// Formatting – mirrors .prettierrc
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"[svelte]": {
+		// Svelte extension handles .svelte files (it calls prettier internally)
+		"editor.defaultFormatter": "svelte.svelte-vscode"
+	},
+	"editor.tabSize": 2,
+	"editor.insertSpaces": false,
+	"editor.rulers": [100],
+
+	// CSS
 	"css.lint.unknownAtRules": "ignore"
 }

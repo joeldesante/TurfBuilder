@@ -156,7 +156,7 @@
 
 	/* Location Status */
 	--location-unvisited: var(--color-blue-500);
-	--on-location-unvisited: var(--color-blue-700);
+	--on-location-unvisited: var(--color-white);
 	--location-contacted: var(--color-green-700);
 	--on-location-contacted: var(--color-white);
 	--location-no-contact: var(--color-zinc-400);

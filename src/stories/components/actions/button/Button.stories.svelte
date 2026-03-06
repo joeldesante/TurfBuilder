@@ -17,6 +17,10 @@
 			type: {
 				control: { type: 'select' },
 				options: ['button', 'submit', 'reset']
+			},
+			size: {
+				control: { type: `inline-radio` },
+				options: ['default', 'sm']
 			}
 		}
 	});
@@ -44,12 +48,20 @@
 
 <Story name="Loading" args={{ loading: true }}>Saving...</Story>
 
+<Story name="Small Size" args={{ size: 'sm' }}>
+	<PlusIcon />
+	Small Button
+</Story>
+
 <Story name="Icon Only" asChild>
 	<div class="flex flex-wrap items-center gap-4">
 		<Button iconOnly aria-label="Add">
 			<PlusIcon />
 		</Button>
 		<Button iconOnly variant="outline" aria-label="Delete">
+			<TrashIcon />
+		</Button>
+		<Button iconOnly variant="outline" size="sm" aria-label="Delete">
 			<TrashIcon />
 		</Button>
 	</div>
