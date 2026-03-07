@@ -30,7 +30,7 @@
 				db_id: parseInt(question.id),
 				type: question.question_type as string,
 				text: question.question_text as string,
-				choices: question.question_choices || [],
+				choices: question.choices || [],
 				index: index
 			};
 		})
