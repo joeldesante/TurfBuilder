@@ -70,6 +70,15 @@
 				/>
 			{/each}
 		</div>
+		{#if value && !disabled}
+			<button
+				type="button"
+				class="self-start text-sm text-on-surface-subtle underline hover:text-on-surface"
+				onclick={() => (value = '')}
+			>
+				Clear selection
+			</button>
+		{/if}
 	{:else if questionType === 'check'}
 		<div class="flex flex-col gap-2" role="group" aria-label={questionText}>
 			{#each choices as choice (choice)}
