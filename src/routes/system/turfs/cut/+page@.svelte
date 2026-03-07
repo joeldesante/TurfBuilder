@@ -16,6 +16,8 @@
 	import { goto } from '$app/navigation';
 	import maplibregl from 'maplibre-gl';
 	import Button from '$components/actions/button/Button.svelte';
+	import { themeStore } from '$lib/theme.svelte';
+	import { getMapStyle } from '$lib/map-style';
 
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import '@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css';
@@ -34,8 +36,16 @@
 	let markers: maplibregl.Marker[] = [];
 	let geoman: Geoman | undefined;
 
-	let saving = $state(false);
-	let saved = $state(false);
+	function isDarkTheme() {
+		return document.documentElement.getAttribute('data-theme') === 'dark';
+	}
+
+	$effect(() => {
+		const _ = themeStore.theme; // track reactivity
+		if (map) {
+			getMapStyle(isDarkTheme()).then((style) => map.setStyle(style));
+		}
+	});
 
 	async function fetchLocations(bounds: maplibregl.LngLatBounds) {
 		const response = await fetch(
@@ -62,12 +72,8 @@
 		});
 	}
 
-	async function saveTurfs() {
+	function saveTurfs() {
 		if (!geoman) return;
-		if (saving) return;
-
-		saving = true;
-		saved = false;
 
 		const features = (geoman as Geoman).features;
 		const polygons = features.getAll().features.map((feature) => {
@@ -77,19 +83,10 @@
 			};
 		});
 
-		const request = await fetch('/api/turf/create', {
-			method: 'POST',
-			body: JSON.stringify({
-				polygons: polygons
-			})
-		});
+		if (polygons.length === 0) return;
 
-		saving = false;
-
-		if (request.ok) {
-			saved = true;
-			await goto('/system/turfs');
-		}
+		sessionStorage.setItem('pending_turfs', JSON.stringify(polygons));
+		goto('/system/turfs/cut/survey');
 	}
 
 	onMount(() => {
@@ -97,9 +94,10 @@
 			const { Geoman } = await import('@geoman-io/maplibre-geoman-free');
 			await import('@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css');
 
+			const style = await getMapStyle(isDarkTheme());
 			map = new maplibregl.Map({
 				container: mapContainer,
-				style: 'https://tiles.openfreemap.org/styles/positron',
+				style,
 				center: [-75.2238, 40.0259],
 				zoom: DEFAULT_ZOOM
 			});
@@ -153,9 +151,7 @@
 	<div bind:this={mapContainer} class="map-container"></div>
 	<div class="toolbar">
 		<Button variant="outline" href="/system/turfs" class="!bg-surface">← Back to Turfs</Button>
-		<Button onclick={saveTurfs} loading={saving} disabled={saved}>
-			{saving ? 'Saving turf...' : saved ? 'Saved!' : 'Save Turf'}
-		</Button>
+		<Button onclick={saveTurfs}>Save Turfs</Button>
 	</div>
 </div>
 

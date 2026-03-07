@@ -10,18 +10,24 @@ export async function POST({ request, locals }) {
 	}
 
 	try {
-		const { polygons, daysUntilExpiration = 7 } = await request.json();
+		const { polygons, survey_id, expires_at } = await request.json();
 
 		// Validate input
 		if (!polygons || !Array.isArray(polygons) || polygons.length === 0) {
 			return json({ error: 'Invalid polygons data' }, { status: 400 });
 		}
 
+		if (!survey_id) {
+			return json({ error: 'survey_id is required' }, { status: 400 });
+		}
+
 		const nanoid = customAlphabet('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
 
-		// Calculate expiration date
-		const expirationDate = new Date();
-		expirationDate.setDate(expirationDate.getDate() + daysUntilExpiration);
+		// Use provided expiration date or default to 7 days from now
+		const expirationDate = expires_at ? new Date(expires_at) : new Date();
+		if (!expires_at) {
+			expirationDate.setDate(expirationDate.getDate() + 7);
+		}
 
 		const client = await POOL.connect();
 
@@ -33,13 +39,14 @@ export async function POST({ request, locals }) {
 				const turf_code = nanoid();
 
 				const result = await client.query(
-					`INSERT INTO turf (code, bounds, author_id, created_at, expires_at)
-           VALUES ($1, $2, $3, NOW(), $4)
+					`INSERT INTO turf (code, bounds, author_id, survey_id, created_at, expires_at)
+           VALUES ($1, $2, $3, $4, NOW(), $5)
            RETURNING *`,
 					[
 						turf_code,
 						JSON.stringify(polygon.geometry), // Store GeoJSON geometry
 						locals.user.id,
+						survey_id,
 						expirationDate
 					]
 				);

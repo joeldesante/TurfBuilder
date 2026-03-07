@@ -18,8 +18,16 @@
 	</div>
 {/snippet}
 
-{#snippet dateCell({ value }: { value: unknown; row: Turf })}
-	<Time timestamp={value as string | Date} format="MMM DD, YYYY" />
+{#snippet createdCell({ value }: { value: unknown; row: Turf })}
+	<Time timestamp={value as string | Date} format="MMM DD, YYYY h:mm A" />
+{/snippet}
+
+{#snippet expiresCell({ value }: { value: unknown; row: Turf })}
+	{@const daysLeft = Math.ceil((new Date(value as string).getTime() - Date.now()) / 86400000)}
+	<span>
+		<Time timestamp={value as string | Date} format="MMM DD, YYYY" />
+		<span class="text-on-surface-subtle text-xs ml-1">({daysLeft}d)</span>
+	</span>
 {/snippet}
 
 <svelte:head>
@@ -37,8 +45,9 @@
 	columns={[
 		{ id: 'code', accessorKey: 'code', header: 'Code', cell: codeCell },
 		{ id: 'username', accessorKey: 'username', header: 'Author' },
-		{ id: 'created_at', accessorKey: 'created_at', header: 'Created', cell: dateCell },
-		{ id: 'expires_at', accessorKey: 'expires_at', header: 'Expires', cell: dateCell }
+		{ id: 'survey_name', accessorKey: 'survey_name', header: 'Survey' },
+		{ id: 'created_at', accessorKey: 'created_at', header: 'Created', cell: createdCell },
+		{ id: 'expires_at', accessorKey: 'expires_at', header: 'Expires', cell: expiresCell }
 	]}
 	sorting
 	pagination
