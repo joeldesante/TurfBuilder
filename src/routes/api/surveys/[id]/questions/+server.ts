@@ -6,7 +6,7 @@ import { POOL } from '$lib/server/database.js';
 export async function POST({ request, locals, params }) {
 	const SurveyQuestionsSchema = z.array(
 		z.object({
-			db_id: z.number().optional(),
+			db_id: z.string().optional(),
 			type: z.string().nonempty(),
 			text: z.string().nonempty(),
 			choices: z.array(z.string().nonempty()),

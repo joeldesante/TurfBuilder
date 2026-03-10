@@ -15,7 +15,7 @@
 	}
 
 	interface SurveyQuestion {
-		db_id?: number;
+		db_id?: string;
 		type: string;
 		text: string;
 		choices: string[];
@@ -27,7 +27,7 @@
 		description: data.survey.description,
 		questions: data.questions.map((question: any, index: number): SurveyQuestion => {
 			return {
-				db_id: parseInt(question.id),
+				db_id: question.id,
 				type: question.question_type as string,
 				text: question.question_text as string,
 				choices: question.choices || [],
@@ -124,12 +124,6 @@
 	}
 
 	async function saveChanges() {
-		// Verify everything is valid...
-		const survey_meta = {
-			name: survey.name,
-			description: survey.description
-		};
-
 		const questions = survey.questions;
 		const db_question_ids = questions.filter((v) => v.db_id !== undefined).map((q) => q.db_id);
 

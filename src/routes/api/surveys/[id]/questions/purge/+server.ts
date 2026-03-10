@@ -9,7 +9,7 @@ export async function POST({ request, locals, params }) {
 	}
 
 	try {
-		const { exclude }: { exclude: number[] | undefined } = await request.json();
+		const { exclude }: { exclude: string[] | undefined } = await request.json();
 		const { id } = params;
 		const client = await POOL.connect();
 
