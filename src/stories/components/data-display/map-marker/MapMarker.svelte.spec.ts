@@ -78,16 +78,11 @@ describe('MapMarker', () => {
 	});
 
 	describe('selection', () => {
-		it('applies scale-100 when not selected', async () => {
+		it('renders without transform classes', async () => {
 			const screen = render(MapMarker);
 			const marker = screen.container.querySelector('div[role="img"]');
-			expect(marker?.classList.contains('scale-100')).toBe(true);
-		});
-
-		it('applies scale-125 when selected', async () => {
-			const screen = render(MapMarker, { isSelected: true });
-			const marker = screen.container.querySelector('div[role="img"]');
-			expect(marker?.classList.contains('scale-125')).toBe(true);
+			expect(marker?.classList.contains('scale-100')).toBe(false);
+			expect(marker?.classList.contains('scale-125')).toBe(false);
 		});
 	});
 });

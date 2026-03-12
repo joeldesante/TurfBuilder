@@ -45,22 +45,18 @@
 	let iconColorClass = $derived(variantIconColorClasses[variant]);
 
 	let computedClass = $derived(
-		[
-			'relative inline-block w-6 h-8 cursor-pointer transition-transform duration-200 origin-bottom',
-			isSelected ? 'scale-125' : 'scale-100',
-			className
-		]
-			.filter(Boolean)
-			.join(' ')
+		['relative inline-block w-6 h-8 cursor-pointer', className].filter(Boolean).join(' ')
 	);
 </script>
 
 <div class={computedClass} role="img" aria-label="{variant} location marker" {...restProps}>
-	<svg viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-sm">
+	<svg viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-sm" overflow="visible">
 		<!-- Pin shape: circle head at top, pointed tail at bottom -->
 		<path
 			d="M12 0C5.373 0 0 5.373 0 12c0 6.627 12 20 12 20S24 18.627 24 12C24 5.373 18.627 0 12 0z"
 			class={fillClass}
+			stroke={isSelected ? 'white' : 'none'}
+			stroke-width={isSelected ? '2' : '0'}
 		/>
 		<!-- Icon centered inside the white circle via foreignObject -->
 		{#if icon}
