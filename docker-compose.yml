@@ -34,5 +34,20 @@ services:
     depends_on:
       - postgres
     restart: unless-stopped
+  nats:
+    image: nats:2.10
+    container_name: nats-turfbuilder
+    restart: unless-stopped
+    command: [
+      "-js",
+      "-m", "8222",
+      "--store_dir", "/data/jetstream"
+    ]
+    ports:
+      - "4222:4222"   # client connections
+      - "8222:8222"   # monitoring
+    volumes:
+      - nats_data:/data/jetstream
 volumes:
   postgres_data:
+  nats_data:

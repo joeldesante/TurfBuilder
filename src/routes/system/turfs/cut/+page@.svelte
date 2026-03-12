@@ -99,6 +99,7 @@
 	$effect(() => {
 		const _ = themeStore.theme; // track reactivity
 		if (map) {
+			//@ts-ignore
 			getMapStyle(isDarkTheme()).then((style) => map.setStyle(style));
 		}
 	});
@@ -206,6 +207,7 @@
 			const style = await getMapStyle(isDarkTheme());
 			map = new maplibregl.Map({
 				container: mapContainer,
+				//@ts-ignore
 				style,
 				center: [-75.2238, 40.0259],
 				zoom: DEFAULT_ZOOM,
