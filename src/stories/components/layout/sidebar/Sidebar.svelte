@@ -42,15 +42,28 @@
 		...restProps
 	}: Props = $props();
 
+	function allNavHrefs(): string[] {
+		return nav.flatMap((entry) => {
+			if (entry.kind === 'item') return [entry.item.href];
+			if (entry.kind === 'section') return entry.section.items.map((i) => i.href);
+			return [];
+		});
+	}
+
 	function isActive(href: string): boolean {
 		const normHref = href.endsWith('/') ? href : href + '/';
 		const normPath = currentPath.endsWith('/') ? currentPath : currentPath + '/';
 
-		// Exact match for dashboard root
-		if (normHref === '/system/') {
-			return normPath === '/system/';
+		// Use exact match if this href is a prefix of any sibling nav href,
+		// so a root item (e.g. /o/foo/s/) isn't permanently active on sub-pages.
+		const isPrefixOfSibling = allNavHrefs().some((other) => {
+			const normOther = other.endsWith('/') ? other : other + '/';
+			return normOther !== normHref && normOther.startsWith(normHref);
+		});
+
+		if (isPrefixOfSibling) {
+			return normPath === normHref;
 		}
-		// Prefix match for everything else
 		return normPath.startsWith(normHref);
 	}
 

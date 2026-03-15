@@ -15,8 +15,31 @@ declare global {
 			session?: Session;
 			user?: User;
 			config: ApplicationConfig;
+			organization?: {
+				id: string;
+				name: string;
+				slug: string;
+				role?: {
+					id: string;
+					name: string;
+					is_owner: boolean;
+					permissions: string[];
+				};
+			};
 		}
-		// interface PageData {}
+		interface PageData {
+			organization?: {
+				id: string;
+				name: string;
+				slug: string;
+				role?: {
+					id: string;
+					name: string;
+					is_owner: boolean;
+					permissions: string[];
+				};
+			};
+		}
 		// interface PageState {}
 		// interface Platform {}
 	}

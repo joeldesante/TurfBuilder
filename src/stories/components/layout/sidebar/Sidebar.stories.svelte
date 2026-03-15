@@ -16,23 +16,23 @@
 	const sampleNav: SidebarNavEntry[] = [
 		{
 			kind: 'item',
-			item: { label: 'Dashboard', href: '/system/', icon: SquaresFourIcon }
+			item: { label: 'Dashboard', href: '/o/demo-org/s/', icon: SquaresFourIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Turfs', href: '/system/turfs', icon: MapTrifoldIcon }
+			item: { label: 'Turfs', href: '/o/demo-org/s/turfs', icon: MapTrifoldIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Users', href: '/system/users', icon: UserIcon }
+			item: { label: 'Users', href: '/o/demo-org/s/users', icon: UserIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Locations', href: '/system/data/locations', icon: MapPinIcon }
+			item: { label: 'Locations', href: '/o/demo-org/s/data/locations', icon: MapPinIcon }
 		},
 		{
 			kind: 'item',
-			item: { label: 'Surveys', href: '/system/data/surveys', icon: ClipboardTextIcon }
+			item: { label: 'Surveys', href: '/o/demo-org/s/data/surveys', icon: ClipboardTextIcon }
 		},
 		{
 			kind: 'section',
@@ -40,8 +40,8 @@
 				label: 'Utilities',
 				icon: WrenchIcon,
 				items: [
-					{ label: 'Send Notification', href: '/system/utils/notify', icon: BellIcon },
-					{ label: 'Lockdown', href: '/system/utils/lockdown', icon: LockIcon }
+					{ label: 'Send Notification', href: '/o/demo-org/s/utils/notify', icon: BellIcon },
+					{ label: 'Lockdown', href: '/o/demo-org/s/utils/lockdown', icon: LockIcon }
 				]
 			}
 		}
@@ -104,7 +104,7 @@
 	<div class="flex h-screen">
 		<Sidebar
 			nav={sampleNav}
-			currentPath="/system/"
+			currentPath="/o/demo-org/s/"
 			username="Sabina Organizer"
 			bind:mobileOpen
 			onsignout={() => alert('Sign out clicked')}
@@ -131,7 +131,7 @@
 	<div class="flex h-screen">
 		<Sidebar
 			nav={sampleNav}
-			currentPath="/system/"
+			currentPath="/o/demo-org/s/"
 			username="Sabina Organizer"
 			collapsed={true}
 			bind:mobileOpen

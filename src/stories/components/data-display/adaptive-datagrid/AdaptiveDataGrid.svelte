@@ -15,7 +15,15 @@
 		onloadmore?: () => void;
 	}
 
-	let { columns, data, readonly = false, loading = false, onchange, oncolumnadd, onloadmore }: Props = $props();
+	let {
+		columns,
+		data,
+		readonly = false,
+		loading = false,
+		onchange,
+		oncolumnadd,
+		onloadmore
+	}: Props = $props();
 
 	const DEFAULT_CELL_WIDTH = 96;
 	const DEFAULT_CELL_HEIGHT = 28;
@@ -37,22 +45,32 @@
 		if (c.startsWith('#')) {
 			const h = c.slice(1);
 			if (h.length === 3)
-				return [parseInt(h[0]+h[0],16)/255, parseInt(h[1]+h[1],16)/255, parseInt(h[2]+h[2],16)/255];
-			return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
+				return [
+					parseInt(h[0] + h[0], 16) / 255,
+					parseInt(h[1] + h[1], 16) / 255,
+					parseInt(h[2] + h[2], 16) / 255
+				];
+			return [
+				parseInt(h.slice(0, 2), 16) / 255,
+				parseInt(h.slice(2, 4), 16) / 255,
+				parseInt(h.slice(4, 6), 16) / 255
+			];
 		}
 		const m = c.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-		if (m) return [+m[1]/255, +m[2]/255, +m[3]/255];
+		if (m) return [+m[1] / 255, +m[2] / 255, +m[3] / 255];
 		return [0.92, 0.92, 0.95];
 	}
 
 	// Return an rgba() string from a CSS hex/rgb color with a given alpha.
 	function colorAlpha(c: string, a: number): string {
 		const [r, g, b] = parseColor(c);
-		return `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},${a})`;
+		return `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
 	}
 
 	let localColumns = $state<Column[]>([...columns]);
-	$effect(() => { localColumns = [...columns]; });
+	$effect(() => {
+		localColumns = [...columns];
+	});
 
 	let activeCols = $derived(localColumns.length);
 	let displayCols = $derived(Math.max(TOTAL_COLS, activeCols));
@@ -75,9 +93,15 @@
 	// Drives the skeleton shimmer animation at 60fps while loading.
 	let skeletonAnimTime = $state(0);
 	$effect(() => {
-		if (!loading) { skeletonAnimTime = 0; return; }
+		if (!loading) {
+			skeletonAnimTime = 0;
+			return;
+		}
 		let rafId: number;
-		function tick(ts: number) { skeletonAnimTime = ts; rafId = requestAnimationFrame(tick); }
+		function tick(ts: number) {
+			skeletonAnimTime = ts;
+			rafId = requestAnimationFrame(tick);
+		}
 		rafId = requestAnimationFrame(tick);
 		return () => cancelAnimationFrame(rafId);
 	});
@@ -98,23 +122,31 @@
 
 	// Selection: two corners defining a rectangular region
 	let selStart = $state<{ row: number; col: number } | null>(null);
-	let selEnd   = $state<{ row: number; col: number } | null>(null);
+	let selEnd = $state<{ row: number; col: number } | null>(null);
 	// The cell currently open for text editing
 	let editCell = $state<{ row: number; col: number } | null>(null);
 	let inputValue = $state('');
 	let pointerDown = false;
 
-	let sel = $derived(selStart && selEnd ? {
-		r1: Math.min(selStart.row, selEnd.row),
-		c1: Math.min(selStart.col, selEnd.col),
-		r2: Math.max(selStart.row, selEnd.row),
-		c2: Math.max(selStart.col, selEnd.col),
-	} : null);
+	let sel = $derived(
+		selStart && selEnd
+			? {
+					r1: Math.min(selStart.row, selEnd.row),
+					c1: Math.min(selStart.col, selEnd.col),
+					r2: Math.max(selStart.row, selEnd.row),
+					c2: Math.max(selStart.col, selEnd.col)
+				}
+			: null
+	);
 
 	let cellEdits = $state<Record<string, string>>({});
 
-	function isActiveCol(col: number) { return col < activeCols; }
-	function isActiveRow(row: number) { return row < activeRows; }
+	function isActiveCol(col: number) {
+		return col < activeCols;
+	}
+	function isActiveRow(row: number) {
+		return row < activeRows;
+	}
 
 	function isEdited(row: number, col: number): boolean {
 		const key = `${row},${col}`;
@@ -136,14 +168,24 @@
 
 	// ── History ───────────────────────────────────────────────────────────────
 
-	interface EditOp { row: number; col: number; oldValue: string; newValue: string; }
+	interface EditOp {
+		row: number;
+		col: number;
+		oldValue: string;
+		newValue: string;
+	}
 	let undoStack: EditOp[][] = [];
 	let redoStack: EditOp[][] = [];
 	let activeBatch: EditOp[] | null = null;
 
-	function beginBatch() { activeBatch = []; }
+	function beginBatch() {
+		activeBatch = [];
+	}
 	function endBatch() {
-		if (activeBatch?.length) { undoStack.push(activeBatch); redoStack = []; }
+		if (activeBatch?.length) {
+			undoStack.push(activeBatch);
+			redoStack = [];
+		}
 		activeBatch = null;
 	}
 
@@ -153,8 +195,12 @@
 		const colDef = localColumns[col];
 		if (colDef) onchange?.(row, colDef.key, value);
 		const op: EditOp = { row, col, oldValue, newValue: value };
-		if (activeBatch) { activeBatch.push(op); }
-		else { undoStack.push([op]); redoStack = []; }
+		if (activeBatch) {
+			activeBatch.push(op);
+		} else {
+			undoStack.push([op]);
+			redoStack = [];
+		}
 	}
 
 	function applyOps(ops: EditOp[], direction: 'undo' | 'redo') {
@@ -200,7 +246,11 @@
 	let canvasHeight = $derived(Math.max(0, viewportHeight - HEADER_HEIGHT));
 
 	function addColumn(atIndex: number) {
-		const newCol: Column = { key: `field_${atIndex}`, label: `Column ${atIndex + 1}`, width: DEFAULT_CELL_WIDTH };
+		const newCol: Column = {
+			key: `field_${atIndex}`,
+			label: `Column ${atIndex + 1}`,
+			width: DEFAULT_CELL_WIDTH
+		};
 		localColumns = [...localColumns, newCol];
 		oncolumnadd?.(newCol);
 	}
@@ -209,10 +259,14 @@
 		const rect = canvasElm.getBoundingClientRect();
 		const x = e.clientX - rect.left;
 		const y = e.clientY - rect.top;
-		let col = -1, cx = 0;
+		let col = -1,
+			cx = 0;
 		for (let i = 0; i < displayCols; i++) {
 			cx += colWidth(i);
-			if (x < cx) { col = i; break; }
+			if (x < cx) {
+				col = i;
+				break;
+			}
 		}
 		const row = Math.floor((y + scrollTop) / DEFAULT_CELL_HEIGHT);
 		if (col < 0 || row < 0 || row >= displayRows) return null;
@@ -246,8 +300,9 @@
 			const cells: string[] = [];
 			for (let col = sel.c1; col <= sel.c2; col++) {
 				const v = getCellValue(row, col);
-				cells.push(v.includes(',') || v.includes('\n') || v.includes('"')
-					? `"${v.replace(/"/g, '""')}"` : v);
+				cells.push(
+					v.includes(',') || v.includes('\n') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v
+				);
 			}
 			lines.push(cells.join(','));
 		}
@@ -271,18 +326,27 @@
 			let i = 0;
 			while (i < line.length) {
 				if (line[i] === '"') {
-					let val = ''; i++;
+					let val = '';
+					i++;
 					while (i < line.length) {
-						if (line[i] === '"' && line[i + 1] === '"') { val += '"'; i += 2; }
-						else if (line[i] === '"') { i++; break; }
-						else val += line[i++];
+						if (line[i] === '"' && line[i + 1] === '"') {
+							val += '"';
+							i += 2;
+						} else if (line[i] === '"') {
+							i++;
+							break;
+						} else val += line[i++];
 					}
 					cells.push(val);
 					if (line[i] === ',') i++;
 				} else {
 					const end = line.indexOf(',', i);
-					if (end === -1) { cells.push(line.slice(i)); break; }
-					cells.push(line.slice(i, end)); i = end + 1;
+					if (end === -1) {
+						cells.push(line.slice(i));
+						break;
+					}
+					cells.push(line.slice(i, end));
+					i = end + 1;
 				}
 			}
 			rows.push(cells);
@@ -297,7 +361,8 @@
 		beginBatch();
 		for (let r = 0; r < rows.length; r++) {
 			for (let c = 0; c < rows[r].length; c++) {
-				const row = sel.r1 + r, col = sel.c1 + c;
+				const row = sel.r1 + r,
+					col = sel.c1 + c;
 				if (row < displayRows && col < displayCols && isActiveCol(col))
 					setCellValue(row, col, rows[r][c]);
 			}
@@ -323,10 +388,12 @@
 
 	function pushLine(verts: number[], x0: number, y0: number, x1: number, y1: number) {
 		if (y0 === y1) {
-			const top = y0 - 0.5, bot = y0 + 0.5;
+			const top = y0 - 0.5,
+				bot = y0 + 0.5;
 			verts.push(x0, top, x1, top, x0, bot, x1, top, x1, bot, x0, bot);
 		} else {
-			const left = x0 - 0.5, right = x0 + 0.5;
+			const left = x0 - 0.5,
+				right = x0 + 0.5;
 			verts.push(left, y0, right, y0, left, y1, right, y0, right, y1, left, y1);
 		}
 	}
@@ -341,12 +408,16 @@
 		gl = canvasElm.getContext('webgl', { premultipliedAlpha: false, antialias: false })!;
 		gl.disable(gl.BLEND);
 		const vert = gl.createShader(gl.VERTEX_SHADER)!;
-		gl.shaderSource(vert, VERT_SRC); gl.compileShader(vert);
+		gl.shaderSource(vert, VERT_SRC);
+		gl.compileShader(vert);
 		const frag = gl.createShader(gl.FRAGMENT_SHADER)!;
-		gl.shaderSource(frag, FRAG_SRC); gl.compileShader(frag);
+		gl.shaderSource(frag, FRAG_SRC);
+		gl.compileShader(frag);
 		const program = gl.createProgram()!;
-		gl.attachShader(program, vert); gl.attachShader(program, frag);
-		gl.linkProgram(program); gl.useProgram(program);
+		gl.attachShader(program, vert);
+		gl.attachShader(program, frag);
+		gl.linkProgram(program);
+		gl.useProgram(program);
 		aPosition = gl.getAttribLocation(program, 'a_position');
 		uResolution = gl.getUniformLocation(program, 'u_resolution');
 		uColor = gl.getUniformLocation(program, 'u_color');
@@ -359,29 +430,35 @@
 		if (!gl) initGL();
 
 		const dpr = window.devicePixelRatio ?? 1;
-		const pw = tw * dpr, ph = canvasHeight * dpr;
+		const pw = tw * dpr,
+			ph = canvasHeight * dpr;
 
 		if (canvasElm.width !== pw || canvasElm.height !== ph) {
-			canvasElm.width = pw; canvasElm.height = ph;
+			canvasElm.width = pw;
+			canvasElm.height = ph;
 			canvasElm.style.width = `${tw}px`;
 			canvasElm.style.height = `${canvasHeight}px`;
 		}
 
 		const firstRow = Math.floor(scrollTop / DEFAULT_CELL_HEIGHT);
-		const lastRow = Math.min(firstRow + Math.ceil(canvasHeight / DEFAULT_CELL_HEIGHT) + 2, displayRows);
+		const lastRow = Math.min(
+			firstRow + Math.ceil(canvasHeight / DEFAULT_CELL_HEIGHT) + 2,
+			displayRows
+		);
 		const yOff = -(scrollTop % DEFAULT_CELL_HEIGHT) * dpr;
 
 		const verts: number[] = [];
 		pushLine(verts, 0, 0, pw, 0);
 		pushLine(verts, 0, 0, 0, ph);
-		for (let col = 0; col <= displayCols; col++) pushLine(verts, colX(col) * dpr, 0, colX(col) * dpr, ph);
+		for (let col = 0; col <= displayCols; col++)
+			pushLine(verts, colX(col) * dpr, 0, colX(col) * dpr, ph);
 		for (let row = firstRow + 1; row <= lastRow; row++) {
 			const y = (row - firstRow) * DEFAULT_CELL_HEIGHT * dpr + yOff;
 			pushLine(verts, 0, y, pw, y);
 		}
 
 		const [lr, lg, lb] = parseColor(theme('--adg-grid-line', '#d1fae5'));
-		const [br, bg, bb] = parseColor(theme('--adg-cell-bg',   '#ffffff'));
+		const [br, bg, bb] = parseColor(theme('--adg-cell-bg', '#ffffff'));
 
 		gl!.uniform4f(uColor, lr, lg, lb, 1.0);
 		gl!.uniform2f(uResolution, pw, ph);
@@ -402,26 +479,31 @@
 		if (!canvasHeight || !textCanvasElm || !tw) return;
 
 		const dpr = window.devicePixelRatio ?? 1;
-		const pw = tw * dpr, ph = canvasHeight * dpr;
+		const pw = tw * dpr,
+			ph = canvasHeight * dpr;
 
 		if (textCanvasElm.width !== pw || textCanvasElm.height !== ph) {
-			textCanvasElm.width = pw; textCanvasElm.height = ph;
+			textCanvasElm.width = pw;
+			textCanvasElm.height = ph;
 			textCanvasElm.style.width = `${tw}px`;
 			textCanvasElm.style.height = `${canvasHeight}px`;
 		}
 
 		// Read theme colors once per render
-		const colorInactiveCol  = theme('--adg-inactive-col-bg', '#f0fdf9');
-		const colorInactiveRow  = theme('--adg-inactive-bg',     '#f8fffe');
-		const colorText         = theme('--adg-text',            '#1f2937');
-		const colorPrimary      = theme('--adg-primary',         '#047857');
+		const colorInactiveCol = theme('--adg-inactive-col-bg', '#f0fdf9');
+		const colorInactiveRow = theme('--adg-inactive-bg', '#f8fffe');
+		const colorText = theme('--adg-text', '#1f2937');
+		const colorPrimary = theme('--adg-primary', '#047857');
 
 		const ctx = textCanvasElm.getContext('2d')!;
 		ctx.clearRect(0, 0, pw, ph);
 		ctx.scale(dpr, dpr);
 
 		const firstRow = Math.floor(scrollTop / DEFAULT_CELL_HEIGHT);
-		const lastRow = Math.min(firstRow + Math.ceil(canvasHeight / DEFAULT_CELL_HEIGHT) + 2, displayRows);
+		const lastRow = Math.min(
+			firstRow + Math.ceil(canvasHeight / DEFAULT_CELL_HEIGHT) + 2,
+			displayRows
+		);
 		const yOff = -(scrollTop % DEFAULT_CELL_HEIGHT);
 
 		// Inactive column fill
@@ -442,7 +524,7 @@
 			const skelCount = Math.ceil(canvasHeight / DEFAULT_CELL_HEIGHT) + 1;
 			// Derive skeleton bar color from primary (very faint tint)
 			const skelBase = colorAlpha(colorPrimary, 0.06);
-			const skelBar  = colorAlpha(colorPrimary, 0.10);
+			const skelBar = colorAlpha(colorPrimary, 0.1);
 
 			for (let i = 0; i < skelCount; i++) {
 				const row = activeRows + i;
@@ -465,9 +547,9 @@
 			if (skelStartY < canvasHeight) {
 				const shimmerX = ((animT % 1200) / 1200) * (tw + 400) - 200;
 				const shimmerGrad = ctx.createLinearGradient(shimmerX - 200, 0, shimmerX + 200, 0);
-				shimmerGrad.addColorStop(0,   'rgba(255,255,255,0)');
+				shimmerGrad.addColorStop(0, 'rgba(255,255,255,0)');
 				shimmerGrad.addColorStop(0.5, 'rgba(255,255,255,0.6)');
-				shimmerGrad.addColorStop(1,   'rgba(255,255,255,0)');
+				shimmerGrad.addColorStop(1, 'rgba(255,255,255,0)');
 				ctx.fillStyle = shimmerGrad;
 				ctx.fillRect(0, skelStartY, tw, canvasHeight - skelStartY);
 			}
@@ -480,7 +562,7 @@
 			const sw = colX(sel.c2) + colWidth(sel.c2) - sx;
 			const sy = (sel.r1 - firstRow) * DEFAULT_CELL_HEIGHT + yOff;
 			const sh = (sel.r2 - sel.r1 + 1) * DEFAULT_CELL_HEIGHT;
-			ctx.fillStyle   = colorAlpha(colorPrimary, 0.08);
+			ctx.fillStyle = colorAlpha(colorPrimary, 0.08);
 			ctx.fillRect(sx + 1, sy + 1, sw - 1, sh - 1);
 			ctx.strokeStyle = colorAlpha(colorPrimary, 0.65);
 			ctx.lineWidth = 1.5;
@@ -491,14 +573,20 @@
 		for (let row = firstRow; row < lastRow; row++) {
 			for (let col = 0; col < activeCols; col++) {
 				if (!isEdited(row, col)) continue;
-				const cx = colX(col), cy = (row - firstRow) * DEFAULT_CELL_HEIGHT + yOff;
+				const cx = colX(col),
+					cy = (row - firstRow) * DEFAULT_CELL_HEIGHT + yOff;
 				ctx.fillStyle = 'rgba(245, 158, 11, 0.10)';
 				ctx.fillRect(cx + 1, cy + 1, colWidth(col) - 1, DEFAULT_CELL_HEIGHT - 1);
-				const tx = cx + colWidth(col) - 1, ty = cy + 1, ts = 5;
+				const tx = cx + colWidth(col) - 1,
+					ty = cy + 1,
+					ts = 5;
 				ctx.fillStyle = '#f59e0b';
 				ctx.beginPath();
-				ctx.moveTo(tx - ts, ty); ctx.lineTo(tx, ty); ctx.lineTo(tx, ty + ts);
-				ctx.closePath(); ctx.fill();
+				ctx.moveTo(tx - ts, ty);
+				ctx.lineTo(tx, ty);
+				ctx.lineTo(tx, ty + ts);
+				ctx.closePath();
+				ctx.fill();
 			}
 		}
 
@@ -514,7 +602,8 @@
 				const maxW = colWidth(col) - 16;
 				let text = value;
 				if (ctx.measureText(text).width > maxW) {
-					let lo = 0, hi = text.length;
+					let lo = 0,
+						hi = text.length;
 					while (lo < hi) {
 						const mid = (lo + hi + 1) >> 1;
 						if (ctx.measureText(text.slice(0, mid) + '\u2026').width <= maxW) lo = mid;
@@ -522,14 +611,20 @@
 					}
 					text = text.slice(0, lo) + '\u2026';
 				}
-				ctx.fillText(text, colX(col) + 8, (row - firstRow) * DEFAULT_CELL_HEIGHT + yOff + DEFAULT_CELL_HEIGHT / 2);
+				ctx.fillText(
+					text,
+					colX(col) + 8,
+					(row - firstRow) * DEFAULT_CELL_HEIGHT + yOff + DEFAULT_CELL_HEIGHT / 2
+				);
 			}
 		}
 
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 	});
 
-	$effect(() => { if (editCell && cellInputElm) cellInputElm.focus(); });
+	$effect(() => {
+		if (editCell && cellInputElm) cellInputElm.focus();
+	});
 
 	// ── Mouse interaction ─────────────────────────────────────────────────────
 
@@ -543,9 +638,12 @@
 		if (!cell) return;
 		// Record whether we're clicking the already-selected single cell.
 		clickWasOnSelectedCell = !!(
-			!e.shiftKey && sel &&
-			sel.r1 === sel.r2 && sel.c1 === sel.c2 &&
-			cell.row === sel.r1 && cell.col === sel.c1
+			!e.shiftKey &&
+			sel &&
+			sel.r1 === sel.r2 &&
+			sel.c1 === sel.c2 &&
+			cell.row === sel.r1 &&
+			cell.col === sel.c1
 		);
 		pointerDown = true;
 		if (e.shiftKey && selStart) {
@@ -568,9 +666,15 @@
 		const cell = cellFromEvent(e);
 		if (cell) selEnd = cell;
 		// Second click on the already-selected single active cell → enter edit mode.
-		if (!readonly && clickWasOnSelectedCell && sel &&
-			sel.r1 === sel.r2 && sel.c1 === sel.c2 &&
-			isActiveCol(sel.c1) && isActiveRow(sel.r1)) {
+		if (
+			!readonly &&
+			clickWasOnSelectedCell &&
+			sel &&
+			sel.r1 === sel.r2 &&
+			sel.c1 === sel.c2 &&
+			isActiveCol(sel.c1) &&
+			isActiveRow(sel.r1)
+		) {
 			editCell = { row: sel.r1, col: sel.c1 };
 			inputValue = getCellValue(sel.r1, sel.c1);
 		}
@@ -586,6 +690,9 @@
 		if (editCell) return;
 		const { r1, c1, r2, c2 } = sel;
 
+		// NOTE:
+		// Maybe this should be a switch-case.
+		// Not sure if it really matters here from a performance perspective.
 		if (e.key === 'Delete' || e.key === 'Backspace') {
 			e.preventDefault();
 			deleteSelection();
@@ -608,7 +715,8 @@
 		}
 		if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
 			e.preventDefault();
-			if (e.shiftKey) redo(); else undo();
+			if (e.shiftKey) redo();
+			else undo();
 			return;
 		}
 		if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || e.key === 'Y')) {
@@ -618,8 +726,14 @@
 		}
 
 		// Enter / F2 → open the selected single cell for editing
-		if ((e.key === 'Enter' || e.key === 'F2') && !readonly &&
-			r1 === r2 && c1 === c2 && isActiveRow(r1) && isActiveCol(c1)) {
+		if (
+			(e.key === 'Enter' || e.key === 'F2') &&
+			!readonly &&
+			r1 === r2 &&
+			c1 === c2 &&
+			isActiveRow(r1) &&
+			isActiveCol(c1)
+		) {
 			e.preventDefault();
 			editCell = { row: r1, col: c1 };
 			inputValue = getCellValue(r1, c1);
@@ -627,15 +741,16 @@
 		}
 
 		// Arrow key navigation (moves the single-cell selection)
-		if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+		if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
 			e.preventDefault();
-			let row = r1, col = c1;
-			if (e.key === 'ArrowUp')    row = Math.max(0, r1 - 1);
-			if (e.key === 'ArrowDown')  row = Math.min(activeRows - 1, r2 + 1);
-			if (e.key === 'ArrowLeft')  col = Math.max(0, c1 - 1);
+			let row = r1,
+				col = c1;
+			if (e.key === 'ArrowUp') row = Math.max(0, r1 - 1);
+			if (e.key === 'ArrowDown') row = Math.min(activeRows - 1, r2 + 1);
+			if (e.key === 'ArrowLeft') col = Math.max(0, c1 - 1);
 			if (e.key === 'ArrowRight') col = Math.min(activeCols - 1, c2 + 1);
 			selStart = { row, col };
-			selEnd   = { row, col };
+			selEnd = { row, col };
 		}
 	}
 
@@ -644,7 +759,7 @@
 		row = Math.max(0, Math.min(activeRows - 1, row));
 		col = Math.max(0, Math.min(activeCols - 1, col));
 		selStart = { row, col };
-		selEnd   = { row, col };
+		selEnd = { row, col };
 		editCell = { row, col };
 		inputValue = getCellValue(row, col);
 	}
@@ -653,17 +768,40 @@
 		if (!editCell) return;
 		const { row, col } = editCell;
 		switch (e.key) {
-			case 'Enter':      e.preventDefault(); navigateTo(row + 1, col); break;
-			case 'Tab':        e.preventDefault(); navigateTo(row, col + (e.shiftKey ? -1 : 1)); break;
-			case 'ArrowUp':    e.preventDefault(); navigateTo(row - 1, col); break;
-			case 'ArrowDown':  e.preventDefault(); navigateTo(row + 1, col); break;
-			case 'ArrowLeft':  e.preventDefault(); navigateTo(row, col - 1); break;
-			case 'ArrowRight': e.preventDefault(); navigateTo(row, col + 1); break;
-			case 'Escape':     commitEdit(); scrollEl.focus(); break;
+			case 'Enter':
+				e.preventDefault();
+				navigateTo(row + 1, col);
+				break;
+			case 'Tab':
+				e.preventDefault();
+				navigateTo(row, col + (e.shiftKey ? -1 : 1));
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				navigateTo(row - 1, col);
+				break;
+			case 'ArrowDown':
+				e.preventDefault();
+				navigateTo(row + 1, col);
+				break;
+			case 'ArrowLeft':
+				e.preventDefault();
+				navigateTo(row, col - 1);
+				break;
+			case 'ArrowRight':
+				e.preventDefault();
+				navigateTo(row, col + 1);
+				break;
+			case 'Escape':
+				commitEdit();
+				scrollEl.focus();
+				break;
 		}
 	}
 
-	function handleInputBlur() { commitEdit(); }
+	function handleInputBlur() {
+		commitEdit();
+	}
 </script>
 
 <!-- tabindex makes the scroll container focusable for keydown events -->
@@ -730,16 +868,16 @@
 <style>
 	/* ── Default theme tokens (override from outside via CSS variables) ──────── */
 	.adg-scroll {
-		--adg-primary:          #047857; /* emerald-700 */
-		--adg-grid-line:        #d1fae5; /* emerald-100 */
-		--adg-border:           #a7f3d0; /* emerald-200 */
-		--adg-header-bg:        #ecfdf5; /* emerald-50  */
-		--adg-header-text:      #065f46; /* emerald-800 */
-		--adg-cell-bg:          #ffffff;
-		--adg-text:             #1f2937; /* gray-800    */
-		--adg-inactive-bg:      #f8fffe;
-		--adg-inactive-col-bg:  #f0fdf9;
-		--adg-radius:           10px;
+		--adg-primary: #047857; /* emerald-700 */
+		--adg-grid-line: #d1fae5; /* emerald-100 */
+		--adg-border: #a7f3d0; /* emerald-200 */
+		--adg-header-bg: #ecfdf5; /* emerald-50  */
+		--adg-header-text: #065f46; /* emerald-800 */
+		--adg-cell-bg: #ffffff;
+		--adg-text: #1f2937; /* gray-800    */
+		--adg-inactive-bg: #f8fffe;
+		--adg-inactive-col-bg: #f0fdf9;
+		--adg-radius: 10px;
 	}
 
 	/* ── Container ───────────────────────────────────────────────────────────── */
@@ -783,7 +921,9 @@
 		display: flex;
 		align-items: center;
 		gap: 4px;
-		font: 600 12px/1 system-ui, sans-serif;
+		font:
+			600 12px/1 system-ui,
+			sans-serif;
 		letter-spacing: 0.025em;
 		text-transform: uppercase;
 		color: var(--adg-header-text);
@@ -794,7 +934,9 @@
 		white-space: nowrap;
 		cursor: default;
 		text-align: left;
-		transition: background 120ms ease, color 120ms ease;
+		transition:
+			background 120ms ease,
+			color 120ms ease;
 	}
 
 	.adg-header-cell.inactive {
@@ -822,7 +964,9 @@
 	}
 
 	/* ── Canvas layers ───────────────────────────────────────────────────────── */
-	.adg-spacer { position: relative; }
+	.adg-spacer {
+		position: relative;
+	}
 
 	.adg-canvas-wrap {
 		position: sticky;
@@ -852,7 +996,9 @@
 		outline-offset: -1px;
 		border-radius: 4px;
 		color: var(--adg-text);
-		font: 13px system-ui, sans-serif;
+		font:
+			13px system-ui,
+			sans-serif;
 		padding: 0 8px;
 		caret-color: var(--adg-primary);
 		box-shadow: 0 0 0 4px color-mix(in srgb, var(--adg-primary) 15%, transparent);

@@ -42,7 +42,7 @@
 	});
 
 	const surveyCrumbs = [
-		{ label: 'Surveys', href: '/system/data/surveys' },
+		{ label: 'Surveys', href: '/o/demo-org/s/data/surveys' },
 		{ label: 'Neighborhood Survey' }
 	];
 </script>
