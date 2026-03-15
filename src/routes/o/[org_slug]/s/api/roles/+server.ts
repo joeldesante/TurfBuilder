@@ -29,7 +29,7 @@ export async function POST({ request, locals }) {
 		return json({ error: 'Only owners can create roles.' }, { status: 403 });
 	}
 
-	const { name, is_default } = await request.json();
+	const { name } = await request.json();
 	if (!name?.trim()) {
 		return json({ error: 'Name is required.' }, { status: 400 });
 	}
@@ -37,8 +37,8 @@ export async function POST({ request, locals }) {
 	const client = await POOL.connect();
 	try {
 		const result = await client.query(
-			`INSERT INTO org_role (org_id, name, is_default) VALUES ($1, $2, $3) RETURNING id, name, is_owner, is_default`,
-			[locals.organization.id, name.trim(), is_default ?? false]
+			`INSERT INTO org_role (org_id, name, is_default) VALUES ($1, $2, false) RETURNING id, name, is_owner, is_default`,
+			[locals.organization.id, name.trim()]
 		);
 		return json(result.rows[0], { status: 201 });
 	} finally {

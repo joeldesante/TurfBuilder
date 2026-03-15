@@ -49,7 +49,7 @@
 			'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			'data-[state=checked]:bg-primary data-[state=unchecked]:bg-surface-container-highest',
-			isInvalid ? 'focus-visible:outline-error' : '',
+			isInvalid ? 'focus-visible:outline-error' : 'focus-visible:outline-primary',
 			className
 		]
 			.filter(Boolean)

@@ -80,11 +80,16 @@ export async function DELETE({ params, locals }) {
 
 	const client = await POOL.connect();
 	try {
+		await client.query('BEGIN');
+
 		// Block removal if this user is the last Administrator.
+		// FOR UPDATE locks the rows to prevent a race condition where two concurrent
+		// requests both pass this check and both succeed, leaving the org with no admins.
 		const adminCheckResult = await client.query(
 			`SELECT COUNT(*) FROM org_user_role ur
 			 JOIN org_role r ON r.id = ur.role_id
-			 WHERE ur.org_id = $1 AND r.is_owner = true AND ur.user_id = $2`,
+			 WHERE ur.org_id = $1 AND r.is_owner = true AND ur.user_id = $2
+			 FOR UPDATE`,
 			[locals.organization!.id, params.user_id]
 		);
 		const userIsAdmin = parseInt(adminCheckResult.rows[0].count) > 0;
@@ -97,6 +102,7 @@ export async function DELETE({ params, locals }) {
 				[locals.organization!.id, params.user_id]
 			);
 			if (parseInt(otherAdminCount.rows[0].count) === 0) {
+				await client.query('ROLLBACK');
 				return json(
 					{ error: 'Cannot remove the last Administrator from the organization.' },
 					{ status: 400 }
@@ -104,7 +110,6 @@ export async function DELETE({ params, locals }) {
 			}
 		}
 
-		await client.query('BEGIN');
 		// Remove custom role assignment.
 		await client.query(
 			`DELETE FROM org_user_role WHERE org_id = $1 AND user_id = $2`,
