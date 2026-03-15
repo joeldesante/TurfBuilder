@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import Button from '$components/actions/button/Button.svelte';
 	import { authClient } from '$lib/client';
 	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
@@ -7,6 +8,13 @@
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 
 	const { data } = $props();
+
+	const redirectTo = $derived($page.url.searchParams.get('redirectTo') ?? '/');
+	const signupHref = $derived(
+		redirectTo !== '/'
+			? `/auth/signup?redirectTo=${encodeURIComponent(redirectTo)}`
+			: '/auth/signup'
+	);
 
 	let username = $state('');
 	let password = $state('');
@@ -32,7 +40,7 @@
 				throw new Error(response.error.message);
 			}
 
-			goto('/');
+			goto(redirectTo);
 		} catch (e) {
 			if (e instanceof Error) {
 				error = e.message;
@@ -78,6 +86,6 @@
 	</form>
 
 	<div class="text-center">
-		<p class="text-sm">Don't have an account? <a href="/auth/signup">Sign up</a></p>
+		<p class="text-sm">Don't have an account? <a href={signupHref}>Sign up</a></p>
 	</div>
 </div>
