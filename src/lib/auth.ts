@@ -7,7 +7,7 @@ import { organization } from 'better-auth/plugins';
 import { admin } from 'better-auth/plugins';
 import { ac, userRole, fieldOrganizerRole, campaignManagerRole } from '$lib/permissions';
 import config from '$config';
-import { AUTH_POOL } from '$lib/server/database.js';
+import { POOL, AUTH_POOL } from '$lib/server/database.js';
 
 export const auth = betterAuth({
 	database: AUTH_POOL,
@@ -82,6 +82,35 @@ export const auth = betterAuth({
 			}
 		}),
 		organization({
+			organizationCreation: {
+				afterCreate: async ({ organization, member }) => {
+					const client = await POOL.connect();
+					try {
+						await client.query('BEGIN');
+						const ownerResult = await client.query(
+							`INSERT INTO org_role (org_id, name, is_owner, is_default)
+							 VALUES ($1, 'Owner', true, false) RETURNING id`,
+							[organization.id]
+						);
+						const ownerId = ownerResult.rows[0].id;
+						await client.query(
+							`INSERT INTO org_role (org_id, name, is_owner, is_default)
+							 VALUES ($1, 'Member', false, true)`,
+							[organization.id]
+						);
+						await client.query(
+							`INSERT INTO org_user_role (org_id, user_id, role_id) VALUES ($1, $2, $3)`,
+							[organization.id, member.userId, ownerId]
+						);
+						await client.query('COMMIT');
+					} catch (err) {
+						await client.query('ROLLBACK');
+						throw err;
+					} finally {
+						client.release();
+					}
+				}
+			},
 			schema: {
 				organization: {
 					fields: {

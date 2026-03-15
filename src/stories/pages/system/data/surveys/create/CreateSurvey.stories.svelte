@@ -15,5 +15,5 @@
 </script>
 
 <Story name="Default" asChild>
-	<CreateSurvey />
+	<CreateSurvey surveysHref="#" />
 </Story>

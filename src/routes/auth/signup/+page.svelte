@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Signup from '../../../stories/pages/auth/signup/Signup.svelte';
+	import Signup from '$pages/auth/signup/Signup.svelte';
 
 	let { data } = $props();
 </script>
