@@ -1,4 +1,5 @@
 import type { SidebarNavEntry } from '$components/layout/sidebar/types';
+import { can } from '$lib/auth-helpers';
 import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
 import UserIcon from 'phosphor-svelte/lib/User';
@@ -8,9 +9,19 @@ import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText';
 import ChartBarIcon from 'phosphor-svelte/lib/ChartBar';
 import ShieldIcon from 'phosphor-svelte/lib/Shield';
 import GearIcon from 'phosphor-svelte/lib/Gear';
+import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
 
-export function buildStaffNav(orgSlug: string): SidebarNavEntry[] {
-	return [
+interface ActivePlugin {
+	navEntries: SidebarNavEntry[];
+	requiredPermission?: { resource: string; action: string };
+}
+
+export function buildStaffNav(
+	orgSlug: string,
+	plugins: ActivePlugin[] = [],
+	org?: App.Locals['organization']
+): SidebarNavEntry[] {
+	const coreNav: SidebarNavEntry[] = [
 		{
 			kind: 'item',
 			item: { label: 'Dashboard', href: `/o/${orgSlug}/s/`, icon: SquaresFourIcon }
@@ -45,9 +56,21 @@ export function buildStaffNav(orgSlug: string): SidebarNavEntry[] {
 				label: 'Settings',
 				icon: GearIcon,
 				items: [
-					{ label: 'Roles', href: `/o/${orgSlug}/s/settings/roles`, icon: ShieldIcon }
+					{ label: 'Roles', href: `/o/${orgSlug}/s/settings/roles`, icon: ShieldIcon },
+					...(can(org, 'plugin', 'manage')
+						? [{ label: 'Plugins', href: `/o/${orgSlug}/s/plugins`, icon: PuzzlePieceIcon }]
+						: [])
 				]
 			}
 		}
 	];
+
+	const pluginNav = plugins.flatMap((p) => {
+		if (p.requiredPermission && !can(org, p.requiredPermission.resource, p.requiredPermission.action)) {
+			return [];
+		}
+		return p.navEntries;
+	});
+
+	return [...coreNav, ...pluginNav];
 }

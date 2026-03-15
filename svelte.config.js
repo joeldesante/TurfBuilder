@@ -17,7 +17,8 @@ const config = {
 		alias: {
 			$components: 'src/stories/components',
 			$pages: 'src/stories/pages',
-			$config: 'src/config'
+			$config: 'src/config',
+			$plugins: 'src/plugins'
 		}
 	}
 };

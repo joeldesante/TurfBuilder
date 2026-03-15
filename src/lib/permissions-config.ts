@@ -114,6 +114,15 @@ export const PERMISSIONS: PermissionDef[] = [
 		label: 'Remove Members',
 		verbPhrase: 'remove members from the organization',
 		description: 'Allows kicking members out of the organization entirely.'
+	},
+
+	{
+		key: 'plugin:manage',
+		group: 'Plugins',
+		label: 'Manage Plugins',
+		verbPhrase: 'install, configure, and remove plugins',
+		description:
+			'Allows enabling and disabling plugins and changing their configuration for this organization.'
 	}
 ];
 

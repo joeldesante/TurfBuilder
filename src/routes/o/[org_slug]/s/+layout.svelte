@@ -32,7 +32,7 @@
 		goto(`/o/${orgSlug}/s/`);
 	}
 
-	const nav = $derived(buildStaffNav(data.organization.slug));
+	const nav = $derived(buildStaffNav(data.organization.slug, data.activePlugins, data.organization));
 </script>
 
 <svelte:head>

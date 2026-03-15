@@ -1,5 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
+import { getActivePlugins } from '$lib/server/plugins';
 
 export async function load({ locals, parent }) {
 	const parentData = await parent();
@@ -18,8 +19,16 @@ export async function load({ locals, parent }) {
 		throw error(403, 'You do not have staff access to this organization.');
 	}
 
+	const activePlugins = await getActivePlugins(locals.organization.id);
+
 	return {
 		...parentData,
-		organization: locals.organization
+		organization: locals.organization,
+		activePlugins: activePlugins.map((p) => ({
+			slug: p.manifest.slug,
+			name: p.manifest.name,
+			navEntries: p.manifest.navEntries?.(locals.organization!.slug) ?? [],
+			requiredPermission: p.manifest.requiredPermission
+		}))
 	};
 }
