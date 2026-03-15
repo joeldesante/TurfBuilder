@@ -12,6 +12,43 @@ export async function PATCH({ params, request, locals }) {
 
 	const client = await POOL.connect();
 	try {
+		// Check if the user currently holds an owner role.
+		const currentRoleResult = await client.query(
+			`SELECT r.is_owner FROM org_user_role ur
+			 JOIN org_role r ON r.id = ur.role_id
+			 WHERE ur.org_id = $1 AND ur.user_id = $2`,
+			[locals.organization.id, params.user_id]
+		);
+		const currentlyAdmin = currentRoleResult.rows[0]?.is_owner === true;
+
+		if (currentlyAdmin) {
+			// Determine whether the target role is also an owner role.
+			let newRoleIsAdmin = false;
+			if (role_id !== null) {
+				const newRoleResult = await client.query(
+					`SELECT is_owner FROM org_role WHERE id = $1 AND org_id = $2`,
+					[role_id, locals.organization.id]
+				);
+				newRoleIsAdmin = newRoleResult.rows[0]?.is_owner === true;
+			}
+
+			if (!newRoleIsAdmin) {
+				// Block if this is the last Administrator.
+				const otherAdminCount = await client.query(
+					`SELECT COUNT(*) FROM org_user_role ur
+					 JOIN org_role r ON r.id = ur.role_id
+					 WHERE ur.org_id = $1 AND r.is_owner = true AND ur.user_id != $2`,
+					[locals.organization.id, params.user_id]
+				);
+				if (parseInt(otherAdminCount.rows[0].count) === 0) {
+					return json(
+						{ error: 'Cannot reassign the last Administrator. Assign another Administrator first.' },
+						{ status: 400 }
+					);
+				}
+			}
+		}
+
 		if (role_id === null) {
 			await client.query(
 				`DELETE FROM org_user_role WHERE org_id = $1 AND user_id = $2`,
@@ -43,6 +80,30 @@ export async function DELETE({ params, locals }) {
 
 	const client = await POOL.connect();
 	try {
+		// Block removal if this user is the last Administrator.
+		const adminCheckResult = await client.query(
+			`SELECT COUNT(*) FROM org_user_role ur
+			 JOIN org_role r ON r.id = ur.role_id
+			 WHERE ur.org_id = $1 AND r.is_owner = true AND ur.user_id = $2`,
+			[locals.organization!.id, params.user_id]
+		);
+		const userIsAdmin = parseInt(adminCheckResult.rows[0].count) > 0;
+
+		if (userIsAdmin) {
+			const otherAdminCount = await client.query(
+				`SELECT COUNT(*) FROM org_user_role ur
+				 JOIN org_role r ON r.id = ur.role_id
+				 WHERE ur.org_id = $1 AND r.is_owner = true AND ur.user_id != $2`,
+				[locals.organization!.id, params.user_id]
+			);
+			if (parseInt(otherAdminCount.rows[0].count) === 0) {
+				return json(
+					{ error: 'Cannot remove the last Administrator from the organization.' },
+					{ status: 400 }
+				);
+			}
+		}
+
 		await client.query('BEGIN');
 		// Remove custom role assignment.
 		await client.query(

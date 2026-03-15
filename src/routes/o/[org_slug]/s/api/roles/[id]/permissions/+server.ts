@@ -1,9 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
-import { PERMISSION_RESOURCES, ALL_ACTIONS } from '$lib/permissions-config.js';
-
-const VALID_RESOURCES = new Set(PERMISSION_RESOURCES.map((r) => r.resource));
-const VALID_ACTIONS = new Set(ALL_ACTIONS);
+import { VALID_PERMISSION_KEYS } from '$lib/permissions-config.js';
 
 // PUT replaces all permissions for a role with the provided list.
 export async function PUT({ params, request, locals }) {
@@ -15,8 +12,7 @@ export async function PUT({ params, request, locals }) {
 
 	// Validate all permission strings before touching the database.
 	for (const p of permissions) {
-		const [resource, action] = p.split(':');
-		if (!VALID_RESOURCES.has(resource) || !VALID_ACTIONS.has(action as never)) {
+		if (!VALID_PERMISSION_KEYS.has(p)) {
 			return json({ error: `Invalid permission: ${p}` }, { status: 400 });
 		}
 	}

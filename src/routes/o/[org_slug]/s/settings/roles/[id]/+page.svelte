@@ -19,11 +19,11 @@
 		}
 	}
 
-	async function handleSaveName(name: string, is_default: boolean) {
+	async function handleSaveName(name: string) {
 		const res = await fetch(`/o/${orgSlug}/s/api/roles/${roleId}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name, is_default })
+			body: JSON.stringify({ name })
 		});
 		if (!res.ok) {
 			const body = await res.json();

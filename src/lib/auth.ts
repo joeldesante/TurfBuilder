@@ -85,23 +85,72 @@ export const auth = betterAuth({
 			organizationCreation: {
 				afterCreate: async ({ organization, member }) => {
 					const client = await POOL.connect();
+
+					async function insertPerms(roleId: string, keys: string[]) {
+						if (keys.length === 0) return;
+						const placeholders = keys.map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`).join(', ');
+						const values: string[] = [roleId];
+						for (const key of keys) {
+							const [resource, action] = key.split(':');
+							values.push(resource, action);
+						}
+						await client.query(
+							`INSERT INTO org_role_permission (role_id, resource, action) VALUES ${placeholders}`,
+							values
+						);
+					}
+
 					try {
 						await client.query('BEGIN');
-						const ownerResult = await client.query(
+
+						// 1. Administrator (Owner) — all permissions via is_owner bypass
+						const adminResult = await client.query(
 							`INSERT INTO org_role (org_id, name, is_owner, is_default)
-							 VALUES ($1, 'Owner', true, false) RETURNING id`,
+							 VALUES ($1, 'Administrator', true, false) RETURNING id`,
 							[organization.id]
 						);
-						const ownerId = ownerResult.rows[0].id;
-						await client.query(
+						const adminId = adminResult.rows[0].id;
+
+						// 2. Organizer — cuts turfs, manages surveys, onboards members
+						const organizerResult = await client.query(
 							`INSERT INTO org_role (org_id, name, is_owner, is_default)
-							 VALUES ($1, 'Member', false, true)`,
+							 VALUES ($1, 'Organizer', false, false) RETURNING id`,
 							[organization.id]
 						);
+						await insertPerms(organizerResult.rows[0].id, [
+							'canvass:use',
+							'turf:read', 'turf:create', 'turf:update', 'turf:delete',
+							'survey:read', 'survey:create', 'survey:update', 'survey:delete',
+							'response:read', 'response:delete',
+							'member:read', 'member:update', 'member:delete'
+						]);
+
+						// 3. Analyst — read-only access to data and reports
+						const analystResult = await client.query(
+							`INSERT INTO org_role (org_id, name, is_owner, is_default)
+							 VALUES ($1, 'Analyst', false, false) RETURNING id`,
+							[organization.id]
+						);
+						await insertPerms(analystResult.rows[0].id, [
+							'turf:read',
+							'survey:read',
+							'response:read'
+						]);
+
+						// 4. Volunteer — field canvasser; default role for new members
+						const volunteerResult = await client.query(
+							`INSERT INTO org_role (org_id, name, is_owner, is_default)
+							 VALUES ($1, 'Standard User', false, true) RETURNING id`,
+							[organization.id]
+						);
+						await insertPerms(volunteerResult.rows[0].id, ['canvass:use']);
+
+						// Assign org creator to Administrator role
 						await client.query(
 							`INSERT INTO org_user_role (org_id, user_id, role_id) VALUES ($1, $2, $3)`,
-							[organization.id, member.userId, ownerId]
+							[organization.id, member.userId, adminId]
 						);
+
 						await client.query('COMMIT');
 					} catch (err) {
 						await client.query('ROLLBACK');

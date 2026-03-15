@@ -86,7 +86,7 @@
 							{role.is_default ? 'Yes' : '—'}
 						</td>
 						<td class="px-4 py-3 text-right">
-							{#if !role.is_owner}
+							{#if !role.is_owner && !role.is_default}
 								<Button
 									variant="ghost"
 									size="sm"

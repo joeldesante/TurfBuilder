@@ -65,6 +65,17 @@ describe('Switch', () => {
 		});
 	});
 
+	describe('thumb appearance', () => {
+		it('thumb always has a light background class regardless of theme', async () => {
+			const screen = render(Switch);
+
+			const thumb = screen.container.querySelector('[data-state]')?.querySelector('span');
+			expect(thumb).toBeTruthy();
+			expect(thumb!.classList.contains('bg-white')).toBe(true);
+			expect(thumb!.classList.contains('dark:bg-on-surface')).toBe(false);
+		});
+	});
+
 	describe('FormField context integration', () => {
 		it('sets aria-invalid from context', async () => {
 			const screen = render(Switch, {

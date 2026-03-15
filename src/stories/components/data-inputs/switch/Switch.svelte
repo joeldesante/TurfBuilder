@@ -72,7 +72,7 @@
 			{...restProps}
 		>
 			<SwitchPrimitive.Thumb
-				class="pointer-events-none block size-5 rounded-full bg-on-primary dark:bg-on-surface shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+				class="pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
 			/>
 		</SwitchPrimitive.Root>
 		<label
@@ -101,7 +101,7 @@
 		{...restProps}
 	>
 		<SwitchPrimitive.Thumb
-			class="pointer-events-none block size-5 rounded-full bg-on-primary dark:bg-on-surface shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+			class="pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
 		/>
 	</SwitchPrimitive.Root>
 {/if}

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
-	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
-	import { PERMISSION_RESOURCES, ALL_ACTIONS } from '$lib/permissions-config';
+	import Switch from '$components/data-inputs/switch/Switch.svelte';
+	import { PERMISSION_GROUPS } from '$lib/permissions-config';
 
 	interface Role {
 		id: string;
@@ -25,7 +25,7 @@
 		members: Member[];
 		rolesHref: string;
 		onSavePermissions: (permissions: string[]) => Promise<void>;
-		onSaveName: (name: string, is_default: boolean) => Promise<void>;
+		onSaveName: (name: string) => Promise<void>;
 		onAssignRole: (userId: string, roleId: string | null) => Promise<void>;
 	}
 
@@ -33,7 +33,6 @@
 		$props();
 
 	let roleName = $state(role.name);
-	let isDefault = $state(role.is_default);
 	let savingName = $state(false);
 	let nameError = $state<string | null>(null);
 
@@ -41,8 +40,7 @@
 	let granted = $state(new Set<string>(role.permissions ?? []));
 	let savingPerms = $state(false);
 
-	function toggle(resource: string, action: string) {
-		const key = `${resource}:${action}`;
+	function toggle(key: string) {
 		const next = new Set(granted);
 		if (next.has(key)) {
 			next.delete(key);
@@ -66,7 +64,7 @@
 		savingName = true;
 		nameError = null;
 		try {
-			await onSaveName(roleName, isDefault);
+			await onSaveName(roleName);
 		} catch (e) {
 			nameError = e instanceof Error ? e.message : 'Failed to save.';
 		} finally {
@@ -111,54 +109,43 @@
 					Save
 				</Button>
 			</div>
-			<label class="flex items-center gap-2 text-sm text-on-surface cursor-pointer">
-				<Checkbox bind:checked={isDefault} onCheckedChange={() => handleSaveName()} />
-				Default role for new members
-			</label>
-			{#if nameError}
+{#if nameError}
 				<p class="text-error text-sm">{nameError}</p>
 			{/if}
 		</section>
 
-		<!-- Permissions matrix -->
-		<section class="space-y-3">
+		<!-- Permissions -->
+		<section class="space-y-6">
 			<div class="flex items-center justify-between">
 				<h2 class="text-sm font-semibold text-on-surface">Permissions</h2>
 				{#if savingPerms}
 					<span class="text-xs text-on-surface-subtle">Saving…</span>
 				{/if}
 			</div>
-			<div class="rounded-lg border border-outline overflow-hidden">
-				<table class="w-full text-sm">
-					<thead class="bg-surface-container text-on-surface-subtle text-left">
-						<tr>
-							<th class="px-4 py-3 font-medium">Resource</th>
-							{#each ALL_ACTIONS as action}
-								<th class="px-4 py-3 font-medium capitalize text-center">{action}</th>
-							{/each}
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-outline">
-						{#each PERMISSION_RESOURCES as { resource, label, actions }}
-							<tr class="hover:bg-surface-container/50">
-								<td class="px-4 py-3 font-medium text-on-surface">{label}</td>
-								{#each ALL_ACTIONS as action}
-									<td class="px-4 py-3 text-center">
-										{#if actions.includes(action)}
-											<Checkbox
-												checked={granted.has(`${resource}:${action}`)}
-												onCheckedChange={() => toggle(resource, action)}
-											/>
-										{:else}
-											<span class="text-on-surface-subtle">—</span>
-										{/if}
-									</td>
-								{/each}
-							</tr>
+
+			{#each PERMISSION_GROUPS as group}
+				<div class="space-y-1">
+					<h3 class="text-xs font-semibold uppercase tracking-wider text-on-surface-subtle px-1">
+						{group.name}
+					</h3>
+					<div class="rounded-lg border border-outline divide-y divide-outline">
+						{#each group.permissions as perm}
+							<div class="flex items-start justify-between gap-6 px-4 py-3">
+								<div class="flex-1 space-y-0.5 min-w-0">
+									<p class="text-sm font-medium text-on-surface">
+										<span class="text-primary">{role.name}</span> can {perm.verbPhrase}
+									</p>
+									<p class="text-xs text-on-surface-subtle">{perm.description}</p>
+								</div>
+								<Switch
+									checked={granted.has(perm.key)}
+									onCheckedChange={() => toggle(perm.key)}
+								/>
+							</div>
 						{/each}
-					</tbody>
-				</table>
-			</div>
+					</div>
+				</div>
+			{/each}
 		</section>
 	{/if}
 
