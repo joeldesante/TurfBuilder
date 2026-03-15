@@ -4,6 +4,7 @@ import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
 import UserIcon from 'phosphor-svelte/lib/User';
 import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText';
+import ChartBarIcon from 'phosphor-svelte/lib/ChartBar';
 import WrenchIcon from 'phosphor-svelte/lib/Wrench';
 import BellIcon from 'phosphor-svelte/lib/Bell';
 import LockIcon from 'phosphor-svelte/lib/Lock';
@@ -28,6 +29,10 @@ export const systemNav: SidebarNavEntry[] = [
 	{
 		kind: 'item',
 		item: { label: 'Surveys', href: '/system/data/surveys', icon: ClipboardTextIcon }
+	},
+	{
+		kind: 'item',
+		item: { label: 'Responses', href: '/system/data/responses', icon: ChartBarIcon }
 	},
 	{
 		kind: 'section',
