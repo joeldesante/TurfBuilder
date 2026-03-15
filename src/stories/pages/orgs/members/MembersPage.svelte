@@ -2,7 +2,6 @@
 	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import InviteLinksSection from './InviteLinksSection.svelte';
-	import PlusIcon from 'phosphor-svelte/lib/Plus';
 	import TrashIcon from 'phosphor-svelte/lib/Trash';
 
 	interface Member {
@@ -21,13 +20,11 @@
 
 	interface Props {
 		members: Member[];
-		canAddMembers: boolean;
 		canRemoveMembers: boolean;
 		isOwner: boolean;
 		inviteLinks: InviteLink[];
 		slugInviteEnabled: boolean;
 		orgSlug: string;
-		onAdd: (email: string) => Promise<void>;
 		onRemove: (userId: string) => Promise<void>;
 		onCreateLink: (expiresAt: string | null) => Promise<void>;
 		onRevokeLink: (id: string) => Promise<void>;
@@ -36,37 +33,18 @@
 
 	const {
 		members,
-		canAddMembers,
 		canRemoveMembers,
 		isOwner,
 		inviteLinks,
 		slugInviteEnabled,
 		orgSlug,
-		onAdd,
 		onRemove,
 		onCreateLink,
 		onRevokeLink,
 		onToggleSlugInvite
 	}: Props = $props();
 
-	let email = $state('');
-	let adding = $state(false);
-	let addError = $state<string | null>(null);
 	let removingId = $state<string | null>(null);
-
-	async function handleAdd() {
-		if (!email.trim()) return;
-		adding = true;
-		addError = null;
-		try {
-			await onAdd(email.trim());
-			email = '';
-		} catch (e) {
-			addError = e instanceof Error ? e.message : 'Failed to add member.';
-		} finally {
-			adding = false;
-		}
-	}
 
 	async function handleRemove(userId: string) {
 		removingId = userId;
@@ -127,28 +105,6 @@
 			</tbody>
 		</table>
 	</div>
-
-	{#if canAddMembers}
-		<div class="space-y-2">
-			<h2 class="text-sm font-medium text-on-surface">Add Member</h2>
-			<div class="flex gap-2">
-				<input
-					type="email"
-					bind:value={email}
-					placeholder="user@example.com"
-					class="flex-1 h-10 px-3 rounded-lg border border-outline bg-surface text-sm text-on-surface focus:outline-2 focus:outline-offset-2 focus:outline-primary"
-					onkeydown={(e) => e.key === 'Enter' && handleAdd()}
-				/>
-				<Button onclick={handleAdd} loading={adding} disabled={!email.trim()}>
-					<PlusIcon />
-					Add
-				</Button>
-			</div>
-			{#if addError}
-				<p class="text-error text-sm">{addError}</p>
-			{/if}
-		</div>
-	{/if}
 
 	{#if isOwner}
 		<InviteLinksSection

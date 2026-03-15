@@ -32,31 +32,11 @@
 	name="Owner View"
 	args={{
 		members: sampleMembers,
-		canAddMembers: true,
-		canRemoveMembers: true,
-		isOwner: false,
-		inviteLinks: [],
-		slugInviteEnabled: false,
-		orgSlug: 'north-west-philly-alliance',
-		onAdd: noop,
-		onRemove: noop,
-		onCreateLink: noop,
-		onRevokeLink: noop,
-		onToggleSlugInvite: noop
-	}}
-/>
-
-<Story
-	name="Owner View with Invite Links"
-	args={{
-		members: sampleMembers,
-		canAddMembers: true,
 		canRemoveMembers: true,
 		isOwner: true,
 		inviteLinks: sampleLinks,
 		slugInviteEnabled: false,
 		orgSlug: 'north-west-philly-alliance',
-		onAdd: noop,
 		onRemove: noop,
 		onCreateLink: noop,
 		onRevokeLink: noop,
@@ -68,13 +48,11 @@
 	name="Owner View Slug Enabled"
 	args={{
 		members: sampleMembers,
-		canAddMembers: true,
 		canRemoveMembers: true,
 		isOwner: true,
 		inviteLinks: sampleLinks,
 		slugInviteEnabled: true,
 		orgSlug: 'north-west-philly-alliance',
-		onAdd: noop,
 		onRemove: noop,
 		onCreateLink: noop,
 		onRevokeLink: noop,
@@ -86,13 +64,11 @@
 	name="Read-only View"
 	args={{
 		members: sampleMembers,
-		canAddMembers: false,
 		canRemoveMembers: false,
 		isOwner: false,
 		inviteLinks: [],
 		slugInviteEnabled: false,
 		orgSlug: 'north-west-philly-alliance',
-		onAdd: noop,
 		onRemove: noop,
 		onCreateLink: noop,
 		onRevokeLink: noop,
@@ -104,13 +80,11 @@
 	name="Empty"
 	args={{
 		members: [],
-		canAddMembers: true,
 		canRemoveMembers: true,
 		isOwner: true,
 		inviteLinks: [],
 		slugInviteEnabled: false,
 		orgSlug: 'north-west-philly-alliance',
-		onAdd: noop,
 		onRemove: noop,
 		onCreateLink: noop,
 		onRevokeLink: noop,

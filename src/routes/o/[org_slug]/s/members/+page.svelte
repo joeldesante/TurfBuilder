@@ -6,19 +6,6 @@
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug);
 
-	async function handleAdd(email: string) {
-		const res = await fetch(`/o/${orgSlug}/s/api/members`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email })
-		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to add member.');
-		}
-		await invalidateAll();
-	}
-
 	async function handleRemove(userId: string) {
 		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}`, { method: 'DELETE' });
 		if (!res.ok) {
@@ -70,13 +57,11 @@
 
 <MembersPage
 	members={data.members}
-	canAddMembers={data.canAddMembers}
 	canRemoveMembers={data.canRemoveMembers}
 	isOwner={data.isOwner}
 	inviteLinks={data.inviteLinks}
 	slugInviteEnabled={data.slugInviteEnabled}
 	orgSlug={orgSlug}
-	onAdd={handleAdd}
 	onRemove={handleRemove}
 	onCreateLink={handleCreateLink}
 	onRevokeLink={handleRevokeLink}

@@ -15,7 +15,7 @@ export async function load({ locals }) {
 			 LEFT JOIN org_role_permission rp ON rp.role_id = r.id
 			 WHERE r.org_id = $1
 			 GROUP BY r.id
-			 ORDER BY r.is_owner DESC, r.name ASC`,
+			 ORDER BY r.is_owner DESC, COUNT(rp.id) DESC, r.name ASC`,
 			[locals.organization.id]
 		);
 		return { roles: result.rows };

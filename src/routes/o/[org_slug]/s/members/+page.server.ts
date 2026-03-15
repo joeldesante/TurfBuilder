@@ -32,7 +32,6 @@ export async function load({ locals }) {
 
 		return {
 			members: membersResult.rows,
-			canAddMembers: can(locals.organization, 'member', 'create'),
 			canRemoveMembers: can(locals.organization, 'member', 'delete'),
 			isOwner: locals.organization!.role?.is_owner ?? false,
 			inviteLinks: linksResult.rows,

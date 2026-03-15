@@ -11,13 +11,11 @@ const sampleMembers = [
 
 const baseProps = {
 	members: sampleMembers,
-	canAddMembers: false,
 	canRemoveMembers: false,
 	isOwner: false,
 	inviteLinks: [],
 	slugInviteEnabled: false,
 	orgSlug: 'test-org',
-	onAdd: vi.fn(),
 	onRemove: vi.fn(),
 	onCreateLink: vi.fn(),
 	onRevokeLink: vi.fn(),
@@ -46,41 +44,6 @@ describe('MembersPage', () => {
 	it('shows empty state when no members', async () => {
 		render(MembersPage, { ...baseProps, members: [] });
 		await expect.element(page.getByText('No members yet.')).toBeVisible();
-	});
-
-	it('hides add form when canAddMembers is false', async () => {
-		render(MembersPage, baseProps);
-		await expect.element(page.getByPlaceholder('user@example.com')).not.toBeInTheDocument();
-	});
-
-	it('shows add form when canAddMembers is true', async () => {
-		render(MembersPage, { ...baseProps, canAddMembers: true });
-		await expect.element(page.getByPlaceholder('user@example.com')).toBeVisible();
-	});
-
-	it('calls onAdd with the entered email', async () => {
-		const onAdd = vi.fn().mockResolvedValue(undefined);
-		render(MembersPage, { ...baseProps, canAddMembers: true, onAdd });
-		await page.getByPlaceholder('user@example.com').fill('new@example.com');
-		await page.getByRole('button', { name: /add/i }).click();
-		expect(onAdd).toHaveBeenCalledWith('new@example.com');
-	});
-
-	it('clears the email input after successful add', async () => {
-		const onAdd = vi.fn().mockResolvedValue(undefined);
-		render(MembersPage, { ...baseProps, canAddMembers: true, onAdd });
-		const input = page.getByPlaceholder('user@example.com');
-		await input.fill('new@example.com');
-		await page.getByRole('button', { name: /add/i }).click();
-		await expect.element(input).toHaveValue('');
-	});
-
-	it('shows error message when onAdd rejects', async () => {
-		const onAdd = vi.fn().mockRejectedValue(new Error('No user found with that email address.'));
-		render(MembersPage, { ...baseProps, canAddMembers: true, onAdd });
-		await page.getByPlaceholder('user@example.com').fill('unknown@example.com');
-		await page.getByRole('button', { name: /add/i }).click();
-		await expect.element(page.getByText('No user found with that email address.')).toBeVisible();
 	});
 
 	it('shows remove buttons when canRemoveMembers is true', async () => {
