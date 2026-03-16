@@ -1,9 +1,13 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers';
 
 export async function PUT({ request, locals, params }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+	if (!can(locals.organization, 'survey', 'update')) {
+		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
 	try {
@@ -11,7 +15,13 @@ export async function PUT({ request, locals, params }) {
 		const { id } = params;
 
 		if (!name || name.trim() === '') {
-			throw new Error('Name cannot be empty.');
+			return json({ error: 'Name cannot be empty.' }, { status: 400 });
+		}
+		if (name.trim().length > 255) {
+			return json({ error: 'Name must be 255 characters or fewer.' }, { status: 400 });
+		}
+		if (description && description.length > 2000) {
+			return json({ error: 'Description must be 2000 characters or fewer.' }, { status: 400 });
 		}
 
 		await withOrgTransaction(locals.organization.id, async (client) => {
