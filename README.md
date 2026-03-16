@@ -87,6 +87,10 @@ command at anytime. It will automatically detect what changes have been made and
 >
 > [**View LinkedIn**](https://www.linkedin.com/in/andrewstitt) - [**View Portfolio**](https://andystitt.com/)
 
+> **Leo Berman** - Engineer
+>
+> - Contributed to the development of the application.
+
 ### UI/UX
 
 > **Chloe Atchue-Mamlet** - UI/UX
