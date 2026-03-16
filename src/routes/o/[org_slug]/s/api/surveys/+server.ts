@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
 
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role) {
@@ -13,17 +13,14 @@ export async function POST({ request, locals }) {
 			return json({ error: 'Name is required.' }, { status: 400 });
 		}
 
-		const client = await POOL.connect();
-		try {
-			const result = await client.query(
+		const result = await withOrgTransaction(locals.organization.id, async (client) => {
+			return client.query(
 				`INSERT INTO survey (name, organization_id) VALUES ($1, $2) RETURNING id`,
-				[name.trim(), locals.organization.id]
+				[name.trim(), locals.organization!.id]
 			);
+		});
 
-			return json({ id: result.rows[0].id }, { status: 201 });
-		} finally {
-			client.release();
-		}
+		return json({ id: result.rows[0].id }, { status: 201 });
 	} catch (error) {
 		console.error('Error creating survey:', error);
 		return json({ error: 'Failed to create survey' }, { status: 500 });

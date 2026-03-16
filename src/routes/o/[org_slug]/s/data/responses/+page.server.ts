@@ -1,4 +1,4 @@
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
 
 export async function load({ locals, url }) {
 	const code = url.searchParams.get('code')?.toUpperCase() ?? null;
@@ -7,8 +7,7 @@ export async function load({ locals, url }) {
 		return { code: null, results: null, error: null };
 	}
 
-	const client = await POOL.connect();
-	try {
+	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const turfResult = await client.query(
 			`SELECT id, survey_id FROM turf WHERE code = $1 AND organization_id = $2`,
 			[code, locals.organization!.id]
@@ -79,7 +78,5 @@ export async function load({ locals, url }) {
 		const results = Array.from(grouped.values()).sort((a, b) => a.order_index - b.order_index);
 
 		return { code, turf_id: turf.id, results, error: null };
-	} finally {
-		client.release();
-	}
+	});
 }

@@ -15,7 +15,7 @@ export async function POST({ request, locals }) {
 	const client = await POOL.connect();
 	try {
 		const turfResult = await client.query(
-			`SELECT t.id, o.slug AS organization_slug
+			`SELECT t.id, t.organization_id, o.slug AS organization_slug
 			 FROM turf t
 			 JOIN auth.organization o ON o.id = t.organization_id
 			 WHERE t.code = $1
@@ -27,13 +27,13 @@ export async function POST({ request, locals }) {
 			return new Response('Invalid code.', { status: 400 });
 		}
 
-		const { id: turfId, organization_slug: organizationSlug } = turfResult.rows[0];
+		const { id: turfId, organization_id: turfOrgId, organization_slug: organizationSlug } = turfResult.rows[0];
 
 		await client.query(
-			`INSERT INTO turf_user (turf_id, user_id)
-			 VALUES ($1, $2)
+			`INSERT INTO turf_user (turf_id, user_id, organization_id)
+			 VALUES ($1, $2, $3)
 			 ON CONFLICT DO NOTHING`,
-			[turfId, user.id]
+			[turfId, user.id, turfOrgId]
 		);
 
 		return json({ turfId, organizationSlug });

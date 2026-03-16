@@ -1,4 +1,4 @@
-import { POOL } from '$lib/server/database';
+import { withOrgTransaction } from '$lib/server/database';
 import { getActivePlugins } from '$lib/server/plugins';
 import type { PluginHooks } from '$plugins/types';
 
@@ -21,7 +21,14 @@ export async function fireHook<K extends keyof PluginHooks>(
 				| ((...a: unknown[]) => Promise<void>)
 				| undefined;
 			if (!hook) return;
-			const ctx = { db: POOL, orgId, userId, userRole, config };
+			const ctx = {
+				db: <T>(fn: (client: import('pg').PoolClient) => Promise<T>) =>
+					withOrgTransaction(orgId, fn),
+				orgId,
+				userId,
+				userRole,
+				config
+			};
 			return hook(...(args as unknown[]), ctx);
 		})
 	);

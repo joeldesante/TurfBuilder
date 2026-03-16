@@ -37,8 +37,21 @@ export async function POST({ request, locals, params }) {
 				questions: questions
 			});
 
-			// Check if the user is added to the turf that they are placing a location attempt for!
-			// ...
+			// Verify the attempt exists, belongs to a location in the given turf, and belongs to this user.
+			// This prevents a user from submitting responses against an attempt they don't own
+			// or that belongs to a different turf/org.
+			const ownershipCheck = await client.query(
+				`SELECT tla.id
+				 FROM turf_location_attempt tla
+				 JOIN turf_location tl ON tl.id = tla.turf_location_id
+				 WHERE tla.id = $1 AND tl.turf_id = $2 AND tla.user_id = $3`,
+				[attempt_id, turf_id, locals.user.id]
+			);
+			if (ownershipCheck.rowCount == 0 || ownershipCheck.rowCount == null) {
+				throw new Error('Attempt not found or does not belong to this user and turf.');
+			}
+
+			// Check if the user is assigned to the turf they are submitting for.
 			let response = await client.query(
 				'SELECT id FROM turf_user WHERE turf_id = $1 AND user_id = $2',
 				[turf_id, locals.user.id]
@@ -53,14 +66,25 @@ export async function POST({ request, locals, params }) {
 				[val.attemptNote, val.contactMade, locals.user.id, attempt_id]
 			);
 
+			// Fetch the org for this attempt so we can stamp organization_id.
+			const orgRow = await client.query(
+				`SELECT t.organization_id
+				 FROM turf_location_attempt tla
+				 JOIN turf_location tl ON tl.id = tla.turf_location_id
+				 JOIN turf t ON t.id = tl.turf_id
+				 WHERE tla.id = $1`,
+				[attempt_id]
+			);
+			const attemptOrgId = orgRow.rows[0].organization_id;
+
 			// Now we need to update the response if it already exists and insert if it doesn't
 			for (let i = 0; i < questions.length; i++) {
 				await client.query(
-					`INSERT INTO survey_question_response (response_value, survey_question_id, turf_location_attempt_id)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (survey_question_id, turf_location_attempt_id)
-          DO UPDATE SET response_value = $1, updated_at = NOW();`,
-					[val.questions[i].response, val.questions[i].db_id, attempt_id]
+					`INSERT INTO survey_question_response (response_value, survey_question_id, turf_location_attempt_id, organization_id)
+					 VALUES ($1, $2, $3, $4)
+					 ON CONFLICT (survey_question_id, turf_location_attempt_id)
+					 DO UPDATE SET response_value = $1, updated_at = NOW()`,
+					[val.questions[i].response, val.questions[i].db_id, attempt_id, attemptOrgId]
 				);
 			}
 

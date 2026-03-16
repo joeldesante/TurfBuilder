@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { customAlphabet } from 'nanoid';
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
 
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role) {
@@ -25,9 +25,8 @@ export async function POST({ request, locals }) {
 			expirationDate.setDate(expirationDate.getDate() + 7);
 		}
 
-		const client = await POOL.connect();
-		try {
-			const insertedTurfs = [];
+		const insertedTurfs = await withOrgTransaction(locals.organization.id, async (client) => {
+			const turfs = [];
 
 			for (const polygon of polygons) {
 				const turf_code = nanoid();
@@ -41,7 +40,7 @@ export async function POST({ request, locals }) {
 						JSON.stringify(polygon.geometry),
 						locals.user!.id,
 						survey_id,
-						locals.organization.id,
+						locals.organization!.id,
 						expirationDate
 					]
 				);
@@ -53,24 +52,21 @@ export async function POST({ request, locals }) {
 				);
 
 				if (locations.rows.length > 0) {
-					const values = locations.rows
-						.map((location) => `('${result.rows[0].id}', '${location.id}')`)
-						.join(', ');
-
-					await client.query(
-						`INSERT INTO turf_location (turf_id, location_id)
-						 VALUES ${values}
-						 ON CONFLICT DO NOTHING`
-					);
+					for (const location of locations.rows) {
+						await client.query(
+							`INSERT INTO turf_location (turf_id, location_id, organization_id)
+							 VALUES ($1, $2, $3)
+							 ON CONFLICT DO NOTHING`,
+							[result.rows[0].id, location.id, locals.organization!.id]
+						);
+					}
 				}
 
-				insertedTurfs.push(result.rows[0]);
+				turfs.push(result.rows[0]);
 			}
 
-			return json({ success: true, turfs: insertedTurfs, count: insertedTurfs.length }, { status: 201 });
-		} finally {
-			client.release();
-		}
+			return turfs;
+		});
 	} catch (error) {
 		console.error('Error creating turfs:', error);
 		return json({ error: 'Failed to create turfs' }, { status: 500 });

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import * as z from 'zod';
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
 
 const SurveyQuestionsSchema = z.array(
 	z.object({
@@ -20,43 +20,39 @@ export async function POST({ request, locals, params }) {
 	try {
 		const { questions } = await request.json();
 		const { id } = params;
-		const client = await POOL.connect();
 
-		// Verify the survey belongs to this org before mutating.
-		const surveyCheck = await client.query(
-			`SELECT id FROM survey WHERE id = $1 AND organization_id = $2`,
-			[id, locals.organization.id]
-		);
-		if (surveyCheck.rows.length === 0) {
-			client.release();
-			return json({ error: 'Survey not found' }, { status: 404 });
-		}
+		await withOrgTransaction(locals.organization.id, async (client) => {
+			// Verify the survey belongs to this org before mutating.
+			const surveyCheck = await client.query(
+				`SELECT id FROM survey WHERE id = $1 AND organization_id = $2`,
+				[id, locals.organization!.id]
+			);
+			if (surveyCheck.rows.length === 0) {
+				throw Object.assign(new Error('Survey not found'), { status: 404 });
+			}
 
-		const schemaResult = SurveyQuestionsSchema.parse(questions);
+			const schemaResult = SurveyQuestionsSchema.parse(questions);
 
-		try {
 			for (let i = 0; i < schemaResult.length; i++) {
 				if (schemaResult[i].db_id) {
 					await client.query(
 						`UPDATE survey_question
 						 SET question_text = $1, question_type = $2, order_index = $3, choices = $4
-						 WHERE survey_id = $5 AND id = $6`,
-						[schemaResult[i].text, schemaResult[i].type, i, schemaResult[i].choices, id, schemaResult[i].db_id]
+						 WHERE survey_id = $5 AND id = $6 AND organization_id = $7`,
+						[schemaResult[i].text, schemaResult[i].type, i, schemaResult[i].choices, id, schemaResult[i].db_id, locals.organization!.id]
 					);
 					continue;
 				}
 
 				await client.query(
-					`INSERT INTO survey_question (question_text, survey_id, question_type, order_index, choices)
-					 VALUES ($1, $2, $3, $4, $5)`,
-					[schemaResult[i].text, id, schemaResult[i].type, i, schemaResult[i].choices]
+					`INSERT INTO survey_question (question_text, survey_id, question_type, order_index, choices, organization_id)
+					 VALUES ($1, $2, $3, $4, $5, $6)`,
+					[schemaResult[i].text, id, schemaResult[i].type, i, schemaResult[i].choices, locals.organization!.id]
 				);
 			}
+		});
 
-			return json({ success: true }, { status: 201 });
-		} finally {
-			client.release();
-		}
+		return json({ success: true }, { status: 201 });
 	} catch (error) {
 		console.error('Error updating questions:', error);
 		return json({ error: 'Failed to update questions' }, { status: 500 });

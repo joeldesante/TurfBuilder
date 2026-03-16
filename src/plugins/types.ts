@@ -1,10 +1,11 @@
-import type { Pool } from 'pg';
+import type { PoolClient } from 'pg';
 import type { Component } from 'svelte';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { SidebarNavEntry } from '$components/layout/sidebar/types';
 
 export interface PluginContext {
-	db: Pool;
+	/** Execute queries within the org-scoped RLS transaction. Do not use POOL directly. */
+	db: <T>(fn: (client: PoolClient) => Promise<T>) => Promise<T>;
 	orgId: string;
 	userId: string;
 	userRole: App.Locals['organization']['role'];

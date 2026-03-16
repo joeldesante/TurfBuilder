@@ -1,18 +1,17 @@
 import { redirect, error } from '@sveltejs/kit';
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
 
 export async function load({ locals, params }) {
 	if (!locals.user) {
 		throw redirect(303, '/auth/signin');
 	}
 
-	const client = await POOL.connect();
 	const turfId = params.id;
 	const locationId = params.location_id;
 	const userId = locals.user.id;
 	const orgId = locals.organization!.id;
 
-	try {
+	return withOrgTransaction(orgId, async (client) => {
 		// Validate turf belongs to this org and the location is in this turf.
 		const surveyResult = await client.query(
 			`SELECT t.survey_id
@@ -49,12 +48,12 @@ export async function load({ locals, params }) {
 		const turfLocationId = turfLocationResult.rows[0].id;
 
 		const locationAttemptResult = await client.query(
-			`INSERT INTO turf_location_attempt (turf_location_id, user_id)
-			 VALUES ($1, $2)
+			`INSERT INTO turf_location_attempt (turf_location_id, user_id, organization_id)
+			 VALUES ($1, $2, $3)
 			 ON CONFLICT (turf_location_id, user_id)
 			 DO UPDATE SET updated_at = NOW()
 			 RETURNING id, contact_made, attempt_note`,
-			[turfLocationId, userId]
+			[turfLocationId, userId, orgId]
 		);
 		const locationAttempt = locationAttemptResult.rows[0];
 
@@ -78,11 +77,5 @@ export async function load({ locals, params }) {
 			questions,
 			responses
 		};
-	} catch (err) {
-		if ((err as any).status) throw err;
-		console.error('Error in load function:', err);
-		throw err;
-	} finally {
-		client.release();
-	}
+	});
 }
