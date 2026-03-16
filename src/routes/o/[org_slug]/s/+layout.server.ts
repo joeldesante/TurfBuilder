@@ -19,7 +19,6 @@ export async function load({ locals, parent }) {
 		throw error(403, 'You do not have staff access to this organization.');
 	}
 
-	console.log('[DEBUG] locals.organization:', JSON.stringify(locals.organization));
 	const activePlugins = await getActivePlugins(locals.organization.id);
 
 	return {

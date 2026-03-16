@@ -41,6 +41,9 @@ export async function withOrgTransaction<T>(
 		await client.query('ROLLBACK');
 		throw e;
 	} finally {
+		// Reset the org context before returning to the pool so a reused
+		// connection never leaks one org's data into another request.
+		await client.query(`RESET app.current_org_id`).catch(() => {});
 		client.release();
 	}
 }
