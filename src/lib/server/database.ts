@@ -26,10 +26,15 @@ process.on('SIGTERM', async () => {
  * The app-layer WHERE organization_id = $N filters remain in place as an
  * additional guard — RLS is defense-in-depth, not a replacement.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function withOrgTransaction<T>(
 	orgId: string,
 	fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {
+	if (!UUID_RE.test(orgId)) {
+		throw new Error(`withOrgTransaction: invalid orgId format`);
+	}
 	const client = await POOL.connect();
 	try {
 		await client.query('BEGIN');

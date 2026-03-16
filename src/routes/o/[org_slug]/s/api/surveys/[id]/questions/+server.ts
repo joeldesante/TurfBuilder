@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import * as z from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers';
 
 const SurveyQuestionsSchema = z.array(
 	z.object({
@@ -15,6 +16,9 @@ const SurveyQuestionsSchema = z.array(
 export async function POST({ request, locals, params }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+	if (!can(locals.organization, 'survey', 'update')) {
+		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
 	try {

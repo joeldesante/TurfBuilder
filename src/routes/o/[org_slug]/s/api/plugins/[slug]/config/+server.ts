@@ -17,7 +17,8 @@ export async function PUT({ locals, params, request }) {
 	if (plugin.configSchema) {
 		const result = plugin.configSchema.safeParse(body);
 		if (!result.success) {
-			throw error(400, result.error.message);
+			console.error('Plugin config validation failed:', result.error);
+			throw error(400, 'Invalid configuration.');
 		}
 	}
 

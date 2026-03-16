@@ -1,8 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
+import type { PoolClient } from 'pg';
 import { getPlugin } from '$plugins/registry';
 import { getActivePlugins } from '$lib/server/plugins';
-import { POOL } from '$lib/server/database';
+import { withOrgTransaction } from '$lib/server/database';
 
 async function dispatch(event: RequestEvent, method: string) {
 	const { locals, params } = event;
@@ -23,7 +24,8 @@ async function dispatch(event: RequestEvent, method: string) {
 	if (!handler) throw error(404, `No handler for ${handlerKey}.`);
 
 	const ctx = {
-		db: POOL,
+		db: <T>(fn: (client: PoolClient) => Promise<T>) =>
+			withOrgTransaction(locals.organization!.id, fn),
 		orgId: locals.organization.id,
 		userId: locals.user!.id,
 		userRole: locals.organization.role,

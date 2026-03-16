@@ -1,10 +1,14 @@
 import { json } from '@sveltejs/kit';
 import { customAlphabet } from 'nanoid';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers';
 
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+	if (!can(locals.organization, 'turf', 'create')) {
+		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
 	try {
@@ -67,6 +71,8 @@ export async function POST({ request, locals }) {
 
 			return turfs;
 		});
+
+		return json({ turfs: insertedTurfs }, { status: 201 });
 	} catch (error) {
 		console.error('Error creating turfs:', error);
 		return json({ error: 'Failed to create turfs' }, { status: 500 });

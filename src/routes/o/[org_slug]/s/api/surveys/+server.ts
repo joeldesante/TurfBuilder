@@ -1,9 +1,13 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers';
 
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+	if (!can(locals.organization, 'survey', 'create')) {
+		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
 	try {
@@ -11,6 +15,9 @@ export async function POST({ request, locals }) {
 
 		if (!name || name.trim() === '') {
 			return json({ error: 'Name is required.' }, { status: 400 });
+		}
+		if (name.trim().length > 255) {
+			return json({ error: 'Name must be 255 characters or fewer.' }, { status: 400 });
 		}
 
 		const result = await withOrgTransaction(locals.organization.id, async (client) => {
