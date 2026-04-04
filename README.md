@@ -110,3 +110,8 @@ command at anytime. It will automatically detect what changes have been made and
 > **Tealight** - QA
 >
 > - Managed the Quality Assurance and beta testing of the software during intial testing phases.
+
+
+---
+
+[![DigitalOcean Referral Badge](https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%203.svg)](https://www.digitalocean.com/?refcode=9bef31473a4c&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge)
