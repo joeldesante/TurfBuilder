@@ -1,14 +1,10 @@
-import { redirect, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 
 export async function load({ locals, params }) {
-	if (!locals.user) {
-		throw redirect(303, '/auth/signin');
-	}
-
 	const turfId = params.id;
 	const locationId = params.location_id;
-	const userId = locals.user.id;
+	const userId = locals.user!.id;
 	const orgId = locals.organization!.id;
 
 	return withOrgTransaction(orgId, async (client) => {
