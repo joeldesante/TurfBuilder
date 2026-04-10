@@ -6,24 +6,19 @@
 	const orgSlug = $derived($page.params.org_slug);
 
 	async function handleJoin(code: string) {
-		const res = await fetch('/api/turf/resolve', {
+		const res = await fetch(`/o/${orgSlug}/join`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ code })
 		});
 
 		if (!res.ok) {
-			const text = await res.text();
-			throw new Error(text || 'Invalid code.');
+			const data = await res.json();
+			throw new Error(data.error || 'Invalid code.');
 		}
 
 		const data = await res.json();
-
-		if (data.organizationSlug !== orgSlug) {
-			throw new Error('Invalid code.');
-		}
-
-		goto(`/o/${orgSlug}/map/${data.turfId}`);
+		goto(`/o/${orgSlug}/map/${data.id}`);
 	}
 </script>
 
