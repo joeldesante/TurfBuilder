@@ -1,8 +1,7 @@
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
 
 export async function load({ locals }) {
-	const client = await POOL.connect();
-	try {
+	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const surveys = await client.query(
 			`SELECT id, name, description FROM survey
 			 WHERE organization_id = $1
@@ -11,7 +10,5 @@ export async function load({ locals }) {
 		);
 
 		return { surveys: surveys.rows };
-	} finally {
-		client.release();
-	}
+	});
 }
