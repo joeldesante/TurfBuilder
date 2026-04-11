@@ -3,6 +3,8 @@
 		id: number;
 		location_name: string;
 		category: string | null;
+		visited: boolean | null;
+		contact_made: boolean | null;
 		latitude: number;
 		longitude: number;
 		street: string | null;
@@ -13,7 +15,6 @@
 	};
 
 	import { mount, onMount } from 'svelte';
-	import { page } from '$app/stores';
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
@@ -23,16 +24,29 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 
-	function categoryToVariant(category: string | null): Variant {
-		switch (category) {
-			case 'contacted': return 'contacted';
-			case 'no-contact': return 'no-contact';
-			case 'hostile': return 'hostile';
-			default: return 'unvisited';
+	function deriveVariant(visited: boolean, contact_made: boolean): Variant {
+		if (visited && contact_made) {
+			return 'contacted';
 		}
+
+		if (visited && !contact_made) {
+			return 'no-contact';
+		}
+
+		return 'unvisited';
 	}
 
-	const variantBadgeProps: Record<Variant, { label: string; variant: 'location-unvisited' | 'location-contacted' | 'location-no-contact' | 'location-hostile' }> = {
+	const variantBadgeProps: Record<
+		Variant,
+		{
+			label: string;
+			variant:
+				| 'location-unvisited'
+				| 'location-contacted'
+				| 'location-no-contact'
+				| 'location-hostile';
+		}
+	> = {
 		unvisited: { label: 'Unvisited', variant: 'location-unvisited' },
 		contacted: { label: 'Contacted', variant: 'location-contacted' },
 		'no-contact': { label: 'No Contact', variant: 'location-no-contact' },
@@ -46,12 +60,24 @@
 	type GeolocateState = 'idle' | 'locating' | 'tracking' | 'error';
 	let geolocateState = $state<GeolocateState>('idle');
 	let watchId = $state<number | null>(null);
-	let selectedVariant = $derived(categoryToVariant(selectedLocation?.category ?? null));
+
+	let { data, params } = $props();
+
+	const orgSlug = params.org_slug;
+
+	let statusMap = $state<Record<number, { visited: boolean; contact_made: boolean | null }>>(
+		Object.fromEntries(
+			data.locations.map((l: Location) => [l.id, { visited: l.visited ?? false, contact_made: l.contact_made }])
+		)
+	);
+
+	let selectedVariant = $derived(
+		deriveVariant(
+			statusMap[selectedLocationId!]?.visited ?? false,
+			statusMap[selectedLocationId!]?.contact_made ?? false
+		)
+	);
 	let badgeProps = $derived(variantBadgeProps[selectedVariant]);
-
-	let { data } = $props();
-
-	const orgSlug = $page.params.org_slug;
 
 	let mapContainer: HTMLDivElement;
 	const DEFAULT_ZOOM = 18;
@@ -81,9 +107,15 @@
 		watchId = navigator.geolocation.watchPosition(
 			(position) => {
 				geolocateState = 'tracking';
-				map.flyTo({ center: [position.coords.longitude, position.coords.latitude], zoom: DEFAULT_ZOOM });
+				map.flyTo({
+					center: [position.coords.longitude, position.coords.latitude],
+					zoom: DEFAULT_ZOOM
+				});
 			},
-			() => { geolocateState = 'error'; watchId = null; },
+			() => {
+				geolocateState = 'error';
+				watchId = null;
+			},
 			{ enableHighAccuracy: true }
 		);
 	}
@@ -103,8 +135,10 @@
 			let state = $state({ isSelected: selectedLocationId === location.id });
 
 			markerDomElement.addEventListener('click', () => {
-				markers.forEach((m) => { //@ts-ignore
-					m.state.isSelected = false; });
+				markers.forEach((m) => {
+					//@ts-ignore
+					m.state.isSelected = false;
+				});
 				state.isSelected = true;
 				selectedLocationId = location.id;
 				selectedLocation = location;
@@ -113,7 +147,15 @@
 
 			const markerInstance = mount(MapMarker, {
 				target: markerDomElement,
-				props: { get isSelected() { return state.isSelected; }, variant: categoryToVariant(location.category) }
+				props: {
+					get isSelected() {
+						return state.isSelected;
+					},
+					get variant() {
+						const s = statusMap[location.id];
+						return deriveVariant(s?.visited ?? false, s?.contact_made ?? false);
+					}
+				}
 			});
 
 			const marker = new maplibregl.Marker({ element: markerDomElement })
@@ -125,12 +167,23 @@
 		});
 	}
 
+	async function pollStatuses() {
+		const res = await fetch(`/o/${orgSlug}/map/${data.turfId}/status`);
+		if (!res.ok) return;
+		const updates: Array<{ id: number; visited: boolean; contact_made: boolean | null }> = await res.json();
+		for (const update of updates) {
+			statusMap[update.id] = { visited: update.visited, contact_made: update.contact_made };
+		}
+	}
+
 	function closePanel() {
 		showPanel = false;
 		selectedLocation = null;
 		selectedLocationId = null;
-		markers.forEach((m) => { //@ts-ignore
-			m.state.isSelected = false; });
+		markers.forEach((m) => {
+			//@ts-ignore
+			m.state.isSelected = false;
+		});
 	}
 
 	onMount(() => {
@@ -150,10 +203,44 @@
 		});
 
 		map.addControl(geolocateControl);
-		map.on('load', () => { fetchLocations(map.getBounds()); });
-		map.on('moveend', () => { fetchLocations(map.getBounds()); });
+		map.on('load', () => {
+			fetchLocations(map.getBounds());
+		});
+		map.on('moveend', () => {
+			fetchLocations(map.getBounds());
+		});
 
-		return () => { stopTracking(); map.remove(); };
+		let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+		function startPolling() {
+			if (pollInterval !== null) return;
+			pollInterval = setInterval(pollStatuses, 15_000);
+		}
+
+		function stopPolling() {
+			if (pollInterval === null) return;
+			clearInterval(pollInterval);
+			pollInterval = null;
+		}
+
+		function handleVisibilityChange() {
+			if (document.visibilityState === 'hidden') {
+				stopPolling();
+			} else {
+				pollStatuses();
+				startPolling();
+			}
+		}
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		startPolling();
+
+		return () => {
+			stopPolling();
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			stopTracking();
+			map.remove();
+		};
 	});
 </script>
 
@@ -182,8 +269,16 @@
 
 <div>
 	{#if showPanel}
-		<div class="flex flex-col gap-5 rounded-xl absolute bottom-3 left-3 right-3 bg-surface p-4 shadow-lg z-10">
-			<Button variant="ghost" iconOnly aria-label="close" class="absolute top-1 right-1" onclick={() => closePanel()}>
+		<div
+			class="flex flex-col gap-5 rounded-xl absolute bottom-3 left-3 right-3 bg-surface p-4 shadow-lg z-10"
+		>
+			<Button
+				variant="ghost"
+				iconOnly
+				aria-label="close"
+				class="absolute top-1 right-1"
+				onclick={() => closePanel()}
+			>
 				<XIcon />
 			</Button>
 			<div class="self-start">
@@ -209,7 +304,10 @@
 </div>
 
 <style>
-	.map-container { width: 100vw; height: 100vh; }
+	.map-container {
+		width: 100vw;
+		height: 100vh;
+	}
 
 	:global(.maplibregl-user-location-dot),
 	:global(.maplibregl-user-location-dot::before) {
