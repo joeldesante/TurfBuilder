@@ -33,7 +33,7 @@ Via your prefered command line interface, navigate to root the directory where t
 docker compose up --build
 ```
 
-Alternativly, sometimes you miy need to run this instead:
+Alternativly, sometimes you may need to run this instead:
 
 ```
 docker-compose up --build
