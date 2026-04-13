@@ -15,4 +15,4 @@ node_modules
 build
 package
 **/.env
-.crt
+*.crt
