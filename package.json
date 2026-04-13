@@ -19,8 +19,8 @@
 		"format": "prettier --write .",
 		"storybook": "storybook dev -p 6006",
 		"storybook:build": "storybook build",
-		"db": "NODE_ENV=development node-pg-migrate -j ts --database-url-var MIGRATION_DATABASE_URL",
-		"db:prod": "NODE_ENV=production node-pg-migrate -j ts --database-url-var MIGRATION_DATABASE_URL"
+		"db": "cross-env NODE_ENV=development node-pg-migrate -j ts --database-url-var MIGRATION_DATABASE_URL",
+		"db:prod": "cross-env NODE_ENV=production node-pg-migrate -j ts --database-url-var MIGRATION_DATABASE_URL"
 	},
 	"devDependencies": {
 		"@chromatic-com/storybook": "^4.1.3",
@@ -47,6 +47,7 @@
 		"@vite-pwa/sveltekit": "^1.0.1",
 		"@vitest/browser-playwright": "^4.0.10",
 		"@vitest/ui": "^4.0.17",
+		"cross-env": "^10.1.0",
 		"eslint": "^9.39.1",
 		"eslint-plugin-storybook": "^10.0.8",
 		"eslint-plugin-svelte": "^3.13.0",
