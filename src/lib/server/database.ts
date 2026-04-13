@@ -2,13 +2,39 @@ import { Pool, type PoolClient } from 'pg';
 import { env } from '$env/dynamic/private';
 
 export const POOL = new Pool({
-	connectionString: env.DATABASE_URL
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || "25060"),
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: {
+    rejectUnauthorized: true,
+    ca: process.env.DATABASE_CA_CERT,
+  },
+
+  max: 10,                     // Maximum connections in pool
+  idleTimeoutMillis: 30000,    // Close idle connections after 30s
+  connectionTimeoutMillis: 5000 // Timeout for new connections
 });
 
 export const AUTH_POOL = new Pool({
-	connectionString: env.DATABASE_URL,
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || "25060"),
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: {
+    rejectUnauthorized: true,
+    ca: process.env.DATABASE_CA_CERT,
+  },
+
 	options: '-c search_path=auth'
+  max: 10,                     // Maximum connections in pool
+  idleTimeoutMillis: 30000,    // Close idle connections after 30s
+  connectionTimeoutMillis: 5000 // Timeout for new connections
 });
+
+
 
 POOL.on('error', (err) => {
 	console.error('Unexpected Database Error:', err);
