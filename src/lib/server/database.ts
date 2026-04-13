@@ -28,7 +28,7 @@ export const AUTH_POOL = new Pool({
     ca: process.env.DB_CA_CERT,
   },
 
-	options: '-c search_path=auth'
+	options: '-c search_path=auth',
   max: 10,                     // Maximum connections in pool
   idleTimeoutMillis: 30000,    // Close idle connections after 30s
   connectionTimeoutMillis: 5000 // Timeout for new connections
