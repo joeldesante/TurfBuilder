@@ -28,3 +28,5 @@ vite.config.ts.timestamp-*
 storybook-static
 
 /.volumes
+
+.crt
