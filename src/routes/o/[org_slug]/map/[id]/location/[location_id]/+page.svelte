@@ -44,10 +44,10 @@
 	async function handleSubmit() {
 		loading = true;
 		try {
-			const r = await fetch(`/api/surveys/${data.surveyId}/attempts/${data.locationAttempt.id}/`, {
+			const r = await fetch($page.url.pathname, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ turf_id: data.turfId, contactMade, attemptNote, questions })
+				body: JSON.stringify({ contactMade, attemptNote, questions })
 			});
 
 			if (!r.ok) throw new Error('Failed to save.');
