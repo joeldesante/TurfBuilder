@@ -7,6 +7,13 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 		return;
 	} // Ignore me in production!
 
+	// Create organization for testing data
+	pgm.sql(`
+        INSERT INTO auth.organization
+        (id, name, slug, logo, metadata, created_at)
+        VALUES('352294a3-48a3-4a40-a966-8d73a8a51b46'::uuid, 'TestOrg', 'test-org', NULL, NULL, now());
+    `);
+    
 	// Create a fake superuser
 	pgm.sql(`
         INSERT INTO auth."user"
