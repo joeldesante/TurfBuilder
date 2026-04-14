@@ -1,13 +1,13 @@
-name: Create CalVer Release
+name: Create CalVer Staging Pre-Release
 
 on:
   pull_request:
     types: [closed]
     branches:
-      - main
+      - staging
 
 jobs:
-  create-release:
+  create-staging-release:
     # Only run if the PR was actually merged (not just closed)
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
           # Find all tags matching today's date pattern (production and staging)
           TODAY_TAGS=$(git tag -l "${BASE_VERSION}_*" | sort -V)
 
-          # Calculate micro version
+          # Calculate micro version — shared counter with production releases
           if [ -z "$TODAY_TAGS" ]; then
             MICRO=0
           else
@@ -47,13 +47,13 @@ jobs:
             MICRO=$((LAST_MICRO + 1))
           fi
 
-          # Create full version
-          VERSION="${BASE_VERSION}_${MICRO}"
+          # Create full version with -staging suffix
+          VERSION="${BASE_VERSION}_${MICRO}-staging"
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Generated version: ${VERSION}"
 
-      - name: Create Release
+      - name: Create Staging Pre-Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -61,11 +61,13 @@ jobs:
           tag_name: ${{ steps.calver.outputs.version }}
           release_name: ${{ steps.calver.outputs.version }}
           body: |
-            ## Release ${{ steps.calver.outputs.version }}
+            ## Staging Pre-Release ${{ steps.calver.outputs.version }}
+
+            > **This is a pre-release build.** It has not been promoted to production and may be unstable.
 
             **Changes:**
             Merged PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
 
             **Full Changelog:** ${{ github.event.pull_request.html_url }}
           draft: false
-          prerelease: false
+          prerelease: true
