@@ -23,11 +23,6 @@ services:
       target: development
     ports:
       - '5173:5173'
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
-      - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
-      - BETTER_AUTH_URL=http://localhost:5173
     volumes:
       - .:/app
       - /app/node_modules
