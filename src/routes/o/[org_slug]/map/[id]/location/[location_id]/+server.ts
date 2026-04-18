@@ -17,6 +17,17 @@ const schema = z.object({
 	)
 });
 
+/**
+ * Records a door-knock attempt for a specific address within a turf.
+ * Upserts contact status, a free-text note, and all survey question responses in a single transaction.
+ * Caller must be an assigned turf member.
+ *
+ * @auth org
+ * @body contactMade {boolean} required - Whether the canvasser made contact at this address
+ * @body attemptNote {string} - Optional free-text note about the visit
+ * @body questions {Array<{db_id: uuid, response: string}>} required - Survey question responses
+ * @returns { success: true }
+ */
 export async function POST({ request, locals, params }) {
 	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
 

@@ -13,6 +13,16 @@ const SurveyQuestionsSchema = z.array(
 	})
 );
 
+/**
+ * Upserts questions for a survey. Questions with a `db_id` are updated;
+ * those without are created. Typically called after `questions/purge` to
+ * fully replace the question set.
+ *
+ * @auth staff
+ * @permission survey:update
+ * @body questions {Array} required - Array of question objects: db_id? (uuid), type (string), text (string), choices (string[]), index (number)
+ * @returns { success: true }
+ */
 export async function POST({ request, locals, params }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });

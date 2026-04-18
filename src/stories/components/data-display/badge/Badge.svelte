@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
+	/** Small pill label for status, categories, and location visit states. */
 	interface Props {
+		/** Color scheme. Location variants map directly to canvassing contact states. @default 'default' */
 		variant?:
 			| 'default'
 			| 'primary'
@@ -14,6 +16,7 @@
 			| 'location-contacted'
 			| 'location-no-contact'
 			| 'location-hostile';
+		/** Display size. @default 'md' */
 		size?: 'sm' | 'md';
 		children: Snippet;
 		[key: string]: unknown;

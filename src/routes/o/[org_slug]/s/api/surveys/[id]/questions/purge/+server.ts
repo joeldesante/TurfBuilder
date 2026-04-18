@@ -2,6 +2,16 @@ import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
+/**
+ * Deletes all questions for a survey except those listed in `exclude`.
+ * Called before re-saving the full question set to remove questions the
+ * editor dropped. Pass all retained question IDs in `exclude`.
+ *
+ * @auth staff
+ * @permission survey:update
+ * @body exclude {string[]} - UUIDs of questions to keep; all others are deleted
+ * @returns { success: true }
+ */
 export async function POST({ request, locals, params }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });

@@ -30,3 +30,4 @@ storybook-static
 /.volumes
 
 *.crt
+.vitepress/

@@ -2,7 +2,12 @@ import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
 import { nanoid } from 'nanoid';
 
-// GET returns all invite links for the org and the slug invite toggle state.
+/**
+ * Returns all token-based invite links for the org plus the slug invite toggle state.
+ *
+ * @auth owner
+ * @returns { links: Array<{ id, created_at, expires_at }>, slugInviteEnabled: boolean }
+ */
 export async function GET({ locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can manage invite links.' }, { status: 403 });
@@ -29,7 +34,14 @@ export async function GET({ locals }) {
 	}
 }
 
-// POST creates a new token-based invite link.
+/**
+ * Creates a new token-based invite link for the organization.
+ * Accessible at `/invite/{token}` once created.
+ *
+ * @auth owner
+ * @body expires_at {string | null} - ISO 8601 expiration date, or null for no expiry
+ * @returns { id, created_at, expires_at }
+ */
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can manage invite links.' }, { status: 403 });

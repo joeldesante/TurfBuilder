@@ -3,6 +3,15 @@ import { can } from '$lib/auth-helpers';
 import { getPlugin } from '$plugins/registry';
 import { POOL } from '$lib/server/database';
 
+/**
+ * Updates the stored configuration for an installed plugin.
+ * If the plugin defines a `configSchema` (Zod), the body is validated before saving.
+ *
+ * @auth staff
+ * @permission plugin:manage
+ * @body (plugin-defined) - JSON config object validated against the plugin's configSchema if present
+ * @returns { ok: true }
+ */
 export async function PUT({ locals, params, request }) {
 	if (!can(locals.organization, 'plugin', 'manage')) {
 		throw error(403, 'Forbidden.');

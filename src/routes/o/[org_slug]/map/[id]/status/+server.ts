@@ -1,6 +1,13 @@
 import { json, error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 
+/**
+ * Returns visit status for all locations in a turf. Caller must be a turf member.
+ * Used by the volunteer map page to show which addresses have been visited.
+ *
+ * @auth org
+ * @returns Array of { id, visited: boolean, contact_made: boolean | null }
+ */
 export async function GET({ locals, params }) {
 	if (!locals.user) throw error(401, 'Unauthorized');
 

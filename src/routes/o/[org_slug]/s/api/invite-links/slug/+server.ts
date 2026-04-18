@@ -1,7 +1,14 @@
 import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
 
-// PUT toggles the slug-based invite on or off.
+/**
+ * Enables or disables the org slug-based open invite.
+ * When enabled, anyone with the link can join at `/invite/{org_slug}`.
+ *
+ * @auth owner
+ * @body enabled {boolean} required - Whether the slug-based open invite is active
+ * @returns { ok: true, enabled: boolean }
+ */
 export async function PUT({ request, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can manage invite links.' }, { status: 403 });

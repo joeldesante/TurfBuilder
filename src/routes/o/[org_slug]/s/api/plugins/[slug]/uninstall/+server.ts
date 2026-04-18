@@ -3,6 +3,14 @@ import { can } from '$lib/auth-helpers';
 import { getPlugin } from '$plugins/registry';
 import { POOL } from '$lib/server/database';
 
+/**
+ * Disables a plugin for the organization. The plugin is removed from the staff nav.
+ * Config and any plugin-stored data are retained for potential re-installation.
+ *
+ * @auth staff
+ * @permission plugin:manage
+ * @returns { ok: true }
+ */
 export async function POST({ locals, params }) {
 	if (!can(locals.organization, 'plugin', 'manage')) {
 		throw error(403, 'Forbidden.');
