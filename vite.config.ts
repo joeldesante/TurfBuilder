@@ -2,7 +2,6 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { searchForWorkspaceRoot } from 'vite';
 import { createRequire } from 'node:module';
@@ -16,6 +15,14 @@ const mainRepoRoot = resolve(require.resolve('vite/package.json'), '../../..');
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), svelteTesting()],
+	ssr: {
+		external: [
+			'@opentelemetry/sdk-node',
+			'@opentelemetry/auto-instrumentations-node',
+			'@opentelemetry/exporter-trace-otlp-proto',
+			'import-in-the-middle',
+		]
+	},
 	// Use browser entry points when running Vitest (recommended by Svelte docs)
 	resolve: process.env.VITEST
 		? {
