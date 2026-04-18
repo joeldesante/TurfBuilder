@@ -578,7 +578,7 @@ async function main() {
       '',
       ...Object.entries(SECTION_META)
         .filter(([s]) => bySection[s])
-        .map(([s, m]) => `- [${m.title}](api/${s}.md) — ${m.description}`),
+        .map(([s, m]) => `- [${m.title}](./${s}.md) — ${m.description}`),
     ].join('\n')
   );
 
@@ -615,7 +615,7 @@ async function main() {
       '',
       '## Categories',
       '',
-      ...Object.keys(byCategory).map((c) => `- [${capitalize(c)}](components/${c}.md)`),
+      ...Object.keys(byCategory).map((c) => `- [${capitalize(c)}](./${c}.md)`),
     ].join('\n')
   );
 
@@ -681,7 +681,7 @@ async function main() {
       '',
       '## Available Plugins',
       '',
-      ...pluginDocs.map((p) => `- [${p.name}](plugins/${p.slug}.md) — ${p.description}`),
+      ...pluginDocs.map((p) => `- [${p.name}](./${p.slug}.md) — ${p.description}`),
       '',
       '## Building a Plugin',
       '',
