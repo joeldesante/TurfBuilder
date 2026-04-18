@@ -30,4 +30,6 @@ storybook-static
 /.volumes
 
 *.crt
-.vitepress/
+docs/.vitepress/dist
+docs/.vitepress/cache
+docs/.vitepress/sidebar.ts
