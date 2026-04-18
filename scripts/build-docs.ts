@@ -742,8 +742,7 @@ async function main() {
   console.log('\n📄 Writing all-endpoints.md…');
 
   const allSections = [
-    readFileSync(join(DOCS, 'api', 'index.md'), 'utf-8'),
-    '\n---\n',
+    '# All Endpoints\n',
     ...sectionOrder
       .filter((s) => bySection[s])
       .map((s) => readFileSync(join(DOCS, 'api', `${s}.md`), 'utf-8')),
