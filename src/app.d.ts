@@ -19,13 +19,15 @@ declare global {
 				id: string;
 				name: string;
 				slug: string;
+				permissions: string[];	// These are the perms that the user currently has access to!
 				role?: {
 					id: string;
 					name: string;
-					is_owner: boolean;
-					permissions: string[];
 				};
 			};
+			infrastructure?: {
+				permissions: string[]
+			}
 		}
 		interface PageData {
 			organization?: {
@@ -35,8 +37,6 @@ declare global {
 				role?: {
 					id: string;
 					name: string;
-					is_owner: boolean;
-					permissions: string[];
 				};
 			};
 		}

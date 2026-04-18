@@ -2,7 +2,16 @@ import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
 import { VALID_PERMISSION_KEYS } from '$lib/permissions-config.js';
 
-// PUT replaces all permissions for a role with the provided list.
+/**
+ * Replaces the full permission set for a role. Any permissions not in the submitted
+ * list are removed. Each entry must be a valid `resource:action` key.
+ * Valid resources: canvass, turf, survey, response, member, plugin.
+ * Valid actions: use, create, read, update, delete.
+ *
+ * @auth owner
+ * @body permissions {string[]} required - Full list of resource:action strings to assign
+ * @returns { ok: true }
+ */
 export async function PUT({ params, request, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can edit role permissions.' }, { status: 403 });

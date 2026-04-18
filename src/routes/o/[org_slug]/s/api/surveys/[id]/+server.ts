@@ -2,6 +2,15 @@ import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
+/**
+ * Updates the name and optional description of an existing survey.
+ *
+ * @auth staff
+ * @permission survey:update
+ * @body name {string} required - Survey name, 1–255 characters
+ * @body description {string} - Survey description, max 2000 characters
+ * @returns { success: true }
+ */
 export async function PUT({ request, locals, params }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });

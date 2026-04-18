@@ -7,6 +7,14 @@ const JoinSchema = z.object({
 	code: z.string().length(6)
 });
 
+/**
+ * Adds the authenticated user to a turf using a 6-character join code.
+ * If the user is already in the turf the insert is silently ignored.
+ *
+ * @auth org
+ * @body code {string} required - 6-character alphanumeric turf join code
+ * @returns { id: string } UUID of the turf that was joined
+ */
 export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if(!locals.user) {

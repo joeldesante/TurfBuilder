@@ -1,0 +1,68 @@
+name: Create CalVer Staging Pre-Release
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  create-staging-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate CalVer version
+        id: calver
+        run: |
+          # Get current date components
+          YEAR=$(date +%y)
+          MONTH=$(date +%-m)
+          DAY=$(date +%-d)
+
+          # Base version without micro
+          BASE_VERSION="${YEAR}.${MONTH}.${DAY}"
+
+          # Fetch all tags
+          git fetch --tags
+
+          # Find all tags matching today's date pattern (production and staging)
+          TODAY_TAGS=$(git tag -l "${BASE_VERSION}_*" | sort -V)
+
+          # Calculate micro version — shared counter with production releases
+          if [ -z "$TODAY_TAGS" ]; then
+            MICRO=0
+          else
+            # Extract numeric micro from each tag (handles both 26.4.14_0 and 26.4.14_0-staging)
+            LAST_MICRO=$(echo "$TODAY_TAGS" | grep -oP '(?<=_)\d+' | sort -n | tail -n 1)
+            MICRO=$((LAST_MICRO + 1))
+          fi
+
+          # Create full version with -staging suffix
+          VERSION="${BASE_VERSION}_${MICRO}-staging"
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Generated version: ${VERSION}"
+
+      - name: Create Staging Pre-Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.calver.outputs.version }}
+          release_name: ${{ steps.calver.outputs.version }}
+          body: |
+            ## Staging Pre-Release ${{ steps.calver.outputs.version }}
+
+            > **This is a pre-release build.** It has not been promoted to production and may be unstable.
+
+            **Commit:** ${{ github.sha }}
+            ${{ github.event.head_commit.message }}
+          draft: false
+          prerelease: true

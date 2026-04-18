@@ -15,15 +15,3 @@ export const userRole = ac.newRole({
 	turf: ['read'],
 	region: ['read']
 });
-
-export const fieldOrganizerRole = ac.newRole({
-	user: ['create', 'read', 'update', 'delete', 'ban'],
-	turf: ['create', 'read', 'update', 'delete'],
-	region: ['read']
-});
-
-export const campaignManagerRole = ac.newRole({
-	user: ['create', 'read', 'update', 'delete', 'ban'],
-	turf: ['create', 'read', 'update', 'delete'],
-	region: ['create', 'read', 'update', 'delete']
-});

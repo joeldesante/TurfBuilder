@@ -1,6 +1,13 @@
 import type { RequestHandler } from './$types';
 import { POOL } from '$lib/server/database';
 
+/**
+ * Returns all locations assigned to a turf along with a geographic center point.
+ * Verifies the turf belongs to the caller's organization before returning data.
+ *
+ * @auth org
+ * @returns { locations: Location[], center: { lat: number, lng: number } }
+ */
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.organization) {
 		return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });

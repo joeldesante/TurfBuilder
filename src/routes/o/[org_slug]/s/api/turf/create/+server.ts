@@ -3,6 +3,18 @@ import { customAlphabet } from 'nanoid';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
+/**
+ * Creates one or more turfs from GeoJSON polygon geometries. For each polygon,
+ * PostGIS ST_Contains automatically assigns all locations within its bounds.
+ * Each turf receives a unique 6-character join code. Defaults to a 7-day expiry.
+ *
+ * @auth staff
+ * @permission turf:create
+ * @body polygons {Array<{geometry: GeoJSON}>} required - GeoJSON polygon geometries defining each turf boundary
+ * @body survey_id {string} required - UUID of the survey to attach to all created turfs
+ * @body expires_at {string} - ISO 8601 expiration date; defaults to 7 days from now
+ * @returns { turfs: Turf[] } Array of created turf records
+ */
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });

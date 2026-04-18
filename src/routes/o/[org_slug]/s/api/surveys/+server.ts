@@ -2,6 +2,15 @@ import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
+/**
+ * Creates a new survey template for the organization with no questions.
+ * Questions are added separately via the /questions endpoint.
+ *
+ * @auth staff
+ * @permission survey:create
+ * @body name {string} required - Survey name, 1–255 characters
+ * @returns { id: string } UUID of the created survey
+ */
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
