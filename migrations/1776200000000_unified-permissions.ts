@@ -35,6 +35,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 	// -------------------------------------------------------------------------
 	// 1. ENUM type shared by registered_permission.scope and permission_group.scope
 	// -------------------------------------------------------------------------
+	pgm.sql(`DROP TYPE IF EXISTS perm_scope CASCADE`);
 	pgm.sql(`CREATE TYPE perm_scope AS ENUM ('organization', 'infrastructure')`);
 
 	// -------------------------------------------------------------------------
@@ -141,6 +142,12 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 			references: '"auth"."user"(id)',
 			onDelete: 'CASCADE'
 		},
+		member_id: {
+			type: 'uuid',
+			notNull: false,
+			references: '"auth"."member"(id)',
+			onDelete: 'CASCADE'
+		},
 		group_id: {
 			type: 'uuid',
 			notNull: true,
@@ -155,8 +162,38 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 		},
 		created_at: 'time_stamp'
 	});
+	// member_id must be set for org-scoped groups, null for infrastructure groups
+	pgm.sql(`
+		CREATE OR REPLACE FUNCTION ugm_member_scope_check() RETURNS trigger AS $$
+		DECLARE
+			grp_scope perm_scope;
+			member_user_id uuid;
+		BEGIN
+			SELECT scope INTO grp_scope FROM public.permission_group WHERE id = NEW.group_id;
+			IF grp_scope = 'organization' AND NEW.member_id IS NULL THEN
+				RAISE EXCEPTION 'member_id is required for org-scoped group memberships';
+			END IF;
+			IF grp_scope = 'infrastructure' AND NEW.member_id IS NOT NULL THEN
+				RAISE EXCEPTION 'member_id must be null for infrastructure group memberships';
+			END IF;
+			IF NEW.member_id IS NOT NULL THEN
+				SELECT user_id INTO member_user_id FROM "auth"."member" WHERE id = NEW.member_id;
+				IF member_user_id != NEW.user_id THEN
+					RAISE EXCEPTION 'member_id does not belong to user_id';
+				END IF;
+			END IF;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+	`);
+	pgm.sql(`
+		CREATE TRIGGER ugm_member_scope_check
+		BEFORE INSERT OR UPDATE ON user_group_membership
+		FOR EACH ROW EXECUTE FUNCTION ugm_member_scope_check()
+	`);
 	pgm.addConstraint('user_group_membership', 'ugm_user_group_unique', 'UNIQUE (user_id, group_id)');
 	pgm.createIndex('user_group_membership', ['user_id'], { name: 'ugm_user_id_idx' });
+	pgm.createIndex('user_group_membership', ['member_id'], { name: 'ugm_member_id_idx' });
 	pgm.createIndex('user_group_membership', ['group_id'], { name: 'ugm_group_id_idx' });
 
 	// -------------------------------------------------------------------------
@@ -168,6 +205,12 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 			type: 'uuid',
 			notNull: true,
 			references: '"auth"."user"(id)',
+			onDelete: 'CASCADE'
+		},
+		member_id: {
+			type: 'uuid',
+			notNull: false,
+			references: '"auth"."member"(id)',
 			onDelete: 'CASCADE'
 		},
 		registered_permission_id: {
@@ -193,17 +236,49 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 		created_at: 'time_stamp'
 	});
 
+	// member_id required for org-scoped permissions; must be null for infrastructure permissions
+	pgm.addConstraint(
+		'user_permission',
+		'up_member_scope_check',
+		`CHECK (
+			(organization_id IS NOT NULL AND member_id IS NOT NULL)
+			OR
+			(organization_id IS NULL AND member_id IS NULL)
+		)`
+	);
+	pgm.sql(`
+		CREATE OR REPLACE FUNCTION up_member_user_check() RETURNS trigger AS $$
+		DECLARE
+			member_user_id uuid;
+		BEGIN
+			IF NEW.member_id IS NOT NULL THEN
+				SELECT user_id INTO member_user_id FROM "auth"."member" WHERE id = NEW.member_id;
+				IF member_user_id != NEW.user_id THEN
+					RAISE EXCEPTION 'member_id does not belong to user_id';
+				END IF;
+			END IF;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+	`);
+	pgm.sql(`
+		CREATE TRIGGER up_member_user_check
+		BEFORE INSERT OR UPDATE ON user_permission
+		FOR EACH ROW EXECUTE FUNCTION up_member_user_check()
+	`);
+
 	// Two partial unique indexes handle the nullable organization_id correctly
 	pgm.sql(`
 		CREATE UNIQUE INDEX user_permission_org_unique
-		ON user_permission (user_id, registered_permission_id, organization_id)
-		WHERE organization_id IS NOT NULL
+		ON user_permission (member_id, registered_permission_id)
+		WHERE member_id IS NOT NULL
 	`);
 	pgm.sql(`
 		CREATE UNIQUE INDEX user_permission_infra_unique
 		ON user_permission (user_id, registered_permission_id)
-		WHERE organization_id IS NULL
+		WHERE user_id IS NOT NULL
 	`);
+	pgm.createIndex('user_permission', ['member_id'], { name: 'user_permission_member_id_idx' });
 	pgm.createIndex('user_permission', ['user_id'], { name: 'user_permission_user_id_idx' });
 
 	// -------------------------------------------------------------------------
@@ -211,6 +286,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 	// -------------------------------------------------------------------------
 	pgm.sql(`
 		INSERT INTO registered_permission (key, name, description, scope) VALUES
+		('system.access',    'Staff Dashboard Access', 'Grants access to the staff dashboard (/s/). Required to manage the organization.',                                   'organization'),
 		('canvass.use',      'Use Canvassing',        'Allows entering turf codes and using the canvassing app to collect responses in the field.',                              'organization'),
 		('turf.read',        'View Turfs',            'Grants access to the Turfs page to see the full list of canvassing areas and their assignments.',                        'organization'),
 		('turf.create',      'Cut New Turfs',         'Allows drawing and defining new turf boundaries using the map tool.',                                                    'organization'),
@@ -366,13 +442,37 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 	// 15. Migrate org_user_role → user_group_membership
 	// -------------------------------------------------------------------------
 	pgm.sql(`
-		INSERT INTO user_group_membership (user_id, group_id, granted_by, created_at)
-		SELECT user_id, role_id, NULL, created_at
-		FROM org_user_role
+		INSERT INTO user_group_membership (user_id, member_id, group_id, granted_by, created_at)
+		SELECT our.user_id, m.id, our.role_id, NULL, our.created_at
+		FROM org_user_role our
+		JOIN "auth"."member" m ON m.user_id = our.user_id AND m.organization_id = our.org_id
 	`);
 
 	// -------------------------------------------------------------------------
-	// 16. Drop old tables (remove RLS policies first)
+	// 16. Rename migrated default groups to "Everyone"
+	// -------------------------------------------------------------------------
+	pgm.sql(`
+		UPDATE permission_group
+		SET name = 'Everyone'
+		WHERE is_default = true AND scope = 'organization'
+	`);
+
+	// -------------------------------------------------------------------------
+	// 17. Ensure all Everyone groups have canvass.use
+	// -------------------------------------------------------------------------
+	pgm.sql(`
+		INSERT INTO permission_group_entry (group_id, registered_permission_id, value)
+		SELECT pg.id, rp.id, true
+		FROM permission_group pg
+		CROSS JOIN registered_permission rp
+		WHERE pg.is_default = true
+		  AND pg.scope = 'organization'
+		  AND rp.key = 'canvass.use'
+		ON CONFLICT (group_id, registered_permission_id) DO NOTHING
+	`);
+
+	// -------------------------------------------------------------------------
+	// 18. Drop old tables (remove RLS policies first)
 	// -------------------------------------------------------------------------
 	pgm.sql(`DROP POLICY IF EXISTS org_isolation ON org_role`);
 	pgm.sql(`ALTER TABLE org_role DISABLE ROW LEVEL SECURITY`);
@@ -453,7 +553,11 @@ export async function down(pgm: MigrationBuilder): Promise<void> {
 	`);
 
 	// Drop new tables in reverse dependency order
+	pgm.sql(`DROP TRIGGER IF EXISTS up_member_user_check ON user_permission`);
+	pgm.sql(`DROP FUNCTION IF EXISTS up_member_user_check()`);
 	pgm.dropTable('user_permission');
+	pgm.sql(`DROP TRIGGER IF EXISTS ugm_member_scope_check ON user_group_membership`);
+	pgm.sql(`DROP FUNCTION IF EXISTS ugm_member_scope_check()`);
 	pgm.dropTable('user_group_membership');
 	pgm.dropTable('permission_group_entry');
 	pgm.dropTable('permission_group');
