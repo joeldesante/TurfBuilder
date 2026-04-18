@@ -2,19 +2,6 @@
 layout: home
 
 hero:
-  name: TurfBuilder
-  text: ''
-  tagline: API reference, component library, and plugin system.
-  actions:
-    - theme: brand
-      text: API Reference
-      link: /api/
-    - theme: alt
-      text: Components
-      link: /components/
-    - theme: alt
-      text: Plugins
-      link: /plugins/
 
 features:
   - icon: 📡
