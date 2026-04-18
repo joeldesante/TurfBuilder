@@ -6,6 +6,8 @@
 <img src="https://github.com/joeldesante/TurfBuilder/blob/fc4327063caae9f5c8a9bf545ced8101eb2c408a/static/logos/default-logo.svg" alt="Turf Builder" width="300px" height="auto" />
 A free and open source canvassing tool for grassroots movements and campaigns.
 
+--- 
+
 [Check out our hosted documentation](http://docs.turfbuilder.org)
 
 ## Setting up your development enviorment
