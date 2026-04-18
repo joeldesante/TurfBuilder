@@ -7,7 +7,7 @@ import { organization } from 'better-auth/plugins';
 import { admin } from 'better-auth/plugins';
 import { ac, userRole } from '$lib/permissions';
 import config from '$config';
-import { POOL, AUTH_POOL } from '$lib/server/database.js';
+import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database.js';
 
 export const auth = betterAuth({
 	database: AUTH_POOL,
@@ -82,81 +82,77 @@ export const auth = betterAuth({
 			}
 		}),
 		organization({
-			organizationCreation: {
-				afterCreate: async ({ organization, member }) => {
-					const client = await POOL.connect();
-
-					async function insertPerms(roleId: string, keys: string[]) {
-						if (keys.length === 0) return;
-						const placeholders = keys.map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`).join(', ');
-						const values: string[] = [roleId];
-						for (const key of keys) {
-							const [resource, action] = key.split(':');
-							values.push(resource, action);
-						}
-						await client.query(
-							`INSERT INTO org_role_permission (role_id, resource, action) VALUES ${placeholders}`,
-							values
-						);
-					}
-
+			organizationHooks: {
+				afterCreateOrganization: async ({ organization, member }) => {
+					console.log('[afterCreateOrganization] fired for org', organization.id, 'member', member.id);
 					try {
-						await client.query('BEGIN');
+						await withOrgTransaction(organization.id, async (client) => {
+						async function insertPerms(groupId: string, keys: string[]) {
+							if (keys.length === 0) return;
+							await client.query(
+								`INSERT INTO permission_group_entry (group_id, registered_permission_id, value)
+								 SELECT $1, id, true FROM registered_permission WHERE key = ANY($2::text[])`,
+								[groupId, keys]
+							);
+						}
 
-						// 1. Administrator (Owner) — all permissions via is_owner bypass
-						const adminResult = await client.query(
-							`INSERT INTO org_role (org_id, name, is_owner, is_default)
-							 VALUES ($1, 'Administrator', true, false) RETURNING id`,
+						// 1. Administrator — all org permissions
+						const { rows: [{ id: adminId }] } = await client.query(
+							`INSERT INTO permission_group (name, weight, scope, organization_id, is_default)
+							 VALUES ('Administrator', 0, 'organization', $1, false) RETURNING id`,
 							[organization.id]
 						);
-						const adminId = adminResult.rows[0].id;
+						const { rows: allOrgPerms } = await client.query(
+							`SELECT key FROM registered_permission WHERE scope = 'organization'`
+						);
+						await insertPerms(adminId, allOrgPerms.map((r: { key: string }) => r.key));
 
 						// 2. Organizer — cuts turfs, manages surveys, onboards members
-						const organizerResult = await client.query(
-							`INSERT INTO org_role (org_id, name, is_owner, is_default)
-							 VALUES ($1, 'Organizer', false, false) RETURNING id`,
+						const { rows: [{ id: organizerId }] } = await client.query(
+							`INSERT INTO permission_group (name, weight, scope, organization_id, is_default)
+							 VALUES ('Organizer', 100, 'organization', $1, false) RETURNING id`,
 							[organization.id]
 						);
-						await insertPerms(organizerResult.rows[0].id, [
-							'canvass:use',
-							'turf:read', 'turf:create', 'turf:update', 'turf:delete',
-							'survey:read', 'survey:create', 'survey:update', 'survey:delete',
-							'response:read', 'response:delete',
-							'member:read', 'member:update', 'member:delete'
+						await insertPerms(organizerId, [
+							'system.access',
+							'canvass.use',
+							'turf.read', 'turf.create', 'turf.update', 'turf.delete',
+							'survey.read', 'survey.create', 'survey.update', 'survey.delete',
+							'response.read', 'response.delete',
+							'member.read', 'member.update', 'member.delete'
 						]);
 
 						// 3. Analyst — read-only access to data and reports
-						const analystResult = await client.query(
-							`INSERT INTO org_role (org_id, name, is_owner, is_default)
-							 VALUES ($1, 'Analyst', false, false) RETURNING id`,
+						const { rows: [{ id: analystId }] } = await client.query(
+							`INSERT INTO permission_group (name, weight, scope, organization_id, is_default)
+							 VALUES ('Analyst', 200, 'organization', $1, false) RETURNING id`,
 							[organization.id]
 						);
-						await insertPerms(analystResult.rows[0].id, [
-							'turf:read',
-							'survey:read',
-							'response:read'
-						]);
+						await insertPerms(analystId, ['system.access', 'turf.read', 'survey.read', 'response.read']);
 
-						// 4. Volunteer — field canvasser; default role for new members
-						const volunteerResult = await client.query(
-							`INSERT INTO org_role (org_id, name, is_owner, is_default)
-							 VALUES ($1, 'Standard User', false, true) RETURNING id`,
+						// 4. Everyone — default group, auto-assigned to all new members
+						const { rows: [{ id: everyoneId }] } = await client.query(
+							`INSERT INTO permission_group (name, weight, scope, organization_id, is_default)
+							 VALUES ('Everyone', 999, 'organization', $1, true) RETURNING id`,
 							[organization.id]
 						);
-						await insertPerms(volunteerResult.rows[0].id, ['canvass:use']);
+						await insertPerms(everyoneId, ['canvass.use']);
 
-						// Assign org creator to Administrator role
+						// Assign org creator to Administrator and Everyone
+						// (the Everyone trigger does not fire because the member row was created
+						// before the Everyone group existed, so we assign manually here)
 						await client.query(
-							`INSERT INTO org_user_role (org_id, user_id, role_id) VALUES ($1, $2, $3)`,
-							[organization.id, member.userId, adminId]
+							`INSERT INTO user_group_membership (user_id, member_id, group_id) VALUES ($1, $2, $3)`,
+							[member.userId, member.id, adminId]
 						);
-
-						await client.query('COMMIT');
+						await client.query(
+							`INSERT INTO user_group_membership (user_id, member_id, group_id) VALUES ($1, $2, $3)`,
+							[member.userId, member.id, everyoneId]
+						);
+					});
 					} catch (err) {
-						await client.query('ROLLBACK');
+						console.error('[afterCreateOrganization] error:', err);
 						throw err;
-					} finally {
-						client.release();
 					}
 				}
 			},
