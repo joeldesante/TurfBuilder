@@ -13,10 +13,33 @@ services:
       - POSTGRES_DB=postgres
       - TZ=${TZ}
     shm_size: 128mb
+    networks:
+      - turfbuilder
     restart: ${RESTART_POLICY}
 
   frontend:
     container_name: turfbuilder_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
+      - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
+      - BETTER_AUTH_URL=http://localhost:3000
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+    depends_on:
+      - postgres
+    networks:
+      - turfbuilder
+    restart: unless-stopped
+  frontend-dev:
+    container_name: turfbuilder_app_dev
     build:
       context: .
       dockerfile: Dockerfile
@@ -33,7 +56,10 @@ services:
       - /app/node_modules
     depends_on:
       - postgres
+    networks:
+      - turfbuilder
     restart: unless-stopped
+
   nats:
     image: nats:2.10
     container_name: nats-turfbuilder
@@ -48,6 +74,21 @@ services:
       - "8222:8222"   # monitoring
     volumes:
       - nats_data:/data/jetstream
+    networks:
+      - turfbuilder
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:latest
+    environment:
+      - SPAN_STORAGE_TYPE=memory
+      - METRICS_STORAGE_TYPE=prometheus
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    networks:
+      - turfbuilder
 volumes:
   postgres_data:
   nats_data:
+networks:
+  turfbuilder:
+    driver: bridge
