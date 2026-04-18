@@ -20,7 +20,6 @@ export function can(
 	resource: string,
 	action: string
 ): boolean {
-	//if (!org?.role) return false;
 	if(!org) return false;
 	console.log(org.permissions)
 	const canTheUserDoIt = org.permissions.includes(`${resource}.${action}`);

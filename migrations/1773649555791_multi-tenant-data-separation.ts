@@ -36,12 +36,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 		WHERE sq.survey_id = s.id
 	`);
 
-	// Fallback: orphaned questions (no matching survey) assigned to the only active org.
-	pgm.sql(`
-		UPDATE survey_question
-		SET organization_id = '352294a3-48a3-4a40-a966-8d73a8a51b46'
-		WHERE organization_id IS NULL
-	`);
+	// Delete any orphaned questions (no matching survey) so NOT NULL can be enforced.
+	pgm.sql(`DELETE FROM survey_question WHERE organization_id IS NULL`);
 
 	pgm.alterColumn('survey_question', 'organization_id', { notNull: true });
 	pgm.createIndex('survey_question', ['organization_id'], { name: 'survey_question_org_id_idx' });
