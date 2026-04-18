@@ -38,6 +38,10 @@ const EXAMPLE_ALERTS: Alert[] = [
 	}
 ];
 
+/**
+ * Rapid Response Alert Feed — publishes real-time alerts to canvassers in the field.
+ * Staff can post urgent, info, or update alerts that all volunteers for the org see immediately.
+ */
 const rapidResponseAlertFeedPlugin: PluginManifest = {
 	slug: 'rapid-response-alert-feed',
 	name: 'Rapid Response Alert Feed',

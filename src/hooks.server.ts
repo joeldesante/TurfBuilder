@@ -3,6 +3,9 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
 import config from './config';
 import { POOL, withOrgTransaction } from '$lib/server/database';
+import { resolveOrgPermissions } from '$lib/server/permissions';
+
+
 
 export async function handle({ event, resolve }) {
 	const session = await auth.api.getSession({
@@ -17,12 +20,10 @@ export async function handle({ event, resolve }) {
 	}
 
 	// Resolve org from /o/[org_slug]/... URLs.
-	// Validates that the current user is a member and loads their role + permissions.
 	const orgRouteMatch = event.url.pathname.match(/^\/o\/([^/]+)(\/|$)/);
 	if (orgRouteMatch && session?.user) {
 		const slug = orgRouteMatch[1];
 
-		// Resolve org ID from auth schema (not RLS-protected).
 		const orgRow = await POOL.query(
 			`SELECT id, name, slug FROM auth.organization WHERE slug = $1`,
 			[slug]
@@ -31,42 +32,48 @@ export async function handle({ event, resolve }) {
 		if (orgRow.rows.length > 0) {
 			const org = orgRow.rows[0];
 
-			// Load role + permissions inside an org-scoped transaction so RLS
-			// on org_role and org_user_role allows the lookup.
-			const roleResult = await withOrgTransaction(org.id, async (client) => {
-				return client.query(
-					`SELECT
-						r.id AS role_id,
-						r.name AS role_name,
-						r.is_owner,
-						COALESCE(
-							array_agg(rp.resource || ':' || rp.action) FILTER (WHERE rp.id IS NOT NULL),
-							ARRAY[]::text[]
-						) AS permissions
-					FROM auth.member m
-					LEFT JOIN org_user_role ur ON ur.org_id = $1 AND ur.user_id = $2
-					LEFT JOIN org_role r ON r.id = ur.role_id
-					LEFT JOIN org_role_permission rp ON rp.role_id = r.id
-					WHERE m.organization_id = $1 AND m.user_id = $2
-					GROUP BY r.id, r.name, r.is_owner`,
+			const resolved = await withOrgTransaction(org.id, async (client) => {
+				// Confirm the user is actually a member of this org.
+				const memberCheck = await client.query(
+					`SELECT 1 FROM auth.member WHERE organization_id = $1 AND user_id = $2`,
 					[org.id, session.user.id]
 				);
+				if (memberCheck.rowCount === 0) return null;
+
+				// Primary group: the heaviest (lowest weight) group the user belongs to.
+				// Used for display (id + name on the role object).
+				const groupResult = await client.query(
+					`SELECT pg.id, pg.name
+					 FROM user_group_membership ugm
+					 JOIN permission_group pg ON pg.id = ugm.group_id
+					 WHERE ugm.user_id = $1
+					   AND pg.organization_id = $2
+					   AND pg.scope = 'organization'
+					 ORDER BY pg.weight ASC
+					 LIMIT 1`,
+					[session.user.id, org.id]
+				);
+
+				const permissions = await resolveOrgPermissions(client, session.user.id, org.id);
+
+				return {
+					group: groupResult.rows[0] ?? null,
+					permissions
+				};
 			});
 
-			if (roleResult.rows.length > 0) {
-				const row = roleResult.rows[0];
+			if (resolved !== null) {
 				event.locals.organization = {
 					id: org.id,
 					name: org.name,
 					slug: org.slug,
-					role: row.role_id
+					role: resolved?.group
 						? {
-								id: row.role_id,
-								name: row.role_name,
-								is_owner: row.is_owner,
-								permissions: row.permissions
+								id: resolved.group.id,
+								name: resolved.group.name,
 							}
-						: undefined
+						: undefined,
+					permissions: resolved.permissions
 				};
 			}
 		}

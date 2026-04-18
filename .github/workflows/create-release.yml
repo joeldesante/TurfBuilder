@@ -1,15 +1,12 @@
 name: Create CalVer Release
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
 
 jobs:
   create-release:
-    # Only run if the PR was actually merged (not just closed)
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,16 +32,15 @@ jobs:
           # Fetch all tags
           git fetch --tags
 
-          # Find all tags matching today's date pattern
+          # Find all tags matching today's date pattern (production and staging)
           TODAY_TAGS=$(git tag -l "${BASE_VERSION}_*" | sort -V)
 
           # Calculate micro version
           if [ -z "$TODAY_TAGS" ]; then
             MICRO=0
           else
-            # Get the last tag for today and extract the micro version
-            LAST_TAG=$(echo "$TODAY_TAGS" | tail -n 1)
-            LAST_MICRO=$(echo "$LAST_TAG" | cut -d'_' -f2)
+            # Extract numeric micro from each tag (handles both 26.4.14_0 and 26.4.14_0-staging)
+            LAST_MICRO=$(echo "$TODAY_TAGS" | grep -oP '(?<=_)\d+' | sort -n | tail -n 1)
             MICRO=$((LAST_MICRO + 1))
           fi
 
@@ -64,9 +60,7 @@ jobs:
           body: |
             ## Release ${{ steps.calver.outputs.version }}
 
-            **Changes:**
-            Merged PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
-
-            **Full Changelog:** ${{ github.event.pull_request.html_url }}
+            **Commit:** ${{ github.sha }}
+            ${{ github.event.head_commit.message }}
           draft: false
           prerelease: false

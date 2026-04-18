@@ -2,7 +2,14 @@ import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
-// PATCH assigns or removes an org role for a member.
+/**
+ * Assigns or removes a role for an org member.
+ * Blocked if the target is the last administrator and the new role is not also an owner role.
+ *
+ * @auth owner
+ * @body role_id {string | null} required - Role UUID to assign, or null to remove the role
+ * @returns { ok: true }
+ */
 export async function PATCH({ params, request, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can assign roles.' }, { status: 403 });
@@ -64,7 +71,14 @@ export async function PATCH({ params, request, locals }) {
 	});
 }
 
-// DELETE removes a member from the org.
+/**
+ * Removes a member from the organization entirely.
+ * Blocked if the target is the last administrator (uses FOR UPDATE lock to prevent race conditions).
+ *
+ * @auth staff
+ * @permission member:delete
+ * @returns { ok: true }
+ */
 export async function DELETE({ params, locals }) {
 	if (!can(locals.organization, 'member', 'delete')) {
 		return json({ error: 'Forbidden.' }, { status: 403 });

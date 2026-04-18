@@ -1,6 +1,17 @@
 import type { RequestHandler } from './$types';
 import { POOL } from '$lib/server/database.js';
 
+/**
+ * Returns all locations within a lat/lon bounding box. Used by the volunteer
+ * map to populate visible addresses. Results are capped at 500 rows.
+ *
+ * @auth public
+ * @query lat_min {number} - Southern boundary latitude (-90 to 90)
+ * @query lat_max {number} - Northern boundary latitude (-90 to 90)
+ * @query lon_min {number} - Western boundary longitude (-180 to 180)
+ * @query lon_max {number} - Eastern boundary longitude (-180 to 180)
+ * @returns Array of location objects: id, location_name, category, latitude, longitude, street, locality, postcode, region, country
+ */
 export const GET: RequestHandler = async ({ url }) => {
 	const lat_min = parseFloat(url.searchParams.get('lat_min') ?? '');
 	const lat_max = parseFloat(url.searchParams.get('lat_max') ?? '');

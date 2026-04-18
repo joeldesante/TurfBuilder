@@ -1,6 +1,13 @@
 import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
 
+/**
+ * Returns all custom roles for the organization, each with their permission set.
+ *
+ * @auth staff
+ * @permission member:read
+ * @returns Array of { id, name, is_owner, is_default, permissions: string[] }
+ */
 export async function GET({ locals }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,6 +31,13 @@ export async function GET({ locals }) {
 	}
 }
 
+/**
+ * Creates a new custom staff role for the organization.
+ *
+ * @auth owner
+ * @body name {string} required - Display name for the new role
+ * @returns { id, name, is_owner, is_default }
+ */
 export async function POST({ request, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can create roles.' }, { status: 403 });

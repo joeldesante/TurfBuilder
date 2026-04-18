@@ -111,6 +111,7 @@ command at anytime. It will automatically detect what changes have been made and
 >
 > - Managed the Quality Assurance and beta testing of the software during intial testing phases.
 
+*...contributions have also been provided by many individuals who prefer not to be named... Thank you for your support!*
 
 ---
 

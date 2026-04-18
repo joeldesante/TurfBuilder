@@ -8,16 +8,26 @@
 	type ButtonType = 'button' | 'submit' | 'reset';
 	type Size = 'default' | 'sm';
 
+	/** Primary action element. Renders as a `<button>` or `<a>` depending on whether `href` is provided. */
 	interface Props {
 		children: Snippet;
+		/** Visual style variant. @default 'primary' */
 		variant?: Variant;
+		/** Button size. @default 'default' */
 		size?: Size;
+		/** HTML button type attribute. @default 'button' */
 		type?: ButtonType;
+		/** When provided the button renders as an anchor tag. */
 		href?: string;
+		/** Disables interaction and reduces opacity. @default false */
 		disabled?: boolean;
+		/** Shows a spinner and blocks clicks without disabling the element. @default false */
 		loading?: boolean;
+		/** Set when the button contains only an icon — requires `aria-label` for accessibility. @default false */
 		iconOnly?: boolean;
+		/** Required when `iconOnly` is true. */
 		'aria-label'?: string;
+		/** Additional CSS classes. */
 		class?: string;
 		[key: string]: unknown;
 	}

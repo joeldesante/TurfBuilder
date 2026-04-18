@@ -1,7 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
 
-// DELETE revokes a specific invite link.
+/**
+ * Permanently revokes an invite link. The link can no longer be used to join the org.
+ *
+ * @auth owner
+ * @returns { ok: true }
+ */
 export async function DELETE({ params, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can manage invite links.' }, { status: 403 });

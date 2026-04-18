@@ -13,10 +13,8 @@ export async function load({ locals, parent }) {
 		throw redirect(303, '/orgs');
 	}
 
-	// A user must have an assigned org role to access staff pages.
-	// Owner roles bypass all permission checks; other roles need at least one permission.
-	if (!locals.organization.role) {
-		throw error(403, 'You do not have staff access to this organization.');
+	if (!can(locals.organization, 'system', 'access')) {
+		throw error(403, 'You do not have system access for this organization.');
 	}
 
 	const activePlugins = await getActivePlugins(locals.organization.id);
