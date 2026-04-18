@@ -7,8 +7,8 @@ All components use runes syntax — `$props()`, `$state()`, `$derived()`, etc.
 
 ## Categories
 
-- [Actions](components/actions.md)
-- [Data-display](components/data-display.md)
-- [Data-inputs](components/data-inputs.md)
-- [Feedback](components/feedback.md)
-- [Layout](components/layout.md)
+- [Actions](./actions.md)
+- [Data-display](./data-display.md)
+- [Data-inputs](./data-inputs.md)
+- [Feedback](./feedback.md)
+- [Layout](./layout.md)
