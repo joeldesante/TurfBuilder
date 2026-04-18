@@ -1,15 +1,12 @@
 name: Create CalVer Release
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
 
 jobs:
   create-release:
-    # Only run if the PR was actually merged (not just closed)
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -63,9 +60,7 @@ jobs:
           body: |
             ## Release ${{ steps.calver.outputs.version }}
 
-            **Changes:**
-            Merged PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
-
-            **Full Changelog:** ${{ github.event.pull_request.html_url }}
+            **Commit:** ${{ github.sha }}
+            ${{ github.event.head_commit.message }}
           draft: false
           prerelease: false
