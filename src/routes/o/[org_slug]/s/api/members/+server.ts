@@ -2,7 +2,13 @@ import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
-// GET returns all org members with their role info.
+/**
+ * Returns all members of the organization with their assigned role info.
+ *
+ * @auth staff
+ * @permission member:read
+ * @returns { members: Array<{ id, name, email, role_id, role_name }> }
+ */
 export async function GET({ locals }) {
 	if (!can(locals.organization, 'member', 'read')) {
 		return json({ error: 'Forbidden.' }, { status: 403 });

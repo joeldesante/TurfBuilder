@@ -1,6 +1,13 @@
 import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
 
+/**
+ * Renames a custom role. System roles (is_owner = true) cannot be renamed.
+ *
+ * @auth owner
+ * @body name {string} required - New display name for the role
+ * @returns { id, name, is_owner, is_default }
+ */
 export async function PATCH({ params, request, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can edit roles.' }, { status: 403 });
@@ -28,6 +35,12 @@ export async function PATCH({ params, request, locals }) {
 	}
 }
 
+/**
+ * Permanently deletes a custom role. System roles and the default role cannot be deleted.
+ *
+ * @auth owner
+ * @returns 204 No Content on success
+ */
 export async function DELETE({ params, locals }) {
 	if (!locals.organization?.role?.is_owner) {
 		return json({ error: 'Only owners can delete roles.' }, { status: 403 });

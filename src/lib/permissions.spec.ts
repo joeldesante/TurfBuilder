@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { statement, userRole, fieldOrganizerRole, campaignManagerRole } from './permissions.js';
+import { statement, userRole } from './permissions.js';
 
 describe('permission statement', () => {
 	it('defines user resource with create, read, update, delete, ban', () => {
@@ -18,13 +18,5 @@ describe('permission statement', () => {
 describe('role definitions', () => {
 	it('creates a userRole', () => {
 		expect(userRole).toBeDefined();
-	});
-
-	it('creates a fieldOrganizerRole', () => {
-		expect(fieldOrganizerRole).toBeDefined();
-	});
-
-	it('creates a campaignManagerRole', () => {
-		expect(campaignManagerRole).toBeDefined();
 	});
 });

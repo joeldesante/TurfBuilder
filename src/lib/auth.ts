@@ -5,7 +5,7 @@ import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { organization } from 'better-auth/plugins';
 import { admin } from 'better-auth/plugins';
-import { ac, userRole, fieldOrganizerRole, campaignManagerRole } from '$lib/permissions';
+import { ac, userRole } from '$lib/permissions';
 import config from '$config';
 import { POOL, AUTH_POOL } from '$lib/server/database.js';
 
@@ -192,12 +192,10 @@ export const auth = betterAuth({
 		admin({
 			ac,
 			roles: {
-				user: userRole,
-				fieldOrganizer: fieldOrganizerRole,
-				campaignManager: campaignManagerRole
+				user: userRole
 			},
 			defaultRole: 'user',
-			adminRoles: ['fieldOrganizer', 'campaignManager'],
+			adminRoles: [],
 			schema: {
 				user: {
 					fields: {
