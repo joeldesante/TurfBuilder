@@ -14,11 +14,11 @@ All org-scoped routes are prefixed with `/o/{org_slug}/`.
 
 ## Sections
 
-- [Public API](api/public.md) — Unauthenticated endpoints for geographic location data. Used by the volunteer map to populate visible addresses.
-- [Volunteer API](api/volunteer.md) — Endpoints used by canvassers in the field. Require org membership but not staff access.
-- [Surveys](api/surveys.md) — Staff endpoints for creating and managing survey templates and questions.
-- [Turfs](api/turfs.md) — Staff endpoints for creating canvassing territories from GeoJSON polygons.
-- [Members](api/members.md) — Staff endpoints for managing organization membership and role assignments.
-- [Roles & Permissions](api/roles.md) — Owner-only endpoints for managing custom staff roles and their permission sets.
-- [Invite Links](api/invites.md) — Owner-only endpoints for token-based and slug-based org invite links.
-- [Plugins](api/plugins.md) — Staff endpoints for installing, configuring, and routing to plugin-defined API handlers.
+- [Public API](./public.md) — Unauthenticated endpoints for geographic location data. Used by the volunteer map to populate visible addresses.
+- [Volunteer API](./volunteer.md) — Endpoints used by canvassers in the field. Require org membership but not staff access.
+- [Surveys](./surveys.md) — Staff endpoints for creating and managing survey templates and questions.
+- [Turfs](./turfs.md) — Staff endpoints for creating canvassing territories from GeoJSON polygons.
+- [Members](./members.md) — Staff endpoints for managing organization membership and role assignments.
+- [Roles & Permissions](./roles.md) — Owner-only endpoints for managing custom staff roles and their permission sets.
+- [Invite Links](./invites.md) — Owner-only endpoints for token-based and slug-based org invite links.
+- [Plugins](./plugins.md) — Staff endpoints for installing, configuring, and routing to plugin-defined API handlers.

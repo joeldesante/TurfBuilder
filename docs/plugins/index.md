@@ -7,7 +7,7 @@ Installed per-org; can add staff pages, volunteer pages, API handlers, and event
 
 ## Available Plugins
 
-- [Rapid Response Alert Feed](plugins/rapid-response-alert-feed.md) — Publish real-time alerts to canvassers in the field.
+- [Rapid Response Alert Feed](./rapid-response-alert-feed.md) — Publish real-time alerts to canvassers in the field.
 
 ## Building a Plugin
 
