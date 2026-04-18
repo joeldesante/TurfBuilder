@@ -1,50 +1,40 @@
 # --- Build stage ---
-FROM node:22-slim AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Copy and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
-# Copy source code and build
 COPY . .
-RUN npm run build
+RUN NODE_OPTIONS=--max-old-space-size=4096 npm run prepare && NODE_OPTIONS=--max-old-space-size=4096 npm run build && npm prune --omit=dev
 
 # --- Development stage ---
 FROM node:22-alpine AS development
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
 RUN npm ci
 
-# Copy source code
 COPY . .
 
 ENV NODE_ENV=development
 
-# Expose Vite dev server port
 EXPOSE 5173
 
-# Start dev server with host binding
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # --- Production stage ---
 FROM node:22-alpine AS production
 WORKDIR /app
 
-# Copy the build output and node_modules from builder
 COPY --from=builder /app/build ./build
-COPY package*.json .
+COPY --from=builder /app/node_modules ./node_modules
+COPY package*.json ./
 
-RUN npm ci --omit dev
-
-# Set environment variables
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV NODE_ENV=production
 
-# Expose production port
 EXPOSE 3000
 
-# Start the server
 CMD ["node", "build"]

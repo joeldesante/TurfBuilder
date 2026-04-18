@@ -19,6 +19,11 @@ const config = {
 			$pages: 'src/stories/pages',
 			$config: 'src/config',
 			$plugins: 'src/plugins'
+		},
+		experimental: {
+			instrumentation: {
+				server: true
+			}
 		}
 	}
 };
