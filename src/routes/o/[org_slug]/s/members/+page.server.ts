@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
+import { withOrgTransaction } from '$lib/server/database.js';
 import { POOL } from '$lib/server/database.js';
 
 export async function load({ locals }) {
@@ -7,25 +8,29 @@ export async function load({ locals }) {
 		throw error(403, 'Forbidden.');
 	}
 
-	const client = await POOL.connect();
-	try {
+	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const [membersResult, linksResult, slugResult] = await Promise.all([
 			client.query(
-				`SELECT u.id, u.name, u.email, r.id AS role_id, r.name AS role_name
+				// DISTINCT ON picks the lowest-weight (highest-priority) non-default role per user.
+				`SELECT DISTINCT ON (u.id) u.id, u.name, u.email, pr.id AS role_id, pr.name AS role_name
 				 FROM auth.member m
 				 JOIN auth."user" u ON u.id = m.user_id
-				 LEFT JOIN org_user_role ur ON ur.org_id = m.organization_id AND ur.user_id = m.user_id
-				 LEFT JOIN org_role r ON r.id = ur.role_id
+				 LEFT JOIN user_role_membership urm ON urm.user_id = m.user_id
+				 LEFT JOIN permission_role pr
+				   ON pr.id = urm.role_id
+				   AND pr.organization_id = m.organization_id
+				   AND pr.scope = 'organization'
+				   AND pr.is_default = false
 				 WHERE m.organization_id = $1
-				 ORDER BY u.name ASC`,
+				 ORDER BY u.id, pr.weight ASC NULLS LAST`,
 				[locals.organization!.id]
 			),
-			client.query(
+			POOL.query(
 				`SELECT id, created_at, expires_at FROM org_invite_link
 				 WHERE org_id = $1 ORDER BY created_at DESC`,
 				[locals.organization!.id]
 			),
-			client.query(`SELECT enabled FROM org_slug_invite WHERE org_id = $1`, [
+			POOL.query(`SELECT enabled FROM org_slug_invite WHERE org_id = $1`, [
 				locals.organization!.id
 			])
 		]);
@@ -33,11 +38,9 @@ export async function load({ locals }) {
 		return {
 			members: membersResult.rows,
 			canRemoveMembers: can(locals.organization, 'member', 'delete'),
-			isOwner: locals.organization!.role?.is_owner ?? false,
+			canInvite: can(locals.organization, 'member', 'invite'),
 			inviteLinks: linksResult.rows,
 			slugInviteEnabled: slugResult.rows[0]?.enabled ?? false
 		};
-	} finally {
-		client.release();
-	}
+	});
 }

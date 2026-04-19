@@ -21,7 +21,7 @@
 	interface Props {
 		members: Member[];
 		canRemoveMembers: boolean;
-		isOwner: boolean;
+		canInvite: boolean;
 		inviteLinks: InviteLink[];
 		slugInviteEnabled: boolean;
 		orgSlug: string;
@@ -34,7 +34,7 @@
 	const {
 		members,
 		canRemoveMembers,
-		isOwner,
+		canInvite,
 		inviteLinks,
 		slugInviteEnabled,
 		orgSlug,
@@ -106,7 +106,7 @@
 		</table>
 	</div>
 
-	{#if isOwner}
+	{#if canInvite}
 		<InviteLinksSection
 			{inviteLinks}
 			{slugInviteEnabled}

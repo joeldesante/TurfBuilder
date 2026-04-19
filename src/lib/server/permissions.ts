@@ -6,7 +6,7 @@ import { POOL } from './database';
  *
  * Resolution order (highest to lowest priority):
  *   1. Direct user_permission entries — always win
- *   2. Among groups the user belongs to, the heaviest group (lowest weight) wins per key
+ *   2. Among roles the user belongs to, the heaviest role (lowest weight) wins per key
  *
  * Returns only the keys where the resolved value is true (effective grants).
  * Must be called inside a withOrgTransaction so RLS is scoped to the correct org.
@@ -26,26 +26,26 @@ export async function resolveOrgPermissions(
 			  AND up.organization_id = $2
 			  AND rp.scope = 'organization'
 		),
-		group_perms AS (
+		role_perms AS (
 			SELECT
 				rp.key,
-				pge.value,
-				ROW_NUMBER() OVER (PARTITION BY rp.key ORDER BY pg.weight ASC) AS rn
-			FROM user_group_membership ugm
-			JOIN permission_group pg ON pg.id = ugm.group_id
-			JOIN permission_group_entry pge ON pge.group_id = pg.id
-			JOIN registered_permission rp ON rp.id = pge.registered_permission_id
-			WHERE ugm.user_id = $1
-			  AND pg.organization_id = $2
-			  AND pg.scope = 'organization'
+				pre.value,
+				ROW_NUMBER() OVER (PARTITION BY rp.key ORDER BY pr.weight ASC) AS rn
+			FROM user_role_membership urm
+			JOIN permission_role pr ON pr.id = urm.role_id
+			JOIN permission_role_entry pre ON pre.role_id = pr.id
+			JOIN registered_permission rp ON rp.id = pre.registered_permission_id
+			WHERE urm.user_id = $1
+			  AND pr.organization_id = $2
+			  AND pr.scope = 'organization'
 		),
-		best_group AS (
-			SELECT key, value FROM group_perms WHERE rn = 1
+		best_role AS (
+			SELECT key, value FROM role_perms WHERE rn = 1
 		),
 		resolved AS (
 			SELECT key, value FROM user_direct
 			UNION ALL
-			SELECT key, value FROM best_group
+			SELECT key, value FROM best_role
 			WHERE key NOT IN (SELECT key FROM user_direct)
 		)
 		SELECT key FROM resolved WHERE value = true`,
@@ -74,25 +74,25 @@ export async function resolveInfraPermissions(userId: string): Promise<string[]>
 			  AND up.organization_id IS NULL
 			  AND rp.scope = 'infrastructure'
 		),
-		group_perms AS (
+		role_perms AS (
 			SELECT
 				rp.key,
-				pge.value,
-				ROW_NUMBER() OVER (PARTITION BY rp.key ORDER BY pg.weight ASC) AS rn
-			FROM user_group_membership ugm
-			JOIN permission_group pg ON pg.id = ugm.group_id
-			JOIN permission_group_entry pge ON pge.group_id = pg.id
-			JOIN registered_permission rp ON rp.id = pge.registered_permission_id
-			WHERE ugm.user_id = $1
-			  AND pg.scope = 'infrastructure'
+				pre.value,
+				ROW_NUMBER() OVER (PARTITION BY rp.key ORDER BY pr.weight ASC) AS rn
+			FROM user_role_membership urm
+			JOIN permission_role pr ON pr.id = urm.role_id
+			JOIN permission_role_entry pre ON pre.role_id = pr.id
+			JOIN registered_permission rp ON rp.id = pre.registered_permission_id
+			WHERE urm.user_id = $1
+			  AND pr.scope = 'infrastructure'
 		),
-		best_group AS (
-			SELECT key, value FROM group_perms WHERE rn = 1
+		best_role AS (
+			SELECT key, value FROM role_perms WHERE rn = 1
 		),
 		resolved AS (
 			SELECT key, value FROM user_direct
 			UNION ALL
-			SELECT key, value FROM best_group
+			SELECT key, value FROM best_role
 			WHERE key NOT IN (SELECT key FROM user_direct)
 		)
 		SELECT key FROM resolved WHERE value = true`,

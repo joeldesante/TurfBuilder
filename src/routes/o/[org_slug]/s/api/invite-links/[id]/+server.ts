@@ -1,15 +1,16 @@
 import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers.js';
 
 /**
  * Permanently revokes an invite link. The link can no longer be used to join the org.
  *
- * @auth owner
+ * @auth member.invite
  * @returns { ok: true }
  */
 export async function DELETE({ params, locals }) {
-	if (!locals.organization?.role?.is_owner) {
-		return json({ error: 'Only owners can manage invite links.' }, { status: 403 });
+	if (!can(locals.organization, 'member', 'invite')) {
+		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
 	const client = await POOL.connect();

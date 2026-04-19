@@ -1,16 +1,17 @@
 import { json } from '@sveltejs/kit';
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers.js';
 
 /**
- * Renames a custom role. System roles (is_owner = true) cannot be renamed.
+ * Renames a role. The default (Everyone) role cannot be renamed.
  *
- * @auth owner
+ * @auth role.update
  * @body name {string} required - New display name for the role
- * @returns { id, name, is_owner, is_default }
+ * @returns { id, name, is_default }
  */
 export async function PATCH({ params, request, locals }) {
-	if (!locals.organization?.role?.is_owner) {
-		return json({ error: 'Only owners can edit roles.' }, { status: 403 });
+	if (!can(locals.organization, 'role', 'update')) {
+		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
 	const { name } = await request.json();
@@ -18,45 +19,40 @@ export async function PATCH({ params, request, locals }) {
 		return json({ error: 'Name is required.' }, { status: 400 });
 	}
 
-	const client = await POOL.connect();
-	try {
+	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await client.query(
-			`UPDATE org_role SET name = $1
-			 WHERE id = $2 AND org_id = $3 AND is_owner = false
-			 RETURNING id, name, is_owner, is_default`,
-			[name.trim(), params.id, locals.organization.id]
+			`UPDATE permission_role SET name = $1
+			 WHERE id = $2 AND organization_id = $3 AND is_default = false
+			 RETURNING id, name, is_default`,
+			[name.trim(), params.id, locals.organization!.id]
 		);
 		if (result.rowCount === 0) {
 			return json({ error: 'Role not found or cannot be modified.' }, { status: 404 });
 		}
 		return json(result.rows[0]);
-	} finally {
-		client.release();
-	}
+	});
 }
 
 /**
- * Permanently deletes a custom role. System roles and the default role cannot be deleted.
+ * Permanently deletes a role. The default (Everyone) role cannot be deleted.
  *
- * @auth owner
+ * @auth role.delete
  * @returns 204 No Content on success
  */
 export async function DELETE({ params, locals }) {
-	if (!locals.organization?.role?.is_owner) {
-		return json({ error: 'Only owners can delete roles.' }, { status: 403 });
+	if (!can(locals.organization, 'role', 'delete')) {
+		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
-	const client = await POOL.connect();
-	try {
+	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await client.query(
-			`DELETE FROM org_role WHERE id = $1 AND org_id = $2 AND is_owner = false AND is_default = false`,
-			[params.id, locals.organization.id]
+			`DELETE FROM permission_role
+			 WHERE id = $1 AND organization_id = $2 AND is_default = false`,
+			[params.id, locals.organization!.id]
 		);
 		if (result.rowCount === 0) {
 			return json({ error: 'Role not found or cannot be deleted.' }, { status: 404 });
 		}
 		return new Response(null, { status: 204 });
-	} finally {
-		client.release();
-	}
+	});
 }
