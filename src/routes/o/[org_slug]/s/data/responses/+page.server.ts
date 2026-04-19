@@ -1,6 +1,9 @@
+import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers.js';
 
 export async function load({ locals, url }) {
+	if (!can(locals.organization, 'response', 'read')) throw error(403, 'Forbidden.');
 	const code = url.searchParams.get('code')?.toUpperCase() ?? null;
 
 	if (!code) {
