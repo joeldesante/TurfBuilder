@@ -58,7 +58,7 @@
 <MembersPage
 	members={data.members}
 	canRemoveMembers={data.canRemoveMembers}
-	isOwner={data.isOwner}
+	canInvite={data.canInvite}
 	inviteLinks={data.inviteLinks}
 	slugInviteEnabled={data.slugInviteEnabled}
 	orgSlug={orgSlug}

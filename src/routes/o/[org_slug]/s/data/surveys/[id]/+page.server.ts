@@ -1,7 +1,9 @@
-import { withOrgTransaction } from '$lib/server/database.js';
 import { error } from '@sveltejs/kit';
+import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers.js';
 
 export async function load({ locals, params }) {
+	if (!can(locals.organization, 'survey', 'read')) throw error(403, 'Forbidden.');
 	const id = params.id;
 	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const surveys = await client.query(

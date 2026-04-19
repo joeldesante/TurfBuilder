@@ -2,7 +2,6 @@ import type { SidebarNavEntry } from '$components/layout/sidebar/types';
 import { can } from '$lib/auth-helpers';
 import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
-import UserIcon from 'phosphor-svelte/lib/User';
 import UsersIcon from 'phosphor-svelte/lib/Users';
 import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText';
@@ -33,10 +32,6 @@ export function buildStaffNav(
 		{
 			kind: 'item',
 			item: { label: 'Members', href: `/o/${orgSlug}/s/members`, icon: UsersIcon }
-		},
-		{
-			kind: 'item',
-			item: { label: 'Users', href: `/o/${orgSlug}/s/users`, icon: UserIcon }
 		},
 		{
 			kind: 'item',
