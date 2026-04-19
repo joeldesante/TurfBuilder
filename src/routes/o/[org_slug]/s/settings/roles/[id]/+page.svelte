@@ -32,18 +32,6 @@
 		await invalidateAll();
 	}
 
-	async function handleAssignRole(userId: string, assignedRoleId: string | null) {
-		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ role_id: assignedRoleId })
-		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to assign role.');
-		}
-		await invalidateAll();
-	}
 </script>
 
 <svelte:head>
@@ -52,9 +40,7 @@
 
 <RoleDetailPage
 	role={data.role}
-	members={data.members}
 	rolesHref="/o/{orgSlug}/s/settings/roles"
 	onSavePermissions={handleSavePermissions}
 	onSaveName={handleSaveName}
-	onAssignRole={handleAssignRole}
 />

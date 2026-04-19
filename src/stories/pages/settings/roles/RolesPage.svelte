@@ -68,7 +68,10 @@
 				{#each roles as role}
 					<tr class="hover:bg-surface-container/50">
 						<td class="px-4 py-3">
-							<a href={roleDetailHref(role.id)} class="font-medium text-on-surface hover:underline flex items-center gap-2">
+							<a
+								href={roleDetailHref(role.id)}
+								class="font-medium text-on-surface hover:underline flex items-center gap-2"
+							>
 								{#if role.is_owner}
 									<ShieldIcon class="size-4 text-primary" />
 								{/if}
@@ -103,25 +106,5 @@
 				{/each}
 			</tbody>
 		</table>
-	</div>
-
-	<div class="space-y-2">
-		<h2 class="text-sm font-medium text-on-surface">New Role</h2>
-		<div class="flex gap-2">
-			<input
-				type="text"
-				bind:value={newRoleName}
-				placeholder="Role name"
-				class="flex-1 h-10 px-3 rounded-lg border border-outline bg-surface text-sm text-on-surface focus:outline-2 focus:outline-offset-2 focus:outline-primary"
-				onkeydown={(e) => e.key === 'Enter' && handleCreate()}
-			/>
-			<Button onclick={handleCreate} loading={creating} disabled={!newRoleName.trim()}>
-				<PlusIcon />
-				Create
-			</Button>
-		</div>
-		{#if createError}
-			<p class="text-error text-sm">{createError}</p>
-		{/if}
 	</div>
 </div>
