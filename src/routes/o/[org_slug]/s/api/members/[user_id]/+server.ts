@@ -11,8 +11,8 @@ import { can } from '$lib/auth-helpers';
  * @returns { ok: true }
  */
 export async function PATCH({ params, request, locals }) {
-	if (!locals.organization?.role?.is_owner) {
-		return json({ error: 'Only owners can assign roles.' }, { status: 403 });
+	if (!can(locals.organization, 'member', 'update')) {
+		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
 	const { role_id }: { role_id: string | null } = await request.json();

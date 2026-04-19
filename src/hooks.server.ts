@@ -40,16 +40,16 @@ export async function handle({ event, resolve }) {
 				);
 				if (memberCheck.rowCount === 0) return null;
 
-				// Primary group: the heaviest (lowest weight) group the user belongs to.
+				// Primary role: the heaviest (lowest weight) role the user belongs to.
 				// Used for display (id + name on the role object).
-				const groupResult = await client.query(
-					`SELECT pg.id, pg.name
-					 FROM user_group_membership ugm
-					 JOIN permission_group pg ON pg.id = ugm.group_id
-					 WHERE ugm.user_id = $1
-					   AND pg.organization_id = $2
-					   AND pg.scope = 'organization'
-					 ORDER BY pg.weight ASC
+				const roleResult = await client.query(
+					`SELECT pr.id, pr.name
+					 FROM user_role_membership urm
+					 JOIN permission_role pr ON pr.id = urm.role_id
+					 WHERE urm.user_id = $1
+					   AND pr.organization_id = $2
+					   AND pr.scope = 'organization'
+					 ORDER BY pr.weight ASC
 					 LIMIT 1`,
 					[session.user.id, org.id]
 				);
@@ -57,7 +57,7 @@ export async function handle({ event, resolve }) {
 				const permissions = await resolveOrgPermissions(client, session.user.id, org.id);
 
 				return {
-					group: groupResult.rows[0] ?? null,
+					role: roleResult.rows[0] ?? null,
 					permissions
 				};
 			});
@@ -67,10 +67,10 @@ export async function handle({ event, resolve }) {
 					id: org.id,
 					name: org.name,
 					slug: org.slug,
-					role: resolved?.group
+					role: resolved?.role
 						? {
-								id: resolved.group.id,
-								name: resolved.group.name,
+								id: resolved.role.id,
+								name: resolved.role.name,
 							}
 						: undefined,
 					permissions: resolved.permissions

@@ -1,17 +1,18 @@
 import { json } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers.js';
 
 /**
  * Enables or disables the org slug-based open invite.
  * When enabled, anyone with the link can join at `/invite/{org_slug}`.
  *
- * @auth owner
+ * @auth member.invite
  * @body enabled {boolean} required - Whether the slug-based open invite is active
  * @returns { ok: true, enabled: boolean }
  */
 export async function PUT({ request, locals }) {
-	if (!locals.organization?.role?.is_owner) {
-		return json({ error: 'Only owners can manage invite links.' }, { status: 403 });
+	if (!can(locals.organization, 'member', 'invite')) {
+		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
 	const { enabled }: { enabled: boolean } = await request.json();

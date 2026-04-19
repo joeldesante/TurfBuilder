@@ -131,7 +131,6 @@
 
 <div class="m-2 flex flex-row gap-2">
 	<Button variant="outline" onclick={saveChanges}>Save Changes</Button>
-	<Button onclick={null}>Publish</Button>
 </div>
 
 <div class="flex flex-col gap-4 my-4">

@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	PERMISSIONS,
 	VALID_PERMISSION_KEYS,
-	PERMISSION_GROUPS,
-	type PermissionDef
+	PERMISSION_GROUPS
 } from './permissions-config';
 
 describe('permissions-config', () => {
@@ -22,19 +21,19 @@ describe('permissions-config', () => {
 			}
 		});
 
-		it('every key follows the resource:action format', () => {
+		it('every key follows the resource.action format', () => {
 			for (const perm of PERMISSIONS) {
-				expect(perm.key).toMatch(/^[a-z]+:[a-z]+$/);
+				expect(perm.key).toMatch(/^[a-z]+\.[a-z]+$/);
 			}
 		});
 
 		it('contains expected permission keys', () => {
 			const keys = PERMISSIONS.map((p) => p.key);
-			expect(keys).toContain('canvass:use');
-			expect(keys).toContain('turf:create');
-			expect(keys).toContain('survey:read');
-			expect(keys).toContain('member:read');
-			expect(keys).toContain('plugin:manage');
+			expect(keys).toContain('canvass.use');
+			expect(keys).toContain('turf.create');
+			expect(keys).toContain('survey.read');
+			expect(keys).toContain('member.read');
+			expect(keys).toContain('plugin.manage');
 		});
 
 		it('has no duplicate keys', () => {

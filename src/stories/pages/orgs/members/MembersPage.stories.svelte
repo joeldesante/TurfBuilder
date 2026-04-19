@@ -33,7 +33,7 @@
 	args={{
 		members: sampleMembers,
 		canRemoveMembers: true,
-		isOwner: true,
+		canInvite: true,
 		inviteLinks: sampleLinks,
 		slugInviteEnabled: false,
 		orgSlug: 'north-west-philly-alliance',
@@ -49,7 +49,7 @@
 	args={{
 		members: sampleMembers,
 		canRemoveMembers: true,
-		isOwner: true,
+		canInvite: true,
 		inviteLinks: sampleLinks,
 		slugInviteEnabled: true,
 		orgSlug: 'north-west-philly-alliance',
@@ -65,7 +65,7 @@
 	args={{
 		members: sampleMembers,
 		canRemoveMembers: false,
-		isOwner: false,
+		canInvite: false,
 		inviteLinks: [],
 		slugInviteEnabled: false,
 		orgSlug: 'north-west-philly-alliance',
@@ -81,7 +81,7 @@
 	args={{
 		members: [],
 		canRemoveMembers: true,
-		isOwner: true,
+		canInvite: true,
 		inviteLinks: [],
 		slugInviteEnabled: false,
 		orgSlug: 'north-west-philly-alliance',

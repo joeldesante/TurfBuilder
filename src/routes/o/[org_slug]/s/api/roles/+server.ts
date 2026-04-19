@@ -1,61 +1,63 @@
 import { json } from '@sveltejs/kit';
-import { POOL } from '$lib/server/database.js';
+import { withOrgTransaction } from '$lib/server/database.js';
+import { can } from '$lib/auth-helpers.js';
 
 /**
- * Returns all custom roles for the organization, each with their permission set.
+ * Returns all roles for the organization, each with their permission set.
  *
- * @auth staff
- * @permission member:read
- * @returns Array of { id, name, is_owner, is_default, permissions: string[] }
+ * @auth role.read
+ * @returns Array of { id, name, is_default, permissions: string[] }
  */
 export async function GET({ locals }) {
-	if (!locals.organization?.role) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	if (!can(locals.organization, 'role', 'read')) {
+		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
-	const client = await POOL.connect();
-	try {
+	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await client.query(
-			`SELECT r.id, r.name, r.is_owner, r.is_default,
-			        array_agg(rp.resource || ':' || rp.action) FILTER (WHERE rp.id IS NOT NULL) AS permissions
-			 FROM org_role r
-			 LEFT JOIN org_role_permission rp ON rp.role_id = r.id
-			 WHERE r.org_id = $1
-			 GROUP BY r.id
-			 ORDER BY r.is_owner DESC, r.name ASC`,
-			[locals.organization.id]
+			`SELECT pr.id, pr.name, pr.is_default,
+			        COALESCE(
+			            array_agg(rp.key ORDER BY rp.key)
+			            FILTER (WHERE pre.value = true AND rp.key IS NOT NULL),
+			            ARRAY[]::text[]
+			        ) AS permissions
+			 FROM permission_role pr
+			 LEFT JOIN permission_role_entry pre ON pre.role_id = pr.id
+			 LEFT JOIN registered_permission rp ON rp.id = pre.registered_permission_id
+			 WHERE pr.organization_id = $1
+			 GROUP BY pr.id
+			 ORDER BY pr.weight ASC`,
+			[locals.organization!.id]
 		);
 		return json(result.rows);
-	} finally {
-		client.release();
-	}
+	});
 }
 
 /**
- * Creates a new custom staff role for the organization.
+ * Creates a new role for the organization.
  *
- * @auth owner
+ * @auth role.create
  * @body name {string} required - Display name for the new role
- * @returns { id, name, is_owner, is_default }
+ * @body weight {number} optional - Priority weight (lower = higher priority)
+ * @returns { id, name, is_default }
  */
 export async function POST({ request, locals }) {
-	if (!locals.organization?.role?.is_owner) {
-		return json({ error: 'Only owners can create roles.' }, { status: 403 });
+	if (!can(locals.organization, 'role', 'create')) {
+		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
-	const { name } = await request.json();
+	const { name, weight } = await request.json();
 	if (!name?.trim()) {
 		return json({ error: 'Name is required.' }, { status: 400 });
 	}
 
-	const client = await POOL.connect();
-	try {
+	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await client.query(
-			`INSERT INTO org_role (org_id, name, is_default) VALUES ($1, $2, false) RETURNING id, name, is_owner, is_default`,
-			[locals.organization.id, name.trim()]
+			`INSERT INTO permission_role (name, weight, scope, organization_id, is_default)
+			 VALUES ($1, $2, 'organization', $3, false)
+			 RETURNING id, name, is_default`,
+			[name.trim(), weight ?? 500, locals.organization!.id]
 		);
 		return json(result.rows[0], { status: 201 });
-	} finally {
-		client.release();
-	}
+	});
 }
