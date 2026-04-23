@@ -12,7 +12,7 @@ RUN NODE_OPTIONS=--max-old-space-size=4096 npm run prepare && NODE_OPTIONS=--max
 FROM node:22-alpine AS development
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
@@ -29,7 +29,7 @@ WORKDIR /app
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
-COPY package*.json ./
+COPY package.json package-lock.json* ./
 
 ENV HOST=0.0.0.0
 ENV PORT=3000
