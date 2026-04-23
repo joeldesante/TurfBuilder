@@ -33,7 +33,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>Turfs | {data.config.application_name}</title>
+	<title>Turfs | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <PageHeader title="Turfs">

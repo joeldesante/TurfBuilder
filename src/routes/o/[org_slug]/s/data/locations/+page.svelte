@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Locations | {data.config.application_name}</title>
+	<title>Locations | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <PageHeader title="Locations" />

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ApplicationConfig } from '../../../config';
+	import type { AppSettings } from '$lib/server/settings';
 	import type { User } from 'better-auth';
 	import { page } from '$app/stores';
 	import { authClient } from '$lib/client';
@@ -13,7 +13,7 @@
 	const { children, data } = $props<{
 		children: () => any;
 		data: {
-			config: ApplicationConfig;
+			config: AppSettings;
 			user: User;
 			organization: { id: string; name: string; slug: string };
 			allOrgs: { id: string; name: string; slug: string }[];
@@ -36,7 +36,7 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard | {data.config.application_name}</title>
+	<title>Dashboard | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <div class="flex h-dvh">
@@ -44,6 +44,8 @@
 		nav={nav}
 		currentPath={$page.url.pathname}
 		username={data.user.name}
+		applicationName={data.config?.application_name ?? 'TurfBuilder'}
+		infraAccess={data.infraAccess}
 		theme={themeStore.theme}
 		onthemechange={themeStore.setTheme}
 		bind:mobileOpen

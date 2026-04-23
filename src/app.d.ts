@@ -6,7 +6,7 @@
 /// <reference types="vite-plugin-pwa/client" />
 
 import type { Session, User } from 'better-auth';
-import { ApplicationConfig } from './config';
+import type { AppSettings } from '$lib/server/settings';
 
 declare global {
 	namespace App {
@@ -14,12 +14,13 @@ declare global {
 		interface Locals {
 			session?: Session;
 			user?: User;
-			config: ApplicationConfig;
+			/** Null on /setup and /auth routes before settings have been configured. */
+			config?: AppSettings;
 			organization?: {
 				id: string;
 				name: string;
 				slug: string;
-				permissions: string[];	// These are the perms that the user currently has access to!
+				permissions: string[];
 				role?: {
 					id: string;
 					name: string;
@@ -30,6 +31,7 @@ declare global {
 			}
 		}
 		interface PageData {
+			config?: AppSettings;
 			organization?: {
 				id: string;
 				name: string;

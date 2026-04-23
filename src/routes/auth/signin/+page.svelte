@@ -55,7 +55,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign In | {data.config.application_name}</title>
+	<title>Sign In | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <div class="flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
