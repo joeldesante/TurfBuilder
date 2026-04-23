@@ -2,6 +2,7 @@
 	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
 	import UsersIcon from 'phosphor-svelte/lib/Users';
 	import DatabaseIcon from 'phosphor-svelte/lib/Database';
+	import GearIcon from 'phosphor-svelte/lib/Gear';
 	import ShieldCheckIcon from 'phosphor-svelte/lib/ShieldCheck';
 
 	interface Capability {
@@ -32,6 +33,13 @@
 			description: 'Trigger a sync of global location data from Overture Maps.',
 			href: '/infra/sync',
 			icon: DatabaseIcon
+		},
+		{
+			permission: 'settings.manage',
+			label: 'System Settings',
+			description: 'Configure system-wide settings such as organization creation.',
+			href: '/infra/settings',
+			icon: GearIcon
 		}
 	];
 

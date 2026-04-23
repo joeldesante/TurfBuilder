@@ -13,7 +13,7 @@ export async function load({ locals, params }) {
 			`SELECT t.survey_id
 			 FROM turf t
 			 INNER JOIN turf_location tl ON tl.turf_id = t.id
-			 WHERE tl.location_id = $1 AND t.id = $2 AND t.organization_id = $3`,
+			 WHERE (tl.location_id = $1 OR tl.org_location_id = $1) AND t.id = $2 AND t.organization_id = $3`,
 			[locationId, turfId, orgId]
 		);
 
@@ -24,7 +24,10 @@ export async function load({ locals, params }) {
 		const surveyId = surveyResult.rows[0].survey_id;
 
 		const location = await client.query(
-			`SELECT location_name, street, locality, postcode, region FROM location WHERE id = $1`,
+			`SELECT location_name, street, locality, postcode, region FROM location WHERE id = $1
+			 UNION ALL
+			 SELECT location_name, street, locality, postcode, region FROM org_location WHERE id = $1
+			 LIMIT 1`,
 			[locationId]
 		);
 
@@ -38,7 +41,7 @@ export async function load({ locals, params }) {
 		const questions = questionsResult.rows;
 
 		const turfLocationResult = await client.query(
-			`SELECT id FROM turf_location WHERE turf_id = $1 AND location_id = $2`,
+			`SELECT id FROM turf_location WHERE turf_id = $1 AND (location_id = $2 OR org_location_id = $2)`,
 			[turfId, locationId]
 		);
 		const turfLocationId = turfLocationResult.rows[0].id;

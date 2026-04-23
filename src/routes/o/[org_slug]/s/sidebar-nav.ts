@@ -52,6 +52,9 @@ export function buildStaffNav(
 				icon: GearIcon,
 				items: [
 					{ label: 'Roles', href: `/o/${orgSlug}/s/settings/roles`, icon: ShieldIcon },
+					...(can(org, 'location', 'create')
+						? [{ label: 'Import Locations', href: `/o/${orgSlug}/s/settings/locations`, icon: MapPinIcon }]
+						: []),
 					...(can(org, 'plugin', 'manage')
 						? [{ label: 'Plugins', href: `/o/${orgSlug}/s/plugins`, icon: PuzzlePieceIcon }]
 						: [])
