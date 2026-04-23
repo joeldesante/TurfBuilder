@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.survey.name} | {data.config.application_name}</title>
+	<title>{data.survey.name} | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <PageHeader

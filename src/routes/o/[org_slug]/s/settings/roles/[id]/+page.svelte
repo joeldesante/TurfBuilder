@@ -35,7 +35,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.role.name} | {data.config.application_name}</title>
+	<title>{data.role.name} | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <RoleDetailPage

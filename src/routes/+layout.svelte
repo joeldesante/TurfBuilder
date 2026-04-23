@@ -39,15 +39,18 @@
 			active: themeStore.theme === t
 		})),
 		{ separator: true as const },
+		...(data.infraAccess
+			? [{ label: 'Infrastructure', onclick: () => { location.href = '/infra'; } } as DropdownMenuEntry]
+			: []),
 		{ label: 'Sign Out', icon: SignOutIcon, onclick: logout }
 	]);
 </script>
 
 <svelte:head>
-	<title>{data.config.application_name}</title>
+	<title>{data.config?.application_name ?? 'TurfBuilder'}</title>
 
 	<meta name="apple-mobile-web-app-capable" content="yes" />
-	<meta name="apple-mobile-web-app-title" content={data.config.application_name} />
+	<meta name="apple-mobile-web-app-title" content={data.config?.application_name ?? 'TurfBuilder'} />
 	<link rel="apple-touch-icon" href={'/turf_builder_app_icon.png'} />
 </svelte:head>
 

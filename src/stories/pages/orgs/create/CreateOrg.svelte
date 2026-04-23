@@ -41,6 +41,14 @@
 </script>
 
 <div class="max-w-md mx-auto pt-16 px-4">
+	<button
+		type="button"
+		onclick={() => history.back()}
+		class="flex items-center gap-1 text-sm text-on-surface-subtle hover:text-on-surface transition-colors mb-6"
+	>
+		← Back
+	</button>
+
 	<PageHeader title="Create Organization" />
 
 	<form onsubmit={handleSubmit} class="flex flex-col gap-4 mt-6">

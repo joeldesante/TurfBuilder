@@ -17,7 +17,7 @@ export async function load({ locals }) {
 			[locals.user.id]
 		);
 
-		if (result.rows.length === 0) throw redirect(303, '/orgs/create');
+		if (result.rows.length === 0) throw redirect(303, '/pending');
 		if (result.rows.length === 1) throw redirect(303, `/o/${result.rows[0].slug}`);
 		throw redirect(303, '/orgs');
 	} finally {
