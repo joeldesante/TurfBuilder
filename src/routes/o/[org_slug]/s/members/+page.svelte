@@ -52,7 +52,7 @@
 </script>
 
 <svelte:head>
-	<title>Members | {data.config.application_name}</title>
+	<title>Members | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <MembersPage

@@ -9,10 +9,11 @@
 
 	interface Props {
 		orgs: Org[];
+		allowCreation?: boolean;
 		onSelect: (org: Org) => void;
 	}
 
-	const { orgs, onSelect }: Props = $props();
+	const { orgs, allowCreation = false, onSelect }: Props = $props();
 </script>
 
 <div class="max-w-md mx-auto pt-16 px-4">
@@ -30,8 +31,10 @@
 			</button>
 		{/each}
 
-		<a href="/orgs/create" class="text-sm text-center text-muted hover:underline mt-2">
-			Create a new organization
-		</a>
+		{#if allowCreation}
+			<a href="/orgs/create" class="text-sm text-center text-muted hover:underline mt-2">
+				Create a new organization
+			</a>
+		{/if}
 	</div>
 </div>

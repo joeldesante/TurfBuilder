@@ -7,6 +7,6 @@
 </script>
 
 <svelte:head>
-	<title>Sign Up | {data.config.application_name}</title>
+	<title>Sign Up | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 <Signup {data} {redirectTo} />

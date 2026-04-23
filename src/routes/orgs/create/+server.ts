@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { auth } from '$lib/auth';
+import { getAuth } from '$lib/auth';
 import { POOL } from '$lib/server/database';
 
 export async function POST({ request, locals }) {
@@ -20,6 +20,7 @@ export async function POST({ request, locals }) {
 	const { name, slug } = await request.json();
 	if (!name || !slug) throw error(400, 'Name and slug are required');
 
+	const auth = await getAuth();
 	const result = await auth.api.createOrganization({
 		headers: request.headers,
 		body: { name, slug }
