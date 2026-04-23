@@ -2,6 +2,7 @@ import type { SidebarNavEntry } from '$components/layout/sidebar/types';
 import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import UsersIcon from 'phosphor-svelte/lib/Users';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
+import GearIcon from 'phosphor-svelte/lib/Gear';
 
 export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
 	const nav: SidebarNavEntry[] = [
@@ -22,6 +23,13 @@ export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
 		nav.push({
 			kind: 'item',
 			item: { label: 'Data Sync', href: '/infra/sync', icon: DatabaseIcon }
+		});
+	}
+
+	if (infraPermissions.includes('settings.manage')) {
+		nav.push({
+			kind: 'item',
+			item: { label: 'Settings', href: '/infra/settings', icon: GearIcon }
 		});
 	}
 

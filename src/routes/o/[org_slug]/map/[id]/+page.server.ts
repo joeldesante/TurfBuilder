@@ -15,14 +15,25 @@ export async function load({ locals, params }) {
 		}
 
 		const locationsRes = await client.query(
-			`SELECT l.id, l.location_name, l.category, l.latitude, l.longitude, l.street, l.locality, l.postcode, l.region, l.country,
+			`SELECT
+			        COALESCE(l.id, ol.id) AS id,
+			        COALESCE(l.location_name, ol.location_name) AS location_name,
+			        COALESCE(l.category, ol.category) AS category,
+			        COALESCE(l.latitude, ol.latitude) AS latitude,
+			        COALESCE(l.longitude, ol.longitude) AS longitude,
+			        COALESCE(l.street, ol.street) AS street,
+			        COALESCE(l.locality, ol.locality) AS locality,
+			        COALESCE(l.postcode, ol.postcode) AS postcode,
+			        COALESCE(l.region, ol.region) AS region,
+			        COALESCE(l.country, ol.country) AS country,
 			        COUNT(tla.id) > 0 AS visited,
 			        (array_agg(tla.contact_made ORDER BY tla.updated_at DESC NULLS LAST))[1] AS contact_made
-			 FROM location l
-			 JOIN turf_location tl ON tl.location_id = l.id
+			 FROM turf_location tl
+			 LEFT JOIN location l ON l.id = tl.location_id
+			 LEFT JOIN org_location ol ON ol.id = tl.org_location_id
 			 LEFT JOIN turf_location_attempt tla ON tla.turf_location_id = tl.id
 			 WHERE tl.turf_id = $1 AND tl.organization_id = $2
-			 GROUP BY l.id, tl.id
+			 GROUP BY tl.id, l.id, ol.id
 			 LIMIT 500`,
 			[turfId, orgId]
 		);
@@ -33,10 +44,17 @@ export async function load({ locals, params }) {
 
 		const centerRes = await client.query(
 			`SELECT
-				ST_Y(ST_Centroid(ST_Collect(ST_MakePoint(l.longitude, l.latitude)))) AS latitude,
-				ST_X(ST_Centroid(ST_Collect(ST_MakePoint(l.longitude, l.latitude)))) AS longitude
-			 FROM location l
-			 JOIN turf_location tl ON tl.location_id = l.id
+				ST_Y(ST_Centroid(ST_Collect(ST_MakePoint(
+					COALESCE(l.longitude, ol.longitude),
+					COALESCE(l.latitude, ol.latitude)
+				)))) AS latitude,
+				ST_X(ST_Centroid(ST_Collect(ST_MakePoint(
+					COALESCE(l.longitude, ol.longitude),
+					COALESCE(l.latitude, ol.latitude)
+				)))) AS longitude
+			 FROM turf_location tl
+			 LEFT JOIN location l ON l.id = tl.location_id
+			 LEFT JOIN org_location ol ON ol.id = tl.org_location_id
 			 WHERE tl.turf_id = $1 AND tl.organization_id = $2`,
 			[turfId, orgId]
 		);

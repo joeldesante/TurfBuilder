@@ -62,15 +62,22 @@ export async function POST({ request, locals }) {
 				);
 
 				const locations = await client.query(
-					`SELECT * FROM location
+					`SELECT id, tier FROM location_unified
 					 WHERE ST_Contains(ST_GeomFromGeoJSON($1::text), geom)`,
 					[JSON.stringify(polygon.geometry)]
 				);
 
-				if (locations.rows.length > 0) {
-					for (const location of locations.rows) {
+				for (const location of locations.rows) {
+					if (location.tier === 'tier1') {
 						await client.query(
 							`INSERT INTO turf_location (turf_id, location_id, organization_id)
+							 VALUES ($1, $2, $3)
+							 ON CONFLICT DO NOTHING`,
+							[result.rows[0].id, location.id, locals.organization!.id]
+						);
+					} else {
+						await client.query(
+							`INSERT INTO turf_location (turf_id, org_location_id, organization_id)
 							 VALUES ($1, $2, $3)
 							 ON CONFLICT DO NOTHING`,
 							[result.rows[0].id, location.id, locals.organization!.id]

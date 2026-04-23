@@ -30,8 +30,8 @@ export async function load({ locals, url }) {
 				sq.choices,
 				sq.order_index,
 				sqr.response_value,
-				l.street,
-				l.locality,
+				COALESCE(l.street, ol.street) AS street,
+				COALESCE(l.locality, ol.locality) AS locality,
 				u.username AS user_name
 			FROM turf t
 			JOIN survey_question sq ON sq.survey_id = t.survey_id
@@ -41,9 +41,10 @@ export async function load({ locals, url }) {
 				ON sqr.survey_question_id = sq.id
 				AND sqr.turf_location_attempt_id = tla.id
 			LEFT JOIN location l ON l.id = tl.location_id
+			LEFT JOIN org_location ol ON ol.id = tl.org_location_id
 			LEFT JOIN auth."user" u ON u.id = tla.user_id
 			WHERE t.code = $1
-			ORDER BY sq.order_index ASC, l.street ASC`,
+			ORDER BY sq.order_index ASC, COALESCE(l.street, ol.street) ASC`,
 			[code]
 		);
 

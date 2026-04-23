@@ -3,15 +3,13 @@ import { can } from '$lib/auth-helpers.js';
 import { withOrgTransaction } from '$lib/server/database.js';
 
 export async function load({ locals }) {
-	if (!can(locals.organization, 'location', 'read')) throw error(403, 'Forbidden.');
+	if (!can(locals.organization, 'location', 'create')) throw error(403, 'Forbidden.');
 
 	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await client.query(
-			`SELECT id, location_name, category, street, locality, postcode, region, country, latitude, longitude
-			 FROM location_unified
-			 ORDER BY location_name
-			 LIMIT 2000`
+			`SELECT COUNT(*)::int AS count FROM org_location WHERE organization_id = $1`,
+			[locals.organization!.id]
 		);
-		return { locations: result.rows };
+		return { count: result.rows[0].count as number };
 	});
 }

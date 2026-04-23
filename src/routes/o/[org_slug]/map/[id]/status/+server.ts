@@ -23,14 +23,16 @@ export async function GET({ locals, params }) {
 		if (membership.rows.length === 0) throw error(403, 'Forbidden');
 
 		const result = await client.query(
-			`SELECT l.id,
+			`SELECT
+			        COALESCE(l.id, ol.id) AS id,
 			        COUNT(tla.id) > 0 AS visited,
 			        (array_agg(tla.contact_made ORDER BY tla.updated_at DESC NULLS LAST))[1] AS contact_made
-			 FROM location l
-			 JOIN turf_location tl ON tl.location_id = l.id
+			 FROM turf_location tl
+			 LEFT JOIN location l ON l.id = tl.location_id
+			 LEFT JOIN org_location ol ON ol.id = tl.org_location_id
 			 LEFT JOIN turf_location_attempt tla ON tla.turf_location_id = tl.id
 			 WHERE tl.turf_id = $1 AND tl.organization_id = $2
-			 GROUP BY l.id, tl.id`,
+			 GROUP BY tl.id, l.id, ol.id`,
 			[turfId, orgId]
 		);
 
