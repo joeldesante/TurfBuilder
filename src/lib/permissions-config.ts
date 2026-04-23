@@ -56,6 +56,35 @@ export const PERMISSIONS: PermissionDef[] = [
 	},
 
 	{
+		key: 'location.read',
+		group: 'Locations',
+		label: 'View Private Locations',
+		verbPhrase: 'view org-private locations',
+		description: 'Grants access to browse locations the org has added to its private dataset.'
+	},
+	{
+		key: 'location.create',
+		group: 'Locations',
+		label: 'Import Locations',
+		verbPhrase: 'import new locations into the private dataset',
+		description: "Allows uploading CSV or GeoJSON files to add new locations to the org's private dataset."
+	},
+	{
+		key: 'location.update',
+		group: 'Locations',
+		label: 'Edit Locations',
+		verbPhrase: 'edit org-private location records',
+		description: 'Allows modifying the details of locations the org has added.'
+	},
+	{
+		key: 'location.delete',
+		group: 'Locations',
+		label: 'Delete Locations',
+		verbPhrase: 'delete org-private locations',
+		description: "Allows permanently removing locations from the org's private dataset."
+	},
+
+	{
 		key: 'survey.read',
 		group: 'Surveys',
 		label: 'View Surveys',

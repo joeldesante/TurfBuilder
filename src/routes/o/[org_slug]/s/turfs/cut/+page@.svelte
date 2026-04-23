@@ -137,7 +137,7 @@
 	async function fetchLocations(bounds: maplibregl.LngLatBounds) {
 		locationsLoading = true;
 		const response = await fetch(
-			`/api/locations?` +
+			`/o/${$page.params.org_slug}/s/api/locations?` +
 				`lat_min=${bounds.getSouth()}&lat_max=${bounds.getNorth()}` +
 				`&lon_min=${bounds.getWest()}&lon_max=${bounds.getEast()}`
 		);
