@@ -28,7 +28,7 @@
 	{#if step == 0}
 		<div class="p-4 flex flex-col gap-4">
 			<h1 class="text-xl font-medium">
-				You must first setup Two Factor Authentication before using {data.config.application_name}
+				You must first setup Two Factor Authentication before using {data.config?.application_name ?? 'TurfBuilder'}
 			</h1>
 
 			<div class="flex flex-col gap-2">
@@ -39,7 +39,7 @@
 					onclick={async () => {
 						const { data: tfaData, error: tfaError } = await authClient.twoFactor.enable({
 							password: password,
-							issuer: data.config.application_name
+							issuer: data.config?.application_name ?? 'TurfBuilder'
 						});
 
 						if (tfaError) {

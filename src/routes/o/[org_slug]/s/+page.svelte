@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard | {data.config.application_name}</title>
+	<title>Dashboard | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <PageHeader

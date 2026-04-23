@@ -31,6 +31,7 @@
 		{nav}
 		currentPath={$page.url.pathname}
 		username={data.user.name}
+		infraAccess={true}
 		theme={themeStore.theme}
 		onthemechange={themeStore.setTheme}
 		bind:mobileOpen

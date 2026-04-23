@@ -1,22 +1,57 @@
-import { auth } from '$lib/auth';
+import { getAuth } from '$lib/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
-import config from './config';
+import { redirect, error } from '@sveltejs/kit';
 import { POOL, withOrgTransaction } from '$lib/server/database';
-import { resolveOrgPermissions } from '$lib/server/permissions';
-
-
+import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
+import { isSetupComplete } from '$lib/server/setup';
+import { getSettings, SettingsMissingError } from '$lib/server/settings';
 
 export async function handle({ event, resolve }) {
-	const session = await auth.api.getSession({
-		headers: event.request.headers
-	});
+	const { pathname } = event.url;
+	const isSetupRoute = pathname.startsWith('/setup');
+	const isAuthRoute = pathname.startsWith('/auth');
 
-	event.locals.config = Object.freeze(config);
+	if (!building) {
+		if (!isSetupRoute) {
+			// Redirect to setup wizard if the app hasn't been initialised yet.
+			if (!(await isSetupComplete())) {
+				throw redirect(303, '/setup');
+			}
+
+			// Load settings and fail loudly if a required one is missing.
+			try {
+				event.locals.config = await getSettings();
+			} catch (e) {
+				if (e instanceof SettingsMissingError) {
+					throw error(500, e.message);
+				}
+				throw e;
+			}
+		}
+	}
+
+	if (isSetupRoute) {
+		return resolve(event);
+	}
+
+	const auth = await getAuth();
+
+	let session: Awaited<ReturnType<typeof auth.api.getSession>> = null;
+	try {
+		session = await auth.api.getSession({
+			headers: event.request.headers
+		});
+	} catch {
+		// Auth tables may not exist yet during initial setup.
+	}
 
 	if (session) {
 		event.locals.session = session.session;
 		event.locals.user = session.user;
+
+		const infraPermissions = await resolveInfraPermissions(session.user.id);
+		event.locals.infrastructure = { permissions: infraPermissions };
 	}
 
 	// Resolve org from /o/[org_slug]/... URLs.
@@ -33,15 +68,12 @@ export async function handle({ event, resolve }) {
 			const org = orgRow.rows[0];
 
 			const resolved = await withOrgTransaction(org.id, async (client) => {
-				// Confirm the user is actually a member of this org.
 				const memberCheck = await client.query(
 					`SELECT 1 FROM auth.member WHERE organization_id = $1 AND user_id = $2`,
 					[org.id, session.user.id]
 				);
 				if (memberCheck.rowCount === 0) return null;
 
-				// Primary role: the heaviest (lowest weight) role the user belongs to.
-				// Used for display (id + name on the role object).
 				const roleResult = await client.query(
 					`SELECT pr.id, pr.name
 					 FROM user_role_membership urm

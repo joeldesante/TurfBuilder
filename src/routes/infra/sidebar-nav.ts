@@ -3,9 +3,14 @@ import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import UsersIcon from 'phosphor-svelte/lib/Users';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
 import GearIcon from 'phosphor-svelte/lib/Gear';
+import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
 
 export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
 	const nav: SidebarNavEntry[] = [
+		{
+			kind: 'item',
+			item: { label: 'Back', href: '/', icon: ArrowLeftIcon }
+		},
 		{
 			kind: 'item',
 			item: { label: 'Dashboard', href: '/infra', icon: SquaresFourIcon }

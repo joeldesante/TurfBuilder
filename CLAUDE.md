@@ -1,10 +1,93 @@
-# CLAUDE INSTRUCTIONS
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Development
+npm run dev              # SvelteKit dev server (Vite)
+npm run build            # Production build
+npm run preview          # Preview production build
+
+# Database
+npm run db               # Run migrations (dev)
+npm run db:prod          # Run migrations (production)
+
+# Testing
+npm run test             # All tests (unit + e2e)
+npm run test:unit        # Vitest (unit + component tests)
+npm run test:watch       # Vitest interactive watch mode
+npm run test:ui          # Vitest browser UI
+npm run test:e2e         # Playwright e2e tests
+
+# Run a single test file
+npx vitest run src/path/to/Component.svelte.spec.ts
+
+# Linting & type checking
+npm run lint             # ESLint
+npm run format           # Prettier
+npm run check            # svelte-check (type checking)
+
+# Storybook
+npm run storybook        # Storybook dev server
+```
+
+## Tech Stack
+
+- **Framework:** SvelteKit 5 with Svelte 5 runes, TypeScript strict mode
+- **Database:** PostgreSQL + PostGIS (geospatial), accessed via `pg` driver
+- **Auth:** better-auth (sessions, org membership) + custom RBAC + PostgreSQL RLS
+- **Migrations:** node-pg-migrate (TypeScript files in `/migrations/`)
+- **Maps:** MapLibre GL + @geoman-io/maplibre-geoman-free
+- **Styling:** Tailwind CSS 4
+- **UI primitives:** Bits UI + Phosphor Svelte icons
+- **Tables:** @tanstack/table-core
+- **Validation:** Zod + zod-empty
+- **Observability:** OpenTelemetry → Jaeger
+
+## Environment Variables
+
+Required in `.env`:
+```
+DATABASE_URL=postgres://postgres:db_password@localhost:5432/postgres
+BETTER_AUTH_SECRET=<generate at https://www.better-auth.com/docs>
+BETTER_AUTH_URL=http://localhost:5173
+MIGRATION_DATABASE_URL=<same as DATABASE_URL>
+```
+
+## Architecture Overview
+
+This is a multi-tenant canvassing platform. All data is scoped to an `organization_id`. Two separate user audiences share the same codebase:
+
+- **Volunteers** access `/o/[org_slug]/` — map view, survey submission
+- **Staff (organizers)** access `/o/[org_slug]/s/` — manage turfs, surveys, responses, users, settings
+- **Plugins** extend both surfaces at `/o/[org_slug]/s/plugins/[slug]/` and `/o/[org_slug]/plugins/[slug]/`
+
+### Request lifecycle
+
+1. `src/hooks.server.ts` resolves `locals.user` (from better-auth session) and `locals.organization` (org membership + resolved RBAC permissions) on every request
+2. `/o/[org_slug]/+layout.server.ts` guards require `locals.user` + `locals.organization`
+3. `/o/[org_slug]/s/+layout.server.ts` additionally requires `locals.organization.role` (staff), loads `activePlugins`
+4. Route `+page.server.ts` / API handlers run queries inside `withOrgTransaction`, which sets PostgreSQL `app.current_org_id` for RLS
+5. Route `+page.svelte` files are thin shells — all UI lives in `$pages` story components
+
+### Database schemas
+
+- `auth.*` — managed by better-auth: `user`, `session`, `account`, `organization`, `member`, `invitation`
+- `public.*` — app tables: `turf`, `survey`, `response`, `location`, `plugin_installation`, `permission_role`, `permission_role_entry`
+
+### RBAC model
+
+Permissions are resolved at request time by `resolveOrgPermissions()` and stored in `locals.organization.permissions`. A user can have permissions granted directly or via named roles. Owners (`org.role.is_owner === true`) bypass all checks. Always use `can()` — never raw table checks.
+
+---
 
 ## Pages and Components
 
-All pages and components must be defined in the `/stories` directory and they must be valid storybook stories. These components and pages can then be referenced in the application itself later. This is for organizational purposes.
+All pages and components must be defined in the `/stories` directory and they must be valid storybook stories. These components and pages can then be referenced in the application itself later.
 
-All new components must have tests associated with them. Make sure tests are always up to date and maximize coverage.
+All new components must have tests associated with them.
 
 ### Stories Directory Layout
 

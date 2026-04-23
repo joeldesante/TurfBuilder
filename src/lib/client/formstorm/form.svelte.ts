@@ -14,11 +14,16 @@ export class Form<TSchema extends ZodObject<ZodRawShape>> {
 	private _errors = $state<Record<string, string[]>>({});
 	private _onSubmit: (data: z.infer<TSchema>) => Promise<void>;
 
-	constructor(schema: TSchema, onSubmit: (data: z.infer<TSchema>) => Promise<void>) {
+	constructor(
+		schema: TSchema,
+		onSubmit: (data: z.infer<TSchema>) => Promise<void>,
+		initialValues?: Partial<z.infer<TSchema>>
+	) {
 		this._schema = schema;
-		this._data = $state<z.infer<TSchema>>(
-			GenerateObjectFromSchema(this._schema) as z.infer<TSchema>
-		);
+		this._data = $state<z.infer<TSchema>>({
+			...(GenerateObjectFromSchema(this._schema) as z.infer<TSchema>),
+			...initialValues
+		});
 		this._onSubmit = onSubmit;
 	}
 

@@ -24,7 +24,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>Surveys | {data.config.application_name}</title>
+	<title>Surveys | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
 <PageHeader title="Surveys">

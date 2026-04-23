@@ -15,4 +15,4 @@
 	<title>Select Organization</title>
 </svelte:head>
 
-<OrgPicker orgs={data.orgs} onSelect={handleSelect} />
+<OrgPicker orgs={data.orgs} allowCreation={data.allowCreation} onSelect={handleSelect} />
