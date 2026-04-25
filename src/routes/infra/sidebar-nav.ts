@@ -3,6 +3,7 @@ import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import UsersIcon from 'phosphor-svelte/lib/Users';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
 import GearIcon from 'phosphor-svelte/lib/Gear';
+import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwise';
 import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
 
 export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
@@ -35,6 +36,10 @@ export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
 		nav.push({
 			kind: 'item',
 			item: { label: 'Settings', href: '/infra/settings', icon: GearIcon }
+		});
+		nav.push({
+			kind: 'item',
+			item: { label: 'Migrate', href: '/infra/migrate', icon: ArrowsClockwiseIcon }
 		});
 	}
 
