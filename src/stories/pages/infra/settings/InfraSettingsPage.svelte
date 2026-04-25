@@ -26,7 +26,7 @@
 		}
 	});
 
-	const TAG_SETTINGS = new Set(['trusted_origins']);
+	const TAG_SETTINGS = new Set(['base_url']);
 
 	function isBooleanSetting(value: string) {
 		return value === 'true' || value === 'false';
@@ -47,8 +47,7 @@
 	function labelForKey(key: string): string {
 		const labels: Record<string, string> = {
 			'organizations.allow_creation': 'Allow Organization Creation',
-			'html.header_content': 'Additional Header Content',
-			'trusted_origins': 'Trusted Origins'
+			'html.header_content': 'Additional Header Content'
 		};
 		return labels[key] ?? key;
 	}
