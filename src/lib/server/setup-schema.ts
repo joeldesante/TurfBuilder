@@ -715,7 +715,8 @@ export const SETUP_STEPS: SetupStep[] = [
 		statements: [
 			`INSERT INTO system_setting (key, value, description) VALUES
 				('organizations.allow_creation', 'true', 'Whether users can create new organizations.'),
-				('html.header_content', '', 'Raw HTML injected into the <head> of every page (e.g. analytics tracking scripts).')
+				('html.header_content', '', 'Raw HTML injected into the <head> of every page (e.g. analytics tracking scripts).'),
+				('trusted_origins', '', 'Additional trusted origins for auth (one per line, e.g. https://www.turfbuilder.org).')
 			ON CONFLICT (key) DO NOTHING`
 		]
 	},

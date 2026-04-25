@@ -222,11 +222,16 @@ async function buildAuth(): Promise<AuthInstance> {
 
 		trustedOrigins: async () => {
 			try {
-				const result = await POOL.query<{ value: string }>(
-					`SELECT value FROM system_setting WHERE key = 'base_url'`
+				const result = await POOL.query<{ key: string; value: string }>(
+					`SELECT key, value FROM system_setting WHERE key IN ('base_url', 'trusted_origins')`
 				);
-				const url = result.rows[0]?.value;
-				return url ? [new URL(url).origin] : [];
+				const map = Object.fromEntries(result.rows.map((r) => [r.key, r.value]));
+				const origins: string[] = [];
+				if (map.base_url) origins.push(new URL(map.base_url).origin);
+				if (map.trusted_origins) {
+					origins.push(...map.trusted_origins.split('\n').map((s) => s.trim()).filter(Boolean));
+				}
+				return origins;
 			} catch {
 				return [];
 			}

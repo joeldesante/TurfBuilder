@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
+	import TagInput from '$components/data-inputs/tag-input/TagInput.svelte';
 
 	interface Setting {
 		key: string;
@@ -25,14 +26,29 @@
 		}
 	});
 
+	const TAG_SETTINGS = new Set(['trusted_origins']);
+
 	function isBooleanSetting(value: string) {
 		return value === 'true' || value === 'false';
+	}
+
+	function isTagSetting(key: string) {
+		return TAG_SETTINGS.has(key);
+	}
+
+	function tagsFromValue(value: string): string[] {
+		return value.split('\n').map((s) => s.trim()).filter(Boolean);
+	}
+
+	function valueFromTags(tags: string[]): string {
+		return tags.join('\n');
 	}
 
 	function labelForKey(key: string): string {
 		const labels: Record<string, string> = {
 			'organizations.allow_creation': 'Allow Organization Creation',
-			'html.header_content': 'Additional Header Content'
+			'html.header_content': 'Additional Header Content',
+			'trusted_origins': 'Trusted Origins'
 		};
 		return labels[key] ?? key;
 	}
@@ -97,12 +113,21 @@
 				</div>
 				{#if !isBooleanSetting(setting.value)}
 					<div class="flex flex-col gap-2">
-						<textarea
-							class="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm font-mono text-on-surface resize-y min-h-24 focus:outline-none focus:ring-2 focus:ring-primary"
-							bind:value={textValues[setting.key]}
-							disabled={saving === setting.key}
-							placeholder="Empty"
-						></textarea>
+						{#if isTagSetting(setting.key)}
+							<TagInput
+								tags={tagsFromValue(textValues[setting.key] ?? '')}
+								placeholder="Type a domain and press Enter…"
+								disabled={saving === setting.key}
+								onchange={(tags) => { textValues[setting.key] = valueFromTags(tags); }}
+							/>
+						{:else}
+							<textarea
+								class="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm font-mono text-on-surface resize-y min-h-24 focus:outline-none focus:ring-2 focus:ring-primary"
+								bind:value={textValues[setting.key]}
+								disabled={saving === setting.key}
+								placeholder="Empty"
+							></textarea>
+						{/if}
 						<div class="flex justify-end">
 							<button
 								class="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-on-primary disabled:opacity-50"
