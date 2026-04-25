@@ -75,6 +75,11 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
             ${{ env.EXTRA_TAG }}
 
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
       - name: Deploy to Kubernetes
         uses: tale/kubectl-action@v1
         with:
