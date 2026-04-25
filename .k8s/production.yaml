@@ -31,6 +31,14 @@ spec:
           envFrom:
             - secretRef:
                 name: turfbuilder-secrets
+          volumeMounts:
+            - name: db-ca
+              mountPath: /etc/ssl/db-ca
+              readOnly: true
+      volumes:
+        - name: db-ca
+          secret:
+            secretName: turfbuilder-db-ca
 ---
 apiVersion: v1
 kind: Service
