@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: turfbuilder
-          image: ghcr.io/joeldesante/TurfBuilder:staging
+          image: ghcr.io/joeldesante/turfbuilder:staging
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
