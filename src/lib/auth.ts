@@ -16,15 +16,24 @@ let _initPromise: Promise<AuthInstance> | null = null;
 async function buildAuth(): Promise<AuthInstance> {
 	// Read base_url from DB on first init; fall back to env during setup phase
 	// when the system_setting table doesn't exist yet.
-	let baseURL: string;
+	let baseURLs: string[];
 	try {
 		const result = await POOL.query<{ value: string }>(
 			`SELECT value FROM system_setting WHERE key = 'base_url'`
 		);
-		baseURL = result.rows[0]?.value ?? env.BETTER_AUTH_URL ?? 'http://localhost:5173';
+		const raw = result.rows[0]?.value ?? env.BETTER_AUTH_URL ?? 'http://localhost:5173';
+		baseURLs = raw.split('\n').map((s) => s.trim()).filter(Boolean);
 	} catch {
-		baseURL = env.BETTER_AUTH_URL ?? 'http://localhost:5173';
+		baseURLs = [env.BETTER_AUTH_URL ?? 'http://localhost:5173'];
 	}
+
+	const baseURL = (baseURLs.length === 1
+		? baseURLs[0]
+		: {
+			allowedHosts: baseURLs.map((u) => new URL(u).host),
+			protocol: 'https',
+			fallback: baseURLs[0]
+		}) as string;
 
 	const instance = betterAuth({
 		baseURL,
@@ -220,22 +229,7 @@ async function buildAuth(): Promise<AuthInstance> {
 			})
 		],
 
-		trustedOrigins: async () => {
-			try {
-				const result = await POOL.query<{ key: string; value: string }>(
-					`SELECT key, value FROM system_setting WHERE key IN ('base_url', 'trusted_origins')`
-				);
-				const map = Object.fromEntries(result.rows.map((r) => [r.key, r.value]));
-				const origins: string[] = [];
-				if (map.base_url) origins.push(new URL(map.base_url).origin);
-				if (map.trusted_origins) {
-					origins.push(...map.trusted_origins.split('\n').map((s) => s.trim()).filter(Boolean));
-				}
-				return origins;
-			} catch {
-				return [];
-			}
-		},
+		trustedOrigins: baseURLs,
 
 		advanced: {
 			database: {
@@ -244,8 +238,8 @@ async function buildAuth(): Promise<AuthInstance> {
 		}
 	});
 
-	_instance = instance;
-	return instance;
+	_instance = instance as unknown as AuthInstance;
+	return _instance;
 }
 
 export function getAuth(): Promise<AuthInstance> {

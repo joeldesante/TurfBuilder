@@ -34,7 +34,7 @@ npm run storybook        # Storybook dev server
 - **Framework:** SvelteKit 5 with Svelte 5 runes, TypeScript strict mode
 - **Database:** PostgreSQL + PostGIS (geospatial), accessed via `pg` driver
 - **Auth:** better-auth (sessions, org membership) + custom RBAC + PostgreSQL RLS
-- **Migrations:** node-pg-migrate (TypeScript files in `/migrations/`)
+- **Migrations:** idempotent SQL in `src/lib/server/setup-schema.ts` (run via `/setup` or `/infra/migrate`)
 - **Maps:** MapLibre GL + @geoman-io/maplibre-geoman-free
 - **Styling:** Tailwind CSS 4
 - **UI primitives:** Bits UI + Phosphor Svelte icons
@@ -146,6 +146,7 @@ Use `+page@.svelte` to break out of a parent layout (e.g. full-screen map pages 
 - **Plugin pages (volunteer):** `/o/[org_slug]/plugins/[plugin_slug]/[...path]`
 - **Internal API:** `/o/[org_slug]/s/api/` — JSON endpoints consumed by fetch in route files
 - **Global utilities:** `/join` (turf code entry), `/orgs` (org picker), `/orgs/create`, `/invite/[token]`
+- **Infrastructure:** `/infra/` — system dashboard, users, settings, migrations (requires infra permissions)
 - `/auth/**` — managed by better-auth; do not modify
 
 ### Layout Guards
@@ -206,7 +207,7 @@ try {
 
 ## Permissions
 
-Use `can()` from `$lib/auth-helpers` for all permission checks. Do not use `hasSystemAccess()` for new code.
+Use `can()` from `$lib/auth-helpers` for all permission checks.
 
 ```ts
 import { can } from '$lib/auth-helpers';
@@ -214,15 +215,60 @@ if (!can(locals.organization, 'survey', 'create')) throw error(403, 'Forbidden')
 ```
 
 - Owners (`org.role.is_owner === true`) bypass all permission checks
-- Resources: `canvass`, `turf`, `survey`, `response`, `member`, `plugin`
-- Actions: `use`, `create`, `read`, `update`, `delete`
 - Staff guard (any role = staff access): check `locals.organization?.role` exists
+- Permission keys use dot notation: `resource.action`
+
+### Organization permission keys
+
+| Key | Description |
+|-----|-------------|
+| `system.access` | Access the staff dashboard (`/s/`) |
+| `canvass.use` | Canvass in the field |
+| `turf.read/create/update/delete` | Manage turfs |
+| `location.read/create/update/delete` | Manage org-private locations |
+| `survey.read/create/update/delete` | Manage surveys |
+| `response.read/delete` | View and delete canvassing responses |
+| `member.read/invite/update/delete` | Manage org members and invite links |
+| `role.read/create/update/delete` | Manage permission roles |
+| `plugin.manage` | Install and configure plugins |
+
+### Infrastructure permissions
+
+Resolved by `resolveInfraPermissions()` from `$lib/server/permissions`. Required for all `/infra/` routes.
+
+| Key | Description |
+|-----|-------------|
+| `access` | Access the infra dashboard |
+| `users.manage` | Manage all users |
+| `settings.manage` | Manage system settings and run migrations |
+| `locations.overture_sync` | Run Overture data sync |
 
 ---
 
 ## Schema Management
 
-Database schema is managed via the `/setup` page, not migrations. All schema definitions live in `src/lib/server/setup-schema.ts` as idempotent SQL statements. The `/setup` route runs these against the database on first install. Do not add new migration files — update `setup-schema.ts` instead.
+Database schema is managed via `src/lib/server/setup-schema.ts` as idempotent SQL statements. Do not add migration files — update `setup-schema.ts` instead.
+
+- **First install:** visit `/setup` to initialize the database and create the admin user
+- **Updates (existing DB):** visit `/infra/migrate` — reruns all schema steps safely; existing data is never modified
+- If `/setup` is needed on an existing DB (e.g. broken settings), it stays accessible as long as `system_setting` is missing or unpopulated — hooks redirect to `/setup` instead of 500ing
+
+### System Settings
+
+Runtime configuration is stored in the `system_setting` table and managed at `/infra/settings`.
+
+| Key | Description |
+|-----|-------------|
+| `base_url` | Public URL of the instance. Used for auth callbacks. |
+| `application_name` | Display name shown in the UI and page title. |
+| `logo_src` | Path to the logo image. |
+| `trusted_origins` | Newline-separated list of additional trusted origins for auth (e.g. `https://www.turfbuilder.org`). |
+| `html.header_content` | Raw HTML injected into `<head>` on every page (e.g. analytics scripts). |
+
+**Important:** `trusted_origins` is read at auth instance startup. After saving a new value, restart the pods for it to take effect:
+```bash
+kubectl rollout restart deployment/turfbuilder-production -n turfbuilder
+```
 
 ---
 
