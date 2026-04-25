@@ -52,6 +52,10 @@
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-title" content={data.config?.application_name ?? 'TurfBuilder'} />
 	<link rel="apple-touch-icon" href={'/turf_builder_app_icon.png'} />
+
+	{#if data.config?.header_content}
+		{@html data.config.header_content}
+	{/if}
 </svelte:head>
 
 {#if process.env.NODE_ENV?.toLowerCase() !== 'production'}
