@@ -10,10 +10,6 @@ npm run dev              # SvelteKit dev server (Vite)
 npm run build            # Production build
 npm run preview          # Preview production build
 
-# Database
-npm run db               # Run migrations (dev)
-npm run db:prod          # Run migrations (production)
-
 # Testing
 npm run test             # All tests (unit + e2e)
 npm run test:unit        # Vitest (unit + component tests)
@@ -224,12 +220,9 @@ if (!can(locals.organization, 'survey', 'create')) throw error(403, 'Forbidden')
 
 ---
 
-## Migrations
+## Schema Management
 
-- Files live in `/migrations/` using TypeScript + `node-pg-migrate`
-- Filename format: `<unix_ms_timestamp>_<kebab-description>.ts`
-- Run: `npm run db` (dev) or `npm run db:prod`
-- Every migration must export `up(pgm)` and `down(pgm)` functions
+Database schema is managed via the `/setup` page, not migrations. All schema definitions live in `src/lib/server/setup-schema.ts` as idempotent SQL statements. The `/setup` route runs these against the database on first install. Do not add new migration files — update `setup-schema.ts` instead.
 
 ---
 
