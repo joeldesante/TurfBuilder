@@ -4,6 +4,7 @@ export interface AppSettings {
 	base_url: string;
 	application_name: string;
 	logo_src: string;
+	header_content: string;
 }
 
 const REQUIRED: (keyof AppSettings)[] = ['base_url', 'application_name'];
@@ -31,7 +32,8 @@ export async function getSettings(): Promise<AppSettings> {
 	return {
 		base_url: raw.base_url,
 		application_name: raw.application_name,
-		logo_src: raw.logo_src ?? '/logos/default_logo.svg'
+		logo_src: raw.logo_src ?? '/logos/default_logo.svg',
+		header_content: raw['html.header_content'] ?? ''
 	};
 }
 

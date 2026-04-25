@@ -11,12 +11,19 @@
 	interface Props {
 		settings: Setting[];
 		onToggle: (key: string, value: boolean) => Promise<void>;
+		onSave: (key: string, value: string) => Promise<void>;
 	}
 
-	const { settings, onToggle }: Props = $props();
+	const { settings, onToggle, onSave }: Props = $props();
 
 	let saving = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	let textValues = $state<Record<string, string>>({});
+	$effect(() => {
+		for (const s of settings) {
+			textValues[s.key] = s.value;
+		}
+	});
 
 	function isBooleanSetting(value: string) {
 		return value === 'true' || value === 'false';
@@ -24,7 +31,8 @@
 
 	function labelForKey(key: string): string {
 		const labels: Record<string, string> = {
-			'organizations.allow_creation': 'Allow Organization Creation'
+			'organizations.allow_creation': 'Allow Organization Creation',
+			'html.header_content': 'Additional Header Content'
 		};
 		return labels[key] ?? key;
 	}
@@ -34,6 +42,18 @@
 		error = null;
 		try {
 			await onToggle(key, checked);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to save setting.';
+		} finally {
+			saving = null;
+		}
+	}
+
+	async function handleSave(key: string) {
+		saving = key;
+		error = null;
+		try {
+			await onSave(key, textValues[key]);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to save setting.';
 		} finally {
@@ -56,24 +76,43 @@
 
 	<div class="rounded-lg border border-outline divide-y divide-outline overflow-hidden">
 		{#each settings as setting}
-			<div class="flex items-start justify-between gap-4 px-5 py-4 bg-surface-container-low">
-				<div class="space-y-0.5 min-w-0">
-					<p class="text-sm font-medium text-on-surface">{labelForKey(setting.key)}</p>
-					{#if setting.description}
-						<p class="text-xs text-on-surface-subtle">{setting.description}</p>
-					{/if}
-					<p class="text-xs text-on-surface-subtle font-mono opacity-60">{setting.key}</p>
-				</div>
-				{#if isBooleanSetting(setting.value)}
-					<div class="shrink-0 pt-0.5">
-						<Switch
-							checked={setting.value === 'true'}
-							disabled={saving === setting.key}
-							onCheckedChange={(checked) => handleToggle(setting.key, checked)}
-						/>
+			<div class="flex flex-col gap-3 px-5 py-4 bg-surface-container-low">
+				<div class="flex items-start justify-between gap-4">
+					<div class="space-y-0.5 min-w-0">
+						<p class="text-sm font-medium text-on-surface">{labelForKey(setting.key)}</p>
+						{#if setting.description}
+							<p class="text-xs text-on-surface-subtle">{setting.description}</p>
+						{/if}
+						<p class="text-xs text-on-surface-subtle font-mono opacity-60">{setting.key}</p>
 					</div>
-				{:else}
-					<span class="text-sm text-on-surface font-mono shrink-0">{setting.value}</span>
+					{#if isBooleanSetting(setting.value)}
+						<div class="shrink-0 pt-0.5">
+							<Switch
+								checked={setting.value === 'true'}
+								disabled={saving === setting.key}
+								onCheckedChange={(checked) => handleToggle(setting.key, checked)}
+							/>
+						</div>
+					{/if}
+				</div>
+				{#if !isBooleanSetting(setting.value)}
+					<div class="flex flex-col gap-2">
+						<textarea
+							class="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm font-mono text-on-surface resize-y min-h-24 focus:outline-none focus:ring-2 focus:ring-primary"
+							bind:value={textValues[setting.key]}
+							disabled={saving === setting.key}
+							placeholder="Empty"
+						></textarea>
+						<div class="flex justify-end">
+							<button
+								class="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-on-primary disabled:opacity-50"
+								disabled={saving === setting.key}
+								onclick={() => handleSave(setting.key)}
+							>
+								{saving === setting.key ? 'Saving…' : 'Save'}
+							</button>
+						</div>
+					</div>
 				{/if}
 			</div>
 		{:else}
