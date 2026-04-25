@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: umami
+  namespace: turfbuilder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: umami
+  template:
+    metadata:
+      labels:
+        app: umami
+    spec:
+      containers:
+        - name: umami
+          image: ghcr.io/umami-software/umami:postgresql-latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: umami-secrets
+          volumeMounts:
+            - name: db-ca
+              mountPath: /etc/ssl/db-ca
+              readOnly: true
+      volumes:
+        - name: db-ca
+          secret:
+            secretName: turfbuilder-db-ca
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: umami-svc
+  namespace: turfbuilder
+spec:
+  selector:
+    app: umami
+  ports:
+    - port: 80
+      targetPort: 3000
