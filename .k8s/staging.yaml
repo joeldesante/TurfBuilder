@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: turfbuilder-staging
+  namespace: turfbuilder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: turfbuilder
+      env: staging
+  template:
+    metadata:
+      labels:
+        app: turfbuilder
+        env: staging
+    spec:
+      containers:
+        - name: turfbuilder
+          image: ghcr.io/joeldesante/TurfBuilder:staging
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "3000"
+          envFrom:
+            - secretRef:
+                name: turfbuilder-secrets-staging
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: turfbuilder-staging-svc
+  namespace: turfbuilder
+spec:
+  selector:
+    app: turfbuilder
+    env: staging
+  ports:
+    - port: 80
+      targetPort: 3000

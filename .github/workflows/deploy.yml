@@ -1,48 +1,91 @@
-name: Build and Deploy to Dokku
+name: Build & Deploy
 
 on:
   push:
-    branches: [main] # Change to 'master' if that's your default branch
+    branches: [main, staging]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
-  deploy:
+  test:
+    name: Unit & Component Tests
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write # Required for pushing to ghcr.io
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
 
-      - name: Log in to GitHub Container Registry
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run type check
+        run: npm run check
+
+      - name: Run unit & component tests
+        run: npm run test:unit
+        env:
+          CI: true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set environment
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "TAG=production" >> $GITHUB_ENV
+            echo "EXTRA_TAG=${{ env.IMAGE }}:latest" >> $GITHUB_ENV
+            echo "DEPLOY_FILE=.k8s/production.yaml" >> $GITHUB_ENV
+            echo "DEPLOYMENT=turfbuilder-production" >> $GITHUB_ENV
+          else
+            echo "TAG=staging" >> $GITHUB_ENV
+            echo "EXTRA_TAG=" >> $GITHUB_ENV
+            echo "DEPLOY_FILE=.k8s/staging.yaml" >> $GITHUB_ENV
+            echo "DEPLOYMENT=turfbuilder-staging" >> $GITHUB_ENV
+          fi
+
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push dev image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/turfbuilder:latest
-            ghcr.io/${{ github.repository_owner }}/turfbuilder:${{ github.sha }}
-          target: production
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ env.IMAGE }}:${{ env.TAG }}
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.EXTRA_TAG }}
 
-      - name: Deploy to Dokku
-        uses: appleboy/ssh-action@master
+      - name: Deploy to Kubernetes
+        uses: tale/kubectl-action@v1
         with:
-          host: ${{ secrets.DOKKU_HOST }}
-          username: dokku
-          key: ${{ secrets.DOKKU_SSH_PRIVATE_KEY }}
-          script: |
-            git:from-image deice ghcr.io/${{ github.repository_owner }}/turfbuilder:${{ github.sha }}
+          base64-kube-config: ${{ secrets.K8S_CONFIG }}
+
+      - name: Apply manifest and wait for rollout
+        run: |
+          kubectl apply -f ${{ env.DEPLOY_FILE }}
+          kubectl set image deployment/${{ env.DEPLOYMENT }} \
+            turfbuilder=${{ env.IMAGE }}:${{ github.sha }} \
+            -n turfbuilder
+          kubectl rollout status deployment/${{ env.DEPLOYMENT }} \
+            -n turfbuilder --timeout=120s
