@@ -40,7 +40,14 @@
 		})),
 		{ separator: true as const },
 		...(data.infraAccess
-			? [{ label: 'Infrastructure', onclick: () => { location.href = '/infra'; } } as DropdownMenuEntry]
+			? [
+					{
+						label: 'Infrastructure',
+						onclick: () => {
+							location.href = '/infra';
+						}
+					} as DropdownMenuEntry
+				]
 			: []),
 		{ label: 'Sign Out', icon: SignOutIcon, onclick: logout }
 	]);
@@ -50,7 +57,10 @@
 	<title>{data.config?.application_name ?? 'TurfBuilder'}</title>
 
 	<meta name="apple-mobile-web-app-capable" content="yes" />
-	<meta name="apple-mobile-web-app-title" content={data.config?.application_name ?? 'TurfBuilder'} />
+	<meta
+		name="apple-mobile-web-app-title"
+		content={data.config?.application_name ?? 'TurfBuilder'}
+	/>
 	<link rel="apple-touch-icon" href={'/turf_builder_app_icon.png'} />
 
 	{#if data.config?.header_content}
@@ -78,4 +88,5 @@
 	</div>
 {/if}
 
+<dialog>Hello</dialog>
 {@render children()}

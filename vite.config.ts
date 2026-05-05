@@ -34,6 +34,11 @@ export default defineConfig({
 			// Allow serving files from the main repo root (needed for git worktrees
 			// where node_modules is in the main repo, not the worktree)
 			allow: [searchForWorkspaceRoot(process.cwd()), mainRepoRoot]
+		},
+		watch: {
+			// Docker on macOS doesn't forward inotify events across the VM boundary;
+			// polling is the only reliable way to detect file changes in a volume mount.
+			usePolling: process.env.DOCKER === 'true'
 		}
 	},
 	test: {

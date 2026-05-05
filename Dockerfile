@@ -9,19 +9,17 @@ COPY . .
 RUN NODE_OPTIONS=--max-old-space-size=4096 npm run prepare && NODE_OPTIONS=--max-old-space-size=4096 npm run build && npm prune --omit=dev
 
 # --- Development stage ---
+# Source is mounted via volume at runtime — do not COPY . here.
+# npm install runs at container startup (not build time) so native binaries
+# are always resolved for linux/arm64-musl, never inherited from the Mac host.
 FROM node:22-alpine AS development
 WORKDIR /app
-
-COPY package.json package-lock.json* ./
-RUN npm ci
-
-COPY . .
 
 ENV NODE_ENV=development
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
 
 # --- Production stage ---
 FROM node:22-alpine AS production
