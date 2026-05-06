@@ -23,7 +23,6 @@
 
 	let mobileOpen = $state(false);
 	let isSearchOpen = $state(false);
-	let searchKey = $state(0);
 	let searchDialog: HTMLDialogElement;
 	let searchContent: HTMLDivElement;
 	let cancelClose: (() => void) | null = null;
@@ -35,7 +34,6 @@
 			searchDialog.classList.remove('closing');
 			searchDialog.close();
 			cancelClose = null;
-			searchKey++;
 		};
 		searchDialog.addEventListener('animationend', onEnd, { once: true });
 		cancelClose = () => {
@@ -83,11 +81,9 @@
 	onclick={handleDialogClick}
 	oncancel={(e) => { e.preventDefault(); closeSearch(); }}
 >
-	<div class="w-full h-full flex justify-center items-center">
+	<div class="w-full h-full flex justify-center items-start pt-[20%]">
 		<div bind:this={searchContent} class="w-3/4">
-			{#key searchKey}
-				<SearchBox close={closeSearch} />
-			{/key}
+			<SearchBox close={closeSearch} {nav} open={isSearchOpen} />
 		</div>
 	</div>
 </dialog>
