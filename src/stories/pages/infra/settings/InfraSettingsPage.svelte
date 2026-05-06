@@ -32,7 +32,8 @@
 	function labelForKey(key: string): string {
 		const labels: Record<string, string> = {
 			'organizations.allow_creation': 'Allow Organization Creation',
-			'html.header_content': 'Additional Header Content'
+			'html.header_content': 'Additional Header Content',
+			'errors.cat_gifs': 'Show Cat Gifs on Error Pages'
 		};
 		return labels[key] ?? key;
 	}

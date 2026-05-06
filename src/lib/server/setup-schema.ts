@@ -715,13 +715,26 @@ export const SETUP_STEPS: SetupStep[] = [
 		statements: [
 			`INSERT INTO system_setting (key, value, description) VALUES
 				('organizations.allow_creation', 'true', 'Whether users can create new organizations.'),
-				('html.header_content', '', 'Raw HTML injected into the <head> of every page (e.g. analytics tracking scripts).')
+				('html.header_content', '', 'Raw HTML injected into the <head> of every page (e.g. analytics tracking scripts).'),
+				('errors.cat_gifs', 'true', 'Show a cat gif on error pages.')
 			ON CONFLICT (key) DO NOTHING`
 		]
 	},
 
 	// -------------------------------------------------------------------------
-	// 15. location_unified view
+	// 15. Full-text search GIN indexes
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating full-text search indexes',
+		statements: [
+			`CREATE INDEX IF NOT EXISTS survey_fts_idx ON survey USING GIN (to_tsvector('simple', name || ' ' || COALESCE(description, '')))`,
+			`CREATE INDEX IF NOT EXISTS location_fts_idx ON location USING GIN (to_tsvector('simple', location_name || ' ' || COALESCE(street, '') || ' ' || COALESCE(locality, '')))`,
+			`CREATE INDEX IF NOT EXISTS org_location_fts_idx ON org_location USING GIN (to_tsvector('simple', location_name || ' ' || COALESCE(street, '') || ' ' || COALESCE(locality, '')))`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 16. location_unified view
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating location_unified view',
