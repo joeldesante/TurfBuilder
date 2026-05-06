@@ -6,10 +6,21 @@ export interface SidebarNavItem {
 	icon?: Component;
 }
 
-export interface SidebarNavSection {
+export interface SidebarNavAccordion {
 	label: string;
 	icon?: Component;
 	items: SidebarNavItem[];
+	defaultOpen?: boolean;
+}
+
+export type SidebarNavSectionEntry =
+	| SidebarNavItem
+	| SidebarNavAccordion;
+
+export interface SidebarNavSection {
+	label: string;
+	icon?: Component;
+	items: SidebarNavSectionEntry[];
 }
 
 export type SidebarNavEntry =

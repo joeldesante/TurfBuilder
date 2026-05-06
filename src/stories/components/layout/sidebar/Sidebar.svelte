@@ -44,13 +44,14 @@
 		...restProps
 	}: Props = $props();
 
-	function allNavHrefs(): string[] {
-		return nav.flatMap((entry) => {
-			if (entry.kind === 'item') return [entry.item.href];
-			if (entry.kind === 'section') return entry.section.items.map((i) => i.href);
-			return [];
-		});
-	}
+	const allNavHrefs = $derived(nav.flatMap((entry) => {
+		if (entry.kind === 'item') return [entry.item.href];
+		if (entry.kind === 'section')
+			return entry.section.items.flatMap((i) =>
+				'href' in i ? [i.href] : i.items.map((sub) => sub.href)
+			);
+		return [];
+	}));
 
 	function isActive(href: string): boolean {
 		const normHref = href.endsWith('/') ? href : href + '/';
@@ -58,7 +59,7 @@
 
 		// Use exact match if this href is a prefix of any sibling nav href,
 		// so a root item (e.g. /o/foo/s/) isn't permanently active on sub-pages.
-		const isPrefixOfSibling = allNavHrefs().some((other) => {
+		const isPrefixOfSibling = allNavHrefs.some((other) => {
 			const normOther = other.endsWith('/') ? other : other + '/';
 			return normOther !== normHref && normOther.startsWith(normHref);
 		});

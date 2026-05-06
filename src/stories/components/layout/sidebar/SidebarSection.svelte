@@ -1,6 +1,8 @@
 <script lang="ts">
-	import type { SidebarNavSection } from './types';
+	import type { SidebarNavSection, SidebarNavItem } from './types';
 	import SidebarItem from './SidebarItem.svelte';
+	import SidebarAccordionItem from './SidebarAccordionItem.svelte';
+	import { isNavActive } from './nav-utils';
 
 	interface Props {
 		section: SidebarNavSection;
@@ -18,8 +20,8 @@
 		...restProps
 	}: Props = $props();
 
-	function isActive(href: string): boolean {
-		return currentPath.startsWith(href);
+	function isNavItem(entry: SidebarNavSection['items'][number]): entry is SidebarNavItem {
+		return 'href' in entry;
 	}
 </script>
 
@@ -30,8 +32,12 @@
 		</p>
 	{/if}
 	<div class="flex flex-col gap-0.5">
-		{#each section.items as item}
-			<SidebarItem {item} active={isActive(item.href)} {collapsed} />
+		{#each section.items as entry}
+			{#if isNavItem(entry)}
+				<SidebarItem item={entry} active={isNavActive(entry.href, currentPath)} {collapsed} />
+			{:else}
+				<SidebarAccordionItem accordion={entry} {currentPath} {collapsed} />
+			{/if}
 		{/each}
 	</div>
 </div>
