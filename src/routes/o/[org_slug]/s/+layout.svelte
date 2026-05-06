@@ -9,6 +9,7 @@
 	import { buildStaffNav } from './sidebar-nav';
 	import Button from '$components/actions/button/Button.svelte';
 	import ListIcon from 'phosphor-svelte/lib/List';
+	import SearchBox from '$components/data-inputs/searchbox/SearchBox.svelte';
 
 	const { children, data } = $props<{
 		children: () => any;
@@ -21,6 +22,45 @@
 	}>();
 
 	let mobileOpen = $state(false);
+	let isSearchOpen = $state(false);
+	let searchKey = $state(0);
+	let searchDialog: HTMLDialogElement;
+	let searchContent: HTMLDivElement;
+	let cancelClose: (() => void) | null = null;
+
+	function closeSearch() {
+		isSearchOpen = false;
+		searchDialog.classList.add('closing');
+		const onEnd = () => {
+			searchDialog.classList.remove('closing');
+			searchDialog.close();
+			cancelClose = null;
+			searchKey++;
+		};
+		searchDialog.addEventListener('animationend', onEnd, { once: true });
+		cancelClose = () => {
+			searchDialog.removeEventListener('animationend', onEnd);
+			searchDialog.classList.remove('closing');
+			cancelClose = null;
+		};
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+			e.preventDefault();
+			if (!isSearchOpen) {
+				cancelClose?.();
+				isSearchOpen = true;
+				searchDialog.showModal();
+			} else {
+				closeSearch();
+			}
+		}
+	}
+
+	function handleDialogClick(e: MouseEvent) {
+		if (!searchContent.contains(e.target as Node)) closeSearch();
+	}
 
 	async function logout() {
 		await authClient.signOut();
@@ -34,6 +74,23 @@
 
 	const nav = $derived(buildStaffNav(data.organization.slug, data.activePlugins, data.organization));
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<dialog
+	bind:this={searchDialog}
+	class="w-screen h-screen max-w-none max-h-none bg-scrim p-0 border-0 [animation:dialog-fade-in_75ms_ease] [&.closing]:[animation:dialog-fade-out_75ms_ease]"
+	onclick={handleDialogClick}
+	oncancel={(e) => { e.preventDefault(); closeSearch(); }}
+>
+	<div class="w-full h-full flex justify-center items-center">
+		<div bind:this={searchContent} class="w-3/4">
+			{#key searchKey}
+				<SearchBox close={closeSearch} />
+			{/key}
+		</div>
+	</div>
+</dialog>
 
 <svelte:head>
 	<title>Dashboard | {data.config?.application_name ?? 'TurfBuilder'}</title>

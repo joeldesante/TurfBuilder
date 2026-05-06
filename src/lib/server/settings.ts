@@ -5,6 +5,7 @@ export interface AppSettings {
 	application_name: string;
 	logo_src: string;
 	header_content: string;
+	cat_gifs_enabled: boolean;
 }
 
 const REQUIRED: (keyof AppSettings)[] = ['base_url', 'application_name'];
@@ -33,7 +34,8 @@ export async function getSettings(): Promise<AppSettings> {
 		base_url: raw.base_url,
 		application_name: raw.application_name,
 		logo_src: raw.logo_src ?? '/logos/default_logo.svg',
-		header_content: raw['html.header_content'] ?? ''
+		header_content: raw['html.header_content'] ?? '',
+		cat_gifs_enabled: (raw['errors.cat_gifs'] ?? 'true') === 'true'
 	};
 }
 
