@@ -387,10 +387,10 @@ const METHOD_BADGE: Record<string, string> = {
 };
 
 const AUTH_LABEL: Record<string, string> = {
-  public: '🌐 Public — no authentication required',
-  org: '🏠 Org member',
-  staff: '👤 Staff',
-  owner: '👑 Owner only',
+  public: 'Public — no authentication required',
+  org: 'Org member',
+  staff: 'Staff',
+  owner: 'Owner only',
 };
 
 const SECTION_META: Record<string, { title: string; description: string }> = {
@@ -569,10 +569,10 @@ async function main() {
       '',
       '| Level | Description |',
       '|-------|-------------|',
-      '| 🌐 Public | No authentication required |',
-      '| 🏠 Org Member | Authenticated user and org member |',
-      '| 👤 Staff | Org member with a staff role |',
-      '| 👑 Owner | Staff member with `is_owner = true` |',
+      '| Public | No authentication required |',
+      '| Org Member | Authenticated user and org member |',
+      '| Staff | Org member with a staff role |',
+      '| Owner | Staff member with `is_owner = true` |',
       '',
       '## Sections',
       '',
@@ -696,6 +696,13 @@ async function main() {
   const sectionOrder = ['public', 'volunteer', 'surveys', 'turfs', 'members', 'roles', 'invites', 'plugins', 'joining', 'other'];
 
   const sidebarObj = [
+    {
+      text: 'Getting Started',
+      collapsed: false,
+      items: [
+        { text: 'Setup', link: '/getting-started' },
+      ],
+    },
     {
       text: 'API Reference',
       collapsed: false,

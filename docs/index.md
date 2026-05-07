@@ -4,16 +4,13 @@ layout: home
 hero:
 
 features:
-  - icon: 📡
-    title: API Reference
+  - title: API Reference
     details: All HTTP endpoints — public, volunteer-facing, and staff-facing — with auth requirements, request bodies, and responses.
     link: /api/
-  - icon: 🎨
-    title: Component Library
+  - title: Component Library
     details: Reusable Svelte 5 UI primitives with props, defaults, and usage. All components use runes syntax.
     link: /components/
-  - icon: 🧩
-    title: Plugin System
+  - title: Plugin System
     details: Available plugins and how to build new ones. Plugins can add pages, API handlers, and event hooks.
     link: /plugins/
 ---

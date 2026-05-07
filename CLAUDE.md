@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Writing Style
+
+- Do not use emojis anywhere in documentation, markdown files, or code comments.
+
 ## Commands
 
 ```bash
@@ -45,12 +49,11 @@ npm run storybook        # Storybook dev server
 ## Environment Variables
 
 Required in `.env`:
-```
-DATABASE_URL=postgres://postgres:db_password@localhost:5432/postgres
-BETTER_AUTH_SECRET=<generate at https://www.better-auth.com/docs>
-BETTER_AUTH_URL=http://localhost:5173
-MIGRATION_DATABASE_URL=<same as DATABASE_URL>
-```
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string. Default points to the Docker Compose container. |
+| `BETTER_AUTH_SECRET` | Secret key for encrypting session cookies and sensitive auth data. Changing it invalidates all active sessions. Generate a new value for any non-local environment. |
 
 ## Architecture Overview
 

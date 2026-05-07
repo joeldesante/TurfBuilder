@@ -29,7 +29,7 @@ Staff endpoints for installing, configuring, and routing to plugin-defined API h
 Updates the stored configuration for an installed plugin.
 If the plugin defines a `configSchema` (Zod), the body is validated before saving.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `plugin:manage`
 
 **Request Body**
@@ -49,7 +49,7 @@ If the plugin defines a `configSchema` (Zod), the body is validated before savin
 Installs and enables a plugin for the organization. Creates or re-enables
 the plugin_installation record. The plugin appears in the staff nav immediately.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `plugin:manage`
 
 **Response**
@@ -63,7 +63,7 @@ the plugin_installation record. The plugin appears in the staff nav immediately.
 Disables a plugin for the organization. The plugin is removed from the staff nav.
 Config and any plugin-stored data are retained for potential re-installation.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `plugin:manage`
 
 **Response**

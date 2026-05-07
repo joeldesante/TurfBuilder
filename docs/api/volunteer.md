@@ -9,7 +9,7 @@ Endpoints used by canvassers in the field. Require org membership but not staff 
 Adds the authenticated user to a turf using a 6-character join code.
 If the user is already in the turf the insert is silently ignored.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Request Body**
 
@@ -29,7 +29,7 @@ Records a door-knock attempt for a specific address within a turf.
 Upserts contact status, a free-text note, and all survey question responses in a single transaction.
 Caller must be an assigned turf member.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Request Body**
 
@@ -50,7 +50,7 @@ Caller must be an assigned turf member.
 Returns visit status for all locations in a turf. Caller must be a turf member.
 Used by the volunteer map page to show which addresses have been visited.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Response**
 

@@ -22,50 +22,23 @@ To use Docker on your personal device, you will need to install [Docker Desktop]
 
 ### 2. Set your environment variables
 
-Find the `.env.example` file and rename it to `.env`.
-These environment variables will only impact the following database setup steps. Variables affecting your docker dev enviorment can be found in `docker-compose.yml`.
+Find the `.env.example` file and rename it to `.env`. The defaults work out of the box for local development with Docker Compose.
 
-### 3. Locally install dependancies
+### 3. Start the application
 
-Run `npm install` to locally install your dependancies.
-
-### 4. Start the application
-
-Via your prefered command line interface, navigate to root the directory where the source code lives. Then run the following command to start the application.
+Via your preferred command line interface, navigate to the root directory where the source code lives. Then run the following command to start the application.
 
 ```
-docker compose up --build
+docker compose up --build frontend-dev
 ```
 
-Alternativly, sometimes you may need to run this instead:
+### 4. Initialize the database
 
-```
-docker-compose up --build
-```
-
-### 5. Setup your database
-
-```
-npm run db up
-```
-
-Assuming your `.env` is properly setup, meaning it has the `DATABASE_URL` value set. It should generate all of the tables required for the application along with the required seed data.
-
-Make sure your database container is currently running.
+Once the application is running, open [http://localhost:5173/setup](http://localhost:5173/setup) in your browser. This page will create all required database tables and seed data automatically.
 
 ### 5. Done!
 
 Assuming everything worked as expected you should be able to access the application at [http://localhost:5173](http://localhost:5173)
-
-## Updating the database
-
-After installing, if you need to update the database schema, you may do soby running the
-
-```
-npm run db up
-```
-
-command at anytime. It will automatically detect what changes have been made and then apply said changes to your database.
 
 ## Key URLs
 

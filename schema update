@@ -1,0 +1,487 @@
+# SCHEMA SERIALIZATION FORMAT GUIDE
+# Lines beginning with "#" are meta-notes for the AI. Do NOT emit them as SQL.
+# Lines beginning with "--" are SQL comments. Emit them as-is in the generated SQL.
+# NULLABLE is explicit. All other fields are NOT NULL.
+# FK -> schema.table.column indicates a foreign key reference.
+# Enums are defined inline and should be created as PostgreSQL enum types.
+# All timestamps should be TIMESTAMPTZ.
+# All ids are UUID DEFAULT gen_random_uuid().
+# All tables live in the "universe" schema unless otherwise specified.
+# Emit "CREATE SCHEMA IF NOT EXISTS universe" before any table definitions.
+#
+# RLS NOTATION:
+#   RLS ENABLED                   — emit ALTER TABLE x ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY
+#   POLICY public_read            — SELECT only, no org filter, visible to all
+#   POLICY org_isolation          — USING (org_id = current_org_id) WITH CHECK (org_id = current_org_id)
+#   POLICY public_entity_read     — USING (true) for SELECT only — all public entities visible to all
+#   current_org_id resolves via:  NULLIF(current_setting('app.current_org_id', true), '')::uuid
+#
+# INDEX NOTATION:
+#   INDEX (col)                   — standard btree index
+#   INDEX (col) WHERE condition   — partial index
+#   INDEX GIST (col)              — PostGIS spatial index
+#   INDEX GIN (expr)              — full-text search index using to_tsvector('simple', expr)
+#
+# FK DELETE BEHAVIOUR NOTATION (append to FK declaration):
+#   ON DELETE CASCADE             — delete this row when the referenced row is deleted
+#   ON DELETE SET NULL            — set this column to NULL when the referenced row is deleted
+#   ON DELETE RESTRICT            — prevent deletion of the referenced row if this row exists
+#
+# FK DELETE BEHAVIOUR RULES (apply globally unless overridden inline):
+#   FK -> auth.organization.id    always ON DELETE CASCADE
+#   FK -> auth.user.id            always ON DELETE SET NULL
+#   FK -> universe.public_entity.id   always ON DELETE CASCADE
+#   FK -> universe.org_entity.id      always ON DELETE CASCADE
+#   FK -> universe.entity_type.id     always ON DELETE RESTRICT
+#   FK -> universe.organization_type.id  always ON DELETE RESTRICT
+#   FK -> universe.relationship_type.id  always ON DELETE RESTRICT
+#   FK -> universe.tag.id         always ON DELETE CASCADE
+
+---
+
+-- =============================================================================
+-- CATALOGUES
+-- Shared lookup tables. Not org-scoped. New entries can be added at runtime
+-- by plugins without schema migrations.
+-- =============================================================================
+
+TABLE universe.entity_type {
+  -- Catalogue of all valid entity types. Plugins can register new types by
+  -- inserting a row here. The type_id column on public_entity and org_entity is
+  -- validated against this table by the set_entity_type trigger.
+  id:          UUID
+  slug:        TEXT -- Machine-readable identifier (e.g. 'person', 'location', 'organization', 'asset', 'vehicle')
+  name:        TEXT -- Human-readable label (e.g. 'Person', 'Location', 'Organization')
+  description: NULLABLE TEXT
+  created_at:  TIMESTAMPTZ
+  # UNIQUE CONSTRAINT on slug
+  # RLS ENABLED
+  # POLICY public_read -- catalogue is globally readable; only infrastructure can write
+}
+
+TABLE universe.organization_type {
+  -- Catalogue of all valid organization sub-types. Plugins can register new types
+  -- by inserting a row here (e.g. a logistics plugin might add 'carrier' or 'depot').
+  id:          UUID
+  slug:        TEXT -- Machine-readable identifier (e.g. 'business', 'non-profit', 'government', 'carrier')
+  name:        TEXT -- Human-readable label (e.g. 'Business', 'Non-Profit', 'Government')
+  description: NULLABLE TEXT
+  created_at:  TIMESTAMPTZ
+  # UNIQUE CONSTRAINT on slug
+  # RLS ENABLED
+  # POLICY public_read -- catalogue is globally readable; only infrastructure can write
+}
+
+TABLE universe.relationship_type {
+  -- Shared catalogue of all valid relationship types. Not org-scoped — types are
+  -- defined at the system level and reused across all orgs and both tiers.
+  -- New types can be added at runtime by plugins without schema migrations.
+  -- inverse_slug and inverse_name allow the relationship to be displayed correctly
+  -- from either direction without storing two rows.
+  -- e.g. 'employed_by' (Jane → Five Guys) has inverse 'employs' (Five Guys → Jane)
+  id:           UUID
+  slug:         TEXT -- Machine-readable identifier (e.g. 'located_at', 'resident', 'employed_by')
+  name:         TEXT -- Human-readable label for the forward direction (e.g. 'Employed By')
+  inverse_slug: TEXT -- Machine-readable identifier for the reverse direction (e.g. 'employs')
+  inverse_name: TEXT -- Human-readable label for the reverse direction (e.g. 'Employs')
+  description:  NULLABLE TEXT
+  created_at:   TIMESTAMPTZ
+  # UNIQUE CONSTRAINT on slug
+  # UNIQUE CONSTRAINT on inverse_slug
+  # RLS ENABLED
+  # POLICY public_read -- catalogue is globally readable; only infrastructure can write
+}
+
+---
+
+-- =============================================================================
+-- SEED DATA — CATALOGUES
+-- Default rows inserted on first install via ON CONFLICT (slug) DO NOTHING.
+-- =============================================================================
+
+-- SEED universe.entity_type
+# ('person',       'Person',       'A human individual')
+# ('organization', 'Organization', 'A business, non-profit, government body, or other group')
+# ('location',     'Location',     'A physical place in the world')
+# ('asset',        'Asset',        'A physical object such as a vehicle, device, or package')
+
+-- SEED universe.organization_type
+# ('business',         'Business',         'A for-profit commercial entity')
+# ('non-profit',       'Non-Profit',        'A not-for-profit organization')
+# ('government',       'Government',        'A government body or agency')
+# ('educational',      'Educational',       'A school, university, or educational institution')
+# ('political',        'Political',         'A political party, campaign, or PAC')
+# ('religious',        'Religious',         'A religious organization or institution')
+# ('intergovernmental','Intergovernmental', 'An intergovernmental organization (e.g. UN, NATO)')
+# ('sovereign-entity', 'Sovereign Entity',  'A sovereign state or territory')
+
+-- =============================================================================
+-- TRIGGER FUNCTIONS
+-- Emit these as CREATE OR REPLACE FUNCTION before any table definitions.
+-- Each trigger binding is noted inline on the relevant table using # TRIGGER.
+-- =============================================================================
+
+-- TRIGGER FUNCTION universe.set_entity_type()
+-- Purpose: Automatically stamps type_id on the parent entity row when a version
+--   row is first inserted. Prevents mislabelling by importers or users.
+-- Accepts: TG_ARGV[0] = the slug of the entity type to look up (e.g. 'person')
+-- Behaviour:
+--   1. Look up the entity_type row where slug = TG_ARGV[0]. Raise exception if not found.
+--   2. Read the current type_id from the parent entity row (public_entity or org_entity).
+--   3. If type_id IS NULL: set it to the looked-up entity_type.id.
+--   4. If type_id IS NOT NULL and matches: do nothing, allow insert.
+--   5. If type_id IS NOT NULL and does NOT match: RAISE EXCEPTION — entity already
+--      typed as a different type. Insert is rejected.
+-- Used by: BEFORE INSERT triggers on public_person, public_organization, public_location,
+--          org_person, org_organization, org_location.
+-- Note: The trigger function must determine whether to update public_entity or org_entity
+--   based on which version table fired it. Use TG_TABLE_NAME to branch:
+--   tables prefixed 'public_' update universe.public_entity;
+--   tables prefixed 'org_' update universe.org_entity.
+
+-- TRIGGER FUNCTION universe.update_coordinates()
+-- Purpose: Automatically populates the coordinates geometry column from address data
+--   is NOT applicable here — coordinates must be provided explicitly by the importer
+--   or geocoding pipeline. This function is NOT needed; coordinates are set directly.
+-- Note: If a geocoding pipeline is added in future it should update via a new version
+--   row, not by mutating an existing one.
+
+-- SEED universe.relationship_type
+# slug,                inverse_slug,          name,               inverse_name,        description
+# ('located_at',       'location_of',         'Located At',       'Location Of',       'An entity is physically located at a location')
+# ('resident',         'residence_of',        'Resident',         'Residence Of',      'A person resides at a location')
+# ('employed_by',      'employs',             'Employed By',      'Employs',           'A person is employed by an organization')
+# ('owned_by',         'owns',                'Owned By',         'Owns',              'An entity is owned by another entity')
+# ('member_of',        'has_member',          'Member Of',        'Has Member',        'A person is a member of an organization')
+# ('subsidiary_of',    'has_subsidiary',      'Subsidiary Of',    'Has Subsidiary',    'An organization is a subsidiary of another')
+# ('delivers_to',      'delivered_by',        'Delivers To',      'Delivered By',      'An entity delivers to a location or organization')
+
+---
+
+-- =============================================================================
+-- ENTITY TABLES
+-- Base identity records. Never mutated. All domain data lives in version tables.
+-- =============================================================================
+
+TABLE universe.public_entity {
+  -- Shared across all orgs. No org_id — these records are globally visible.
+  id:         UUID
+  type_id:    NULLABLE FK -> universe.entity_type.id -- Set automatically by trigger on first version row insert. Immutable once set — any attempt to change it will be rejected by the trigger.
+  source_ref: NULLABLE TEXT -- The identifier assigned by the external source system (e.g. Overture Maps feature ID, voter file record number). NULLABLE because not all entities originate from an external system.
+  created_at: TIMESTAMPTZ
+  # TRIGGER: on INSERT to any version table (public_person, public_location, public_organization),
+  #   automatically sets type_id on this table by looking up the matching slug in universe.entity_type.
+  #   If type_id is already set and does not match, the insert is rejected with an exception.
+  #   Type is intentionally NULLABLE at the entity level because it is set by the version table trigger, not by the caller.
+  # RLS ENABLED
+  # POLICY public_entity_read -- all public entities are visible to all orgs
+  # INDEX (type_id)
+  # INDEX (source_ref)
+}
+
+TABLE universe.org_entity {
+  -- Private to a single org. Physically separate from public_entity to prevent accidental data leakage.
+  id:         UUID
+  org_id:     FK -> auth.organization.id
+  type_id:    NULLABLE FK -> universe.entity_type.id -- Set automatically by trigger on first version row insert. Immutable once set — any attempt to change it will be rejected by the trigger.
+  source_ref: NULLABLE TEXT -- The identifier assigned by the external source system (e.g. Overture Maps feature ID, voter file record number). NULLABLE because not all entities originate from an external system.
+  created_at: TIMESTAMPTZ
+  # TRIGGER: on INSERT to any version table (org_person, org_location, org_organization),
+  #   automatically sets type_id on this table by looking up the matching slug in universe.entity_type.
+  #   If type_id is already set and does not match, the insert is rejected with an exception.
+  #   Type is intentionally NULLABLE at the entity level because it is set by the version table trigger, not by the caller.
+  # RLS ENABLED
+  # POLICY org_isolation
+  # INDEX (org_id)
+  # INDEX (type_id)
+  # INDEX (source_ref)
+}
+
+---
+
+-- =============================================================================
+-- VERSION TABLES (public)
+-- Append-only. Never update — insert a new row and set valid_to on the old one.
+-- valid_to IS NULL means the current/active version.
+-- valid_from is when the data became true in the real world.
+-- created_at is when we recorded it — these can differ for historical imports.
+-- authored_by is the user who created this version. NULLABLE for system/importer-created versions.
+-- source indicates what process created this version row.
+-- =============================================================================
+
+TABLE universe.public_person {
+  -- A person record shared across all orgs (e.g. loaded from a national voter file at infrastructure level).
+  -- All identifying fields are nullable — we may only have partial data depending on the source.
+  id:             UUID
+  entity_id:      FK -> universe.public_entity.id
+  first_name:     NULLABLE TEXT
+  middle_name:    NULLABLE TEXT
+  last_name:      NULLABLE TEXT
+  suffix:         NULLABLE TEXT -- e.g. 'Jr.', 'Sr.', 'III'
+  preferred_name: NULLABLE TEXT -- goes by a nickname or preferred first name
+  dob:            NULLABLE DATE
+  phone:          NULLABLE TEXT
+  email:          NULLABLE TEXT
+  gender:         NULLABLE TEXT
+  attributes:     NULLABLE JSONB -- Domain-specific overflow fields (e.g. 'party_affiliation' for canvassing, 'account_tier' for sales)
+  valid_from:     TIMESTAMPTZ
+  valid_to:       NULLABLE TIMESTAMPTZ
+  authored_by:    NULLABLE FK -> auth.user.id
+  source:         TEXT -- What created this version (e.g. 'voter_file', 'overture', 'crowdsource')
+  created_at:     TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY public_entity_read -- public person versions are visible to all orgs
+  # INDEX (entity_id)
+  # INDEX (entity_id) WHERE valid_to IS NULL -- fast current-version lookup
+  # INDEX (last_name, first_name) -- name search
+  # INDEX GIN (COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'') || ' ' || COALESCE(preferred_name,'')) -- full-text name search
+}
+
+TABLE universe.public_organization {
+  -- A publicly shared organization entity (business, non-profit, government body, etc.).
+  id:          UUID
+  entity_id:   FK -> universe.public_entity.id
+  type_id:     NULLABLE FK -> universe.organization_type.id -- NULLABLE because type may not always be known at import time.
+  name:        TEXT
+  phone:       NULLABLE TEXT
+  email:       NULLABLE TEXT
+  website:     NULLABLE TEXT
+  attributes:  NULLABLE JSONB -- Domain-specific overflow fields
+  valid_from:  TIMESTAMPTZ
+  valid_to:    NULLABLE TIMESTAMPTZ
+  authored_by: NULLABLE FK -> auth.user.id
+  source:      TEXT -- What created this version (e.g. 'overture', 'org_import', 'crowdsource')
+  created_at:  TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY public_entity_read -- public organization versions are visible to all orgs
+  # INDEX (entity_id)
+  # INDEX (entity_id) WHERE valid_to IS NULL -- fast current-version lookup
+  # INDEX (name) -- name search
+  # INDEX GIN (name) -- full-text name search
+}
+
+TABLE universe.public_location {
+  -- A physical location in the world. All address fields are nullable to support
+  -- informal addresses, coordinate-only locations, and mobile locations.
+  id:              UUID
+  entity_id:       FK -> universe.public_entity.id
+  name:            NULLABLE TEXT -- e.g. 'Central Park', 'Empire State Building', 'Coachella Grounds'
+  address_line_1:  NULLABLE TEXT
+  address_line_2:  NULLABLE TEXT
+  address_line_3:  NULLABLE TEXT
+  city:            NULLABLE TEXT
+  state_or_region: NULLABLE TEXT
+  postal_code:     NULLABLE TEXT
+  country_code:    NULLABLE TEXT
+  coordinates:     NULLABLE GEOMETRY(POINT, 4326) -- NULLABLE because some locations may have an address but no geocoded coordinates yet
+  valid_from:      TIMESTAMPTZ
+  valid_to:        NULLABLE TIMESTAMPTZ
+  authored_by:     NULLABLE FK -> auth.user.id
+  source:          TEXT -- What created this version (e.g. 'overture', 'org_import', 'crowdsource')
+  created_at:      TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY public_entity_read -- public location versions are visible to all orgs
+  # INDEX (entity_id)
+  # INDEX (entity_id) WHERE valid_to IS NULL -- fast current-version lookup
+  # INDEX GIST (coordinates) -- spatial queries
+  # INDEX (city)
+  # INDEX (postal_code)
+  # INDEX GIN (COALESCE(name,'') || ' ' || COALESCE(address_line_1,'') || ' ' || COALESCE(city,'') || ' ' || COALESCE(postal_code,'')) -- full-text address search
+}
+
+---
+
+-- =============================================================================
+-- VERSION TABLES (org-scoped)
+-- Same structure as public versions but scoped to a single org.
+-- Physically separate tables to enforce data isolation at the schema level.
+-- =============================================================================
+
+TABLE universe.org_person {
+  -- All identifying fields are nullable — we may only have partial data depending on the source.
+  id:             UUID
+  org_id:         FK -> auth.organization.id
+  entity_id:      FK -> universe.org_entity.id
+  first_name:     NULLABLE TEXT
+  middle_name:    NULLABLE TEXT
+  last_name:      NULLABLE TEXT
+  suffix:         NULLABLE TEXT -- e.g. 'Jr.', 'Sr.', 'III'
+  preferred_name: NULLABLE TEXT -- goes by a nickname or preferred first name
+  dob:            NULLABLE DATE
+  phone:          NULLABLE TEXT
+  email:          NULLABLE TEXT
+  gender:         NULLABLE TEXT
+  attributes:     NULLABLE JSONB -- Domain-specific overflow fields (e.g. 'party_affiliation' for canvassing, 'account_tier' for sales)
+  valid_from:     TIMESTAMPTZ
+  valid_to:       NULLABLE TIMESTAMPTZ
+  authored_by:    NULLABLE FK -> auth.user.id
+  source:         TEXT -- What created this version (e.g. 'voter_file', 'org_import', 'crowdsource')
+  created_at:     TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY org_isolation
+  # INDEX (org_id)
+  # INDEX (entity_id)
+  # INDEX (entity_id) WHERE valid_to IS NULL -- fast current-version lookup
+  # INDEX (org_id, last_name, first_name) -- name search scoped to org
+  # INDEX GIN (COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'') || ' ' || COALESCE(preferred_name,'')) -- full-text name search
+}
+
+TABLE universe.org_organization {
+  id:          UUID
+  org_id:      FK -> auth.organization.id
+  entity_id:   FK -> universe.org_entity.id
+  type_id:     NULLABLE FK -> universe.organization_type.id -- NULLABLE because type may not always be known at import time.
+  name:        TEXT
+  phone:       NULLABLE TEXT
+  email:       NULLABLE TEXT
+  website:     NULLABLE TEXT
+  attributes:  NULLABLE JSONB -- Domain-specific overflow fields
+  valid_from:  TIMESTAMPTZ
+  valid_to:    NULLABLE TIMESTAMPTZ
+  authored_by: NULLABLE FK -> auth.user.id
+  source:      TEXT -- What created this version (e.g. 'org_import', 'crowdsource')
+  created_at:  TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY org_isolation
+  # INDEX (org_id)
+  # INDEX (entity_id)
+  # INDEX (entity_id) WHERE valid_to IS NULL -- fast current-version lookup
+  # INDEX (org_id, name) -- name search scoped to org
+  # INDEX GIN (name) -- full-text name search
+}
+
+TABLE universe.org_location {
+  -- Physically separate from public_location. An org's private location data
+  -- cannot leak to other orgs or the public regardless of RLS configuration.
+  id:              UUID
+  org_id:          FK -> auth.organization.id
+  entity_id:       FK -> universe.org_entity.id
+  name:            NULLABLE TEXT -- e.g. 'Main Warehouse', 'Campaign HQ'
+  address_line_1:  NULLABLE TEXT
+  address_line_2:  NULLABLE TEXT
+  address_line_3:  NULLABLE TEXT
+  city:            NULLABLE TEXT
+  state_or_region: NULLABLE TEXT
+  postal_code:     NULLABLE TEXT
+  country_code:    NULLABLE TEXT
+  coordinates:     NULLABLE GEOMETRY(POINT, 4326) -- NULLABLE because some locations may have an address but no geocoded coordinates yet
+  valid_from:      TIMESTAMPTZ
+  valid_to:        NULLABLE TIMESTAMPTZ
+  authored_by:     NULLABLE FK -> auth.user.id
+  source:          TEXT -- What created this version (e.g. 'org_import', 'crowdsource')
+  created_at:      TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY org_isolation
+  # INDEX (org_id)
+  # INDEX (entity_id)
+  # INDEX (entity_id) WHERE valid_to IS NULL -- fast current-version lookup
+  # INDEX GIST (coordinates) -- spatial queries
+  # INDEX (org_id, city)
+  # INDEX (org_id, postal_code)
+  # INDEX GIN (COALESCE(name,'') || ' ' || COALESCE(address_line_1,'') || ' ' || COALESCE(city,'') || ' ' || COALESCE(postal_code,'')) -- full-text address search
+}
+
+---
+
+-- =============================================================================
+-- RELATIONSHIP TABLES
+-- Temporal connections between entities. Never update — close old rows with
+-- valid_to and insert new ones. valid_to IS NULL means the relationship is active.
+-- =============================================================================
+
+TABLE universe.public_relationship {
+  -- Connects two public entities. Globally visible, not org-scoped.
+  -- Both sides must reference universe.public_entity.
+  id:                   UUID
+  from_entity_id:       FK -> universe.public_entity.id
+  to_entity_id:         FK -> universe.public_entity.id
+  relationship_type_id: FK -> universe.relationship_type.id
+  valid_from:           TIMESTAMPTZ
+  valid_to:             NULLABLE TIMESTAMPTZ
+  authored_by:          NULLABLE FK -> auth.user.id
+  source:               TEXT -- What created this relationship (e.g. 'overture', 'org_import', 'crowdsource')
+  created_at:           TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY public_entity_read -- public relationships are visible to all orgs
+  # INDEX (from_entity_id)
+  # INDEX (to_entity_id)
+  # INDEX (from_entity_id) WHERE valid_to IS NULL -- active relationships from an entity
+  # INDEX (to_entity_id)   WHERE valid_to IS NULL -- active relationships to an entity
+  # INDEX (relationship_type_id)
+}
+
+TABLE universe.org_relationship {
+  -- Connects any two entities where at least one side is org-scoped.
+  -- Always private to the owning org. Handles cross-tier links (e.g. an org person
+  -- living at a public location) via nullable FK pairs on each side.
+  -- CONSTRAINT: exactly one of (from_public_entity_id, from_org_entity_id) must be set.
+  -- CONSTRAINT: exactly one of (to_public_entity_id, to_org_entity_id) must be set.
+  id:                    UUID
+  org_id:                FK -> auth.organization.id
+  from_public_entity_id: NULLABLE FK -> universe.public_entity.id
+  from_org_entity_id:    NULLABLE FK -> universe.org_entity.id
+  to_public_entity_id:   NULLABLE FK -> universe.public_entity.id
+  to_org_entity_id:      NULLABLE FK -> universe.org_entity.id
+  relationship_type_id:  FK -> universe.relationship_type.id
+  valid_from:            TIMESTAMPTZ
+  valid_to:              NULLABLE TIMESTAMPTZ
+  authored_by:           NULLABLE FK -> auth.user.id
+  source:                TEXT -- What created this relationship (e.g. 'org_import', 'crowdsource')
+  created_at:            TIMESTAMPTZ
+  # RLS ENABLED
+  # POLICY org_isolation
+  # INDEX (org_id)
+  # INDEX (from_public_entity_id) WHERE from_public_entity_id IS NOT NULL
+  # INDEX (from_org_entity_id)    WHERE from_org_entity_id IS NOT NULL
+  # INDEX (to_public_entity_id)   WHERE to_public_entity_id IS NOT NULL
+  # INDEX (to_org_entity_id)      WHERE to_org_entity_id IS NOT NULL
+  # INDEX (org_id, relationship_type_id) WHERE valid_to IS NULL -- active relationships by type within an org
+}
+
+---
+
+-- =============================================================================
+-- TAGGING SYSTEM
+-- Flexible labelling for any entity. Tags are org-scoped and can be applied
+-- to any public or org entity. Used to logically group data, drive plugin
+-- behaviour, and mark entities for special handling (e.g. 'hostile', 'priority').
+-- =============================================================================
+
+TABLE universe.tag {
+  -- Tags are scoped to an org. slug and name are each unique within an org
+  -- but can be reused across different orgs independently.
+  id:          UUID
+  org_id:      FK -> auth.organization.id
+  slug:        TEXT -- Machine-readable identifier. Unique per org. Must be kebab-case (e.g. 'hostile', 'high-priority', 'ward-4'). Enforced via CHECK constraint: only lowercase letters, numbers, and hyphens allowed. No leading or trailing hyphens.
+  # CHECK CONSTRAINT on slug: slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+  name:        TEXT -- Human-readable label. Unique per org. Independent of slug uniqueness.
+  description: NULLABLE TEXT
+  created_at:  TIMESTAMPTZ
+  # UNIQUE CONSTRAINT on (org_id, slug)
+  # UNIQUE CONSTRAINT on (org_id, name)
+  # RLS ENABLED
+  # POLICY org_isolation
+  # INDEX (org_id)
+}
+
+TABLE universe.entity_tag {
+  -- Join table between a tag and any entity (public or org-scoped).
+  -- An entity can be tagged with the same tag only once.
+  -- Supports cross-tier tagging — an org can tag a public entity.
+  -- CONSTRAINT: exactly one of (public_entity_id, org_entity_id) must be set.
+  id:               UUID
+  tag_id:           FK -> universe.tag.id
+  org_id:           FK -> auth.organization.id
+  public_entity_id: NULLABLE FK -> universe.public_entity.id
+  org_entity_id:    NULLABLE FK -> universe.org_entity.id
+  tagged_by:        NULLABLE FK -> auth.user.id -- NULLABLE to support automated tagging by importers or system processes
+  created_at:       TIMESTAMPTZ
+  # UNIQUE CONSTRAINT on (tag_id, public_entity_id) WHERE public_entity_id IS NOT NULL
+  # UNIQUE CONSTRAINT on (tag_id, org_entity_id)    WHERE org_entity_id IS NOT NULL
+  # RLS ENABLED
+  # POLICY org_isolation
+  # INDEX (org_id)
+  # INDEX (tag_id)
+  # INDEX (public_entity_id)  WHERE public_entity_id IS NOT NULL
+  # INDEX (org_entity_id)     WHERE org_entity_id IS NOT NULL
+}

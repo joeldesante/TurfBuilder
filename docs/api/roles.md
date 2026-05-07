@@ -8,7 +8,7 @@ Owner-only endpoints for managing custom staff roles and their permission sets.
 
 Returns all custom roles for the organization, each with their permission set.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `member:read`
 
 **Response**
@@ -21,7 +21,7 @@ Array of { id, name, is_owner, is_default, permissions: string[] }
 
 Creates a new custom staff role for the organization.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -39,7 +39,7 @@ Creates a new custom staff role for the organization.
 
 Renames a custom role. System roles (is_owner = true) cannot be renamed.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -57,7 +57,7 @@ Renames a custom role. System roles (is_owner = true) cannot be renamed.
 
 Permanently deletes a custom role. System roles and the default role cannot be deleted.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Response**
 
@@ -72,7 +72,7 @@ list are removed. Each entry must be a valid `resource:action` key.
 Valid resources: canvass, turf, survey, response, member, plugin.
 Valid actions: use, create, read, update, delete.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
