@@ -8,7 +8,7 @@ Staff endpoints for managing organization membership and role assignments.
 
 Returns all members of the organization with their assigned role info.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `member:read`
 
 **Response**
@@ -22,7 +22,7 @@ Returns all members of the organization with their assigned role info.
 Assigns or removes a role for an org member.
 Blocked if the target is the last administrator and the new role is not also an owner role.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -41,7 +41,7 @@ Blocked if the target is the last administrator and the new role is not also an 
 Removes a member from the organization entirely.
 Blocked if the target is the last administrator (uses FOR UPDATE lock to prevent race conditions).
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `member:delete`
 
 **Response**

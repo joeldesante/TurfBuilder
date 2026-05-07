@@ -16,6 +16,7 @@ export default defineConfig({
     siteTitle: "TurfBuilder",
 
     nav: [
+      { text: 'Getting Started', link: '/getting-started' },
       { text: 'API Reference', link: '/api/' },
       { text: 'Components', link: '/components/' },
       { text: 'Plugins', link: '/plugins/' },

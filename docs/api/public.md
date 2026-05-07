@@ -9,7 +9,7 @@ Unauthenticated endpoints for geographic location data. Used by the volunteer ma
 Returns all locations within a lat/lon bounding box. Used by the volunteer
 map to populate visible addresses. Results are capped at 500 rows.
 
-**Auth:** 🌐 Public — no authentication required  
+**Auth:** Public — no authentication required  
 
 **Query Parameters**
 
@@ -31,7 +31,7 @@ Array of location objects: id, location_name, category, latitude, longitude, str
 Returns all locations assigned to a turf along with a geographic center point.
 Verifies the turf belongs to the caller's organization before returning data.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Response**
 

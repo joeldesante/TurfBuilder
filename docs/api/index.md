@@ -7,10 +7,10 @@ All org-scoped routes are prefixed with `/o/{org_slug}/`.
 
 | Level | Description |
 |-------|-------------|
-| 🌐 Public | No authentication required |
-| 🏠 Org Member | Authenticated user and org member |
-| 👤 Staff | Org member with a staff role |
-| 👑 Owner | Staff member with `is_owner = true` |
+| Public | No authentication required |
+| Org Member | Authenticated user and org member |
+| Staff | Org member with a staff role |
+| Owner | Staff member with `is_owner = true` |
 
 ## Sections
 

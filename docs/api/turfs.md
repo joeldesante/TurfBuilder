@@ -10,7 +10,7 @@ Creates one or more turfs from GeoJSON polygon geometries. For each polygon,
 PostGIS ST_Contains automatically assigns all locations within its bounds.
 Each turf receives a unique 6-character join code. Defaults to a 7-day expiry.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `turf:create`
 
 **Request Body**

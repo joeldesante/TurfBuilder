@@ -9,7 +9,7 @@ Staff endpoints for creating and managing survey templates and questions.
 Creates a new survey template for the organization with no questions.
 Questions are added separately via the /questions endpoint.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:create`
 
 **Request Body**
@@ -28,7 +28,7 @@ Questions are added separately via the /questions endpoint.
 
 Updates the name and optional description of an existing survey.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:update`
 
 **Request Body**
@@ -50,7 +50,7 @@ Upserts questions for a survey. Questions with a `db_id` are updated;
 those without are created. Typically called after `questions/purge` to
 fully replace the question set.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:update`
 
 **Request Body**
@@ -71,7 +71,7 @@ Deletes all questions for a survey except those listed in `exclude`.
 Called before re-saving the full question set to remove questions the
 editor dropped. Pass all retained question IDs in `exclude`.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:update`
 
 **Request Body**

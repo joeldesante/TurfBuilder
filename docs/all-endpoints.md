@@ -11,7 +11,7 @@ Unauthenticated endpoints for geographic location data. Used by the volunteer ma
 Returns all locations within a lat/lon bounding box. Used by the volunteer
 map to populate visible addresses. Results are capped at 500 rows.
 
-**Auth:** 🌐 Public — no authentication required  
+**Auth:** Public — no authentication required  
 
 **Query Parameters**
 
@@ -33,7 +33,7 @@ Array of location objects: id, location_name, category, latitude, longitude, str
 Returns all locations assigned to a turf along with a geographic center point.
 Verifies the turf belongs to the caller's organization before returning data.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Response**
 
@@ -52,7 +52,7 @@ Endpoints used by canvassers in the field. Require org membership but not staff 
 Adds the authenticated user to a turf using a 6-character join code.
 If the user is already in the turf the insert is silently ignored.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Request Body**
 
@@ -72,7 +72,7 @@ Records a door-knock attempt for a specific address within a turf.
 Upserts contact status, a free-text note, and all survey question responses in a single transaction.
 Caller must be an assigned turf member.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Request Body**
 
@@ -93,7 +93,7 @@ Caller must be an assigned turf member.
 Returns visit status for all locations in a turf. Caller must be a turf member.
 Used by the volunteer map page to show which addresses have been visited.
 
-**Auth:** 🏠 Org member  
+**Auth:** Org member  
 
 **Response**
 
@@ -112,7 +112,7 @@ Staff endpoints for creating and managing survey templates and questions.
 Creates a new survey template for the organization with no questions.
 Questions are added separately via the /questions endpoint.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:create`
 
 **Request Body**
@@ -131,7 +131,7 @@ Questions are added separately via the /questions endpoint.
 
 Updates the name and optional description of an existing survey.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:update`
 
 **Request Body**
@@ -153,7 +153,7 @@ Upserts questions for a survey. Questions with a `db_id` are updated;
 those without are created. Typically called after `questions/purge` to
 fully replace the question set.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:update`
 
 **Request Body**
@@ -174,7 +174,7 @@ Deletes all questions for a survey except those listed in `exclude`.
 Called before re-saving the full question set to remove questions the
 editor dropped. Pass all retained question IDs in `exclude`.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `survey:update`
 
 **Request Body**
@@ -201,7 +201,7 @@ Creates one or more turfs from GeoJSON polygon geometries. For each polygon,
 PostGIS ST_Contains automatically assigns all locations within its bounds.
 Each turf receives a unique 6-character join code. Defaults to a 7-day expiry.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `turf:create`
 
 **Request Body**
@@ -228,7 +228,7 @@ Staff endpoints for managing organization membership and role assignments.
 
 Returns all members of the organization with their assigned role info.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `member:read`
 
 **Response**
@@ -242,7 +242,7 @@ Returns all members of the organization with their assigned role info.
 Assigns or removes a role for an org member.
 Blocked if the target is the last administrator and the new role is not also an owner role.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -261,7 +261,7 @@ Blocked if the target is the last administrator and the new role is not also an 
 Removes a member from the organization entirely.
 Blocked if the target is the last administrator (uses FOR UPDATE lock to prevent race conditions).
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `member:delete`
 
 **Response**
@@ -280,7 +280,7 @@ Owner-only endpoints for managing custom staff roles and their permission sets.
 
 Returns all custom roles for the organization, each with their permission set.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `member:read`
 
 **Response**
@@ -293,7 +293,7 @@ Array of { id, name, is_owner, is_default, permissions: string[] }
 
 Creates a new custom staff role for the organization.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -311,7 +311,7 @@ Creates a new custom staff role for the organization.
 
 Renames a custom role. System roles (is_owner = true) cannot be renamed.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -329,7 +329,7 @@ Renames a custom role. System roles (is_owner = true) cannot be renamed.
 
 Permanently deletes a custom role. System roles and the default role cannot be deleted.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Response**
 
@@ -344,7 +344,7 @@ list are removed. Each entry must be a valid `resource:action` key.
 Valid resources: canvass, turf, survey, response, member, plugin.
 Valid actions: use, create, read, update, delete.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -368,7 +368,7 @@ Owner-only endpoints for token-based and slug-based org invite links.
 
 Returns all token-based invite links for the org plus the slug invite toggle state.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Response**
 
@@ -381,7 +381,7 @@ Returns all token-based invite links for the org plus the slug invite toggle sta
 Creates a new token-based invite link for the organization.
 Accessible at `/invite/{token}` once created.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -399,7 +399,7 @@ Accessible at `/invite/{token}` once created.
 
 Permanently revokes an invite link. The link can no longer be used to join the org.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Response**
 
@@ -412,7 +412,7 @@ Permanently revokes an invite link. The link can no longer be used to join the o
 Enables or disables the org slug-based open invite.
 When enabled, anyone with the link can join at `/invite/{org_slug}`.
 
-**Auth:** 👑 Owner only  
+**Auth:** Owner only  
 
 **Request Body**
 
@@ -457,7 +457,7 @@ Staff endpoints for installing, configuring, and routing to plugin-defined API h
 Updates the stored configuration for an installed plugin.
 If the plugin defines a `configSchema` (Zod), the body is validated before saving.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `plugin:manage`
 
 **Request Body**
@@ -477,7 +477,7 @@ If the plugin defines a `configSchema` (Zod), the body is validated before savin
 Installs and enables a plugin for the organization. Creates or re-enables
 the plugin_installation record. The plugin appears in the staff nav immediately.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `plugin:manage`
 
 **Response**
@@ -491,7 +491,7 @@ the plugin_installation record. The plugin appears in the staff nav immediately.
 Disables a plugin for the organization. The plugin is removed from the staff nav.
 Config and any plugin-stored data are retained for potential re-installation.
 
-**Auth:** 👤 Staff  
+**Auth:** Staff  
 **Permission:** `plugin:manage`
 
 **Response**
