@@ -27,7 +27,7 @@
 		{
 			id: '2',
 			title: 'Canvassing hours extended tonight',
-			body: 'Great news — we've received permission to canvass until 8 PM in all precincts tonight. Make the most of the extra time and focus on low-propensity supporters.',
+			body: "Great news — we've received permission to canvass until 8 PM in all precincts tonight. Make the most of the extra time and focus on low-propensity supporters.",
 			category: 'update',
 			author: 'James Okafor',
 			publishedAt: new Date(Date.now() - 3 * 3600_000).toISOString()
