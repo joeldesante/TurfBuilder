@@ -16,11 +16,10 @@
 			: '/auth/signup'
 	);
 
-	let username = $state('');
+	let identifier = $state('');
 	let password = $state('');
 	let rememberMe = $state(false);
 	let loading = $state(false);
-	let anonLoading = $state(false);
 	let error: string | null = $state('');
 
 	async function signIn(event: Event) {
@@ -30,11 +29,22 @@
 		error = null;
 
 		try {
-			let response = await authClient.signIn.username({
-				username,
-				password,
-				rememberMe
-			});
+			const isEmail = identifier.includes('@');
+			let response;
+
+			if (isEmail) {
+				response = await authClient.signIn.email({
+					email: identifier,
+					password,
+					rememberMe
+				});
+			} else {
+				response = await authClient.signIn.username({
+					username: identifier,
+					password,
+					rememberMe
+				});
+			}
 
 			if (response.error) {
 				throw new Error(response.error.message);
@@ -45,7 +55,7 @@
 			if (e instanceof Error) {
 				error = e.message;
 			} else {
-				error = 'Unkknown error.';
+				error = 'Unknown error.';
 			}
 			console.warn(e);
 		} finally {
@@ -63,8 +73,8 @@
 		<h1 class="text-2xl">Sign In</h1>
 
 		<div class="space-y-3">
-			<FormField label="Username" id="username">
-				<TextInput bind:value={username} required autocomplete="username" />
+			<FormField label="Email or Username" id="identifier">
+				<TextInput bind:value={identifier} required autocomplete="username" />
 			</FormField>
 
 			<FormField label="Password" id="password">

@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
-	import { nanoid } from 'nanoid';
 	import Button from '$components/actions/button/Button.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 
 	interface Props {
-		onComplete: (username: string, password: string) => Promise<void>;
+		onComplete: (email: string, password: string) => Promise<void>;
 	}
 
-	let { onComplete = async (username: string, password: string) => {} }: Props = $props();
+	let { onComplete = async (_email: string, _password: string) => {} }: Props = $props();
 
+	let email = $state('');
 	let username = $state('');
 	let password = $state('');
 	let confirmPassword = $state('');
@@ -18,22 +18,22 @@
 
 	async function onSubmit() {
 		try {
-			if (password != confirmPassword) {
+			if (password !== confirmPassword) {
 				throw new Error('Passwords do not match.');
 			}
 
 			const { error } = await authClient.signUp.email({
-				email: `${nanoid()}@fake.com`,
+				email,
 				name: username,
-				username: username,
-				password: password
+				username,
+				password
 			});
 
 			if (error) {
 				throw new Error(error.message);
 			}
 
-			onComplete(username, password);
+			onComplete(email, password);
 		} catch (e: any) {
 			errorMessage = e.message;
 		}
@@ -45,6 +45,10 @@
 		<h1 class="text-2xl">Sign Up</h1>
 
 		<div class="space-y-3">
+			<FormField label="Email">
+				<TextInput bind:value={email} type="email" required autocomplete="email" />
+			</FormField>
+
 			<FormField label="Username">
 				<TextInput bind:value={username} required autocomplete="username" />
 			</FormField>

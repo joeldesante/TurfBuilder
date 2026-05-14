@@ -3,6 +3,7 @@
 	import SidebarItem from './SidebarItem.svelte';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import { isNavActive } from './nav-utils';
+	import { untrack } from 'svelte';
 
 	interface Props {
 		accordion: SidebarNavAccordion;
@@ -20,10 +21,11 @@
 		...restProps
 	}: Props = $props();
 
-	const { defaultOpen = true } = accordion;
-	let open = $state(defaultOpen);
+	let open = $state(untrack(() => accordion.defaultOpen ?? true));
 
-	let anyChildActive = $derived(accordion.items.some((item) => isNavActive(item.href, currentPath)));
+	let anyChildActive = $derived(
+		accordion.items.some((item) => isNavActive(item.href, currentPath))
+	);
 
 	let triggerClass = $derived(
 		[
@@ -60,7 +62,9 @@
 		</span>
 		{#if !collapsed}
 			<CaretDownIcon
-				class="size-3.5 shrink-0 transition-transform duration-200 {open ? 'rotate-0' : '-rotate-90'}"
+				class="size-3.5 shrink-0 transition-transform duration-200 {open
+					? 'rotate-0'
+					: '-rotate-90'}"
 			/>
 		{/if}
 	</button>
