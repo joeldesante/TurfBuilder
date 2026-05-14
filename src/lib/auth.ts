@@ -1,12 +1,13 @@
 import { betterAuth } from 'better-auth';
 import { env } from '$env/dynamic/private';
+import { sendEmail } from '$lib/server/mail';
 import { twoFactor, username } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { organization } from 'better-auth/plugins';
 import { admin } from 'better-auth/plugins';
 import { ac, userRole } from '$lib/permissions';
-import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database.js';
+import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database';
 
 type AuthInstance = ReturnType<typeof betterAuth>;
 
@@ -39,9 +40,22 @@ async function buildAuth(): Promise<AuthInstance> {
 		baseURL,
 		database: AUTH_POOL,
 		emailAndPassword: {
-			enabled: true
+			enabled: true,
+			sendResetPassword: async ({ user, url }) => {
+				await sendEmail(user.email, 'auth.reset_password', {
+					username: user.name,
+					reset_url: url
+				});
+			}
 		},
-
+		emailVerification: {
+			sendVerificationEmail: async ({ user, url }) => {
+				await sendEmail(user.email, 'auth.verify_email', {
+					username: user.name,
+					verification_url: url
+				});
+			}
+		},
 		user: {
 			fields: {
 				emailVerified: 'email_verified',

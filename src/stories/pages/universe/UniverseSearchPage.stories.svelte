@@ -9,4 +9,4 @@
 	});
 </script>
 
-<Story name="Default" />
+<Story name="Default" args={{ orgSlug: 'demo-org' }} />

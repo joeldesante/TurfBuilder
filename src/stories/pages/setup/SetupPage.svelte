@@ -12,7 +12,7 @@
 		error?: string;
 	}
 
-	let currentStep = $state<1 | 2 | 3 | 4>(1);
+	let currentStep = $state<1 | 2 | 3 | 4 | 5>(1);
 
 	// Step 1 — DB check
 	let dbStatus = $state<'idle' | 'checking' | 'ok' | 'error'>('idle');
@@ -115,7 +115,39 @@
 		}
 	);
 
-	// Step 4 — Admin user
+	// Step 4 — Email configuration
+	let emailTransport = $state('direct');
+	let emailDomain = $state('');
+	let sesRegion = $state('');
+	let emailSaving = $state(false);
+	let emailError = $state('');
+
+	async function saveEmailSettings() {
+		emailSaving = true;
+		emailError = '';
+		try {
+			const res = await fetch('/setup/api/save-email-settings', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					mail_transport: emailTransport,
+					mail_domain: emailDomain,
+					ses_region: sesRegion
+				})
+			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.message ?? 'Failed to save email settings');
+			}
+			currentStep = 5;
+		} catch (e) {
+			emailError = e instanceof Error ? e.message : 'Failed to save email settings';
+		} finally {
+			emailSaving = false;
+		}
+	}
+
+	// Step 5 — Admin user
 	const adminSchema = z
 		.object({
 			name: z.string().min(1, 'Name is required'),
@@ -160,7 +192,7 @@
 				)
 	);
 
-	const TOTAL_STEPS = 4;
+	const TOTAL_STEPS = 5;
 </script>
 
 <div class="min-h-screen bg-surface flex items-center justify-center p-4">
@@ -173,7 +205,7 @@
 
 		<!-- Step indicator -->
 		<div class="flex items-center justify-center gap-3 mb-8">
-			{#each [1, 2, 3, 4] as n}
+			{#each [1, 2, 3, 4, 5] as n}
 				<div
 					class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold transition-colors
 						{currentStep === n
@@ -381,9 +413,90 @@
 				</form>
 
 			<!-- ================================================================
-			     STEP 4 — Admin account
+			     STEP 4 — Email configuration
 			     ================================================================ -->
 			{:else if currentStep === 4}
+				<h2 class="text-xl font-semibold text-on-surface mb-1">Email Configuration</h2>
+				<p class="text-on-surface-subtle text-sm mb-6">
+					Configure outgoing email delivery. You can change these settings later from the infrastructure dashboard.
+				</p>
+
+				<div class="space-y-4">
+					<div>
+						<label class="block text-sm font-medium text-on-surface mb-1" for="setup-mail-domain">
+							Email Domain
+						</label>
+						<input
+							id="setup-mail-domain"
+							type="text"
+							bind:value={emailDomain}
+							placeholder="mail.example.com"
+							autocomplete="off"
+							class="w-full px-3 py-2.5 rounded-lg text-sm bg-surface-container-low text-on-surface border border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+						/>
+						<p class="text-on-surface-subtle text-xs mt-1">The domain from which emails will be sent. Ensure SPF and DKIM records are configured.</p>
+					</div>
+
+					<div>
+						<label class="block text-sm font-medium text-on-surface mb-1" for="setup-mail-transport">
+							Mail Transport
+						</label>
+						<select
+							id="setup-mail-transport"
+							bind:value={emailTransport}
+							class="w-full px-3 py-2.5 rounded-lg text-sm bg-surface-container-low text-on-surface border border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+						>
+							<option value="direct">Direct Send</option>
+							<option value="ses">Amazon SES</option>
+						</select>
+						<p class="text-on-surface-subtle text-xs mt-1">Direct Send uses the application server itself to deliver email.</p>
+					</div>
+
+					{#if emailTransport === 'ses'}
+						<div>
+							<label class="block text-sm font-medium text-on-surface mb-1" for="setup-ses-region">
+								AWS Region
+							</label>
+							<input
+								id="setup-ses-region"
+								type="text"
+								bind:value={sesRegion}
+								placeholder="us-east-1"
+								autocomplete="off"
+								class="w-full px-3 py-2.5 rounded-lg text-sm bg-surface-container-low text-on-surface border border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+							/>
+							<p class="text-on-surface-subtle text-xs mt-1">The AWS region where your SES sending identity is configured.</p>
+						</div>
+
+					{/if}
+
+					{#if emailError}
+						<div class="bg-error-container border border-error rounded-lg px-4 py-3 text-sm text-on-error-container">
+							{emailError}
+						</div>
+					{/if}
+
+					<div class="flex gap-3 justify-end mt-2">
+						<button
+							onclick={() => (currentStep = 5)}
+							class="py-2.5 px-6 rounded-lg font-medium text-sm border border-outline text-on-surface hover:bg-surface-container transition-colors"
+						>
+							Skip
+						</button>
+						<button
+							onclick={saveEmailSettings}
+							disabled={emailSaving}
+							class="py-2.5 px-6 rounded-lg font-medium text-sm transition-colors bg-primary text-on-primary hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+						>
+							{emailSaving ? 'Saving…' : 'Save & Continue →'}
+						</button>
+					</div>
+				</div>
+
+			<!-- ================================================================
+			     STEP 5 — Admin account
+			     ================================================================ -->
+			{:else if currentStep === 5}
 				<h2 class="text-xl font-semibold text-on-surface mb-1">Create Admin Account</h2>
 				<p class="text-on-surface-subtle text-sm mb-6">
 					This account will have full infrastructure access and can create and manage organizations.

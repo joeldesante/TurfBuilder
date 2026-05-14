@@ -8,6 +8,10 @@ export async function load({ locals, parent }) {
 		throw redirect(303, '/auth/signin');
 	}
 
+	if (!locals.user.emailVerified) {
+		throw redirect(303, '/auth/verify-email');
+	}
+
 	const infraPermissions = await resolveInfraPermissions(locals.user.id);
 
 	if (!infraPermissions.includes('access')) {

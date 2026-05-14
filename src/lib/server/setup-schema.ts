@@ -478,6 +478,14 @@ export const SETUP_STEPS: SetupStep[] = [
 				value       TEXT NOT NULL,
 				description TEXT,
 				updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+
+			`CREATE TABLE IF NOT EXISTS email_template (
+				key         TEXT PRIMARY KEY,
+				subject     TEXT NOT NULL,
+				html_body   TEXT NOT NULL,
+				variables   JSONB NOT NULL DEFAULT '[]',
+				updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 			)`
 		]
 	},
@@ -716,13 +724,39 @@ export const SETUP_STEPS: SetupStep[] = [
 			`INSERT INTO system_setting (key, value, description) VALUES
 				('organizations.allow_creation', 'true', 'Whether users can create new organizations.'),
 				('html.header_content', '', 'Raw HTML injected into the <head> of every page (e.g. analytics tracking scripts).'),
-				('errors.cat_gifs', 'true', 'Show a cat gif on error pages.')
+				('errors.cat_gifs', 'true', 'Show a cat gif on error pages.'),
+				('mail.transport', 'direct', 'The mail transport used to send outgoing emails (direct or ses).'),
+				('mail.domain', '', 'The domain from which outgoing emails are sent (e.g. mail.example.com).'),
+				('mail.ses.region', '', 'AWS region for SES (e.g. us-east-1).')
 			ON CONFLICT (key) DO NOTHING`
 		]
 	},
 
 	// -------------------------------------------------------------------------
-	// 15. Full-text search GIN indexes
+	// 15. Seed email templates
+	// -------------------------------------------------------------------------
+	{
+		label: 'Seeding email templates',
+		statements: [
+			`INSERT INTO email_template (key, subject, html_body, variables) VALUES
+				(
+					'auth.verify_email',
+					'Verify your email address',
+					'<p>Hi {{username}},</p><p>Click the link below to verify your email address:</p><p><a href="{{verification_url}}">Verify email</a></p><p>If you did not request this, you can ignore this email.</p>',
+					'["username", "verification_url"]'
+				),
+				(
+					'auth.reset_password',
+					'Reset your password',
+					'<p>Hi {{username}},</p><p>Click the link below to reset your password:</p><p><a href="{{reset_url}}">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>',
+					'["username", "reset_url"]'
+				)
+			ON CONFLICT (key) DO NOTHING`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 16. Full-text search GIN indexes
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating full-text search indexes',

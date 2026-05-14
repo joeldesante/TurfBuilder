@@ -13,6 +13,10 @@ export async function load({ locals, parent }) {
 		throw redirect(303, '/orgs');
 	}
 
+	if (!locals.user.emailVerified) {
+		throw redirect(303, '/auth/verify-email');
+	}
+
 	if (!can(locals.organization, 'system', 'access')) {
 		throw error(403, 'You do not have system access for this organization.');
 	}

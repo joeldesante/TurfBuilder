@@ -52,6 +52,12 @@ export async function handle({ event, resolve }) {
 
 		const infraPermissions = await resolveInfraPermissions(session.user.id);
 		event.locals.infrastructure = { permissions: infraPermissions };
+
+		// Users with fake emails must set a real one before doing anything else.
+		const isFakeEmail = session.user.email.endsWith('@fake.com');
+		if (isFakeEmail && !isAuthRoute && pathname !== '/auth/update-email') {
+			throw redirect(303, '/auth/update-email');
+		}
 	}
 
 	// Resolve org from /o/[org_slug]/... URLs.
