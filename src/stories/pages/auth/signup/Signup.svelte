@@ -20,9 +20,7 @@
 
 <div>
 	<FormStep
-		onComplete={async (username: string, password: string) => {
-			username = username;
-			password = password;
+		onComplete={async (_email: string, _password: string) => {
 			goto(redirectTo);
 		}}
 	/>

@@ -5,6 +5,7 @@ import DatabaseIcon from 'phosphor-svelte/lib/Database';
 import GearIcon from 'phosphor-svelte/lib/Gear';
 import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwise';
 import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
+import EnvelopeIcon from 'phosphor-svelte/lib/Envelope';
 
 export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
 	const nav: SidebarNavEntry[] = [
@@ -33,6 +34,10 @@ export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
 	}
 
 	if (infraPermissions.includes('settings.manage')) {
+		nav.push({
+			kind: 'item',
+			item: { label: 'Email', href: '/infra/email', icon: EnvelopeIcon }
+		});
 		nav.push({
 			kind: 'item',
 			item: { label: 'Settings', href: '/infra/settings', icon: GearIcon }

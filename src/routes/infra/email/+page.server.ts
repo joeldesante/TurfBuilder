@@ -11,7 +11,7 @@ export async function load({ parent }) {
 	const client = await POOL.connect();
 	try {
 		const result = await client.query(
-			`SELECT key, value, description FROM system_setting WHERE key NOT LIKE 'mail.%' ORDER BY key`
+			`SELECT key, value, description FROM system_setting WHERE key LIKE 'mail.%' ORDER BY key`
 		);
 		return { settings: result.rows };
 	} finally {
