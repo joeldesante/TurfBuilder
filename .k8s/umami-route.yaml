@@ -1,0 +1,24 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: umami-route
+  namespace: turfbuilder
+  labels:
+    app: umami
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: turfbuilder
+      sectionName: http
+  
+  hostnames:
+    - "analytics.turfbuilder.org"
+  
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: umami-svc
+          port: 80

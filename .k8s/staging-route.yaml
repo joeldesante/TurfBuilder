@@ -1,0 +1,25 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: staging-route
+  namespace: turfbuilder
+  labels:
+    app: turfbuilder
+    env: staging
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: turfbuilder
+      sectionName: http
+  
+  hostnames:
+    - "staging.turfbuilder.org"
+  
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: turfbuilder-staging-svc
+          port: 80
