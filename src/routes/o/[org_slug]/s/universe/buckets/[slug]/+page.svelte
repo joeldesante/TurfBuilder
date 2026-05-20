@@ -4,4 +4,4 @@
 	const { data } = $props();
 </script>
 
-<BucketDetailPage name={data.name} description={data.description} />
+<BucketDetailPage name={data.bucket.name} />
