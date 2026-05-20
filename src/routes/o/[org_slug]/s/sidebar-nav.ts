@@ -17,16 +17,51 @@ import CircleIcon from 'phosphor-svelte/lib/Circle';
 import PlusIcon from 'phosphor-svelte/lib/Plus';
 import ScrollIcon from 'phosphor-svelte/lib/ScrollIcon';
 import SlidersIcon from 'phosphor-svelte/lib/SlidersIcon';
+import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets';
 
 interface ActivePlugin {
 	navEntries: SidebarNavEntry[];
 	requiredPermission?: { resource: string; action: string };
 }
 
+interface Bucket {
+	id: string;
+	name: string;
+	slug: string;
+}
+
+export function buildBucketNav(orgSlug: string, bucketSlug: string): SidebarNavEntry[] {
+	const base = `/o/${orgSlug}/s/universe/buckets/${bucketSlug}`;
+	return [
+		{
+			kind: 'section',
+			section: {
+				label: 'Entities',
+				icon: GlobeIcon,
+				items: [
+					{ label: 'Scripts', href: `${base}/scripts`, icon: ScrollIcon },
+					{ label: 'Surveys', href: `${base}/surveys`, icon: ClipboardTextIcon }
+				]
+			}
+		},
+		{
+			kind: 'section',
+			section: {
+				label: 'Data',
+				icon: FilesIcon,
+				items: [
+					{ label: 'Lists', href: `${base}/lists`, icon: ListBulletsIcon }
+				]
+			}
+		}
+	];
+}
+
 export function buildStaffNav(
 	orgSlug: string,
 	plugins: ActivePlugin[] = [],
-	org?: App.Locals['organization']
+	org?: App.Locals['organization'],
+	buckets: Bucket[] = []
 ): SidebarNavEntry[] {
 	const coreNav: SidebarNavEntry[] = [
 		{
@@ -45,15 +80,14 @@ export function buildStaffNav(
 						icon: StackIcon,
 						defaultOpen: true,
 						items: [
-							{ label: 'Registered Voters', href: `/o/${orgSlug}/s/universe/buckets/registered-voters`, icon: CircleIcon },
-							{ label: 'Likely Democrats', href: `/o/${orgSlug}/s/universe/buckets/likely-democrats`, icon: CircleIcon },
-							{ label: 'High Priority Doors', href: `/o/${orgSlug}/s/universe/buckets/high-priority-doors`, icon: CircleIcon },
-							{ label: 'First Time Voters', href: `/o/${orgSlug}/s/universe/buckets/first-time-voters`, icon: CircleIcon },
+							...buckets.map((b) => ({
+								label: b.name,
+								href: `/o/${orgSlug}/s/universe/buckets/${b.slug}`,
+								icon: CircleIcon
+							})),
 							{ label: 'Create New Bucket', href: `/o/${orgSlug}/s/universe/buckets/new`, icon: PlusIcon }
 						]
 					},
-					{ label: 'Scripts', href: `/o/${orgSlug}/s/universe/scripts`, icon: ScrollIcon },
-					{ label: 'Surveys', href: `/o/${orgSlug}/s/data/surveys`, icon: ClipboardTextIcon },
 					{ label: 'Reports', href: `/o/${orgSlug}/s/universe/reports`, icon: FilesIcon },
 				]
 			}

@@ -12,6 +12,7 @@
 	import DesktopIcon from 'phosphor-svelte/lib/Desktop';
 	import SidebarSimpleIcon from 'phosphor-svelte/lib/SidebarSimpleIcon';
 	import XIcon from 'phosphor-svelte/lib/X';
+	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
 	import { untrack } from 'svelte';
 	type Theme = 'light' | 'dark' | 'system';
 
@@ -24,6 +25,8 @@
 		applicationName?: string;
 		infraAccess?: boolean;
 		theme?: Theme;
+		panelTitle?: string;
+		onpanelback?: () => void;
 		onsignout?: () => void;
 		onthemechange?: (theme: Theme) => void;
 		class?: string;
@@ -39,6 +42,8 @@
 		applicationName = 'TurfBuilder',
 		infraAccess = false,
 		theme = 'system',
+		panelTitle,
+		onpanelback,
 		onsignout,
 		onthemechange,
 		class: className = '',
@@ -145,27 +150,60 @@
 	{...restProps}
 >
 	<!-- Top bar: collapse toggle (desktop) / close button (mobile) -->
-	<div class="flex items-center shrink-0 px-2 pt-3 pb-1">
-		{#if !collapsed}
-			<span class="pl-4 text-sm font-semibold text-on-surface truncate">{applicationName}</span>
-		{/if}
-		<div class="hidden md:block {collapsed ? 'mx-auto' : 'ml-auto'}">
+	{#if panelTitle}
+		<div class="flex {collapsed ? 'flex-col' : 'flex-row items-center'} shrink-0 px-2 pt-3 pb-1">
 			<Button
 				variant="ghost"
 				iconOnly
-				aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-				onclick={() => (collapsed = !collapsed)}
-				class="text-on-surface-subtle hover:text-on-surface"
+				aria-label="Back to main navigation"
+				onclick={onpanelback}
+				class="text-on-surface-subtle hover:text-on-surface shrink-0"
 			>
-				<SidebarSimpleIcon />
+				<ArrowLeftIcon />
 			</Button>
+			{#if !collapsed}
+				<span class="pl-2 text-sm font-semibold text-on-surface truncate flex-1">{panelTitle}</span>
+			{/if}
+			<div class="hidden md:flex {collapsed ? 'justify-center' : ''}">
+				<Button
+					variant="ghost"
+					iconOnly
+					aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+					onclick={() => (collapsed = !collapsed)}
+					class="text-on-surface-subtle hover:text-on-surface"
+				>
+					<SidebarSimpleIcon />
+				</Button>
+			</div>
+			<div class="flex md:hidden {collapsed ? '' : 'ml-auto'}">
+				<Button variant="ghost" iconOnly aria-label="Close menu" onclick={() => (mobileOpen = false)}>
+					<XIcon />
+				</Button>
+			</div>
 		</div>
-		<div class="flex md:hidden ml-auto">
-			<Button variant="ghost" iconOnly aria-label="Close menu" onclick={() => (mobileOpen = false)}>
-				<XIcon />
-			</Button>
+	{:else}
+		<div class="flex items-center shrink-0 px-2 pt-3 pb-1">
+			{#if !collapsed}
+				<span class="pl-4 text-sm font-semibold text-on-surface truncate">{applicationName}</span>
+			{/if}
+			<div class="hidden md:block {collapsed ? 'mx-auto' : 'ml-auto'}">
+				<Button
+					variant="ghost"
+					iconOnly
+					aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+					onclick={() => (collapsed = !collapsed)}
+					class="text-on-surface-subtle hover:text-on-surface"
+				>
+					<SidebarSimpleIcon />
+				</Button>
+			</div>
+			<div class="flex md:hidden ml-auto">
+				<Button variant="ghost" iconOnly aria-label="Close menu" onclick={() => (mobileOpen = false)}>
+					<XIcon />
+				</Button>
+			</div>
 		</div>
-	</div>
+	{/if}
 
 	<!-- Navigation items -->
 	<div class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1">

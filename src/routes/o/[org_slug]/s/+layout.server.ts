@@ -1,6 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
 import { getActivePlugins } from '$lib/server/plugins';
+import { withOrgTransaction } from '$lib/server/database';
 
 export async function load({ locals, parent }) {
 	const parentData = await parent();
@@ -21,11 +22,21 @@ export async function load({ locals, parent }) {
 		throw error(403, 'You do not have system access for this organization.');
 	}
 
-	const activePlugins = await getActivePlugins(locals.organization.id);
+	const [activePlugins, buckets] = await Promise.all([
+		getActivePlugins(locals.organization.id),
+		withOrgTransaction(locals.organization.id, async (client) => {
+			const result = await client.query<{ id: string; name: string; slug: string }>(
+				`SELECT id, name, slug FROM universe.bucket WHERE org_id = $1 ORDER BY name`,
+				[locals.organization!.id]
+			);
+			return result.rows;
+		})
+	]);
 
 	return {
 		...parentData,
 		organization: locals.organization,
+		buckets,
 		activePlugins: activePlugins.map((p) => ({
 			slug: p.manifest.slug,
 			name: p.manifest.name,
