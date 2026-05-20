@@ -273,6 +273,10 @@
 	to   { opacity: 0; }
 }
 
+::selection {
+	background-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
 @layer base {
 	* {
 		@apply border-outline-subtle;

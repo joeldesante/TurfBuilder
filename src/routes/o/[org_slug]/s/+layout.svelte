@@ -6,7 +6,7 @@
 	import { goto } from '$app/navigation';
 	import { themeStore } from '$lib/theme.svelte';
 	import Sidebar from '$components/layout/sidebar/Sidebar.svelte';
-	import { buildStaffNav } from './sidebar-nav';
+	import { buildStaffNav, buildBucketNav } from './sidebar-nav';
 	import Button from '$components/actions/button/Button.svelte';
 	import ListIcon from 'phosphor-svelte/lib/List';
 	import SearchBox from '$components/data-inputs/searchbox/SearchBox.svelte';
@@ -18,6 +18,7 @@
 			user: User;
 			organization: { id: string; name: string; slug: string };
 			allOrgs: { id: string; name: string; slug: string }[];
+			buckets: { id: string; name: string; slug: string }[];
 		};
 	}>();
 
@@ -70,7 +71,26 @@
 		goto(`/o/${orgSlug}/s/`);
 	}
 
-	const nav = $derived(buildStaffNav(data.organization.slug, data.activePlugins, data.organization));
+	const bucketRouteMatch = $derived(
+		$page.url.pathname.match(/\/o\/[^/]+\/s\/universe\/buckets\/([^/]+)(?:\/|$)/)
+	);
+	const activeBucketSlug = $derived(
+		bucketRouteMatch && bucketRouteMatch[1] !== 'new' ? bucketRouteMatch[1] : null
+	);
+	const activeBucket = $derived(
+		activeBucketSlug ? data.buckets.find((b: { id: string; name: string; slug: string }) => b.slug === activeBucketSlug) ?? null : null
+	);
+
+	const nav = $derived(
+		activeBucket
+			? buildBucketNav(data.organization.slug, activeBucket.slug)
+			: buildStaffNav(data.organization.slug, data.activePlugins, data.organization, data.buckets)
+	);
+	const panelTitle = $derived(activeBucket ? activeBucket.name : undefined);
+
+	function handlePanelBack() {
+		goto(`/o/${data.organization.slug}/s/universe/search`);
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -101,6 +121,8 @@
 		infraAccess={data.infraAccess}
 		theme={themeStore.theme}
 		onthemechange={themeStore.setTheme}
+		panelTitle={panelTitle}
+		onpanelback={activeBucket ? handlePanelBack : undefined}
 		bind:mobileOpen
 		onsignout={logout}
 	/>

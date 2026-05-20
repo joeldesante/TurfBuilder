@@ -1346,7 +1346,62 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
-	// 28. Universe seed data
+	// 28. Universe bucket table
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating universe bucket table',
+		statements: [
+			`CREATE TABLE IF NOT EXISTS universe.bucket (
+				id         UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				name       TEXT NOT NULL,
+				slug       TEXT NOT NULL,
+				org_id     UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				filter     JSONB NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.bucket ADD CONSTRAINT bucket_org_slug_unique UNIQUE (org_id, slug);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`CREATE INDEX IF NOT EXISTS bucket_org_id_idx ON universe.bucket (org_id)`,
+
+			`ALTER TABLE universe.bucket ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.bucket FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.bucket`,
+			`CREATE POLICY org_isolation ON universe.bucket
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 29. Universe script table
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating universe script table',
+		statements: [
+			`CREATE TABLE IF NOT EXISTS universe.script (
+				id         UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				name       TEXT NOT NULL,
+				contents   TEXT NOT NULL,
+				org_id     UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				bucket     UUID NOT NULL REFERENCES universe.bucket(id) ON DELETE CASCADE,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`CREATE INDEX IF NOT EXISTS script_org_id_idx ON universe.script (org_id)`,
+			`CREATE INDEX IF NOT EXISTS script_bucket_idx  ON universe.script (bucket)`,
+
+			`ALTER TABLE universe.script ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.script FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.script`,
+			`CREATE POLICY org_isolation ON universe.script
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 30. Universe seed data
 	// -------------------------------------------------------------------------
 	{
 		label: 'Seeding universe catalogues',
