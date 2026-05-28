@@ -15,7 +15,7 @@
 	const bucketSlug = $page.params.slug!;
 	const listId = $page.params.id!;
 
-	const listHref = `/o/${org_slug}/s/universe/buckets/${bucketSlug}/lists/${listId}`;
+	const listHref = `/o/${org_slug}/s/universe/buckets/${bucketSlug}/lists/${listId}?tab=turfs`;
 	const cutHref = `/o/${org_slug}/s/universe/buckets/${bucketSlug}/lists/${listId}/cut`;
 
 	let polygons: unknown[] = $state([]);
@@ -74,7 +74,9 @@
 
 <PageHeader
 	title="Set Survey"
-	subheading="Choose a survey to associate with the {polygons.length} new turf{polygons.length === 1 ? '' : 's'}."
+	subheading="Choose a survey to associate with the {polygons.length} new turf{polygons.length === 1
+		? ''
+		: 's'}."
 	breadcrumbs={[
 		{ label: 'Buckets', href: `/o/${org_slug}/s/universe/buckets` },
 		{ label: bucketSlug, href: `/o/${org_slug}/s/universe/buckets/${bucketSlug}/lists` },
