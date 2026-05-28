@@ -62,10 +62,10 @@ const darkColors = {
 	road_subtle: '#52525b', // zinc-600
 	aeroway: '#27272a', // zinc-800
 	railway: '#3f3f46', // zinc-700
-	boundary: '#52525b', // zinc-600
+	boundary: '#a1a1aa', // zinc-400 — light enough to contrast on zinc-900 background
 	text: '#f4f4f5', // zinc-100
 	text_water: '#93c5fd', // blue-300
-	text_halo: 'rgba(24,24,27,0.8)'
+	text_halo: 'rgba(24,24,27,0.9)'
 };
 
 type Colors = typeof lightColors;
@@ -164,9 +164,6 @@ function applyThemeToLayer(
 		case 'highway-name-path':
 		case 'highway-name-minor':
 		case 'highway-name-major':
-		case 'highway-shield-non-us':
-		case 'highway-shield-us-interstate':
-		case 'road_shield_us':
 		case 'airport':
 		case 'label_other':
 		case 'label_village':
@@ -180,21 +177,32 @@ function applyThemeToLayer(
 			p['text-color'] = c.text;
 			p['text-halo-color'] = c.text_halo;
 			break;
+		// Shield layers use light-background sprites — always use dark text for legibility
+		case 'highway-shield-non-us':
+		case 'highway-shield-us-interstate':
+		case 'road_shield_us':
+			p['text-color'] = '#18181b';
+			break;
 	}
 
 	return p;
 }
+
+const SHIELD_LAYER_IDS = new Set(['highway-shield-non-us', 'highway-shield-us-interstate', 'road_shield_us']);
 
 export async function getMapStyle(isDark: boolean): Promise<Record<string, unknown>> {
 	const base = await fetchBaseStyle();
 	const colors = isDark ? darkColors : lightColors;
 
 	const layers = (base.layers as Array<Record<string, unknown>>).map((layer) => {
-		const paint = applyThemeToLayer(
-			layer.id as string,
-			(layer.paint as Record<string, unknown>) ?? {},
-			colors
-		);
+		const id = layer.id as string;
+		const paint = applyThemeToLayer(id, (layer.paint as Record<string, unknown>) ?? {}, colors);
+
+		if (SHIELD_LAYER_IDS.has(id)) {
+			const layout = { ...((layer.layout as Record<string, unknown>) ?? {}), 'text-font': ['Noto Sans Bold'] };
+			return { ...layer, paint, layout };
+		}
+
 		return { ...layer, paint };
 	});
 

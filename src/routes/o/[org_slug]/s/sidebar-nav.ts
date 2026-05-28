@@ -24,13 +24,19 @@ interface ActivePlugin {
 	requiredPermission?: { resource: string; action: string };
 }
 
+interface BucketFilter {
+	people: { enabled: boolean };
+	locations: { enabled: boolean };
+}
+
 interface Bucket {
 	id: string;
 	name: string;
 	slug: string;
+	filter?: BucketFilter;
 }
 
-export function buildBucketNav(orgSlug: string, bucketSlug: string): SidebarNavEntry[] {
+export function buildBucketNav(orgSlug: string, bucketSlug: string, filter?: BucketFilter): SidebarNavEntry[] {
 	const base = `/o/${orgSlug}/s/universe/buckets/${bucketSlug}`;
 	return [
 		{
@@ -39,6 +45,8 @@ export function buildBucketNav(orgSlug: string, bucketSlug: string): SidebarNavE
 				label: 'Entities',
 				icon: GlobeIcon,
 				items: [
+					...(filter?.people.enabled ? [{ label: 'People', href: `${base}/people`, icon: UsersIcon }] : []),
+					...(filter?.locations.enabled ? [{ label: 'Locations', href: `${base}/locations`, icon: MapPinIcon }] : []),
 					{ label: 'Scripts', href: `${base}/scripts`, icon: ScrollIcon },
 					{ label: 'Surveys', href: `${base}/surveys`, icon: ClipboardTextIcon }
 				]

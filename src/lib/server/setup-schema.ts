@@ -1234,6 +1234,77 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
+	// 26.5. Universe entity views
+	//
+	// These views combine public (shared across all orgs) and org-specific rows
+	// into a single queryable surface. Org rows are scoped by
+	// current_setting('app.current_org_id'), which withOrgTransaction sets on
+	// every request. Because PostgreSQL views bypass underlying-table RLS by
+	// default, the org filter is applied explicitly in the view WHERE clause
+	// using the same `safe` expression as the RLS policies.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating universe entity views',
+		statements: [
+			`CREATE OR REPLACE VIEW universe.v_people AS
+				SELECT
+					pp.id,
+					pp.first_name,
+					pp.last_name,
+					pp.email,
+					pp.phone,
+					pp.dob,
+					'public_person' AS source
+				FROM universe.public_person pp
+				WHERE pp.valid_to IS NULL
+				UNION ALL
+				SELECT
+					op.id,
+					op.first_name,
+					op.last_name,
+					op.email,
+					op.phone,
+					op.dob,
+					'org_person' AS source
+				FROM universe.org_person op
+				WHERE op.valid_to IS NULL
+				  AND op.org_id = ${safe}`,
+
+			`CREATE OR REPLACE VIEW universe.v_locations AS
+				SELECT
+					pl.id,
+					pl.name,
+					pl.address_line_1,
+					pl.address_line_2,
+					pl.address_line_3,
+					pl.city,
+					pl.state_or_region,
+					pl.postal_code,
+					pl.country_code,
+					pl.coordinates,
+					'public_location' AS source
+				FROM universe.public_location pl
+				WHERE pl.valid_to IS NULL
+				UNION ALL
+				SELECT
+					ol.id,
+					ol.name,
+					ol.address_line_1,
+					ol.address_line_2,
+					ol.address_line_3,
+					ol.city,
+					ol.state_or_region,
+					ol.postal_code,
+					ol.country_code,
+					ol.coordinates,
+					'org_location' AS source
+				FROM universe.org_location ol
+				WHERE ol.valid_to IS NULL
+				  AND ol.org_id = ${safe}`
+		]
+	},
+
+	// -------------------------------------------------------------------------
 	// 27. Universe indexes
 	// -------------------------------------------------------------------------
 	{
@@ -1374,6 +1445,19 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
+	// 28.5. Add bucket_id to survey table
+	// -------------------------------------------------------------------------
+	{
+		label: 'Adding bucket_id to survey table',
+		statements: [
+			`DO $$ BEGIN
+				ALTER TABLE survey ADD COLUMN bucket_id UUID REFERENCES universe.bucket(id) ON DELETE CASCADE;
+			EXCEPTION WHEN duplicate_column THEN NULL; END $$`,
+			`CREATE INDEX IF NOT EXISTS survey_bucket_id_idx ON survey (bucket_id)`
+		]
+	},
+
+	// -------------------------------------------------------------------------
 	// 29. Universe script table
 	// -------------------------------------------------------------------------
 	{
@@ -1401,7 +1485,51 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
-	// 30. Universe seed data
+	// 30. Universe list table
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating universe list table',
+		statements: [
+			`CREATE TABLE IF NOT EXISTS universe.list (
+				id          UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				name        TEXT NOT NULL,
+				bucket      UUID NOT NULL REFERENCES universe.bucket(id) ON DELETE CASCADE,
+				org_id      UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				entity_type TEXT NOT NULL CHECK (entity_type IN ('people', 'locations')),
+				expires_at  TIMESTAMPTZ NOT NULL,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`CREATE INDEX IF NOT EXISTS list_org_id_idx ON universe.list (org_id)`,
+			`CREATE INDEX IF NOT EXISTS list_bucket_idx  ON universe.list (bucket)`,
+
+			`ALTER TABLE universe.list ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.list FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.list`,
+			`CREATE POLICY org_isolation ON universe.list
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 31. Universe list_entry table
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating universe list_entry table',
+		statements: [
+			`CREATE TABLE IF NOT EXISTS universe.list_entry (
+				id            UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				list_id       UUID NOT NULL REFERENCES universe.list(id) ON DELETE CASCADE,
+				record_id     UUID NOT NULL,
+				record_source TEXT NOT NULL
+					CHECK (record_source IN ('public_person', 'org_person', 'public_location', 'org_location'))
+			)`,
+			`CREATE INDEX IF NOT EXISTS list_entry_list_id_idx ON universe.list_entry (list_id)`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 32. Universe seed data
 	// -------------------------------------------------------------------------
 	{
 		label: 'Seeding universe catalogues',
@@ -1433,6 +1561,34 @@ export const SETUP_STEPS: SetupStep[] = [
 				('subsidiary_of', 'Subsidiary Of', 'has_subsidiary', 'Has Subsidiary', 'An organization is a subsidiary of another'),
 				('delivers_to',   'Delivers To',   'delivered_by',   'Delivered By',   'An entity delivers to a location or organization')
 			ON CONFLICT (slug) DO NOTHING`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 33. Turf-universe linkage: bucket/list scope on turf, universe locations on turf_location
+	// -------------------------------------------------------------------------
+	{
+		label: 'Linking turfs to universe buckets and lists',
+		statements: [
+			`ALTER TABLE turf ADD COLUMN IF NOT EXISTS bucket_id UUID REFERENCES universe.bucket(id) ON DELETE SET NULL`,
+			`ALTER TABLE turf ADD COLUMN IF NOT EXISTS list_id UUID REFERENCES universe.list(id) ON DELETE SET NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_bucket_id_idx ON turf (bucket_id) WHERE bucket_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_list_id_idx ON turf (list_id) WHERE list_id IS NOT NULL`,
+
+			`ALTER TABLE turf_location ADD COLUMN IF NOT EXISTS universe_public_location_id UUID REFERENCES universe.public_location(id) ON DELETE CASCADE`,
+			`ALTER TABLE turf_location ADD COLUMN IF NOT EXISTS universe_org_location_id UUID REFERENCES universe.org_location(id) ON DELETE CASCADE`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_universe_public_unique ON turf_location (turf_id, universe_public_location_id) WHERE universe_public_location_id IS NOT NULL`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_universe_org_unique ON turf_location (turf_id, universe_org_location_id) WHERE universe_org_location_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_location_universe_public_id_idx ON turf_location (universe_public_location_id) WHERE universe_public_location_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_location_universe_org_id_idx ON turf_location (universe_org_location_id) WHERE universe_org_location_id IS NOT NULL`,
+
+			`ALTER TABLE turf_location DROP CONSTRAINT IF EXISTS turf_location_tier_check`,
+			`ALTER TABLE turf_location ADD CONSTRAINT turf_location_tier_check CHECK (
+				(location_id IS NOT NULL AND org_location_id IS NULL AND universe_public_location_id IS NULL AND universe_org_location_id IS NULL) OR
+				(location_id IS NULL AND org_location_id IS NOT NULL AND universe_public_location_id IS NULL AND universe_org_location_id IS NULL) OR
+				(location_id IS NULL AND org_location_id IS NULL AND universe_public_location_id IS NOT NULL AND universe_org_location_id IS NULL) OR
+				(location_id IS NULL AND org_location_id IS NULL AND universe_public_location_id IS NULL AND universe_org_location_id IS NOT NULL)
+			)`
 		]
 	}
 ];

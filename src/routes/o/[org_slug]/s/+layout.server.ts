@@ -2,6 +2,7 @@ import { redirect, error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
 import { getActivePlugins } from '$lib/server/plugins';
 import { withOrgTransaction } from '$lib/server/database';
+import { parseBucketFilter } from '$lib/server/filter-converter';
 
 export async function load({ locals, parent }) {
 	const parentData = await parent();
@@ -25,11 +26,16 @@ export async function load({ locals, parent }) {
 	const [activePlugins, buckets] = await Promise.all([
 		getActivePlugins(locals.organization.id),
 		withOrgTransaction(locals.organization.id, async (client) => {
-			const result = await client.query<{ id: string; name: string; slug: string }>(
-				`SELECT id, name, slug FROM universe.bucket WHERE org_id = $1 ORDER BY name`,
+			const result = await client.query<{ id: string; name: string; slug: string; filter: unknown }>(
+				`SELECT id, name, slug, filter FROM universe.bucket WHERE org_id = $1 ORDER BY name`,
 				[locals.organization!.id]
 			);
-			return result.rows;
+			return result.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				slug: row.slug,
+				filter: parseBucketFilter(row.filter),
+			}));
 		})
 	]);
 

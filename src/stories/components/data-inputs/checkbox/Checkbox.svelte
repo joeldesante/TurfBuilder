@@ -62,7 +62,7 @@
 </script>
 
 {#if children}
-	<div class="inline-flex items-start gap-2">
+	<div class="flex items-center gap-2">
 		<CheckboxPrimitive.Root
 			id={checkboxId}
 			bind:checked
@@ -77,34 +77,24 @@
 			{...restProps}
 		>
 			{#snippet children({ checked: isChecked, indeterminate: isIndeterminate })}
-				{#if isIndeterminate}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="3"
-						stroke-linecap="round"
-					>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="14"
+					height="14"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					style="visibility: {isIndeterminate || isChecked ? 'visible' : 'hidden'}"
+				>
+					{#if isIndeterminate}
 						<line x1="5" y1="12" x2="19" y2="12" />
-					</svg>
-				{:else if isChecked}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="3"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
+					{:else}
 						<polyline points="20 6 9 17 4 12" />
-					</svg>
-				{/if}
+					{/if}
+				</svg>
 			{/snippet}
 		</CheckboxPrimitive.Root>
 		<label
@@ -134,34 +124,24 @@
 		{...restProps}
 	>
 		{#snippet children({ checked: isChecked, indeterminate: isIndeterminate })}
-			{#if isIndeterminate}
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-				>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="14"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				style="visibility: {isIndeterminate || isChecked ? 'visible' : 'hidden'}"
+			>
+				{#if isIndeterminate}
 					<line x1="5" y1="12" x2="19" y2="12" />
-				</svg>
-			{:else if isChecked}
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
+				{:else}
 					<polyline points="20 6 9 17 4 12" />
-				</svg>
-			{/if}
+				{/if}
+			</svg>
 		{/snippet}
 	</CheckboxPrimitive.Root>
 {/if}
