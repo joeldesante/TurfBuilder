@@ -7,6 +7,12 @@ import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/perm
 import { isSetupComplete } from '$lib/server/setup';
 import { getSettings, SettingsMissingError } from '$lib/server/settings';
 
+export function handleError({ error: err, event, status, message }) {
+	console.error(`[${status}] ${event.request.method} ${event.url.pathname}`);
+	console.error(err);
+	return { message: status === 500 ? 'Internal server error' : message };
+}
+
 export async function handle({ event, resolve }) {
 	const { pathname } = event.url;
 	const isSetupRoute = pathname.startsWith('/setup');

@@ -83,7 +83,7 @@
 
 	const nav = $derived(
 		activeBucket
-			? buildBucketNav(data.organization.slug, activeBucket.slug)
+			? buildBucketNav(data.organization.slug, activeBucket.slug, activeBucket.filter)
 			: buildStaffNav(data.organization.slug, data.activePlugins, data.organization, data.buckets)
 	);
 	const panelTitle = $derived(activeBucket ? activeBucket.name : undefined);

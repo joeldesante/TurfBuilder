@@ -20,7 +20,7 @@ export async function POST({ request, locals }) {
 	}
 
 	try {
-		const { name }: { name: string } = await request.json();
+		const { name, bucketId }: { name: string; bucketId: string } = await request.json();
 
 		if (!name || name.trim() === '') {
 			return json({ error: 'Name is required.' }, { status: 400 });
@@ -28,11 +28,22 @@ export async function POST({ request, locals }) {
 		if (name.trim().length > 255) {
 			return json({ error: 'Name must be 255 characters or fewer.' }, { status: 400 });
 		}
+		if (!bucketId) {
+			return json({ error: 'bucketId is required.' }, { status: 400 });
+		}
 
 		const result = await withOrgTransaction(locals.organization.id, async (client) => {
+			const bucketCheck = await client.query(
+				`SELECT id FROM universe.bucket WHERE id = $1 AND org_id = $2`,
+				[bucketId, locals.organization!.id]
+			);
+			if (bucketCheck.rows.length === 0) {
+				throw Object.assign(new Error('Bucket not found'), { status: 404 });
+			}
+
 			return client.query(
-				`INSERT INTO survey (name, organization_id) VALUES ($1, $2) RETURNING id`,
-				[name.trim(), locals.organization!.id]
+				`INSERT INTO survey (name, organization_id, bucket_id) VALUES ($1, $2, $3) RETURNING id`,
+				[name.trim(), locals.organization!.id, bucketId]
 			);
 		});
 

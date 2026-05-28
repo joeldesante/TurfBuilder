@@ -17,6 +17,7 @@
 		turfs: SearchResult[];
 		members: SearchResult[];
 		locations: SearchResult[];
+		people: SearchResult[];
 	}
 
 	interface HistoryItem {
@@ -127,6 +128,7 @@
 	});
 
 	const sections: { key: keyof Results; label: string }[] = [
+		{ key: 'people', label: 'People' },
 		{ key: 'surveys', label: 'Surveys' },
 		{ key: 'turfs', label: 'Turfs' },
 		{ key: 'members', label: 'Members' },

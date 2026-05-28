@@ -3,7 +3,7 @@ import { POOL } from "$lib/server/database";
 
 // --- Join type ---
 
-type JoinNode = {
+export type JoinNode = {
 	type: 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
 	table: string;
 	on: {
@@ -25,7 +25,7 @@ const JoinSchema: z.ZodType<JoinNode> = z.object({
 
 // --- WHERE tree types ---
 
-type ConditionNode = {
+export type ConditionNode = {
 	type: 'condition';
 	column: string;
 	op: string;
@@ -34,14 +34,22 @@ type ConditionNode = {
 	value2?: any;  // BETWEEN upper bound
 };
 
-type GroupNode = {
+export type GroupNode = {
 	type: 'group';
 	connector: 'AND' | 'OR';
 	negate: boolean;
 	children: WhereNode[];
 };
 
-type WhereNode = ConditionNode | GroupNode;
+export type WhereNode = ConditionNode | GroupNode;
+
+/** A single query inside the Queries wrapper. */
+export type SingleQuery = {
+	select: string[];
+	from: string;
+	joins?: JoinNode[];
+	where?: GroupNode;
+};
 
 // --- Zod schemas ---
 
@@ -72,7 +80,7 @@ const QueriesSchema = z.object({
 	}).array().min(1)
 });
 
-type Queries = z.infer<typeof QueriesSchema>;
+export type Queries = z.infer<typeof QueriesSchema>;
 
 interface SqlQuery {
 	query: string;
@@ -81,7 +89,7 @@ interface SqlQuery {
 
 // --- Recursive WHERE builder ---
 
-function buildWhereNode(node: WhereNode, params: any[]): string {
+export function buildWhereNode(node: WhereNode, params: any[]): string {
 	if (node.type === 'condition') {
 		const startIdx = params.length + 1;
 		let sql: string;
@@ -94,6 +102,9 @@ function buildWhereNode(node: WhereNode, params: any[]): string {
 		} else if (node.op === 'BETWEEN') {
 			sql = `${node.column} BETWEEN $${startIdx} AND $${startIdx + 1}`;
 			params.push(node.value, node.value2);
+		} else if (node.op === 'IS NULL' || node.op === 'IS NOT NULL') {
+			// No parameter for null-check operators
+			sql = `${node.column} ${node.op}`;
 		} else {
 			sql = `${node.column} ${node.op} $${startIdx}`;
 			params.push(node.value);

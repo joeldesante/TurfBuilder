@@ -9,7 +9,7 @@ export async function GET({ locals, url }) {
 
 	const q = url.searchParams.get('q')?.trim() ?? '';
 	if (q.length < 2) {
-		return json({ surveys: [], turfs: [], members: [], locations: [] });
+		return json({ surveys: [], turfs: [], members: [], locations: [], people: [] });
 	}
 
 	// Build a prefix-matching tsquery: "hello wor" → "hello:* & wor:*"
@@ -23,10 +23,11 @@ export async function GET({ locals, url }) {
 
 		const surveys = can(org, 'survey', 'read')
 			? await client.query(
-				`SELECT id, name AS title, COALESCE(description, '') AS subtitle
-				 FROM survey
-				 WHERE organization_id = $1
-				   AND to_tsvector('simple', name || ' ' || COALESCE(description, ''))
+				`SELECT s.id, s.name AS title, COALESCE(s.description, '') AS subtitle, b.slug AS bucket_slug
+				 FROM survey s
+				 JOIN universe.bucket b ON b.id = s.bucket_id
+				 WHERE s.organization_id = $1
+				   AND to_tsvector('simple', s.name || ' ' || COALESCE(s.description, ''))
 				       @@ to_tsquery('simple', $2)
 				 LIMIT 5`,
 				[org.id, tsquery]
@@ -69,11 +70,30 @@ export async function GET({ locals, url }) {
 			)
 			: { rows: [] };
 
+		const people = await client.query(
+			`SELECT
+				vp.id,
+				COALESCE(
+					NULLIF(TRIM(COALESCE(vp.first_name, '') || ' ' || COALESCE(vp.last_name, '')), ''),
+					vp.first_name,
+					vp.last_name,
+					'Unknown'
+				) AS title,
+				COALESCE(vp.email, '') AS subtitle
+			FROM universe.v_people vp
+			WHERE vp.first_name ILIKE '%' || $1 || '%'
+			   OR vp.last_name  ILIKE '%' || $1 || '%'
+			   OR vp.email      ILIKE '%' || $1 || '%'
+			LIMIT 5`,
+			[q]
+		);
+
 		return json({
-			surveys:   surveys.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/data/surveys` })),
+			surveys:   surveys.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/universe/buckets/${r.bucket_slug}/surveys/${r.id}` })),
 			turfs:     turfs.rows.map(r => ({ ...r, subtitle: '', href: `/o/${orgSlug}/s/turfs` })),
 			members:   members.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/members/${r.id}` })),
 			locations: locations.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/data/locations` })),
+			people:    people.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/universe/people/${r.id}` })),
 		});
 	});
 }
