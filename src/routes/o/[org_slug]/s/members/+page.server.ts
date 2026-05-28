@@ -35,9 +35,18 @@ export async function load({ locals }) {
 			])
 		]);
 
+		const rolesResult = await client.query(
+			`SELECT id, name FROM permission_role
+			 WHERE organization_id = $1 AND scope = 'organization'
+			 ORDER BY weight ASC`,
+			[locals.organization!.id]
+		);
+
 		return {
 			members: membersResult.rows,
+			roles: rolesResult.rows,
 			canRemoveMembers: can(locals.organization, 'member', 'delete'),
+			canManageRoles: can(locals.organization, 'member', 'update'),
 			canInvite: can(locals.organization, 'member', 'invite'),
 			inviteLinks: linksResult.rows,
 			slugInviteEnabled: slugResult.rows[0]?.enabled ?? false

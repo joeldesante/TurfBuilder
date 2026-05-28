@@ -6,6 +6,19 @@
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug);
 
+	async function handleAssignRole(userId: string, roleId: string | null) {
+		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ role_id: roleId })
+		});
+		if (!res.ok) {
+			const body = await res.json();
+			throw new Error(body.error ?? 'Failed to assign role.');
+		}
+		await invalidateAll();
+	}
+
 	async function handleRemove(userId: string) {
 		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}`, { method: 'DELETE' });
 		if (!res.ok) {
@@ -57,12 +70,15 @@
 
 <MembersPage
 	members={data.members}
+	roles={data.roles}
 	canRemoveMembers={data.canRemoveMembers}
+	canManageRoles={data.canManageRoles}
 	canInvite={data.canInvite}
 	inviteLinks={data.inviteLinks}
 	slugInviteEnabled={data.slugInviteEnabled}
 	orgSlug={orgSlug}
 	onRemove={handleRemove}
+	onAssignRole={handleAssignRole}
 	onCreateLink={handleCreateLink}
 	onRevokeLink={handleRevokeLink}
 	onToggleSlugInvite={handleToggleSlugInvite}

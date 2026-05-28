@@ -19,12 +19,12 @@ export async function handle({ event, resolve }) {
 				throw redirect(303, '/setup');
 			}
 
-			// Load settings and fail loudly if a required one is missing.
+			// Load settings; if missing, redirect to setup rather than hard 500.
 			try {
 				event.locals.config = await getSettings();
 			} catch (e) {
 				if (e instanceof SettingsMissingError) {
-					throw error(500, e.message);
+					throw redirect(303, '/setup');
 				}
 				throw e;
 			}
