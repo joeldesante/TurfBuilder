@@ -53,8 +53,8 @@ export async function POST({ request, locals, params }) {
 		}
 
 		const turfLocationResult = await client.query(
-			`SELECT id FROM turf_location WHERE turf_id = $1 AND (location_id = $2 OR org_location_id = $2)`,
-			[turfId, locationId]
+			`SELECT id FROM turf_location WHERE id = $1 AND turf_id = $2 AND organization_id = $3`,
+			[locationId, turfId, orgId]
 		);
 		if (turfLocationResult.rows.length === 0) {
 			throw error(404, 'Location not found in this turf.');

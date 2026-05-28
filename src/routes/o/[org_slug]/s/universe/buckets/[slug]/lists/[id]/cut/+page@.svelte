@@ -62,6 +62,14 @@
 		locations.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
 	);
 
+	type ExistingTurf = {
+		id: string;
+		code: string;
+		expires_at: string;
+		bounds: string | null;
+	};
+
+	let existingTurfs = $state<ExistingTurf[]>([]);
 	let turfFeatures = $state<any[]>([]);
 
 	function updateTurfFeatures() {
@@ -117,6 +125,76 @@
 			return [sumX / n, sumY / n];
 		}
 		return [cx / (6 * area), cy / (6 * area)];
+	}
+
+	// Existing turfs are rendered in a separate MapLibre source that Geoman has no
+	// knowledge of. Geoman's delete/edit tools only operate on features in its own
+	// internal collection, so these polygons cannot be accidentally removed.
+	function addExistingTurfLayers() {
+		if (!map.getSource('existing-turfs')) {
+			map.addSource('existing-turfs', {
+				type: 'geojson',
+				data: { type: 'FeatureCollection', features: [] }
+			});
+		}
+		if (!map.getLayer('existing-turfs-fill')) {
+			map.addLayer({
+				id: 'existing-turfs-fill',
+				type: 'fill',
+				source: 'existing-turfs',
+				paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.12 }
+			});
+		}
+		if (!map.getLayer('existing-turfs-outline')) {
+			map.addLayer({
+				id: 'existing-turfs-outline',
+				type: 'line',
+				source: 'existing-turfs',
+				paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-opacity': 0.7 }
+			});
+		}
+		if (!map.getLayer('existing-turfs-labels')) {
+			map.addLayer({
+				id: 'existing-turfs-labels',
+				type: 'symbol',
+				source: 'existing-turfs',
+				layout: {
+					'text-field': ['get', 'code'],
+					'text-font': ['Noto Sans Bold'],
+					'text-size': 11,
+					'text-anchor': 'center',
+					'text-allow-overlap': false
+				},
+				paint: {
+					'text-color': '#1d4ed8',
+					'text-halo-color': '#ffffff',
+					'text-halo-width': 3
+				}
+			});
+		}
+	}
+
+	async function loadExistingTurfs() {
+		try {
+			const res = await fetch(`/o/${org_slug}/s/api/universe/lists/${data.listId}/turfs`);
+			if (!res.ok) return;
+			const turfs: ExistingTurf[] = await res.json();
+			existingTurfs = turfs.filter((t) => t.bounds);
+
+			const source = map.getSource('existing-turfs') as maplibregl.GeoJSONSource | undefined;
+			if (!source) return;
+
+			source.setData({
+				type: 'FeatureCollection',
+				features: existingTurfs.map((t) => ({
+					type: 'Feature' as const,
+					geometry: JSON.parse(t.bounds!),
+					properties: { code: t.code }
+				}))
+			});
+		} catch {
+			// non-critical — existing turfs are display-only
+		}
 	}
 
 	function addHighlightLayers() {
@@ -391,7 +469,10 @@
 				offset: [0, -6]
 			});
 
-			map.on('style.load', addHighlightLayers);
+			map.on('style.load', () => {
+				addExistingTurfLayers();
+				addHighlightLayers();
+			});
 
 			map.on('mousemove', (e) => {
 				if (turfFeatures.length === 0) return;
@@ -419,8 +500,10 @@
 			});
 
 			map.on('load', () => {
+				addExistingTurfLayers();
 				addHighlightLayers();
 				loadListLocations();
+				loadExistingTurfs();
 			});
 
 			map.on('dataloading', () => {

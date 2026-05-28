@@ -8,6 +8,7 @@
 	import XIcon from 'phosphor-svelte/lib/X';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 	import SpinnerGap from 'phosphor-svelte/lib/SpinnerGap';
+	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 
 	interface LocationPreview {
@@ -229,6 +230,7 @@
 				<div class="flex items-center gap-2">
 					<MapPinIcon class="size-4 text-on-surface-subtle" />
 					<span class="text-sm font-semibold text-on-surface font-mono">{turfCode}</span>
+					<CopyButton value={turfCode} aria-label="Copy turf code" />
 					{#if locations.length > 0}
 						<span class="text-xs text-on-surface-subtle">{locations.length} location{locations.length === 1 ? '' : 's'}</span>
 					{/if}
