@@ -8,28 +8,31 @@ export async function load({ locals, params }) {
 	const orgId = locals.organization!.id;
 
 	return withOrgTransaction(orgId, async (client) => {
-		// Validate turf belongs to this org and the location is in this turf.
-		const surveyResult = await client.query(
-			`SELECT t.survey_id
-			 FROM turf t
-			 INNER JOIN turf_location tl ON tl.turf_id = t.id
-			 WHERE (tl.location_id = $1 OR tl.org_location_id = $1) AND t.id = $2 AND t.organization_id = $3`,
+		// Look up the turf_location row (which is now the location identifier) and join to get survey + location details.
+		const turfLocationResult = await client.query(
+			`SELECT
+			        tl.id AS turf_location_id,
+			        t.survey_id,
+			        COALESCE(l.location_name, ol.location_name, upl.name, uol.name) AS location_name,
+			        COALESCE(l.street, ol.street, upl.address_line_1, uol.address_line_1) AS street,
+			        COALESCE(l.locality, ol.locality, upl.city, uol.city) AS locality,
+			        COALESCE(l.postcode, ol.postcode, upl.postal_code, uol.postal_code) AS postcode,
+			        COALESCE(l.region, ol.region, upl.state_or_region, uol.state_or_region) AS region
+			 FROM turf_location tl
+			 JOIN turf t ON t.id = tl.turf_id
+			 LEFT JOIN location l ON l.id = tl.location_id
+			 LEFT JOIN org_location ol ON ol.id = tl.org_location_id
+			 LEFT JOIN universe.public_location upl ON upl.id = tl.universe_public_location_id
+			 LEFT JOIN universe.org_location uol ON uol.id = tl.universe_org_location_id
+			 WHERE tl.id = $1 AND tl.turf_id = $2 AND tl.organization_id = $3`,
 			[locationId, turfId, orgId]
 		);
 
-		if (surveyResult.rows.length === 0) {
+		if (turfLocationResult.rows.length === 0) {
 			throw error(404, 'Location not found in this turf.');
 		}
 
-		const surveyId = surveyResult.rows[0].survey_id;
-
-		const location = await client.query(
-			`SELECT location_name, street, locality, postcode, region FROM location WHERE id = $1
-			 UNION ALL
-			 SELECT location_name, street, locality, postcode, region FROM org_location WHERE id = $1
-			 LIMIT 1`,
-			[locationId]
-		);
+		const { turf_location_id: turfLocationId, survey_id: surveyId, ...locationFields } = turfLocationResult.rows[0];
 
 		const questionsResult = await client.query(
 			`SELECT id, question_text, question_type, order_index, choices
@@ -39,12 +42,6 @@ export async function load({ locals, params }) {
 			[surveyId]
 		);
 		const questions = questionsResult.rows;
-
-		const turfLocationResult = await client.query(
-			`SELECT id FROM turf_location WHERE turf_id = $1 AND (location_id = $2 OR org_location_id = $2)`,
-			[turfId, locationId]
-		);
-		const turfLocationId = turfLocationResult.rows[0].id;
 
 		const locationAttemptResult = await client.query(
 			`INSERT INTO turf_location_attempt (turf_location_id, user_id, organization_id)
@@ -70,7 +67,7 @@ export async function load({ locals, params }) {
 
 		return {
 			turfId,
-			location: location.rows[0],
+			location: locationFields,
 			locationAttempt,
 			surveyId,
 			questions,

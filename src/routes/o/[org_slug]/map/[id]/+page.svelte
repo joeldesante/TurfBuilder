@@ -1,6 +1,6 @@
 <script lang="ts">
 	type Location = {
-		id: number;
+		id: string;
 		location_name: string;
 		category: string | null;
 		visited: boolean | null;
@@ -53,7 +53,7 @@
 		hostile: { label: 'Hostile', variant: 'location-hostile' }
 	};
 
-	let selectedLocationId = $state<number | null>(null);
+	let selectedLocationId = $state<string | null>(null);
 	let selectedLocation = $state<Location | null>(null);
 	let showPanel = $state(false);
 
@@ -65,7 +65,7 @@
 
 	const orgSlug = params.org_slug;
 
-	let statusMap = $state<Record<number, { visited: boolean; contact_made: boolean | null }>>(
+	let statusMap = $state<Record<string, { visited: boolean; contact_made: boolean | null }>>(
 		Object.fromEntries(
 			data.locations.map((l: Location) => [l.id, { visited: l.visited ?? false, contact_made: l.contact_made }])
 		)
@@ -187,11 +187,19 @@
 	}
 
 	onMount(() => {
+		const initialBounds = data.locations.reduce(
+			(b, l) => b.extend([l.longitude, l.latitude]),
+			new maplibregl.LngLatBounds(
+				[data.locations[0].longitude, data.locations[0].latitude],
+				[data.locations[0].longitude, data.locations[0].latitude]
+			)
+		);
+
 		map = new maplibregl.Map({
 			container: mapContainer,
 			style: 'https://tiles.openfreemap.org/styles/positron',
-			center: [data.center.lng, data.center.lat],
-			zoom: DEFAULT_ZOOM
+			bounds: initialBounds,
+			fitBoundsOptions: { padding: 60, maxZoom: DEFAULT_ZOOM }
 		});
 
 		const geolocateControl = new maplibregl.GeolocateControl({

@@ -7,6 +7,9 @@
 	import CalendarIcon from 'phosphor-svelte/lib/Calendar';
 	import ScissorsIcon from 'phosphor-svelte/lib/Scissors';
 	import EyeIcon from 'phosphor-svelte/lib/Eye';
+	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
+	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
+	import { untrack } from 'svelte';
 
 	export interface TurfEntry {
 		id: string;
@@ -54,15 +57,23 @@
 		};
 		entries: PersonEntry[] | LocationEntry[];
 		turfs: TurfEntry[];
+		selectedTab: string | null;
 	}
 
-	const { orgSlug, bucketName, bucketSlug, listHref, list, entries, turfs }: Props = $props();
+	const { orgSlug, bucketName, bucketSlug, listHref, list, entries, turfs, selectedTab }: Props =
+		$props();
 
 	const isPeople = $derived(list.entity_type === 'people');
 	const isExpired = $derived(new Date(list.expires_at) < new Date());
 
 	type Tab = 'entries' | 'turfs';
 	let activeTab = $state<Tab>('entries');
+
+	// Yes, this is intentional... Im only trying to read the value once.
+	// svelte-ignore state_referenced_locally
+	if (selectedTab == 'turfs') {
+		activeTab = 'turfs';
+	}
 
 	function entityHref(entry: PersonEntry | LocationEntry): string {
 		return `/o/${orgSlug}/s/universe/entity/${entry.entity_id}?version=${entry.record_id}&backHref=${encodeURIComponent(listHref)}`;
@@ -89,7 +100,8 @@
 	let previewTurf = $state<TurfEntry | null>(null);
 
 	function tabClass(tab: Tab): string {
-		const base = 'inline-flex items-center gap-2 rounded-lg px-4 h-9 text-sm font-medium border transition-colors cursor-pointer';
+		const base =
+			'inline-flex items-center gap-2 rounded-lg px-4 h-9 text-sm font-medium border transition-colors cursor-pointer';
 		return tab === activeTab
 			? `${base} bg-primary text-on-primary border-primary`
 			: `${base} bg-surface text-on-surface border-outline-subtle hover:bg-surface-container`;
@@ -99,6 +111,10 @@
 <PageHeader title={list.name} subheading={bucketName}>
 	{#snippet actions()}
 		{#if !isPeople}
+			<Button variant="outline" href={`/o/${orgSlug}/s/universe/buckets/${bucketSlug}/lists/${list.id}/map`}>
+				<MapTrifoldIcon class="size-4" />
+				View Map
+			</Button>
 			<Button href={`/o/${orgSlug}/s/universe/buckets/${bucketSlug}/lists/${list.id}/cut`}>
 				<ScissorsIcon class="size-4" />
 				Cut Turfs
@@ -107,7 +123,9 @@
 	{/snippet}
 </PageHeader>
 
-<div class="flex items-center gap-6 px-4 py-3 border-b border-outline-subtle text-sm text-on-surface-subtle">
+<div
+	class="flex items-center gap-6 px-4 py-3 border-b border-outline-subtle text-sm text-on-surface-subtle"
+>
 	<div class="flex items-center gap-1.5">
 		{#if isPeople}
 			<UsersIcon class="size-4 shrink-0" />
@@ -120,7 +138,9 @@
 
 	<div class="flex items-center gap-1.5">
 		<CalendarIcon class="size-4 shrink-0" />
-		<span class={isExpired ? 'text-error' : ''}>{isExpired ? 'Expired' : 'Expires'} {formatDate(list.expires_at)}</span>
+		<span class={isExpired ? 'text-error' : ''}
+			>{isExpired ? 'Expired' : 'Expires'} {formatDate(list.expires_at)}</span
+		>
 	</div>
 </div>
 
@@ -128,11 +148,19 @@
 	<div class="flex items-center gap-2 px-4 py-3 border-b border-outline-subtle">
 		<button class={tabClass('entries')} onclick={() => (activeTab = 'entries')}>
 			Locations
-			<span class="text-xs rounded-full px-1.5 py-0.5 font-normal {activeTab === 'entries' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container text-on-surface-subtle'}">{entries.length}</span>
+			<span
+				class="text-xs rounded-full px-1.5 py-0.5 font-normal {activeTab === 'entries'
+					? 'bg-on-primary/20 text-on-primary'
+					: 'bg-surface-container text-on-surface-subtle'}">{entries.length}</span
+			>
 		</button>
 		<button class={tabClass('turfs')} onclick={() => (activeTab = 'turfs')}>
 			Turfs
-			<span class="text-xs rounded-full px-1.5 py-0.5 font-normal {activeTab === 'turfs' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container text-on-surface-subtle'}">{turfs.length}</span>
+			<span
+				class="text-xs rounded-full px-1.5 py-0.5 font-normal {activeTab === 'turfs'
+					? 'bg-on-primary/20 text-on-primary'
+					: 'bg-surface-container text-on-surface-subtle'}">{turfs.length}</span
+			>
 		</button>
 	</div>
 {/if}
@@ -141,9 +169,15 @@
 	<div class="border-t border-outline-subtle">
 		{#if isPeople}
 			<div class="flex items-center gap-4 px-4 py-2">
-				<span class="w-48 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Name</span>
-				<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Email</span>
-				<span class="w-36 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Phone</span>
+				<span class="w-48 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+					>Name</span
+				>
+				<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+					>Email</span
+				>
+				<span class="w-36 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+					>Phone</span
+				>
 			</div>
 
 			{#each entries as entry (entry.record_id)}
@@ -152,7 +186,10 @@
 					href={entityHref(p)}
 					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors group"
 				>
-					<span class="w-48 text-sm text-on-surface font-medium truncate group-hover:text-primary transition-colors">{fullName(p)}</span>
+					<span
+						class="w-48 text-sm text-on-surface font-medium truncate group-hover:text-primary transition-colors"
+						>{fullName(p)}</span
+					>
 					<span class="flex-1 text-sm text-on-surface-subtle truncate">{p.email ?? '—'}</span>
 					<span class="w-36 text-sm text-on-surface-subtle">{p.phone ?? '—'}</span>
 				</a>
@@ -161,10 +198,18 @@
 			{/each}
 		{:else}
 			<div class="flex items-center gap-4 px-4 py-2">
-				<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Name / Address</span>
-				<span class="w-48 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">City</span>
-				<span class="w-20 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">State</span>
-				<span class="w-24 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">ZIP</span>
+				<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+					>Name / Address</span
+				>
+				<span class="w-48 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+					>City</span
+				>
+				<span class="w-20 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+					>State</span
+				>
+				<span class="w-24 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+					>ZIP</span
+				>
 			</div>
 
 			{#each entries as entry (entry.record_id)}
@@ -174,7 +219,11 @@
 					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors group"
 				>
 					<div class="flex-1 min-w-0">
-						<p class="text-sm text-on-surface font-medium truncate group-hover:text-primary transition-colors">{locationLabel(l)}</p>
+						<p
+							class="text-sm text-on-surface font-medium truncate group-hover:text-primary transition-colors"
+						>
+							{locationLabel(l)}
+						</p>
 						{#if l.address_line_1 && l.name}
 							<p class="text-xs text-on-surface-subtle truncate">{l.address_line_1}</p>
 						{/if}
@@ -191,21 +240,49 @@
 {:else}
 	<div class="border-t border-outline-subtle">
 		<div class="flex items-center gap-4 px-4 py-2">
-			<span class="w-28 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Code</span>
-			<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Survey</span>
-			<span class="w-32 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Author</span>
-			<span class="w-24 text-xs font-medium text-on-surface-subtle uppercase tracking-wide text-right">Locations</span>
-			<span class="w-32 text-xs font-medium text-on-surface-subtle uppercase tracking-wide text-right">Expires</span>
+			<span class="w-28 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+				>Code</span
+			>
+			<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+				>Survey</span
+			>
+			<span class="w-32 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
+				>Author</span
+			>
+			<span
+				class="w-24 text-xs font-medium text-on-surface-subtle uppercase tracking-wide text-right"
+				>Locations</span
+			>
+			<span
+				class="w-24 text-xs font-medium text-on-surface-subtle uppercase tracking-wide text-right"
+				>% Complete</span
+			>
+			<span
+				class="w-32 text-xs font-medium text-on-surface-subtle uppercase tracking-wide text-right"
+				>Expires</span
+			>
 			<span class="w-8"></span>
 		</div>
 
 		{#each turfs as turf (turf.id)}
 			<div class="flex items-center gap-4 px-4 py-3 border-t border-outline-subtle">
-				<span class="w-28 font-mono text-sm font-medium text-on-surface">{turf.code}</span>
-				<span class="flex-1 text-sm text-on-surface-subtle truncate">{turf.survey_name ?? '—'}</span>
+				<div class="w-28 flex items-center gap-1">
+					<span class="font-mono text-sm font-medium text-on-surface">{turf.code}</span>
+					<CopyButton value={turf.code} aria-label="Copy turf code" />
+				</div>
+				<span class="flex-1 text-sm text-on-surface-subtle truncate">{turf.survey_name ?? '—'}</span
+				>
 				<span class="w-32 text-sm text-on-surface-subtle truncate">{turf.author}</span>
 				<span class="w-24 text-sm text-on-surface-subtle text-right">{turf.location_count}</span>
-				<span class={['w-32 text-sm text-right', isTurfExpired(turf) ? 'text-error' : 'text-on-surface-subtle'].join(' ')}>
+				<span class="w-24 text-sm text-on-surface-subtle text-right">
+					{turf.location_count}%
+				</span>
+				<span
+					class={[
+						'w-32 text-sm text-right',
+						isTurfExpired(turf) ? 'text-error' : 'text-on-surface-subtle'
+					].join(' ')}
+				>
 					{isTurfExpired(turf) ? 'Expired' : formatDate(turf.expires_at)}
 				</span>
 				<div class="w-8 flex justify-end">
