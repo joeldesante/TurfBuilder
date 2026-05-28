@@ -28,7 +28,7 @@
 
 <PageHeader
 	title="Survey Responses"
-	breadcrumbs={[{ label: 'Surveys', href: `/o/${orgSlug}/s/data/surveys` }, { label: 'Survey Responses' }]}
+	breadcrumbs={[{ label: 'Survey Responses' }]}
 />
 
 <div class="flex gap-2 items-end mb-6">

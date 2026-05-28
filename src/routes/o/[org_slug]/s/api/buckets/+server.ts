@@ -1,10 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { z } from 'zod';
+import { BucketFilterInputSchema, convertBucketFilter } from '$lib/server/filter-converter';
 
 const CreateBucketSchema = z.object({
 	name: z.string().trim().min(1, 'Name is required.'),
-	slug: z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Slug must be lowercase letters, numbers, and hyphens only.')
+	slug: z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Slug must be lowercase letters, numbers, and hyphens only.'),
+	filter: BucketFilterInputSchema
 });
 
 export async function POST({ request, locals }) {
@@ -17,7 +19,9 @@ export async function POST({ request, locals }) {
 	if (!parsed.success) {
 		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
-	const { name, slug } = parsed.data;
+	const { name, slug, filter } = parsed.data;
+
+	const storedFilter = convertBucketFilter(filter);
 
 	return withOrgTransaction(locals.organization.id, async (client) => {
 		const existing = await client.query(
@@ -30,9 +34,9 @@ export async function POST({ request, locals }) {
 
 		const result = await client.query<{ id: string; slug: string }>(
 			`INSERT INTO universe.bucket (name, slug, org_id, filter)
-			 VALUES ($1, $2, $3, '{}')
+			 VALUES ($1, $2, $3, $4)
 			 RETURNING id, slug`,
-			[name, slug, locals.organization!.id]
+			[name, slug, locals.organization!.id, JSON.stringify(storedFilter)]
 		);
 		return json(result.rows[0], { status: 201 });
 	});

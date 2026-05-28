@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import CreateBucketPage from '$pages/universe/CreateBucketPage.svelte';
+	import CreateBucketPage from '$pages/universe/bucket/create-bucket-page/CreateBucketPage.svelte';
+	import type { BucketFilterInput } from '$lib/server/filter-converter';
 
 	const { data } = $props();
 
-	async function handleCreate(name: string, slug: string) {
+	async function handleCreate(name: string, slug: string, filter: BucketFilterInput) {
 		const res = await fetch(`/o/${data.organization.slug}/s/api/buckets`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name, slug })
+			body: JSON.stringify({ name, slug, filter })
 		});
 		if (!res.ok) {
 			const { error } = await res.json().catch(() => ({ error: 'Failed to create bucket.' }));

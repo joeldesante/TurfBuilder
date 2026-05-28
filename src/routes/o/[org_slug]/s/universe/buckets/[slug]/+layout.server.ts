@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
+import { parseBucketFilter } from '$lib/server/filter-converter';
 
 export async function load({ params, locals }) {
 	if (!locals.organization) {
@@ -7,8 +8,8 @@ export async function load({ params, locals }) {
 	}
 
 	return withOrgTransaction(locals.organization.id, async (client) => {
-		const result = await client.query<{ id: string; name: string; slug: string }>(
-			`SELECT id, name, slug FROM universe.bucket WHERE org_id = $1 AND slug = $2`,
+		const result = await client.query<{ id: string; name: string; slug: string; filter: unknown }>(
+			`SELECT id, name, slug, filter FROM universe.bucket WHERE org_id = $1 AND slug = $2`,
 			[locals.organization!.id, params.slug]
 		);
 
@@ -16,6 +17,14 @@ export async function load({ params, locals }) {
 			throw error(404, 'Bucket not found');
 		}
 
-		return { bucket: result.rows[0] };
+		const row = result.rows[0];
+		return {
+			bucket: {
+				id: row.id,
+				name: row.name,
+				slug: row.slug,
+				filter: parseBucketFilter(row.filter),
+			}
+		};
 	});
 }

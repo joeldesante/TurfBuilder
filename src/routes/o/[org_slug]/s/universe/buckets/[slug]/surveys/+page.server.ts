@@ -1,13 +1,17 @@
 import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
 
-export async function load({ locals }) {
+export async function load({ params, locals }) {
 	if (!locals.organization) throw error(401, 'Unauthorized');
 
 	return withOrgTransaction(locals.organization.id, async (client) => {
 		const result = await client.query<{ id: string; name: string; updated_at: string }>(
-			`SELECT id, name, updated_at FROM survey WHERE organization_id = $1 ORDER BY updated_at DESC`,
-			[locals.organization!.id]
+			`SELECT s.id, s.name, s.updated_at
+			 FROM survey s
+			 JOIN universe.bucket b ON b.id = s.bucket_id
+			 WHERE b.slug = $1 AND s.organization_id = $2
+			 ORDER BY s.updated_at DESC`,
+			[params.slug, locals.organization!.id]
 		);
 
 		return { surveys: result.rows };
