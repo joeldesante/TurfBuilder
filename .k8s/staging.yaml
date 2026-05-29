@@ -31,6 +31,8 @@ spec:
           envFrom:
             - secretRef:
                 name: turfbuilder-secrets-staging
+            - secretRef:
+                name: aws-ses-env
           volumeMounts:
             - name: db-ca
               mountPath: /etc/ssl/db-ca
