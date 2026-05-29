@@ -9,6 +9,7 @@
 		postal_code: string | null;
 		latitude: number;
 		longitude: number;
+		contact_made: boolean | null;
 	};
 
 	type TurfEntry = {
@@ -28,7 +29,7 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import { themeStore } from '$lib/theme.svelte';
 	import { getMapStyle } from '$lib/map-style';
-	import MapMarker from '$components/data-display/map-marker/MapMarker.svelte';
+	import MapMarker, { type Variant } from '$components/data-display/map-marker/MapMarker.svelte';
 	import MapPopup from '$components/data-display/map-popup/MapPopup.svelte';
 	import SidebarIcon from 'phosphor-svelte/lib/Sidebar';
 	import Spinner from '$components/feedback/spinner/Spinner.svelte';
@@ -94,6 +95,12 @@
 
 	function locationLabel(loc: ListLocation): string {
 		return loc.name ?? loc.address_line_1 ?? 'Unknown';
+	}
+
+	function locationVariant(contactMade: boolean | null): Variant {
+		if (contactMade === true) return 'contacted';
+		if (contactMade === false) return 'no-contact';
+		return 'unvisited';
 	}
 
 	function isDarkTheme() {
@@ -261,7 +268,7 @@
 
 		mount(MapMarker, {
 			target: element,
-			props: { variant: 'unvisited', get isSelected() { return false; } }
+			props: { variant: locationVariant(loc.contact_made), get isSelected() { return false; } }
 		});
 
 		const popupEl = document.createElement('div');

@@ -32,7 +32,7 @@ export async function POST({ request, locals }) {
 	}
 
 	try {
-		const { polygons, survey_id, expires_at, list_id, bucket_id } = await request.json();
+		const { polygons, survey_id, script_id, expires_at, list_id, bucket_id } = await request.json();
 
 		if (!polygons || !Array.isArray(polygons) || polygons.length === 0) {
 			return json({ error: 'Invalid polygons data' }, { status: 400 });
@@ -57,14 +57,15 @@ export async function POST({ request, locals }) {
 				const geojson = JSON.stringify(polygon.geometry);
 
 				const result = await client.query(
-					`INSERT INTO turf (code, bounds, author_id, survey_id, organization_id, created_at, expires_at, bucket_id, list_id)
-					 VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8)
+					`INSERT INTO turf (code, bounds, author_id, survey_id, script_id, organization_id, created_at, expires_at, bucket_id, list_id)
+					 VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)
 					 RETURNING *`,
 					[
 						turf_code,
 						geojson,
 						locals.user!.id,
 						survey_id,
+						script_id ?? null,
 						locals.organization!.id,
 						expirationDate,
 						bucket_id ?? null,

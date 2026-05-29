@@ -8,11 +8,11 @@ export async function load({ locals, params }) {
 	const orgId = locals.organization!.id;
 
 	return withOrgTransaction(orgId, async (client) => {
-		// Look up the turf_location row (which is now the location identifier) and join to get survey + location details.
 		const turfLocationResult = await client.query(
 			`SELECT
 			        tl.id AS turf_location_id,
 			        t.survey_id,
+			        sc.contents AS script_contents,
 			        COALESCE(l.location_name, ol.location_name, upl.name, uol.name) AS location_name,
 			        COALESCE(l.street, ol.street, upl.address_line_1, uol.address_line_1) AS street,
 			        COALESCE(l.locality, ol.locality, upl.city, uol.city) AS locality,
@@ -20,6 +20,7 @@ export async function load({ locals, params }) {
 			        COALESCE(l.region, ol.region, upl.state_or_region, uol.state_or_region) AS region
 			 FROM turf_location tl
 			 JOIN turf t ON t.id = tl.turf_id
+			 LEFT JOIN universe.script sc ON sc.id = t.script_id
 			 LEFT JOIN location l ON l.id = tl.location_id
 			 LEFT JOIN org_location ol ON ol.id = tl.org_location_id
 			 LEFT JOIN universe.public_location upl ON upl.id = tl.universe_public_location_id
@@ -32,7 +33,7 @@ export async function load({ locals, params }) {
 			throw error(404, 'Location not found in this turf.');
 		}
 
-		const { turf_location_id: turfLocationId, survey_id: surveyId, ...locationFields } = turfLocationResult.rows[0];
+		const { turf_location_id: turfLocationId, survey_id: surveyId, script_contents: scriptContents, ...locationFields } = turfLocationResult.rows[0];
 
 		const questionsResult = await client.query(
 			`SELECT id, question_text, question_type, order_index, choices
@@ -43,24 +44,24 @@ export async function load({ locals, params }) {
 		);
 		const questions = questionsResult.rows;
 
-		const locationAttemptResult = await client.query(
-			`INSERT INTO turf_location_attempt (turf_location_id, user_id, organization_id)
-			 VALUES ($1, $2, $3)
-			 ON CONFLICT (turf_location_id, user_id)
-			 DO UPDATE SET updated_at = NOW()
-			 RETURNING id, contact_made, attempt_note`,
-			[turfLocationId, userId, orgId]
+		// Check for an existing attempt without creating one — an attempt is only
+		// created when the user explicitly selects a contact status and saves.
+		const attemptResult = await client.query(
+			`SELECT id, contact_made, attempt_note
+			 FROM turf_location_attempt
+			 WHERE turf_location_id = $1 AND user_id = $2`,
+			[turfLocationId, userId]
 		);
-		const locationAttempt = locationAttemptResult.rows[0];
+		const existingAttempt = attemptResult.rows[0] ?? null;
 
-		let responses = [];
-		if (questions.length > 0) {
+		let responses: { survey_question_id: string; response_value: string }[] = [];
+		if (existingAttempt && questions.length > 0) {
 			const questionIds = questions.map((q) => q.id);
 			const responsesResult = await client.query(
-				`SELECT survey_question_id, response_value, created_at
+				`SELECT survey_question_id, response_value
 				 FROM survey_question_response
 				 WHERE turf_location_attempt_id = $1 AND survey_question_id = ANY($2)`,
-				[locationAttempt.id, questionIds]
+				[existingAttempt.id, questionIds]
 			);
 			responses = responsesResult.rows;
 		}
@@ -68,7 +69,9 @@ export async function load({ locals, params }) {
 		return {
 			turfId,
 			location: locationFields,
-			locationAttempt,
+			scriptContents: scriptContents ?? null,
+			existingContactMade: existingAttempt ? (existingAttempt.contact_made as boolean) : null,
+			existingAttemptNote: existingAttempt?.attempt_note ?? '',
 			surveyId,
 			questions,
 			responses

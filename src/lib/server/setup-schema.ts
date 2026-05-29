@@ -1590,5 +1590,12 @@ export const SETUP_STEPS: SetupStep[] = [
 				(location_id IS NULL AND org_location_id IS NULL AND universe_public_location_id IS NULL AND universe_org_location_id IS NOT NULL)
 			)`
 		]
+	},
+	{
+		label: 'Adding script reference to turfs',
+		statements: [
+			`ALTER TABLE turf ADD COLUMN IF NOT EXISTS script_id UUID REFERENCES universe.script(id) ON DELETE SET NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_script_id_idx ON turf (script_id) WHERE script_id IS NOT NULL`
+		]
 	}
 ];

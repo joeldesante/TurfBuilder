@@ -100,16 +100,23 @@ export async function load({ params, locals }) {
 			author: string;
 			survey_name: string | null;
 			location_count: string;
+			attempted_count: string;
 		}>(
 			`SELECT
 				t.id, t.code, t.expires_at, t.created_at,
 				u.username AS author,
 				s.name AS survey_name,
-				COUNT(tl.id)::text AS location_count
+				COUNT(tl.id)::text AS location_count,
+				COUNT(tla.id)::text AS attempted_count
 			 FROM turf t
 			 JOIN auth.user u ON t.author_id = u.id
 			 LEFT JOIN survey s ON t.survey_id = s.id
 			 LEFT JOIN turf_location tl ON tl.turf_id = t.id
+			 LEFT JOIN LATERAL (
+			 	SELECT id FROM turf_location_attempt
+			 	WHERE turf_location_id = tl.id
+			 	LIMIT 1
+			 ) tla ON true
 			 WHERE t.list_id = $1 AND t.organization_id = $2
 			 GROUP BY t.id, u.username, s.name
 			 ORDER BY t.created_at DESC`,
