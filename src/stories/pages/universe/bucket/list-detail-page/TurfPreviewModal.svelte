@@ -3,7 +3,7 @@
 	import { mount, onDestroy } from 'svelte';
 	import maplibregl from 'maplibre-gl';
 	import { getMapStyle } from '$lib/map-style';
-	import MapMarker from '$components/data-display/map-marker/MapMarker.svelte';
+	import MapMarker, { type Variant } from '$components/data-display/map-marker/MapMarker.svelte';
 	import MapPopup from '$components/data-display/map-popup/MapPopup.svelte';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
@@ -19,6 +19,13 @@
 		state_or_region: string | null;
 		latitude: number;
 		longitude: number;
+		contact_made: boolean | null;
+	}
+
+	function locationVariant(contactMade: boolean | null): Variant {
+		if (contactMade === true) return 'contacted';
+		if (contactMade === false) return 'no-contact';
+		return 'unvisited';
 	}
 
 	interface Props {
@@ -140,7 +147,7 @@
 				mount(MapMarker, {
 					target: element,
 					props: {
-						variant: 'unvisited',
+						variant: locationVariant(loc.contact_made),
 						get isSelected() {
 							return selectedId === loc.id;
 						}

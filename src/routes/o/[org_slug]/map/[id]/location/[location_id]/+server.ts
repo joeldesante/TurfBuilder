@@ -3,7 +3,7 @@ import * as z from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
 
 const schema = z.object({
-	contactMade: z.boolean().default(false),
+	contactStatus: z.enum(['no_contact', 'contacted']),
 	attemptNote: z.string().default('').optional(),
 	questions: z.array(
 		z.object({
@@ -19,13 +19,13 @@ const schema = z.object({
 
 /**
  * Records a door-knock attempt for a specific address within a turf.
- * Upserts contact status, a free-text note, and all survey question responses in a single transaction.
+ * Creates or updates the attempt record, then saves survey responses when contact was made.
  * Caller must be an assigned turf member.
  *
  * @auth org
- * @body contactMade {boolean} required - Whether the canvasser made contact at this address
+ * @body contactStatus {'no_contact'|'contacted'} required - Outcome of the canvassing visit
  * @body attemptNote {string} - Optional free-text note about the visit
- * @body questions {Array<{db_id: uuid, response: string}>} required - Survey question responses
+ * @body questions {Array<{db_id: uuid, response: string}>} required - Survey question responses (only saved when contacted)
  * @returns { success: true }
  */
 export async function POST({ request, locals, params }) {
@@ -61,28 +61,28 @@ export async function POST({ request, locals, params }) {
 		}
 		const turfLocationId = turfLocationResult.rows[0].id;
 
+		const contactMade = val.contactStatus === 'contacted';
+
 		const attemptResult = await client.query(
-			`SELECT id FROM turf_location_attempt WHERE turf_location_id = $1 AND user_id = $2`,
-			[turfLocationId, userId]
+			`INSERT INTO turf_location_attempt (turf_location_id, user_id, organization_id, contact_made, attempt_note)
+			 VALUES ($1, $2, $3, $4, $5)
+			 ON CONFLICT (turf_location_id, user_id)
+			 DO UPDATE SET contact_made = $4, attempt_note = $5, updated_at = NOW()
+			 RETURNING id`,
+			[turfLocationId, userId, orgId, contactMade, val.attemptNote ?? '']
 		);
-		if (attemptResult.rows.length === 0) {
-			throw error(404, 'Attempt not found.');
-		}
 		const attemptId = attemptResult.rows[0].id;
 
-		await client.query(
-			`UPDATE turf_location_attempt SET attempt_note = $1, contact_made = $2, updated_at = NOW() WHERE id = $3`,
-			[val.attemptNote ?? '', val.contactMade, attemptId]
-		);
-
-		for (const question of val.questions) {
-			await client.query(
-				`INSERT INTO survey_question_response (response_value, survey_question_id, turf_location_attempt_id, organization_id)
-				 VALUES ($1, $2, $3, $4)
-				 ON CONFLICT (survey_question_id, turf_location_attempt_id)
-				 DO UPDATE SET response_value = $1, updated_at = NOW()`,
-				[question.response, question.db_id, attemptId, orgId]
-			);
+		if (contactMade) {
+			for (const question of val.questions) {
+				await client.query(
+					`INSERT INTO survey_question_response (response_value, survey_question_id, turf_location_attempt_id, organization_id)
+					 VALUES ($1, $2, $3, $4)
+					 ON CONFLICT (survey_question_id, turf_location_attempt_id)
+					 DO UPDATE SET response_value = $1, updated_at = NOW()`,
+					[question.response, question.db_id, attemptId, orgId]
+				);
+			}
 		}
 
 		return json({ success: true }, { status: 201 });

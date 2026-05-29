@@ -39,6 +39,7 @@ export async function GET({ params, locals }) {
 				postal_code: string | null;
 				latitude: number;
 				longitude: number;
+				contact_made: boolean | null;
 			}>(
 				`SELECT
 					le.record_id,
@@ -49,7 +50,19 @@ export async function GET({ params, locals }) {
 					COALESCE(pl.state_or_region, ol.state_or_region) AS state_or_region,
 					COALESCE(pl.postal_code, ol.postal_code) AS postal_code,
 					ST_Y(COALESCE(pl.coordinates, ol.coordinates)) AS latitude,
-					ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude
+					ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
+					(
+						SELECT tla.contact_made
+						FROM turf_location tl
+						JOIN turf t ON t.id = tl.turf_id AND t.list_id = le.list_id
+						JOIN turf_location_attempt tla ON tla.turf_location_id = tl.id
+						WHERE (
+							(le.record_source = 'public_location' AND tl.universe_public_location_id = le.record_id)
+							OR (le.record_source = 'org_location' AND tl.universe_org_location_id = le.record_id)
+						)
+						ORDER BY tla.updated_at DESC
+						LIMIT 1
+					) AS contact_made
 				FROM universe.list_entry le
 				LEFT JOIN universe.public_location pl
 					ON le.record_source = 'public_location' AND pl.id = le.record_id

@@ -3,6 +3,35 @@ import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
 /**
+ * Lists surveys for the organization.
+ *
+ * @auth staff
+ * @permission survey:read
+ * @returns Array of { id: string, name: string, description: string | null }
+ */
+export async function GET({ locals }) {
+	if (!locals.organization?.role) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+	if (!can(locals.organization, 'survey', 'read')) {
+		return json({ error: 'Forbidden' }, { status: 403 });
+	}
+
+	try {
+		return await withOrgTransaction(locals.organization.id, async (client) => {
+			const result = await client.query(
+				`SELECT id, name FROM survey WHERE organization_id = $1 ORDER BY name ASC`,
+				[locals.organization!.id]
+			);
+			return json(result.rows);
+		});
+	} catch (error) {
+		console.error('Error fetching surveys:', error);
+		return json({ error: 'Failed to fetch surveys' }, { status: 500 });
+	}
+}
+
+/**
  * Creates a new survey template for the organization with no questions.
  * Questions are added separately via the /questions endpoint.
  *

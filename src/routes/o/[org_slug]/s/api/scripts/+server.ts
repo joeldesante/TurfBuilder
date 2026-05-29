@@ -2,6 +2,43 @@ import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { z } from 'zod';
 
+/**
+ * Lists scripts for the organization, optionally filtered by bucket slug.
+ *
+ * @auth staff
+ * @query bucket {string} optional - bucket slug to filter by
+ * @returns Array of { id: string, name: string }
+ */
+export async function GET({ locals, url }) {
+	if (!locals.organization?.role) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	const bucketSlug = url.searchParams.get('bucket');
+
+	return withOrgTransaction(locals.organization.id, async (client) => {
+		let result;
+		if (bucketSlug) {
+			result = await client.query<{ id: string; name: string }>(
+				`SELECT s.id, s.name
+				 FROM universe.script s
+				 JOIN universe.bucket b ON b.id = s.bucket
+				 WHERE s.org_id = $1 AND b.slug = $2
+				 ORDER BY s.name ASC`,
+				[locals.organization!.id, bucketSlug]
+			);
+		} else {
+			result = await client.query<{ id: string; name: string }>(
+				`SELECT id, name FROM universe.script
+				 WHERE org_id = $1
+				 ORDER BY name ASC`,
+				[locals.organization!.id]
+			);
+		}
+		return json(result.rows);
+	});
+}
+
 const CreateScriptSchema = z.object({
 	name: z.string().trim().min(1, 'Name is required.'),
 	bucketId: z.string().uuid('Invalid bucket ID.')

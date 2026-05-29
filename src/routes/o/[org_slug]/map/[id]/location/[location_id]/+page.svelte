@@ -7,8 +7,16 @@
 
 	const orgSlug = $page.params.org_slug;
 
-	let contactMade = $state(data.locationAttempt.contact_made ?? false);
-	let attemptNote = $state(data.locationAttempt.attempt_note ?? '');
+	type ContactStatus = 'no_contact' | 'contacted' | null;
+
+	function toContactStatus(v: boolean | null): ContactStatus {
+		if (v === true) return 'contacted';
+		if (v === false) return 'no_contact';
+		return null;
+	}
+
+	let contactStatus = $state<ContactStatus>(toContactStatus(data.existingContactMade));
+	let attemptNote = $state(data.existingAttemptNote ?? '');
 	let loading = $state(false);
 
 	interface ServerQuestion {
@@ -42,12 +50,13 @@
 	);
 
 	async function handleSubmit() {
+		if (!contactStatus) return;
 		loading = true;
 		try {
 			const r = await fetch($page.url.pathname, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ contactMade, attemptNote, questions })
+				body: JSON.stringify({ contactStatus, attemptNote, questions })
 			});
 
 			if (!r.ok) throw new Error('Failed to save.');
@@ -62,8 +71,9 @@
 
 <SurveyScreen
 	location={data.location}
+	scriptContent={data.scriptContents}
+	bind:contactStatus
 	bind:questions
-	bind:contactMade
 	bind:attemptNote
 	{backHref}
 	{loading}

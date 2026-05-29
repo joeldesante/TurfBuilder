@@ -32,6 +32,7 @@ export async function GET({ params, locals }) {
 				state_or_region: string | null;
 				latitude: number;
 				longitude: number;
+				contact_made: boolean | null;
 			}>(
 				`SELECT
 					tl.id,
@@ -48,7 +49,14 @@ export async function GET({ params, locals }) {
 						ST_X(pl.coordinates),
 						ST_X(ol.coordinates),
 						l.longitude::float
-					) AS longitude
+					) AS longitude,
+					(
+						SELECT tla.contact_made
+						FROM turf_location_attempt tla
+						WHERE tla.turf_location_id = tl.id
+						ORDER BY tla.updated_at DESC
+						LIMIT 1
+					) AS contact_made
 				FROM turf_location tl
 				LEFT JOIN universe.public_location pl ON tl.universe_public_location_id = pl.id
 				LEFT JOIN universe.org_location ol ON tl.universe_org_location_id = ol.id
