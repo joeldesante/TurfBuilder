@@ -2,11 +2,13 @@
 	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import TurfPreviewModal from './TurfPreviewModal.svelte';
+	import SurveySelectionModal from './SurveySelectionModal.svelte';
 	import UsersIcon from 'phosphor-svelte/lib/Users';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 	import CalendarIcon from 'phosphor-svelte/lib/Calendar';
 	import ScissorsIcon from 'phosphor-svelte/lib/Scissors';
 	import EyeIcon from 'phosphor-svelte/lib/Eye';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOut';
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
 	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
 	import { untrack } from 'svelte';
@@ -19,6 +21,7 @@
 		author: string;
 		survey_name: string | null;
 		location_count: string;
+		attempted_count: string;
 	}
 
 	export interface PersonEntry {
@@ -98,6 +101,7 @@
 	}
 
 	let previewTurf = $state<TurfEntry | null>(null);
+	let showSurveySelectionModal = $state(false);
 
 	function tabClass(tab: Tab): string {
 		const base =
@@ -115,7 +119,7 @@
 				<MapTrifoldIcon class="size-4" />
 				View Map
 			</Button>
-			<Button href={`/o/${orgSlug}/s/universe/buckets/${bucketSlug}/lists/${list.id}/cut`}>
+			<Button onclick={() => (showSurveySelectionModal = true)}>
 				<ScissorsIcon class="size-4" />
 				Cut Turfs
 			</Button>
@@ -261,7 +265,7 @@
 				class="w-32 text-xs font-medium text-on-surface-subtle uppercase tracking-wide text-right"
 				>Expires</span
 			>
-			<span class="w-8"></span>
+			<span class="w-16"></span>
 		</div>
 
 		{#each turfs as turf (turf.id)}
@@ -275,7 +279,9 @@
 				<span class="w-32 text-sm text-on-surface-subtle truncate">{turf.author}</span>
 				<span class="w-24 text-sm text-on-surface-subtle text-right">{turf.location_count}</span>
 				<span class="w-24 text-sm text-on-surface-subtle text-right">
-					{turf.location_count}%
+					{parseInt(turf.location_count) > 0
+						? Math.round((parseInt(turf.attempted_count) / parseInt(turf.location_count)) * 100)
+						: 0}%
 				</span>
 				<span
 					class={[
@@ -285,7 +291,7 @@
 				>
 					{isTurfExpired(turf) ? 'Expired' : formatDate(turf.expires_at)}
 				</span>
-				<div class="w-8 flex justify-end">
+				<div class="w-16 flex items-center justify-end gap-0.5">
 					<button
 						onclick={() => (previewTurf = turf)}
 						class="p-1 rounded text-on-surface-subtle hover:text-on-surface hover:bg-surface-container transition-colors"
@@ -293,6 +299,13 @@
 					>
 						<EyeIcon class="size-4" />
 					</button>
+					<a
+						href="/o/{orgSlug}/s/universe/buckets/{bucketSlug}/lists/{list.id}/turfs/{turf.id}"
+						class="p-1 rounded text-on-surface-subtle hover:text-on-surface hover:bg-surface-container transition-colors"
+						aria-label="Open turf {turf.code} details"
+					>
+						<ArrowSquareOutIcon class="size-4" />
+					</a>
 				</div>
 			</div>
 		{:else}
@@ -310,3 +323,12 @@
 		onClose={() => (previewTurf = null)}
 	/>
 {/if}
+
+<SurveySelectionModal
+	open={showSurveySelectionModal}
+	{orgSlug}
+	{bucketSlug}
+	listId={list.id}
+	listName={list.name}
+	onClose={() => (showSurveySelectionModal = false)}
+/>

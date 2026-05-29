@@ -35,7 +35,6 @@
 
 	const { org_slug } = $page.params;
 	const listHref = $derived(`/o/${org_slug}/s/universe/buckets/${data.bucketSlug}/lists/${data.listId}`);
-	const surveyHref = $derived(`/o/${org_slug}/s/universe/buckets/${data.bucketSlug}/lists/${data.listId}/cut/survey`);
 
 	let mapContainer: HTMLDivElement;
 	const DEFAULT_ZOOM = 12;
@@ -47,6 +46,7 @@
 	let geoman: Geoman | undefined;
 	let selectedLocationId = $state<string | null>(null);
 
+	let storedSurveySelection = $state<{ surveyId: string; scriptId: string | null; expiresAt: string } | null>(null);
 	let sidebarOpen = $state(true);
 	let currentPage = $state(0);
 	let activeTab = $state<'locations' | 'turfs'>('locations');
@@ -380,8 +380,8 @@
 		}
 	}
 
-	function saveTurfs() {
-		if (!geoman) return;
+	async function saveTurfs() {
+		if (!geoman || !storedSurveySelection) return;
 
 		const features = (geoman as Geoman).features;
 		const polygons = features.getAll().features.map((feature) => ({
@@ -391,16 +391,23 @@
 
 		if (polygons.length === 0) return;
 
-		sessionStorage.setItem(
-			'universe_pending_turfs',
-			JSON.stringify({
+		const response = await fetch(`/o/${org_slug}/s/api/turf/create`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
 				polygons,
-				listId: data.listId,
-				bucketId: data.bucketId,
-				listHref
+				survey_id: storedSurveySelection.surveyId,
+				script_id: storedSurveySelection.scriptId ?? null,
+				expires_at: storedSurveySelection.expiresAt,
+				list_id: data.listId,
+				bucket_id: data.bucketId
 			})
-		);
-		goto(surveyHref);
+		});
+
+		if (response.ok) {
+			sessionStorage.removeItem('universe_cut_survey_selection');
+			await goto(listHref);
+		}
 	}
 
 	async function fetchInitialBounds(): Promise<maplibregl.LngLatBounds | null> {
@@ -419,6 +426,13 @@
 	}
 
 	onMount(() => {
+		const stored = sessionStorage.getItem('universe_cut_survey_selection');
+		if (stored) {
+			storedSurveySelection = JSON.parse(stored);
+		} else {
+			goto(listHref);
+		}
+
 		(async () => {
 			const [{ Geoman }, style, initialBounds] = await Promise.all([
 				import('@geoman-io/maplibre-geoman-free'),
@@ -535,7 +549,7 @@
 
 	<div class="absolute top-2.5 left-2.5 flex gap-2 items-center">
 		<Button variant="outline" href={listHref} class="!bg-surface">← Back to List</Button>
-		<Button onclick={saveTurfs} disabled={turfFeatures.length === 0}>Save Turfs</Button>
+		<Button onclick={saveTurfs} disabled={turfFeatures.length === 0 || !storedSurveySelection}>Save Turfs</Button>
 	</div>
 
 	<div class="absolute top-2.5 left-1/2 -translate-x-1/2 bg-surface border border-outline-subtle rounded-lg px-3 py-1.5 text-sm text-on-surface-subtle shadow-sm">
