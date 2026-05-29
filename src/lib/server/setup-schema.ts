@@ -12,8 +12,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Installing PostgreSQL extensions',
 		statements: [
-			`CREATE EXTENSION IF NOT EXISTS postgis`,
-			`CREATE EXTENSION IF NOT EXISTS postgis_topology`
+			`CREATE EXTENSION IF NOT EXISTS postgis`
 		]
 	},
 
