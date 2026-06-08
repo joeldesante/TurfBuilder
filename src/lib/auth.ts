@@ -49,6 +49,7 @@ async function buildAuth(): Promise<AuthInstance> {
 			}
 		},
 		emailVerification: {
+			sendOnSignUp: true,
 			sendVerificationEmail: async ({ user, url }) => {
 				await sendEmail(user.email, 'auth.verify_email', {
 					username: user.name,
