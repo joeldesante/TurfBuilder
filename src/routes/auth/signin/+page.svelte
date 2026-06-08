@@ -86,6 +86,10 @@
 			<Checkbox bind:checked={rememberMe}>Remember me</Checkbox>
 		</FormField>
 
+		<div class="flex justify-end">
+			<a href="/auth/forgot-password" class="text-sm">Forgot password?</a>
+		</div>
+
 		<Button type="submit">
 			{loading ? 'Signing in…' : 'Sign In'}
 		</Button>
