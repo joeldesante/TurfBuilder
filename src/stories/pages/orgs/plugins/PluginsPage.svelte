@@ -40,7 +40,7 @@
 	}
 </script>
 
-<PageHeader title="Plugins" subheading="Extend your organization with additional features." />
+<PageHeader title="Addons" subheading="Extend your organization with additional features." />
 
 <div class="p-6 max-w-3xl space-y-3">
 	{#each plugins as plugin}
