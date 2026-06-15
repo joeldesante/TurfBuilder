@@ -6,16 +6,17 @@
 		text?: string;
 		side?: 'top' | 'bottom' | 'left' | 'right';
 		delayDuration?: number;
+		triggerClass?: string;
 		children: Snippet;
 		content?: Snippet;
 	}
 
-	const { text, side = 'bottom', delayDuration = 300, children, content }: Props = $props();
+	const { text, side = 'bottom', delayDuration = 300, triggerClass = '', children, content }: Props = $props();
 </script>
 
 <TooltipPrimitive.Provider {delayDuration}>
 	<TooltipPrimitive.Root>
-		<TooltipPrimitive.Trigger>
+		<TooltipPrimitive.Trigger class={triggerClass}>
 			{@render children()}
 		</TooltipPrimitive.Trigger>
 		<TooltipPrimitive.Portal>

@@ -35,16 +35,24 @@ export function buildInfraNav(infraPermissions: string[]): SidebarNavEntry[] {
 
 	if (infraPermissions.includes('settings.manage')) {
 		nav.push({
-			kind: 'item',
-			item: { label: 'Email', href: '/infra/email', icon: EnvelopeIcon }
+			kind: 'section',
+			section: {
+				label: 'Email',
+				items: [
+					{ label: 'Settings', href: '/infra/email', icon: EnvelopeIcon },
+					{ label: 'Templates', href: '/infra/email/templates', icon: EnvelopeIcon }
+				]
+			}
 		});
 		nav.push({
-			kind: 'item',
-			item: { label: 'Settings', href: '/infra/settings', icon: GearIcon }
-		});
-		nav.push({
-			kind: 'item',
-			item: { label: 'Migrate', href: '/infra/migrate', icon: ArrowsClockwiseIcon }
+			kind: 'section',
+			section: {
+				label: 'System',
+				items: [
+					{ label: 'Settings', href: '/infra/settings', icon: GearIcon },
+					{ label: 'Migrate', href: '/infra/migrate', icon: ArrowsClockwiseIcon }
+				]
+			}
 		});
 	}
 

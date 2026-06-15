@@ -2,7 +2,6 @@
 	import type { SidebarNavSection, SidebarNavItem } from './types';
 	import SidebarItem from './SidebarItem.svelte';
 	import SidebarAccordionItem from './SidebarAccordionItem.svelte';
-	import { isNavActive } from './nav-utils';
 
 	interface Props {
 		section: SidebarNavSection;
@@ -23,6 +22,22 @@
 	function isNavItem(entry: SidebarNavSection['items'][number]): entry is SidebarNavItem {
 		return 'href' in entry;
 	}
+
+	const allSectionHrefs = $derived(
+		section.items.flatMap((entry) =>
+			isNavItem(entry) ? [entry.href] : entry.items.map((sub) => sub.href)
+		)
+	);
+
+	function isActive(href: string): boolean {
+		const normHref = href.endsWith('/') ? href : href + '/';
+		const normPath = currentPath.endsWith('/') ? currentPath : currentPath + '/';
+		const isPrefixOfSibling = allSectionHrefs.some((other) => {
+			const normOther = other.endsWith('/') ? other : other + '/';
+			return normOther !== normHref && normOther.startsWith(normHref);
+		});
+		return isPrefixOfSibling ? normPath === normHref : normPath.startsWith(normHref);
+	}
 </script>
 
 <div class={className} {...restProps}>
@@ -34,7 +49,7 @@
 	<div class="flex flex-col gap-0.5">
 		{#each section.items as entry}
 			{#if isNavItem(entry)}
-				<SidebarItem item={entry} active={isNavActive(entry.href, currentPath)} {collapsed} />
+				<SidebarItem item={entry} active={isActive(entry.href)} {collapsed} />
 			{:else}
 				<SidebarAccordionItem accordion={entry} {currentPath} {collapsed} />
 			{/if}
