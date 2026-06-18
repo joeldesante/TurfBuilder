@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BucketDetailPage from '$pages/universe/bucket/bucket-detail-page/BucketDetailPage.svelte';
+	import BucketDetailPage from '$pages/universe/buckets/BucketDetailPage.svelte';
 
 	const { data } = $props();
 </script>

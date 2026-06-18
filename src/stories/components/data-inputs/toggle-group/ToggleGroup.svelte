@@ -76,7 +76,7 @@
 
 	function itemClass(invalid: boolean): string {
 		return [
-			'inline-flex items-center justify-center rounded-lg px-4 h-12 md:h-10',
+			'inline-flex items-center justify-center rounded-sm px-4 h-12 md:h-10',
 			'text-base md:text-sm font-medium select-none',
 			'border transition-colors',
 			'focus-visible:outline-2 focus-visible:outline-offset-2',

@@ -63,7 +63,7 @@
 
 	let inputClass = $derived(
 		[
-			'flex items-center w-full h-12 md:h-10 px-3 rounded-lg border bg-surface cursor-text',
+			'flex items-center w-full h-12 md:h-10 px-3 rounded-sm border bg-surface cursor-text',
 			'text-sm text-on-surface select-none',
 			'has-[:focus]:outline-2 has-[:focus]:outline-offset-2',
 			isDisabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : '',
@@ -77,11 +77,11 @@
 	);
 
 	const editableSegmentClass =
-		'rounded px-1 py-0.5 text-on-surface aria-[valuetext=Empty]:text-on-surface-subtle data-[active]:bg-primary data-[active]:text-on-primary focus-visible:outline-none ![caret-color:currentColor]';
+		'rounded-sm px-1 py-0.5 text-on-surface aria-[valuetext=Empty]:text-on-surface-subtle data-[active]:bg-primary data-[active]:text-on-primary focus-visible:outline-none ![caret-color:currentColor]';
 	const literalSegmentClass = 'text-on-surface-subtle px-0.5';
 
 	const dayClass =
-		'inline-flex size-9 md:size-8 w-full h-full items-center justify-center rounded-md text-sm font-normal transition-colors ' +
+		'inline-flex size-9 md:size-8 w-full h-full items-center justify-center rounded-sm text-sm font-normal transition-colors ' +
 		'text-on-surface hover:bg-surface-container-high ' +
 		'data-[selected]:bg-primary data-[selected]:text-on-primary data-[selected]:hover:bg-primary ' +
 		'data-[today]:font-semibold data-[today]:ring-1 data-[today]:ring-primary ' +
@@ -121,7 +121,7 @@
 				{/if}
 			{/each}
 			<DatePicker.Trigger
-				class="ml-auto inline-flex size-8 items-center justify-center rounded-md text-on-surface/60 hover:bg-surface-container-high hover:text-on-surface transition-colors [&>svg]:size-5"
+				class="ml-auto inline-flex size-8 items-center justify-center rounded-sm text-on-surface/60 hover:bg-surface-container-high hover:text-on-surface transition-colors [&>svg]:size-5"
 			>
 				<CalendarBlank />
 			</DatePicker.Trigger>
@@ -136,13 +136,13 @@
 			{#snippet children({ months, weekdays })}
 				<DatePicker.Header class="flex items-center justify-between mb-3">
 					<DatePicker.PrevButton
-						class="inline-flex size-9 md:size-8 items-center justify-center rounded-md text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
+						class="inline-flex size-9 md:size-8 items-center justify-center rounded-sm text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
 					>
 						<CaretLeft />
 					</DatePicker.PrevButton>
 					<DatePicker.Heading class="text-sm font-semibold text-on-surface" />
 					<DatePicker.NextButton
-						class="inline-flex size-9 md:size-8 items-center justify-center rounded-md text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
+						class="inline-flex size-9 md:size-8 items-center justify-center rounded-sm text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
 					>
 						<CaretRight />
 					</DatePicker.NextButton>

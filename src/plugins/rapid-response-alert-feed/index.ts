@@ -1,6 +1,6 @@
 import type { PluginManifest } from '$plugins/types';
-import AlertFeedPage from '$pages/orgs/plugins/rapid-response-alert-feed/AlertFeedPage.svelte';
-import StaffAlertFeedPage from '$pages/orgs/plugins/rapid-response-alert-feed/StaffAlertFeedPage.svelte';
+import AlertFeedPage from '$pages/plugins/rapid-response-alert-feed/AlertFeedPage.svelte';
+import StaffAlertFeedPage from '$pages/plugins/rapid-response-alert-feed/StaffAlertFeedPage.svelte';
 
 export interface Alert {
 	id: string;

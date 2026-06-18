@@ -12,6 +12,7 @@ export class Form<TSchema extends ZodObject<ZodRawShape>> {
 	private _valid = $state(false);
 	private _error = $state('');
 	private _errors = $state<Record<string, string[]>>({});
+	private _touched = $state<Record<string, boolean>>({});
 	private _onSubmit: (data: z.infer<TSchema>) => Promise<void>;
 
 	constructor(
@@ -34,12 +35,16 @@ export class Form<TSchema extends ZodObject<ZodRawShape>> {
 
 		if (parseResult.success) {
 			this._errors = {};
-			this._error = '';
 			return;
 		}
 
 		this._errors = this.formatZodErrors(parseResult.error);
-		this._error = parseResult.error.message;
+	}
+
+	touch(field: string) {
+		this._touched[field] = true;
+		this._error = '';
+		this.validate();
 	}
 
 	private formatZodErrors(error: z.ZodError): FormValidationError {
@@ -58,15 +63,26 @@ export class Form<TSchema extends ZodObject<ZodRawShape>> {
 		return fieldErrors;
 	}
 
-	submit() {
+	async submit() {
 		this._submitting = true;
+		this._error = '';
 		this.validate();
 
 		if (!this.valid) {
+			for (const field of Object.keys(this._errors)) {
+				this._touched[field] = true;
+			}
+			this._submitting = false;
 			return;
 		}
 
-		this._onSubmit(this._data);
+		try {
+			await this._onSubmit(this._data);
+		} catch (e) {
+			this._error = e instanceof Error ? e.message : 'Unknown error';
+		} finally {
+			this._submitting = false;
+		}
 	}
 
 	reset() {
@@ -75,6 +91,9 @@ export class Form<TSchema extends ZodObject<ZodRawShape>> {
 		this._submitting = false;
 		this._dirty = false;
 		this._valid = false;
+		this._error = '';
+		this._errors = {};
+		this._touched = {};
 	}
 
 	get values(): z.infer<TSchema> {
@@ -83,6 +102,10 @@ export class Form<TSchema extends ZodObject<ZodRawShape>> {
 
 	get errors() {
 		return this._errors;
+	}
+
+	get touched() {
+		return this._touched;
 	}
 
 	get dirty() {

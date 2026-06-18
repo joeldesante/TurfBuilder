@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import CreateSurveyPage from '$pages/universe/bucket/create-survey-page/CreateSurveyPage.svelte';
+	import CreateSurveyPage from '$pages/universe/buckets/surveys/new/CreateSurveyPage.svelte';
 
 	const { data } = $props();
 

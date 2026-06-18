@@ -12,10 +12,10 @@ describe('InputGroup', () => {
 			await expect.element(input).toBeVisible();
 		});
 
-		it('applies border and rounded-lg to the wrapper', async () => {
+		it('applies border and rounded-sm to the wrapper', async () => {
 			const screen = render(InputGroupTextInput);
 
-			const wrapper = screen.container.querySelector('.border.rounded-lg');
+			const wrapper = screen.container.querySelector('.border.rounded-sm');
 			expect(wrapper).not.toBeNull();
 		});
 	});

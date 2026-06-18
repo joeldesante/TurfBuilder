@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import CreateListPage from '$pages/universe/bucket/create-list-page/CreateListPage.svelte';
+	import CreateListPage from '$pages/universe/buckets/lists/new/CreateListPage.svelte';
 
 	const { data } = $props();
 

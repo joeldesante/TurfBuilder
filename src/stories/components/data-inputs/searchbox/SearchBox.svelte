@@ -55,7 +55,11 @@
 						pages.push({ label: item.label, subtitle: entry.section.label, href: item.href });
 					} else {
 						for (const sub of item.items) {
-							pages.push({ label: sub.label, subtitle: `${entry.section.label} › ${item.label}`, href: sub.href });
+							pages.push({
+								label: sub.label,
+								subtitle: `${entry.section.label} › ${item.label}`,
+								href: sub.href
+							});
 						}
 					}
 				}
@@ -80,9 +84,7 @@
 	let loading = $state(false);
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
-	const orgSlug = $derived(
-		page.params.org_slug ?? page.url.pathname.match(/\/o\/([^/]+)/)?.[1]
-	);
+	const orgSlug = $derived(page.params.org_slug ?? page.url.pathname.match(/\/o\/([^/]+)/)?.[1]);
 	const orgName = $derived((page.data as { organization?: { name: string } }).organization?.name);
 
 	const historyKey = $derived(orgSlug ? `search_history:${orgSlug}` : null);
@@ -100,7 +102,7 @@
 
 	function saveToHistory(item: HistoryItem) {
 		if (!historyKey) return;
-		const next = [item, ...history.filter(h => h.href !== item.href)].slice(0, 5);
+		const next = [item, ...history.filter((h) => h.href !== item.href)].slice(0, 5);
 		history = next;
 		localStorage.setItem(historyKey, JSON.stringify(next));
 	}
@@ -132,24 +134,30 @@
 		{ key: 'surveys', label: 'Surveys' },
 		{ key: 'turfs', label: 'Turfs' },
 		{ key: 'members', label: 'Members' },
-		{ key: 'locations', label: 'Locations' },
+		{ key: 'locations', label: 'Locations' }
 	];
 
-	const hasResults = $derived(
-		results !== null && sections.some(s => results![s.key].length > 0)
-	);
+	const hasResults = $derived(results !== null && sections.some((s) => results![s.key].length > 0));
 
 	const navResults = $derived.by(() => {
 		if (query.length < 1) return [];
 		const q = query.toLowerCase();
-		return allNavPages.filter(p => fuzzyMatch(q, p.label) || fuzzyMatch(q, p.subtitle)).slice(0, 6);
+		return allNavPages
+			.filter((p) => fuzzyMatch(q, p.label) || fuzzyMatch(q, p.subtitle))
+			.slice(0, 6);
 	});
 
-	const showResultsPanel = $derived(query.length >= 1 && (navResults.length > 0 || results !== null));
+	const showResultsPanel = $derived(
+		query.length >= 1 && (navResults.length > 0 || results !== null)
+	);
 
 	const flatItems = $derived.by<HistoryItem[]>(() => {
 		if (showResultsPanel) {
-			const items: HistoryItem[] = navResults.map(p => ({ title: p.label, subtitle: p.subtitle, href: p.href }));
+			const items: HistoryItem[] = navResults.map((p) => ({
+				title: p.label,
+				subtitle: p.subtitle,
+				href: p.href
+			}));
 			if (hasResults) {
 				for (const s of sections) {
 					for (const r of results![s.key]) items.push(r);
@@ -183,12 +191,12 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'ArrowDown') {
 			e.preventDefault();
-			selectedIndex = flatItems.length === 0 ? -1
-				: selectedIndex < flatItems.length - 1 ? selectedIndex + 1 : 0;
+			selectedIndex =
+				flatItems.length === 0 ? -1 : selectedIndex < flatItems.length - 1 ? selectedIndex + 1 : 0;
 		} else if (e.key === 'ArrowUp') {
 			e.preventDefault();
-			selectedIndex = flatItems.length === 0 ? -1
-				: selectedIndex > 0 ? selectedIndex - 1 : flatItems.length - 1;
+			selectedIndex =
+				flatItems.length === 0 ? -1 : selectedIndex > 0 ? selectedIndex - 1 : flatItems.length - 1;
 		} else if (e.key === 'Enter') {
 			if (selectedIndex >= 0 && selectedIndex < flatItems.length) {
 				e.preventDefault();
@@ -224,25 +232,36 @@
 			onkeydown={handleKeydown}
 		/>
 		{#if loading}
-			<div class="absolute right-3 inset-y-0 flex items-center pointer-events-none text-on-surface-subtle">
+			<div
+				class="absolute right-3 inset-y-0 flex items-center pointer-events-none text-on-surface-subtle"
+			>
 				<Spinner size={16} />
 			</div>
 		{/if}
 	</div>
 	{#if orgName}
-		<span class="inline-block mt-2 px-2 py-0.5 rounded-full bg-gray-300 text-gray-800 text-xs font-medium">Searching in {orgName}</span>
+		<span
+			class="inline-block mt-2 px-2 py-0.5 rounded-sm-full bg-gray-300 text-gray-800 text-xs font-medium"
+			>Searching in {orgName}</span
+		>
 	{/if}
 </div>
 
 {#if showResultsPanel}
-	<div class="bg-surface rounded-lg border shadow mt-2 overflow-y-auto max-h-[min(400px,50vh)]">
+	<div class="bg-surface rounded-sm border shadow mt-2 overflow-y-auto max-h-[min(400px,50vh)]">
 		{#if navResults.length > 0}
 			<div>
-				<p class="text-xs font-semibold text-on-surface-subtle uppercase tracking-wide px-3 pt-3 pb-1">
+				<p
+					class="text-xs font-semibold text-on-surface-subtle uppercase tracking-wide px-3 pt-3 pb-1"
+				>
 					Go to
 				</p>
 				{#each navResults as navPage, i}
-					<button class={itemClass(i)} onclick={() => select({ title: navPage.label, subtitle: navPage.subtitle, href: navPage.href })}>
+					<button
+						class={itemClass(i)}
+						onclick={() =>
+							select({ title: navPage.label, subtitle: navPage.subtitle, href: navPage.href })}
+					>
 						<span class="text-sm font-medium">{navPage.label}</span>
 						{#if navPage.subtitle}
 							<span class="text-xs text-on-surface-subtle">{navPage.subtitle}</span>
@@ -255,11 +274,16 @@
 			{#each sections as section}
 				{#if results![section.key].length > 0}
 					<div>
-						<p class="text-xs font-semibold text-on-surface-subtle uppercase tracking-wide px-3 pt-3 pb-1">
+						<p
+							class="text-xs font-semibold text-on-surface-subtle uppercase tracking-wide px-3 pt-3 pb-1"
+						>
 							{section.label}
 						</p>
 						{#each results![section.key] as result, ri}
-							<button class={itemClass((dataSectionOffsets.get(section.key) ?? 0) + ri)} onclick={() => select(result)}>
+							<button
+								class={itemClass((dataSectionOffsets.get(section.key) ?? 0) + ri)}
+								onclick={() => select(result)}
+							>
 								<span class="text-sm font-medium">{result.title}</span>
 								{#if result.subtitle}
 									<span class="text-xs text-on-surface-subtle">{result.subtitle}</span>
@@ -274,7 +298,7 @@
 		{/if}
 	</div>
 {:else if history.length > 0 && !query}
-	<div class="bg-surface rounded-lg border shadow mt-2 overflow-y-auto max-h-[min(400px,50vh)]">
+	<div class="bg-surface rounded-sm border shadow mt-2 overflow-y-auto max-h-[min(400px,50vh)]">
 		<div class="flex items-center justify-between px-3 pt-3 pb-1">
 			<p class="text-xs font-semibold text-on-surface-subtle uppercase tracking-wide">Recent</p>
 			<button class="text-xs text-on-surface-subtle hover:text-on-surface" onclick={clearHistory}>

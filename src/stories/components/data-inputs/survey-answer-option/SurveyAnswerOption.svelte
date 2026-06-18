@@ -27,7 +27,7 @@
 
 	let computedClass = $derived(
 		[
-			'flex items-center gap-3 w-full min-h-14 md:min-h-12 px-4 py-3 rounded-lg border cursor-pointer transition-colors duration-150 select-none',
+			'flex items-center gap-3 w-full min-h-14 md:min-h-12 px-4 py-3 rounded-sm border cursor-pointer transition-colors duration-150 select-none',
 			selected
 				? 'bg-primary-container border-primary'
 				: 'bg-surface border-outline hover:bg-surface-container',
@@ -41,7 +41,7 @@
 	let indicatorClass = $derived(
 		[
 			'shrink-0 inline-flex items-center justify-center border transition-colors duration-150',
-			type === 'radio' ? 'size-6 md:size-5 rounded-full' : 'size-6 md:size-5 rounded-md',
+			type === 'radio' ? 'size-6 md:size-5 rounded-sm-full' : 'size-6 md:size-5 rounded',
 			selected ? 'border-primary' : 'border-outline',
 			type === 'checkbox' && selected ? 'bg-primary' : ''
 		]
@@ -55,7 +55,7 @@
 
 	<span class={indicatorClass} aria-hidden="true">
 		{#if type === 'radio' && selected}
-			<span class="size-3 md:size-2.5 rounded-full bg-primary"></span>
+			<span class="size-3 md:size-2.5 rounded-sm-full bg-primary"></span>
 		{:else if type === 'checkbox' && selected}
 			<svg
 				xmlns="http://www.w3.org/2000/svg"

@@ -60,6 +60,22 @@ export const INTEGRATIONS: IntegrationDef[] = [
 		logoUrl: svgLogo('OK', '#7c3aed'),
 		disabled: true,
 		disabledMessage: 'This integration is coming soon'
+	},
+	{
+		id: 'r_project',
+		name: 'R Project',
+		description: 'Enable compatibility with R and RStudio for easy data interoperability.',
+		logoUrl: svgLogo('R', '#276dc3'),
+		disabled: true,
+		disabledMessage: 'This integration is coming soon'
+	},
+	{
+		id: 'stata',
+		name: 'Stata',
+		description: 'Export and import data in Stata-compatible formats for statistical analysis and reporting.',
+		logoUrl: svgLogo('ST', '#1a4e8a'),
+		disabled: true,
+		disabledMessage: 'This integration is coming soon'
 	}
 ];
 

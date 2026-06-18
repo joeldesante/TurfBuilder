@@ -64,7 +64,7 @@
 	function cellClass(isActive: boolean): string {
 		return [
 			'flex items-center justify-center',
-			'size-10 md:size-14 rounded-lg border text-lg font-medium text-on-surface bg-surface',
+			'size-10 md:size-14 rounded-sm border text-lg font-medium text-on-surface bg-surface',
 			'transition-colors duration-150',
 			isActive
 				? isInvalid

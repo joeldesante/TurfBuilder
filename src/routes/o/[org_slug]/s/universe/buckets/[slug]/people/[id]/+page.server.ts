@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
-import type { PersonProfile } from '$pages/universe/bucket/person-profile-page/PersonProfilePage.svelte';
+import type { PersonProfile } from '$pages/universe/people/PersonProfilePage.svelte';
 
 export async function load({ params, locals }) {
 	return withOrgTransaction(locals.organization!.id, async (client) => {

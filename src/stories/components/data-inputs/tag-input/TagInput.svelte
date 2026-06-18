@@ -8,7 +8,12 @@
 		onchange: (tags: string[]) => void;
 	}
 
-	const { tags, placeholder = 'Type and press Enter…', disabled = false, onchange }: Props = $props();
+	const {
+		tags,
+		placeholder = 'Type and press Enter…',
+		disabled = false,
+		onchange
+	}: Props = $props();
 
 	let inputValue = $state('');
 	let inputEl = $state<HTMLInputElement | null>(null);
@@ -39,17 +44,22 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
-	class="flex flex-wrap gap-1.5 w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary cursor-text min-h-10"
+	class="flex flex-wrap gap-1.5 w-full rounded-sm border border-outline bg-surface px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary cursor-text min-h-10"
 	onclick={() => inputEl?.focus()}
 >
 	{#each tags as tag}
-		<span class="inline-flex items-center gap-1 rounded bg-surface-container-high px-2 py-0.5 text-xs font-mono text-on-surface">
+		<span
+			class="inline-flex items-center gap-1 rounded-sm bg-surface-container-high px-2 py-0.5 text-xs font-mono text-on-surface"
+		>
 			{tag}
 			{#if !disabled}
 				<button
 					type="button"
 					class="text-on-surface-subtle hover:text-error transition-colors"
-					onclick={(e) => { e.stopPropagation(); remove(tag); }}
+					onclick={(e) => {
+						e.stopPropagation();
+						remove(tag);
+					}}
 					aria-label="Remove {tag}"
 				>
 					<XIcon size={10} weight="bold" />
