@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ForgotPassword from '$pages/auth/ForgotPassword.svelte';
+	import ForgotPassword from '$pages/auth/forgot-password/ForgotPassword.svelte';
 
 	const { data } = $props();
 </script>

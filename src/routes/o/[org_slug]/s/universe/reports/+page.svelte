@@ -1,5 +1,5 @@
 <script lang="ts">
-	import UniverseReportsPage from '$pages/universe/universe-reports-page/UniverseReportsPage.svelte';
+	import UniverseReportsPage from '$pages/universe/reports/UniverseReportsPage.svelte';
 </script>
 
 <UniverseReportsPage />

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import CreateBucketPage from '$pages/universe/bucket/create-bucket-page/CreateBucketPage.svelte';
+	import CreateBucketPage from '$pages/universe/buckets/new/CreateBucketPage.svelte';
 	import type { BucketFilterInput } from '$lib/server/filter-converter';
 
 	const { data } = $props();

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import EntityDetailPage from '$pages/universe/entity-detail-page/EntityDetailPage.svelte';
-	import type { PersonRecord, LocationRecord } from '$pages/universe/entity-detail-page/EntityDetailPage.svelte';
+	import EntityDetailPage from '$pages/universe/entity/EntityDetailPage.svelte';
+	import type { PersonRecord, LocationRecord } from '$pages/universe/entity/EntityDetailPage.svelte';
 
 	const { data } = $props();
 </script>

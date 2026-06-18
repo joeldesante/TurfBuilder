@@ -126,7 +126,7 @@
 	onDestroy(() => cleanupResize?.());
 
 	const btnClass =
-		'inline-flex items-center justify-center size-9 rounded-lg text-on-surface-subtle transition-all hover:bg-surface-container-highest hover:text-on-surface active:scale-95 cursor-pointer';
+		'inline-flex items-center justify-center size-9 rounded-sm text-on-surface-subtle transition-all hover:bg-surface-container-highest hover:text-on-surface active:scale-95 cursor-pointer';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -210,7 +210,7 @@
 				onclick={() => (showCheatsheet = !showCheatsheet)}
 				aria-label="Markdown Cheatsheet"
 				aria-pressed={showCheatsheet}
-				class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 cursor-pointer {showCheatsheet
+				class="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm text-sm font-medium transition-all active:scale-95 cursor-pointer {showCheatsheet
 					? 'bg-surface-container-high text-on-surface'
 					: 'text-on-surface-subtle hover:bg-surface-container-high hover:text-on-surface'}"
 			>
@@ -222,7 +222,7 @@
 				onclick={() => (previewing = !previewing)}
 				aria-label={previewing ? 'Edit' : 'Preview'}
 				aria-pressed={previewing}
-				class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 cursor-pointer {previewing
+				class="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm text-sm font-medium transition-all active:scale-95 cursor-pointer {previewing
 					? 'bg-primary text-on-primary'
 					: 'text-on-surface-subtle hover:bg-surface-container-high hover:text-on-surface'}"
 			>
@@ -253,7 +253,7 @@
 				<button
 					onclick={() => (showCheatsheet = false)}
 					aria-label="Close cheatsheet"
-					class="shrink-0 inline-flex items-center justify-center size-7 rounded-lg text-on-surface-subtle hover:bg-surface-container-high hover:text-on-surface transition-all cursor-pointer"
+					class="shrink-0 inline-flex items-center justify-center size-7 rounded-sm text-on-surface-subtle hover:bg-surface-container-high hover:text-on-surface transition-all cursor-pointer"
 				>
 					<XIcon size={14} />
 				</button>
@@ -384,7 +384,7 @@
 	{/if}
 
 	<div
-		class="bg-surface-container rounded-lg overflow-hidden relative"
+		class="bg-surface-container rounded-sm overflow-hidden relative"
 		data-editor-mode={previewing && windowWidth >= 1024 ? 'split' : previewing ? 'preview' : 'edit'}
 	>
 		{#if browser && carta}

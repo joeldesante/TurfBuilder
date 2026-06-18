@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
 	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import Button from '$components/actions/button/Button.svelte';
 	const { data } = $props();
 </script>
 
@@ -14,10 +15,5 @@
 />
 
 <div class="p-6">
-	<a
-		href="/o/{data.organization.slug}/join"
-		class="inline-block px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-medium hover:bg-primary/90 transition-colors"
-	>
-		Join a Turf
-	</a>
+	<Button variant="outline" href="/o/{data.organization.slug}/join">Join a Turf</Button>
 </div>

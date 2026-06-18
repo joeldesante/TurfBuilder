@@ -44,7 +44,7 @@
 
 	let trackClass = $derived(
 		[
-			'inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-transparent',
+			'inline-flex h-7 w-12 shrink-0 items-center rounded-sm-full border-2 border-transparent',
 			'transition-colors duration-150',
 			'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -72,7 +72,7 @@
 			{...restProps}
 		>
 			<SwitchPrimitive.Thumb
-				class="pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+				class="pointer-events-none block size-5 rounded-sm-full bg-white shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
 			/>
 		</SwitchPrimitive.Root>
 		<label
@@ -101,7 +101,7 @@
 		{...restProps}
 	>
 		<SwitchPrimitive.Thumb
-			class="pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+			class="pointer-events-none block size-5 rounded-sm-full bg-white shadow-sm ring-0 transition-transform duration-150 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
 		/>
 	</SwitchPrimitive.Root>
 {/if}

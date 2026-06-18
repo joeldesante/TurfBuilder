@@ -95,7 +95,7 @@
 						value={item.value}
 						disabled={item.disabled}
 						class={[
-							'size-5 shrink-0 rounded-full border inline-flex items-center justify-center',
+							'size-5 shrink-0 rounded-sm-full border inline-flex items-center justify-center',
 							'focus-visible:outline-2 focus-visible:outline-offset-2',
 							'disabled:opacity-50 disabled:cursor-not-allowed',
 							invalid ? 'border-error focus-visible:outline-error' : 'border-outline',
@@ -106,7 +106,7 @@
 					>
 						{#snippet children({ checked })}
 							{#if checked}
-								<span class="size-2.5 rounded-full bg-primary"></span>
+								<span class="size-2.5 rounded-sm-full bg-primary"></span>
 							{/if}
 						{/snippet}
 					</RadioGroupPrimitive.Item>

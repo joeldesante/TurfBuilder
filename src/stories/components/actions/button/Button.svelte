@@ -7,6 +7,8 @@
 	type Variant = 'primary' | 'outline' | 'ghost' | 'destructive';
 	type ButtonType = 'button' | 'submit' | 'reset';
 	type Size = 'default' | 'sm';
+	type Weight = 'normal' | 'medium' | 'semibold' | 'bold';
+	type TextSize = 'small' | 'normal' | 'large' | 'xl';
 
 	/** Primary action element. Renders as a `<button>` or `<a>` depending on whether `href` is provided. */
 	interface Props {
@@ -27,6 +29,10 @@
 		iconOnly?: boolean;
 		/** Required when `iconOnly` is true. */
 		'aria-label'?: string;
+		/** Font weight of the button label. @default 'semibold' */
+		weight?: Weight;
+		/** Overrides the text size set by `size`. */
+		textSize?: TextSize;
 		/** Additional CSS classes. */
 		class?: string;
 		[key: string]: unknown;
@@ -41,6 +47,8 @@
 		disabled = false,
 		loading = false,
 		iconOnly = false,
+		weight = 'semibold',
+		textSize,
 		'aria-label': ariaLabel,
 		class: className = '',
 		...restProps
@@ -68,8 +76,22 @@
 			'bg-error text-on-error hover:bg-error/90 active:bg-error/80 focus-visible:outline-error'
 	};
 
+	const textSizeClasses: Record<TextSize, string> = {
+		small: 'text-xs',
+		normal: 'text-sm',
+		large: 'text-base',
+		xl: 'text-lg'
+	};
+
+	const weightClasses: Record<Weight, string> = {
+		normal: 'font-normal',
+		medium: 'font-medium',
+		semibold: 'font-semibold',
+		bold: 'font-bold'
+	};
+
 	const baseClasses =
-		'no-underline inline-flex items-center justify-center rounded-lg cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2';
+		'no-underline inline-flex items-center justify-center rounded-sm cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2';
 
 	const sizeClasses: Record<Size, string> = {
 		default: 'h-12 md:h-10 min-w-12 md:min-w-10 [&>svg]:size-5 text-sm gap-2',
@@ -89,7 +111,9 @@
 	let computedClass = $derived(
 		[
 			baseClasses,
+			weightClasses[weight],
 			sizeClasses[size],
+			textSize ? textSizeClasses[textSize] : '',
 			variantClasses[variant],
 			iconOnly ? iconOnlyPadding[size] : defaultPadding[size],
 			disabled ? 'opacity-50' : '',

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import ListDetailPage from '$pages/universe/bucket/list-detail-page/ListDetailPage.svelte';
+	import ListDetailPage from '$pages/universe/buckets/lists/ListDetailPage.svelte';
 	import { page } from '$app/state';
 	import type {
 		PersonEntry,
 		LocationEntry,
 		TurfEntry
-	} from '$pages/universe/bucket/list-detail-page/ListDetailPage.svelte';
+	} from '$pages/universe/buckets/lists/ListDetailPage.svelte';
 
 	const { data } = $props();
 

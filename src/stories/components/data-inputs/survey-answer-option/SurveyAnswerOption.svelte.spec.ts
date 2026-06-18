@@ -98,7 +98,7 @@ describe('SurveyAnswerOption', () => {
 				selected: true
 			});
 			// Radio selected state shows a filled circle (span with bg-primary)
-			const dot = screen.container.querySelector('.bg-primary.rounded-full');
+			const dot = screen.container.querySelector('.bg-primary.rounded-sm-full');
 			expect(dot).not.toBeNull();
 		});
 
@@ -114,7 +114,7 @@ describe('SurveyAnswerOption', () => {
 
 		it('does not render indicator when not selected', async () => {
 			const screen = render(SurveyAnswerOption, { type: 'radio', label: 'A' });
-			const dot = screen.container.querySelector('.bg-primary.rounded-full');
+			const dot = screen.container.querySelector('.bg-primary.rounded-sm-full');
 			expect(dot).toBeNull();
 		});
 	});

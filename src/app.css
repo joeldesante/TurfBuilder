@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './fonts.css';
 
 /* ==========================================================================
    Theme uses Material 3 Color Roles, with a couple adjustments.
@@ -288,6 +289,9 @@
 
 	body {
 		@apply bg-surface text-on-surface;
+		font-family: 'Figtree', sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
 	}
 
 	a {

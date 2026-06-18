@@ -1,0 +1,131 @@
+/* Variable font — upright */
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/Figtree-VariableFont_wght.ttf') format('truetype');
+	font-weight: 300 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* Variable font — italic */
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/Figtree-Italic-VariableFont_wght.ttf') format('truetype');
+	font-weight: 300 900;
+	font-style: italic;
+	font-display: swap;
+}
+
+/* Static fallbacks — upright */
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-Light.ttf') format('truetype');
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-Medium.ttf') format('truetype');
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-SemiBold.ttf') format('truetype');
+	font-weight: 600;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-Bold.ttf') format('truetype');
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-ExtraBold.ttf') format('truetype');
+	font-weight: 800;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-Black.ttf') format('truetype');
+	font-weight: 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* Static fallbacks — italic */
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-LightItalic.ttf') format('truetype');
+	font-weight: 300;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-Italic.ttf') format('truetype');
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-MediumItalic.ttf') format('truetype');
+	font-weight: 500;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-SemiBoldItalic.ttf') format('truetype');
+	font-weight: 600;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-BoldItalic.ttf') format('truetype');
+	font-weight: 700;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-ExtraBoldItalic.ttf') format('truetype');
+	font-weight: 800;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Figtree';
+	src: url('/fonts/figtree/static/Figtree-BlackItalic.ttf') format('truetype');
+	font-weight: 900;
+	font-style: italic;
+	font-display: swap;
+}
