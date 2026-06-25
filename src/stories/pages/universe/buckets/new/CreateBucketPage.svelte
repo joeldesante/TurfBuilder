@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$components/actions/button/Button.svelte';
 	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import BucketEntityFilterEditor from '$components/universe/bucket-entity-filter-editor/BucketEntityFilterEditor.svelte';
 	import type { FilterDefinition } from '$components/universe/bucket-entity-filter/BucketEntityFilter.svelte';
 	import type { FilterEntry } from '$components/universe/bucket-entity-filter-editor/BucketEntityFilterEditor.svelte';

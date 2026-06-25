@@ -5,7 +5,7 @@
 	import { authClient } from '$lib/client';
 	import { goto } from '$app/navigation';
 	import { themeStore } from '$lib/theme.svelte';
-	import Sidebar from '$components/layout/sidebar/Sidebar.svelte';
+	import Sidebar from '$components/layout/fragments/sidebar/Sidebar.svelte';
 	import { buildStaffNav, buildBucketNav } from './sidebar-nav';
 	import Button from '$components/actions/button/Button.svelte';
 	import ListIcon from 'phosphor-svelte/lib/List';

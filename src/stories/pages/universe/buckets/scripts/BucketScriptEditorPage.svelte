@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack, onMount } from 'svelte';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import RichTextEditor from '$components/data-inputs/rich-text-editor/RichTextEditor.svelte';
 
 	interface Props {

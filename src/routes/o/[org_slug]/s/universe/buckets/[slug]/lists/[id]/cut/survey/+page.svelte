@@ -4,7 +4,7 @@
 	import { page } from '$app/stores';
 	import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import Select from '$components/data-inputs/select/Select.svelte';
 	import DatePicker from '$components/data-inputs/date-picker/DatePicker.svelte';

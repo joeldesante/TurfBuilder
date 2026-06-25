@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Badge from '$components/data-display/badge/Badge.svelte';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 
 	export interface Alert {
 		id: string;

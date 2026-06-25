@@ -1,4 +1,4 @@
-import type { SidebarNavEntry } from '$components/layout/sidebar/types';
+import type { SidebarNavEntry } from '$components/layout/fragments/sidebar/types';
 import { can } from '$lib/auth-helpers';
 import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import UsersIcon from 'phosphor-svelte/lib/UsersIcon';

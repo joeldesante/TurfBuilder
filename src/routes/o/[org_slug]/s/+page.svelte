@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	const { data } = $props();
 </script>

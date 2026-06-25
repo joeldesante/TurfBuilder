@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg';
 import type { Component } from 'svelte';
 import type { RequestEvent } from '@sveltejs/kit';
-import type { SidebarNavEntry } from '$components/layout/sidebar/types';
+import type { SidebarNavEntry } from '$components/layout/fragments/sidebar/types';
 
 export interface PluginContext {
 	/** Execute queries within the org-scoped RLS transaction. Do not use POOL directly. */

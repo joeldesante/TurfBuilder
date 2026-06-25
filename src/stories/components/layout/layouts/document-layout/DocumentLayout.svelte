@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Logo from '$components/layout/logo/Logo.svelte';
+	import Logo from '$components/layout/fragments/logo/Logo.svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
