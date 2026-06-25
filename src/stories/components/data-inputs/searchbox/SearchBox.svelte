@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import TextInput from '../text-input/TextInput.svelte';
 	import Spinner from '$components/feedback/spinner/Spinner.svelte';
-	import type { SidebarNavEntry } from '$components/layout/sidebar/types';
+	import type { SidebarNavEntry } from '$components/layout/fragments/sidebar/types';
 
 	interface SearchResult {
 		id: string;

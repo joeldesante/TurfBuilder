@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$components/actions/button/Button.svelte';
-	import Logo from '$components/layout/logo/Logo.svelte';
-	import Separator from '$components/layout/separator/Separator.svelte';
+	import Logo from '$components/layout/fragments/logo/Logo.svelte';
+	import Separator from '$components/layout/fragments/separator/Separator.svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {

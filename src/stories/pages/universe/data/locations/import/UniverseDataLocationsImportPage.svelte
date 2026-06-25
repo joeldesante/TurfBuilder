@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import UploadSimpleIcon from 'phosphor-svelte/lib/UploadSimple';
 	import LinkIcon from 'phosphor-svelte/lib/Link';

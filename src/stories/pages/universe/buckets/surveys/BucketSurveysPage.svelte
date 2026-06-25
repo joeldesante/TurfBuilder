@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import EntityBrowserRow from '$components/data-display/entity-browser/EntityBrowserRow.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText';

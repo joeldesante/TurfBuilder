@@ -2,7 +2,7 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import { Form } from '$lib/client/formstorm/form.svelte';
 	import CreateSurveySchema from './CreateSurvey.schema';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
 	import Badge from '$components/data-display/badge/Badge.svelte';
 

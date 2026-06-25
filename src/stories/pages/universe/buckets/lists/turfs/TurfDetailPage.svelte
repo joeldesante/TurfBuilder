@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { mount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Badge from '$components/data-display/badge/Badge.svelte';
 	import MapMarker, { type Variant } from '$components/data-display/map-marker/MapMarker.svelte';
 	import MapPopup from '$components/data-display/map-popup/MapPopup.svelte';

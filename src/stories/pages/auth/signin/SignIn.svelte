@@ -3,7 +3,7 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
-	import AuthLayout from '$components/layout/auth-layout/AuthLayout.svelte';
+	import AuthLayout from '$components/layout/layouts/auth-layout/AuthLayout.svelte';
 	import { authClient } from '$lib/client';
 	import { Form } from '$lib/client/formstorm/form.svelte';
 	import { z } from 'zod';

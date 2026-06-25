@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
 	import Tooltip from '$components/feedback/tooltip/Tooltip.svelte';
 

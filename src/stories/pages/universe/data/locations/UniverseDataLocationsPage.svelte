@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 	import DropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import Button from '$components/actions/button/Button.svelte';

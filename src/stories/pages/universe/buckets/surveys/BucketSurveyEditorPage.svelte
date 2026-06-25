@@ -5,7 +5,7 @@
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import Textarea from '$components/data-inputs/textarea/Textarea.svelte';
 	import { untrack, onMount } from 'svelte';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 
 	export interface SurveyQuestion {
 		db_id?: string;

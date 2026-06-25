@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Badge from '$components/data-display/badge/Badge.svelte';
 	import Button from '$components/actions/button/Button.svelte';
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import type { Alert } from './AlertFeedPage.svelte';
 
 	interface Props {

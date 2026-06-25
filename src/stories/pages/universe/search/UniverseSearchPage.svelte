@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PageHeader from '$components/layout/page-header/PageHeader.svelte';
+	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 
 	// --- Draft types (UI state, all values are strings) ---
 

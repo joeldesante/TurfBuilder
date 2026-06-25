@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DocumentLayout from '$components/layout/document-layout/DocumentLayout.svelte';
+	import DocumentLayout from '$components/layout/layouts/document-layout/DocumentLayout.svelte';
 </script>
 
 <DocumentLayout title="Privacy Policy" lastUpdated="June 18, 2026">
