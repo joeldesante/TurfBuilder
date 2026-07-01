@@ -524,6 +524,181 @@ function renderComponentDoc(comp: ComponentDoc): string {
   return lines.join('\n');
 }
 
+// ─── Color Tokens ─────────────────────────────────────────────────────────────
+
+interface ColorToken {
+  name: string;
+  hex: string;
+  description: string;
+}
+
+interface ColorGroup {
+  title: string;
+  description: string;
+  tokens: ColorToken[];
+}
+
+function swatch(hex: string): string {
+  const needsBorder = ['#ffffff', '#fafafa', '#f4f4f5', '#e4e4e7', '#d4d4d8', '#ccfbf1', '#d1fae5', '#dbeafe', '#dcfce7', '#fef3c7', '#fee2e2'].includes(hex);
+  const border = needsBorder ? '#a1a1aa' : 'transparent';
+  return `<span style="display:inline-block;width:1.1rem;height:1.1rem;border-radius:3px;background:${hex};border:1px solid ${border};vertical-align:middle"></span>`;
+}
+
+function renderColorTokensDoc(): string {
+  const groups: ColorGroup[] = [
+    {
+      title: 'Primary',
+      description: 'The main brand color and its companions. Use for primary actions, interactive elements, and key brand accents.',
+      tokens: [
+        { name: 'primary',                hex: '#047857', description: 'Main brand color. Use for primary buttons, links, active nav items, and focus rings.' },
+        { name: 'on-primary',             hex: '#ffffff', description: 'Text and icons placed directly on a `primary` background.' },
+        { name: 'primary-container',      hex: '#d1fae5', description: 'Softer primary-tinted background. Use for chips, selected rows, and highlights.' },
+        { name: 'on-primary-container',   hex: '#064e3b', description: 'Text and icons placed on a `primary-container` background.' },
+      ],
+    },
+    {
+      title: 'Secondary',
+      description: 'A complementary neutral accent. Use for less prominent interactive elements and supporting UI.',
+      tokens: [
+        { name: 'secondary',              hex: '#52525b', description: 'Secondary action color. Use for secondary buttons and less prominent controls.' },
+        { name: 'on-secondary',           hex: '#ffffff', description: 'Text and icons placed on a `secondary` background.' },
+        { name: 'secondary-container',    hex: '#d4d4d8', description: 'Soft secondary tint. Use for tags, secondary chips, or filter badges.' },
+        { name: 'on-secondary-container', hex: '#18181b', description: 'Text and icons placed on a `secondary-container` background.' },
+      ],
+    },
+    {
+      title: 'Tertiary',
+      description: 'An optional third accent for decorative or distinguishing UI. Use sparingly.',
+      tokens: [
+        { name: 'tertiary',               hex: '#0d9488', description: 'Tertiary accent. Use to visually distinguish a third category or accent alongside primary and secondary.' },
+        { name: 'on-tertiary',            hex: '#ffffff', description: 'Text and icons placed on a `tertiary` background.' },
+        { name: 'tertiary-container',     hex: '#ccfbf1', description: 'Soft tertiary tint. Use for decorative section backgrounds or grouping highlights.' },
+        { name: 'on-tertiary-container',  hex: '#134e4a', description: 'Text and icons placed on a `tertiary-container` background.' },
+      ],
+    },
+    {
+      title: 'Error',
+      description: 'Signals destructive or invalid states — validation failures, delete confirmations, and critical alerts.',
+      tokens: [
+        { name: 'error',                  hex: '#dc2626', description: 'Use for error text, destructive action buttons, and form validation failure indicators.' },
+        { name: 'on-error',               hex: '#ffffff', description: 'Text and icons placed on an `error` background.' },
+        { name: 'error-container',        hex: '#fee2e2', description: 'Soft error tint. Use for inline error banners, invalid field backgrounds, or alert boxes.' },
+        { name: 'on-error-container',     hex: '#7f1d1d', description: 'Text and icons placed on an `error-container` background.' },
+      ],
+    },
+    {
+      title: 'Info',
+      description: 'Signals informational content that is neutral and non-urgent.',
+      tokens: [
+        { name: 'info',                   hex: '#2563eb', description: 'Use for informational badges, help text callouts, and status indicators.' },
+        { name: 'on-info',                hex: '#ffffff', description: 'Text and icons placed on an `info` background.' },
+        { name: 'info-container',         hex: '#dbeafe', description: 'Soft info tint. Use for info banners, instructional callout boxes, or tooltip backgrounds.' },
+        { name: 'on-info-container',      hex: '#1e3a8a', description: 'Text and icons placed on an `info-container` background.' },
+      ],
+    },
+    {
+      title: 'Success',
+      description: 'Signals a positive, completed, or confirmed state.',
+      tokens: [
+        { name: 'success',                hex: '#16a34a', description: 'Use for success toasts, completion checkmarks, and positive status indicators.' },
+        { name: 'on-success',             hex: '#ffffff', description: 'Text and icons placed on a `success` background.' },
+        { name: 'success-container',      hex: '#dcfce7', description: 'Soft success tint. Use for success banners or confirmed-state row highlights.' },
+        { name: 'on-success-container',   hex: '#14532d', description: 'Text and icons placed on a `success-container` background.' },
+      ],
+    },
+    {
+      title: 'Warning',
+      description: 'Signals a cautionary state that needs attention but is not a blocking error.',
+      tokens: [
+        { name: 'warning',                hex: '#d97706', description: 'Use for warning badges, advisory alerts, and caution indicators.' },
+        { name: 'on-warning',             hex: '#ffffff', description: 'Text and icons placed on a `warning` background.' },
+        { name: 'warning-container',      hex: '#fef3c7', description: 'Soft warning tint. Use for advisory banners or rows requiring user attention.' },
+        { name: 'on-warning-container',   hex: '#78350f', description: 'Text and icons placed on a `warning-container` background.' },
+      ],
+    },
+    {
+      title: 'Surface',
+      description: 'The layered neutral backgrounds that make up the app shell. Based on Material 3 surface roles — higher "container" levels sit visually higher in the hierarchy.',
+      tokens: [
+        { name: 'surface',                      hex: '#fafafa', description: 'Default page/app background. Applied to `<body>` and full-bleed layouts.' },
+        { name: 'on-surface',                   hex: '#18181b', description: 'Primary body text and icons on any surface background.' },
+        { name: 'surface-subtle',               hex: '#f4f4f5', description: 'Slightly elevated surface. Use for sidebar backgrounds, striped table rows, or inset areas.' },
+        { name: 'on-surface-subtle',            hex: '#52525b', description: 'De-emphasized text — placeholders, secondary labels, metadata.' },
+        { name: 'surface-dim',                  hex: '#f4f4f5', description: 'Dimmed surface for disabled regions or content behind a scrim.' },
+        { name: 'surface-bright',               hex: '#ffffff', description: 'Brightest surface. Use for modal backgrounds and the top layer of stacked cards.' },
+        { name: 'surface-container-lowest',     hex: '#ffffff', description: 'Lowest elevation container. Use for inset or recessed content wells.' },
+        { name: 'surface-container-low',        hex: '#fafafa', description: 'Low elevation container. Use for list backgrounds or page section fills.' },
+        { name: 'surface-container',            hex: '#f4f4f5', description: 'Standard card and panel background.' },
+        { name: 'surface-container-high',       hex: '#e4e4e7', description: 'Elevated card background. Use for hover states or raised panels.' },
+        { name: 'surface-container-highest',    hex: '#d4d4d8', description: 'Highest elevation container. Use for dropdown menus, popovers, or floating elements.' },
+      ],
+    },
+    {
+      title: 'Outline',
+      description: 'Border and divider colors.',
+      tokens: [
+        { name: 'outline',        hex: '#d4d4d8', description: 'Standard border for inputs, cards, and dividers.' },
+        { name: 'outline-subtle', hex: '#e4e4e7', description: 'Subtle divider lines. Use for section separators and de-emphasized borders.' },
+      ],
+    },
+    {
+      title: 'Inverse',
+      description: 'Flipped-theme surfaces for snackbars, toasts, and tooltip-style elements that must stand out against the default background.',
+      tokens: [
+        { name: 'inverse-surface',    hex: '#27272a', description: 'Dark background for toasts and snackbars in light mode.' },
+        { name: 'inverse-on-surface', hex: '#f4f4f5', description: 'Text on an `inverse-surface` background.' },
+        { name: 'inverse-primary',    hex: '#6ee7b7', description: 'Primary accent color rendered on an inverse surface (e.g. a link inside a dark toast).' },
+      ],
+    },
+    {
+      title: 'Location Status',
+      description: 'Semantic colors for canvassing location markers on the map and in lists. Each has an `on-*` companion for text/icon contrast.',
+      tokens: [
+        { name: 'location-unvisited',        hex: '#3b82f6', description: 'Location has not yet been visited during this canvass.' },
+        { name: 'on-location-unvisited',     hex: '#ffffff', description: 'Text and icons on a `location-unvisited` background.' },
+        { name: 'location-contacted',        hex: '#15803d', description: 'Canvasser made successful contact at this location.' },
+        { name: 'on-location-contacted',     hex: '#ffffff', description: 'Text and icons on a `location-contacted` background.' },
+        { name: 'location-no-contact',       hex: '#a1a1aa', description: 'Canvasser visited but no one answered.' },
+        { name: 'on-location-no-contact',    hex: '#27272a', description: 'Text and icons on a `location-no-contact` background.' },
+        { name: 'location-hostile',          hex: '#991b1b', description: 'Location is marked do-not-contact or was hostile.' },
+        { name: 'on-location-hostile',       hex: '#ffffff', description: 'Text and icons on a `location-hostile` background.' },
+      ],
+    },
+    {
+      title: 'Utility',
+      description: 'Miscellaneous tokens for overlays and shadows.',
+      tokens: [
+        { name: 'scrim',  hex: 'rgba(0,0,0,0.5)', description: 'Semi-transparent black overlay used behind modals, drawers, and bottom sheets.' },
+        { name: 'shadow', hex: '#000000',          description: 'Color used for drop shadows on elevated surfaces.' },
+      ],
+    },
+  ];
+
+  const lines: string[] = [
+    '# Color Tokens',
+    '',
+    "TurfBuilder's color system is based on [Material 3 color roles](https://m3.material.io/styles/color/roles). Every token is available as a Tailwind utility class (`bg-*`, `text-*`, `border-*`) and as a CSS custom property (`var(--token-name)`).",
+    '',
+    'The theme switches automatically based on OS preference. Dark mode values are defined in `src/app.css` under `:root[data-theme=\'dark\']`.',
+    '',
+  ];
+
+  for (const group of groups) {
+    lines.push(`## ${group.title}`);
+    lines.push('');
+    lines.push(group.description);
+    lines.push('');
+    lines.push('| Token | &nbsp; | Description |');
+    lines.push('|-------|:------:|-------------|');
+    for (const token of group.tokens) {
+      lines.push(`| \`${token.name}\` | ${swatch(token.hex)} | ${token.description} |`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -690,6 +865,10 @@ async function main() {
     ].join('\n')
   );
 
+  // ── Color Tokens ──────────────────────────────────────────────────────────
+  console.log('\n🎨 Writing color tokens…');
+  writeDoc(join(DOCS, 'design', 'colors.md'), renderColorTokensDoc());
+
   // ── VitePress sidebar.ts ──────────────────────────────────────────────────
   console.log('\n📑 Writing sidebar.ts…');
 
@@ -701,6 +880,13 @@ async function main() {
       collapsed: false,
       items: [
         { text: 'Setup', link: '/getting-started' },
+      ],
+    },
+    {
+      text: 'Design',
+      collapsed: false,
+      items: [
+        { text: 'Color Tokens', link: '/design/colors' },
       ],
     },
     {

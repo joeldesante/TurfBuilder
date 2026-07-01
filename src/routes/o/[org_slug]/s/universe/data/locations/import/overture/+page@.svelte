@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { getDuckDB } from '$lib/client/duckdb.js';
-	import OvertureImportPage from '$pages/universe/data/locations/import/OvertureImportPage.svelte';
+	import OvertureImportPage from '$pages/o/s/universe/data/locations/import/OvertureImportPage.svelte';
 	import type {
 		ImportProgress,
 		ImportResult
-	} from '$pages/universe/data/locations/import/OvertureImportPage.svelte';
+	} from '$pages/o/s/universe/data/locations/import/OvertureImportPage.svelte';
 
 	const { data } = $props();
 

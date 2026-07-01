@@ -6,28 +6,6 @@ Unauthenticated endpoints for geographic location data. Used by the volunteer ma
 
 ---
 
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/locations`
-
-Returns all locations within a lat/lon bounding box. Used by the volunteer
-map to populate visible addresses. Results are capped at 500 rows.
-
-**Auth:** Public — no authentication required  
-
-**Query Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `lat_min` | `number` | Southern boundary latitude (-90 to 90) |
-| `lat_max` | `number` | Northern boundary latitude (-90 to 90) |
-| `lon_min` | `number` | Western boundary longitude (-180 to 180) |
-| `lon_max` | `number` | Eastern boundary longitude (-180 to 180) |
-
-**Response**
-
-Array of location objects: id, location_name, category, latitude, longitude, street, locality, postcode, region, country
-
----
-
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/turf/{id}/locations`
 
 Returns all locations assigned to a turf along with a geographic center point.
@@ -69,7 +47,7 @@ If the user is already in the turf the insert is silently ignored.
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/map/{id}/location/{location_id}`
 
 Records a door-knock attempt for a specific address within a turf.
-Upserts contact status, a free-text note, and all survey question responses in a single transaction.
+Creates or updates the attempt record, then saves survey responses when contact was made.
 Caller must be an assigned turf member.
 
 **Auth:** Org member  
@@ -78,9 +56,9 @@ Caller must be an assigned turf member.
 
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
-| `contactMade` | `boolean` | ✓ | Whether the canvasser made contact at this address |
+| `contactStatus` | `'no_contact'|'contacted'` | ✓ | Outcome of the canvassing visit |
 | `attemptNote` | `string` |  | Optional free-text note about the visit |
-| `questions` | `any` |  | {Array<{db_id: uuid, response: string}>} required - Survey question responses |
+| `questions` | `any` |  | {Array<{db_id: uuid, response: string}>} required - Survey question responses (only saved when contacted) |
 
 **Response**
 
@@ -104,6 +82,19 @@ Array of { id, visited: boolean, contact_made: boolean | null }
 # Surveys
 
 Staff endpoints for creating and managing survey templates and questions.
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/surveys`
+
+Lists surveys for the organization.
+
+**Auth:** Staff  
+**Permission:** `survey:read`
+
+**Response**
+
+Array of { id: string, name: string, description: string | null }
 
 ---
 
@@ -197,8 +188,14 @@ Staff endpoints for creating canvassing territories from GeoJSON polygons.
 
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/turf/create`
 
-Creates one or more turfs from GeoJSON polygon geometries. For each polygon,
-PostGIS ST_Contains automatically assigns all locations within its bounds.
+Creates one or more turfs from GeoJSON polygon geometries.
+
+When called from the universe list-based cut flow, supply `list_id` and `bucket_id`.
+Locations are then sourced from `universe.list_entry` for that list using ST_Contains.
+
+When called without a list context, locations are sourced from `location_unified`
+(the traditional two-tier location pool) using ST_Contains.
+
 Each turf receives a unique 6-character join code. Defaults to a 7-day expiry.
 
 **Auth:** Staff  
@@ -208,13 +205,28 @@ Each turf receives a unique 6-character join code. Defaults to a 7-day expiry.
 
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
-| `polygons` | `any` |  | {Array<{geometry: GeoJSON}>} required - GeoJSON polygon geometries defining each turf boundary |
+| `polygons` | `any` |  | {Array<{geometry: GeoJSON}>} required - GeoJSON polygon geometries |
 | `survey_id` | `string` | ✓ | UUID of the survey to attach to all created turfs |
 | `expires_at` | `string` |  | ISO 8601 expiration date; defaults to 7 days from now |
+| `list_id` | `string` |  | UUID of the universe list this cut derives from |
+| `bucket_id` | `string` |  | UUID of the universe bucket this cut derives from |
 
 **Response**
 
 { turfs: Turf[] } Array of created turf records
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/turfs/{id}/preview`
+
+Returns the polygon bounds and all assigned locations for a turf, for map preview.
+
+**Auth:** Staff  
+**Permission:** `turf:read`
+
+**Response**
+
+{ bounds: string, locations: LocationPreview[] }
 
 ---
 
@@ -239,34 +251,13 @@ Returns all members of the organization with their assigned role info.
 
 ### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/api/members/{user_id}`
 
-Assigns or removes a role for an org member.
-Blocked if the target is the last administrator and the new role is not also an owner role.
-
-**Auth:** Owner only  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `role_id` | `string | null` | ✓ | Role UUID to assign, or null to remove the role |
-
-**Response**
-
-{ ok: true }
-
 ---
 
 ### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/members/{user_id}`
 
-Removes a member from the organization entirely.
-Blocked if the target is the last administrator (uses FOR UPDATE lock to prevent race conditions).
+---
 
-**Auth:** Staff  
-**Permission:** `member:delete`
-
-**Response**
-
-{ ok: true }
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/members/{user_id}/permissions`
 
 ---
 
@@ -278,40 +269,40 @@ Owner-only endpoints for managing custom staff roles and their permission sets.
 
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/roles`
 
-Returns all custom roles for the organization, each with their permission set.
+Returns all roles for the organization, each with their permission set.
 
-**Auth:** Staff  
-**Permission:** `member:read`
+**Auth:** role.read  
 
 **Response**
 
-Array of { id, name, is_owner, is_default, permissions: string[] }
+Array of { id, name, is_default, permissions: string[] }
 
 ---
 
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/roles`
 
-Creates a new custom staff role for the organization.
+Creates a new role for the organization.
 
-**Auth:** Owner only  
+**Auth:** role.create  
 
 **Request Body**
 
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
 | `name` | `string` | ✓ | Display name for the new role |
+| `weight` | `number` |  | optional - Priority weight (lower = higher priority) |
 
 **Response**
 
-{ id, name, is_owner, is_default }
+{ id, name, is_default }
 
 ---
 
 ### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/api/roles/{id}`
 
-Renames a custom role. System roles (is_owner = true) cannot be renamed.
+Renames a role. The default (Everyone) role cannot be renamed.
 
-**Auth:** Owner only  
+**Auth:** role.update  
 
 **Request Body**
 
@@ -321,15 +312,15 @@ Renames a custom role. System roles (is_owner = true) cannot be renamed.
 
 **Response**
 
-{ id, name, is_owner, is_default }
+{ id, name, is_default }
 
 ---
 
 ### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/roles/{id}`
 
-Permanently deletes a custom role. System roles and the default role cannot be deleted.
+Permanently deletes a role. The default (Everyone) role cannot be deleted.
 
-**Auth:** Owner only  
+**Auth:** role.delete  
 
 **Response**
 
@@ -339,18 +330,15 @@ Permanently deletes a custom role. System roles and the default role cannot be d
 
 ### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/roles/{id}/permissions`
 
-Replaces the full permission set for a role. Any permissions not in the submitted
-list are removed. Each entry must be a valid `resource:action` key.
-Valid resources: canvass, turf, survey, response, member, plugin.
-Valid actions: use, create, read, update, delete.
+Replaces the full permission set for a role.
 
-**Auth:** Owner only  
+**Auth:** role.update  
 
 **Request Body**
 
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
-| `permissions` | `string[]` | ✓ | Full list of resource:action strings to assign |
+| `permissions` | `string[]` | ✓ | Full list of resource.action keys to grant |
 
 **Response**
 
@@ -368,7 +356,7 @@ Owner-only endpoints for token-based and slug-based org invite links.
 
 Returns all token-based invite links for the org plus the slug invite toggle state.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Response**
 
@@ -381,7 +369,7 @@ Returns all token-based invite links for the org plus the slug invite toggle sta
 Creates a new token-based invite link for the organization.
 Accessible at `/invite/{token}` once created.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Request Body**
 
@@ -399,7 +387,7 @@ Accessible at `/invite/{token}` once created.
 
 Permanently revokes an invite link. The link can no longer be used to join the org.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Response**
 
@@ -412,7 +400,7 @@ Permanently revokes an invite link. The link can no longer be used to join the o
 Enables or disables the org slug-based open invite.
 When enabled, anyone with the link can join at `/invite/{org_slug}`.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Request Body**
 
@@ -497,5 +485,149 @@ Config and any plugin-stored data are retained for potential re-installation.
 **Response**
 
 { ok: true }
+
+---
+
+# Other
+
+Miscellaneous endpoints.
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/infra/email/api`
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/infra/email/templates/{key}/api`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/infra/migrate/api`
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/infra/settings/api`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/buckets`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/buckets/{slug}/lists`
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/locations`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/locations/import`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/query`
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/scripts`
+
+Lists scripts for the organization, optionally filtered by bucket slug.
+
+**Auth:** Staff  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `bucket` | `string` | optional - bucket slug to filter by |
+
+**Response**
+
+Array of { id: string, name: string }
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/scripts`
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/scripts/{id}`
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/search`
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/lists/{id}/locations`
+
+Returns all location entries from a universe list with their coordinates.
+Only works for lists with entity_type = 'locations'.
+
+**Auth:** Staff  
+**Permission:** `turf:create`
+
+**Response**
+
+Array of location entries with lat/lng for map display
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/lists/{id}/turfs`
+
+Returns all turfs for a universe list, including polygon geometry (GeoJSON),
+for the list overview map.
+
+**Auth:** Staff  
+**Permission:** `turf:read`
+
+**Response**
+
+Array of turfs with GeoJSON bounds and metadata
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/import`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/import/overture`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/people/import`
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/stats`
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/universe/data/integrations/api`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/orgs/create`
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/setup/api/check-db`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/create-admin`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/create-schema`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/save-email-settings`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/save-settings`
 
 ---

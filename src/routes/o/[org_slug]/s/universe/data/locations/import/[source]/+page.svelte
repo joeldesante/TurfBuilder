@@ -1,6 +1,6 @@
 <script lang="ts">
-	import UniverseDataLocationsImportPage from '$pages/universe/data/locations/import/UniverseDataLocationsImportPage.svelte';
-	import type { ImportSource } from '$pages/universe/data/locations/import/UniverseDataLocationsImportPage.svelte';
+	import UniverseDataLocationsImportPage from '$pages/o/s/universe/data/locations/import/UniverseDataLocationsImportPage.svelte';
+	import type { ImportSource } from '$pages/o/s/universe/data/locations/import/UniverseDataLocationsImportPage.svelte';
 
 	const { data } = $props();
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import UniverseDataManagerPage from '$pages/universe/manage/UniverseDataManagerPage.svelte';
-	import type { ImportResult } from '$pages/universe/manage/UniverseDataManagerPage.svelte';
+	import UniverseDataManagerPage from '$pages/o/s/universe/manage/UniverseDataManagerPage.svelte';
+	import type { ImportResult } from '$pages/o/s/universe/manage/UniverseDataManagerPage.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 

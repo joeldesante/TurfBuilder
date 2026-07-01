@@ -26,7 +26,7 @@ If the user is already in the turf the insert is silently ignored.
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/map/{id}/location/{location_id}`
 
 Records a door-knock attempt for a specific address within a turf.
-Upserts contact status, a free-text note, and all survey question responses in a single transaction.
+Creates or updates the attempt record, then saves survey responses when contact was made.
 Caller must be an assigned turf member.
 
 **Auth:** Org member  
@@ -35,9 +35,9 @@ Caller must be an assigned turf member.
 
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
-| `contactMade` | `boolean` | ✓ | Whether the canvasser made contact at this address |
+| `contactStatus` | `'no_contact'|'contacted'` | ✓ | Outcome of the canvassing visit |
 | `attemptNote` | `string` |  | Optional free-text note about the visit |
-| `questions` | `any` |  | {Array<{db_id: uuid, response: string}>} required - Survey question responses |
+| `questions` | `any` |  | {Array<{db_id: uuid, response: string}>} required - Survey question responses (only saved when contacted) |
 
 **Response**
 

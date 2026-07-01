@@ -22,3 +22,4 @@ All org-scoped routes are prefixed with `/o/{org_slug}/`.
 - [Roles & Permissions](./roles.md) — Owner-only endpoints for managing custom staff roles and their permission sets.
 - [Invite Links](./invites.md) — Owner-only endpoints for token-based and slug-based org invite links.
 - [Plugins](./plugins.md) — Staff endpoints for installing, configuring, and routing to plugin-defined API handlers.
+- [Other](./other.md) — Miscellaneous endpoints.

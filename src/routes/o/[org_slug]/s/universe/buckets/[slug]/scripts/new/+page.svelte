@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import CreateScriptPage from '$pages/universe/buckets/scripts/new/CreateScriptPage.svelte';
+	import CreateScriptPage from '$pages/o/s/universe/buckets/scripts/new/CreateScriptPage.svelte';
 
 	const { data } = $props();
 

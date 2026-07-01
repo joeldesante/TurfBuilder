@@ -1,5 +1,12 @@
 /* Global styles for Observable Plot chart components. */
 
+[aria-label='x-axis tick label'] text,
+[aria-label='y-axis tick label'] text,
+[aria-label='x-axis label'] text,
+[aria-label='y-axis label'] text {
+	fill: var(--on-surface-subtle) !important;
+}
+
 [aria-label='tip'] path {
 	filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.1)) drop-shadow(0 2px 4px rgb(0 0 0 / 0.06));
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import JoinTurf from '$pages/join/JoinTurf.svelte';
+	import JoinTurf from '$pages/o/join/JoinTurf.svelte';
 
 	const orgSlug = $derived($page.params.org_slug);
 

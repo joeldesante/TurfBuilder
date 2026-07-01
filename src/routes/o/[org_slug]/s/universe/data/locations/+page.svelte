@@ -1,5 +1,5 @@
 <script lang="ts">
-	import UniverseDataLocationsPage from '$pages/universe/data/locations/UniverseDataLocationsPage.svelte';
+	import UniverseDataLocationsPage from '$pages/o/s/universe/data/locations/UniverseDataLocationsPage.svelte';
 	const { data } = $props();
 </script>
 

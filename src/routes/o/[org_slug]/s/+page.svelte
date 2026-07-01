@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { authClient } from '$lib/client';
-	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
-	import Button from '$components/actions/button/Button.svelte';
+	import StaffDashboardPage from '$pages/o/s/dashboard/StaffDashboardPage.svelte';
 	const { data } = $props();
 </script>
 
@@ -9,11 +7,7 @@
 	<title>Dashboard | {data.config?.application_name ?? 'TurfBuilder'}</title>
 </svelte:head>
 
-<PageHeader
-	title="Dashboard"
-	subheading="This will be the main portal for the system, giving a high level overview of important data and quick links to other pages."
+<StaffDashboardPage
+	orgSlug={data.organization.slug}
+	applicationName={data.config?.application_name ?? 'TurfBuilder'}
 />
-
-<div class="p-6">
-	<Button variant="outline" href="/o/{data.organization.slug}/join">Join a Turf</Button>
-</div>

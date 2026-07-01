@@ -4,6 +4,19 @@ Staff endpoints for creating and managing survey templates and questions.
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/surveys`
+
+Lists surveys for the organization.
+
+**Auth:** Staff  
+**Permission:** `survey:read`
+
+**Response**
+
+Array of { id: string, name: string, description: string | null }
+
+---
+
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/surveys`
 
 Creates a new survey template for the organization with no questions.

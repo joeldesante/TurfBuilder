@@ -2,6 +2,11 @@ import { defineConfig } from 'vitepress';
 import { sidebar } from './sidebar';
 
 export default defineConfig({
+  vite: {
+    server: {
+      port: 5174,
+    },
+  },
   title: 'TurfBuilder',
   description: 'Internal documentation — API reference, component library, and plugin system.',
   srcDir: '.',

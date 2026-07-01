@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import LocationDetailPage from '$pages/universe/buckets/locations/LocationDetailPage.svelte';
+	import LocationDetailPage from '$pages/o/s/universe/buckets/locations/LocationDetailPage.svelte';
 
 	const { data } = $props();
 
