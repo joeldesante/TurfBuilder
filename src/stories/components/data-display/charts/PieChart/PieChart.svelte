@@ -44,7 +44,10 @@
 	const colorScale = $derived(d3.scaleOrdinal(colors).domain(data.map((d) => d.label)));
 
 	const arcs = $derived(() => {
-		const pie = d3.pie<Slice>().value((d) => d.value).sort(null);
+		const pie = d3
+			.pie<Slice>()
+			.value((d) => d.value)
+			.sort(null);
 		const arc = d3.arc<d3.PieArcDatum<Slice>>().innerRadius(innerRadius).outerRadius(radius);
 		return pie(data).map((d) => ({ ...d, path: arc(d) ?? '' }));
 	});
@@ -59,53 +62,53 @@
 
 <figure>
 	{#if title}
-		<figcaption class="text-lg font-semibold text-on-surface">{title}</figcaption>
+		<figcaption class="text-2xl font-semibold text-on-surface">{title}</figcaption>
 	{/if}
 	{#if subtitle}
 		<p class="text-xs text-on-surface-subtle">{subtitle}</p>
 	{/if}
-<div class="relative inline-block">
-	<svg bind:this={svgEl} width={size} height={size} aria-label="Pie chart">
-		<g transform="translate({size / 2},{size / 2})">
-			{#each arcs() as arc}
-				<path
-					d={arc.path}
-					fill={arc.data.color ?? colorScale(arc.data.label)}
-					stroke="var(--surface)"
-					stroke-width="2"
-					class="cursor-pointer transition-opacity"
-					opacity={hoveredSlice && hoveredSlice !== arc.data ? 0.6 : 1}
-					onmousemove={(e) => onMouseMove(e, arc.data)}
-					onmouseleave={() => (hoveredSlice = null)}
-					role="img"
-					aria-label="{arc.data.label}: {arc.data.value}"
-				/>
-			{/each}
-		</g>
-	</svg>
+	<div class="relative inline-block">
+		<svg bind:this={svgEl} width={size} height={size} aria-label="Pie chart">
+			<g transform="translate({size / 2},{size / 2})">
+				{#each arcs() as arc}
+					<path
+						d={arc.path}
+						fill={arc.data.color ?? colorScale(arc.data.label)}
+						stroke="var(--surface)"
+						stroke-width="2"
+						class="cursor-pointer transition-opacity"
+						opacity={hoveredSlice && hoveredSlice !== arc.data ? 0.6 : 1}
+						onmousemove={(e) => onMouseMove(e, arc.data)}
+						onmouseleave={() => (hoveredSlice = null)}
+						role="img"
+						aria-label="{arc.data.label}: {arc.data.value}"
+					/>
+				{/each}
+			</g>
+		</svg>
 
-	{#if tooltip && hoveredSlice}
-		<div
-			class="pointer-events-none absolute z-50 rounded-lg bg-inverse-surface px-3 py-2 text-xs text-inverse-on-surface shadow-md"
-			style="left: {tooltipX + 12}px; top: {tooltipY - 8}px"
-		>
-			<span class="font-medium">{hoveredSlice.label}</span>
-			<span class="ml-2">{hoveredSlice.value}</span>
-		</div>
-	{/if}
+		{#if tooltip && hoveredSlice}
+			<div
+				class="pointer-events-none absolute z-50 rounded-lg bg-inverse-surface px-3 py-2 text-xs text-inverse-on-surface shadow-md"
+				style="left: {tooltipX + 12}px; top: {tooltipY - 8}px"
+			>
+				<span class="font-medium">{hoveredSlice.label}</span>
+				<span class="ml-2">{hoveredSlice.value}</span>
+			</div>
+		{/if}
 
-	{#if legend}
-		<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-			{#each data as slice}
-				<div class="flex items-center gap-1.5 text-xs text-on-surface">
-					<span
-						class="inline-block size-2.5 rounded-full"
-						style="background: {slice.color ?? colorScale(slice.label)}"
-					></span>
-					{slice.label}
-				</div>
-			{/each}
-		</div>
-	{/if}
-</div>
+		{#if legend}
+			<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+				{#each data as slice}
+					<div class="flex items-center gap-1.5 text-xs text-on-surface">
+						<span
+							class="inline-block size-2.5 rounded-full"
+							style="background: {slice.color ?? colorScale(slice.label)}"
+						></span>
+						{slice.label}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 </figure>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import TurfDetailPage from '$pages/universe/buckets/lists/turfs/TurfDetailPage.svelte';
+	import TurfDetailPage from '$pages/o/s/universe/buckets/lists/turfs/TurfDetailPage.svelte';
 	import { page } from '$app/state';
 
 	const { data } = $props();

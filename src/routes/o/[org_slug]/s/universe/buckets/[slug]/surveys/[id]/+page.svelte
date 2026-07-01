@@ -1,6 +1,6 @@
 <script lang="ts">
-	import BucketSurveyEditorPage from '$pages/universe/buckets/surveys/BucketSurveyEditorPage.svelte';
-	import type { SurveyQuestion } from '$pages/universe/buckets/surveys/BucketSurveyEditorPage.svelte';
+	import BucketSurveyEditorPage from '$pages/o/s/universe/buckets/surveys/BucketSurveyEditorPage.svelte';
+	import type { SurveyQuestion } from '$pages/o/s/universe/buckets/surveys/BucketSurveyEditorPage.svelte';
 
 	const { data } = $props();
 

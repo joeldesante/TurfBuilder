@@ -1,5 +1,5 @@
 <script lang="ts">
-	import UniverseIntegrationsPage from '$pages/universe/data/integrations/UniverseIntegrationsPage.svelte';
+	import UniverseIntegrationsPage from '$pages/o/s/universe/data/integrations/UniverseIntegrationsPage.svelte';
 	import { invalidateAll } from '$app/navigation';
 
 	const { data } = $props();

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BucketScriptEditorPage from '$pages/universe/buckets/scripts/BucketScriptEditorPage.svelte';
+	import BucketScriptEditorPage from '$pages/o/s/universe/buckets/scripts/BucketScriptEditorPage.svelte';
 
 	const { data } = $props();
 

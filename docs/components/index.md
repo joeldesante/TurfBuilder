@@ -12,3 +12,4 @@ All components use runes syntax — `$props()`, `$state()`, `$derived()`, etc.
 - [Data-inputs](./data-inputs.md)
 - [Feedback](./feedback.md)
 - [Layout](./layout.md)
+- [Universe](./universe.md)

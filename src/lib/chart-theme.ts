@@ -8,10 +8,10 @@ export const chartTheme: Plot.PlotOptions = {
 		fontSize: '12px'
 	},
 	x: {
-		line: true
+		line: false
 	},
 	y: {
-		line: true,
+		line: false,
 		grid: true
 	}
 };

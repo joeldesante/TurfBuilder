@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
-	import RoleDetailPage from '$pages/settings/roles/RoleDetailPage.svelte';
+	import RoleDetailPage from '$pages/o/s/settings/roles/RoleDetailPage.svelte';
 
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug);

@@ -23,6 +23,7 @@
 		"db:prod": "NODE_ENV=production node-pg-migrate -j ts --database-url-var MIGRATION_DATABASE_URL",
 		"docs": "tsx scripts/build-docs.ts",
 		"import:locations": "tsx scripts/import-locations.ts",
+		"new:component": "node scripts/new-component.js",
 		"docs:dev": "npm run docs && vitepress dev docs",
 		"docs:build": "npm run docs && vitepress build docs",
 		"docs:preview": "vitepress preview docs",

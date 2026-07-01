@@ -1,5 +1,5 @@
 <script lang="ts">
-	import LocationDataPage from '$pages/settings/locations/LocationDataPage.svelte';
+	import LocationDataPage from '$pages/o/s/settings/locations/LocationDataPage.svelte';
 	import { page } from '$app/stores';
 	const { data } = $props();
 </script>

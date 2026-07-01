@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
-	import MemberDetailPage from '$pages/members/MemberDetailPage.svelte';
+	import MemberDetailPage from '$pages/o/s/members/MemberDetailPage.svelte';
 
 	const { data } = $props();
-	const orgSlug = $derived($page.params.org_slug);
+	const orgSlug = $derived($page.params.org_slug || '');
 	const userId = $derived($page.params.user_id);
 
 	async function handleSetPermission(permissionId: string, value: boolean | null) {

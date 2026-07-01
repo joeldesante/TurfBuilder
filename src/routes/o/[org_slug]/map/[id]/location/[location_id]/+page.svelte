@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import SurveyScreen from '$pages/survey/SurveyScreen.svelte';
+	import SurveyScreen from '$pages/o/map/location/SurveyScreen.svelte';
 
 	const { data } = $props();
 

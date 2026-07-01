@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import PersonProfilePage from '$pages/universe/people/PersonProfilePage.svelte';
+	import PersonProfilePage from '$pages/o/s/universe/people/PersonProfilePage.svelte';
 
 	const { data } = $props();
 

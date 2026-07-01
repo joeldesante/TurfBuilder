@@ -82,10 +82,12 @@
 | `id` | `string | undefined` | — |  |
 | `requirementIndicator` | `"required" | "optional" | "none" | undefined` | `'none'` |  |
 | `helperText` | `string | undefined` | — |  |
+| `helperContent` | `Snippet<[]> | undefined` | — |  |
 | `errors` | `string[] | undefined` | `[]` |  |
 | `dirty` | `boolean | undefined` | `false` |  |
 | `disabled` | `boolean | undefined` | `false` |  |
 | `children` | `Snippet<[]>` | **required** |  |
+| `labelAction` | `Snippet<[]> | undefined` | — |  |
 | `class` | `string | undefined` | `''` |  |
 
 ---
@@ -151,6 +153,34 @@
 | `name` | `string | undefined` | — |  |
 | `loop` | `boolean | undefined` | `false` |  |
 | `class` | `string | undefined` | `''` |  |
+
+---
+
+## RichTextEditor
+
+**Import:** `$components/data-inputs/rich-text-editor/RichTextEditor.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string | undefined` | `''` |  |
+| `onchange` | `((markdown: string) => void) | undefined` | — |  |
+| `saveStatus` | `"saving" | "saved" | null | undefined` | `null` |  |
+
+---
+
+## SearchBox
+
+**Import:** `$components/data-inputs/searchbox/SearchBox.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `close` | `(() => void) | undefined` | — |  |
+| `nav` | `SidebarNavEntry[] | undefined` | `[]` |  |
+| `open` | `boolean | undefined` | `false` |  |
 
 ---
 
@@ -226,6 +256,21 @@
 | `id` | `string | undefined` | — |  |
 | `children` | `Snippet<[]> | undefined` | — |  |
 | `class` | `string | undefined` | `''` |  |
+
+---
+
+## TagInput
+
+**Import:** `$components/data-inputs/tag-input/TagInput.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tags` | `string[]` | **required** |  |
+| `placeholder` | `string | undefined` | `'Type and press Enter…'` |  |
+| `disabled` | `boolean | undefined` | `false` |  |
+| `onchange` | `(tags: string[]) => void` | **required** |  |
 
 ---
 

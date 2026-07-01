@@ -19,6 +19,8 @@ Primary action element. Renders as a `<button>` or `<a>` depending on whether `h
 | `loading` | `boolean | undefined` | `false` | Shows a spinner and blocks clicks without disabling the element. |
 | `iconOnly` | `boolean | undefined` | `false` | Set when the button contains only an icon — requires `aria-label` for accessibility. |
 | `aria-label` | `string | undefined` | — | Required when `iconOnly` is true. |
+| `weight` | `Weight | undefined` | `'semibold'` | Font weight of the button label. |
+| `textSize` | `TextSize | undefined` | — | Overrides the text size set by `size`. |
 | `class` | `string | undefined` | `''` | Additional CSS classes. |
 
 ---

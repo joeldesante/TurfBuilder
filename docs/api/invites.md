@@ -8,7 +8,7 @@ Owner-only endpoints for token-based and slug-based org invite links.
 
 Returns all token-based invite links for the org plus the slug invite toggle state.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Response**
 
@@ -21,7 +21,7 @@ Returns all token-based invite links for the org plus the slug invite toggle sta
 Creates a new token-based invite link for the organization.
 Accessible at `/invite/{token}` once created.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Request Body**
 
@@ -39,7 +39,7 @@ Accessible at `/invite/{token}` once created.
 
 Permanently revokes an invite link. The link can no longer be used to join the org.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Response**
 
@@ -52,7 +52,7 @@ Permanently revokes an invite link. The link can no longer be used to join the o
 Enables or disables the org slug-based open invite.
 When enabled, anyone with the link can join at `/invite/{org_slug}`.
 
-**Auth:** Owner only  
+**Auth:** member.invite  
 
 **Request Body**
 

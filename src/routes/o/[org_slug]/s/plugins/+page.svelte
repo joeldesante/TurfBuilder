@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PluginsPage from '$pages/plugins/PluginsPage.svelte';
+	import PluginsPage from '$pages/o/s/plugins/PluginsPage.svelte';
 
 	const { data } = $props();
 
