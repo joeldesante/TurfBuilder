@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 @import './fonts.css';
 
+@utility no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+  }
+}
+
 /* ==========================================================================
    Theme uses Material 3 Color Roles, with a couple adjustments.
    https://m3.material.io/styles/color/roles

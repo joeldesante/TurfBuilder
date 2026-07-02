@@ -3,13 +3,14 @@ import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
 
 /**
- * Lists surveys for the organization.
+ * Lists surveys for the organization, optionally filtered by bucket.
  *
  * @auth staff
  * @permission survey:read
+ * @query bucketId {string} optional - bucket UUID to filter by
  * @returns Array of { id: string, name: string, description: string | null }
  */
-export async function GET({ locals }) {
+export async function GET({ locals, url }) {
 	if (!locals.organization?.role) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
@@ -17,12 +18,19 @@ export async function GET({ locals }) {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
+	const bucketId = url.searchParams.get('bucketId');
+
 	try {
 		return await withOrgTransaction(locals.organization.id, async (client) => {
-			const result = await client.query(
-				`SELECT id, name FROM survey WHERE organization_id = $1 ORDER BY name ASC`,
-				[locals.organization!.id]
-			);
+			const result = bucketId
+				? await client.query(
+						`SELECT id, name FROM survey WHERE organization_id = $1 AND bucket_id = $2 ORDER BY name ASC`,
+						[locals.organization!.id, bucketId]
+					)
+				: await client.query(
+						`SELECT id, name FROM survey WHERE organization_id = $1 ORDER BY name ASC`,
+						[locals.organization!.id]
+					);
 			return json(result.rows);
 		});
 	} catch (error) {
