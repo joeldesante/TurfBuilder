@@ -16,6 +16,7 @@ import ScrollIcon from 'phosphor-svelte/lib/ScrollIcon';
 import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
 import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
+import ChartPieSliceIcon from 'phosphor-svelte/lib/ChartPieSlice';
 
 interface ActivePlugin {
 	navEntries: SidebarNavEntry[];
@@ -102,7 +103,7 @@ export function buildStaffNav(
 							{ label: 'Locations', href: `/o/${orgSlug}/s/universe/data/locations`, icon: MapPinIcon },
 						]
 					},
-					{ label: 'Reports', href: `/o/${orgSlug}/s/universe/reports`, icon: FilesIcon },
+					{ label: 'Metrics', href: `/o/${orgSlug}/s/universe/metrics`, icon: ChartPieSliceIcon },
 				]
 			}
 		},
