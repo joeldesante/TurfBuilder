@@ -7,7 +7,7 @@
 
 	async function handleSelect(org: { id: string; slug: string }) {
 		await authClient.organization.setActive({ organizationId: org.id });
-		goto(`/o/${org.slug}/s/`);
+		goto(`/o/${org.slug}/`);
 	}
 </script>
 
@@ -15,4 +15,4 @@
 	<title>Select Organization</title>
 </svelte:head>
 
-<OrgPicker orgs={data.orgs} allowCreation={data.allowCreation} onSelect={handleSelect} />
+<OrgPicker orgs={data.orgs} allowCreation={false} onSelect={handleSelect} />
