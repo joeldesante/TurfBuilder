@@ -1,5 +1,7 @@
 <script lang="ts">
 	import PinInput from '$components/data-inputs/pin-input/PinInput.svelte';
+	import Button from '$components/actions/button/Button.svelte';
+	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 
 	interface Props {
 		onJoin: (code: string) => Promise<void>;
@@ -23,6 +25,11 @@
 		}
 	}
 </script>
+
+<Button href="/orgs" variant="ghost" size="sm" class="absolute left-4 top-4 gap-1">
+	<ArrowLeftIcon size={14} />
+	Organizations
+</Button>
 
 <div class="min-h-dvh flex items-center justify-center bg-surface p-4">
 	<div class="w-full max-w-sm space-y-6">

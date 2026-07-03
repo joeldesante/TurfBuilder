@@ -9,7 +9,7 @@
 	import { CheckCircleIcon, CircleIcon } from 'phosphor-svelte';
 
 	interface Props {
-		onComplete: (email: string, password: string) => Promise<void>;
+		onComplete?: (email: string, password: string) => Promise<void>;
 		signinHref?: string;
 	}
 
