@@ -33,10 +33,10 @@ export async function GET({ params, locals }) {
 					u.username AS author,
 					s.name AS survey_name,
 					ST_AsGeoJSON(t.bounds)::text AS bounds
-				FROM turf t
+				FROM universe.turf t
 				JOIN auth.user u ON t.author_id = u.id
-				LEFT JOIN survey s ON t.survey_id = s.id
-				WHERE t.list_id = $1 AND t.organization_id = $2 AND t.bounds IS NOT NULL
+				LEFT JOIN universe.survey s ON t.survey_id = s.id
+				WHERE t.list_id = $1 AND t.org_id = $2 AND t.bounds IS NOT NULL
 				ORDER BY t.created_at DESC`,
 				[params.id, locals.organization!.id]
 			);

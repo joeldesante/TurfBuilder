@@ -27,7 +27,7 @@ export async function POST({ request, locals, params }) {
 		await withOrgTransaction(locals.organization.id, async (client) => {
 			// Verify the survey belongs to this org before mutating.
 			const surveyCheck = await client.query(
-				`SELECT id FROM survey WHERE id = $1 AND organization_id = $2`,
+				`SELECT id FROM universe.survey WHERE id = $1 AND org_id = $2`,
 				[id, locals.organization!.id]
 			);
 			if (surveyCheck.rows.length === 0) {
@@ -36,7 +36,7 @@ export async function POST({ request, locals, params }) {
 
 			const exclude_ids = exclude || [];
 			await client.query(
-				`DELETE FROM survey_question WHERE id != ALL($1) AND survey_id = $2 AND organization_id = $3`,
+				`DELETE FROM universe.survey_question WHERE id != ALL($1) AND survey_id = $2 AND org_id = $3`,
 				[exclude_ids, id, locals.organization!.id]
 			);
 		});

@@ -12,7 +12,7 @@ export async function load({ locals, params }) {
 
 	return withOrgTransaction(orgId, async (client) => {
 		const membership = await client.query(
-			`SELECT id FROM turf_user WHERE turf_id = $1 AND user_id = $2 AND organization_id = $3`,
+			`SELECT id FROM universe.turf_user WHERE turf_id = $1 AND user_id = $2 AND org_id = $3`,
 			[turfId, userId, orgId]
 		);
 

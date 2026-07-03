@@ -17,7 +17,7 @@ export async function GET({ params, locals }) {
 		const result = await withOrgTransaction(locals.organization.id, async (client) => {
 			const turfResult = await client.query<{ id: string; code: string; bounds: string | null }>(
 				`SELECT id, code, ST_AsGeoJSON(bounds)::text AS bounds
-				 FROM turf WHERE id = $1 AND organization_id = $2`,
+				 FROM universe.turf WHERE id = $1 AND org_id = $2`,
 				[params.id, locals.organization!.id]
 			);
 
@@ -36,34 +36,25 @@ export async function GET({ params, locals }) {
 			}>(
 				`SELECT
 					tl.id,
-					COALESCE(pl.name, ol.name, l.location_name) AS name,
-					COALESCE(pl.address_line_1, ol.address_line_1, l.street) AS address_line_1,
-					COALESCE(pl.city, ol.city, l.locality) AS city,
-					COALESCE(pl.state_or_region, ol.state_or_region, l.region) AS state_or_region,
-					COALESCE(
-						ST_Y(pl.coordinates),
-						ST_Y(ol.coordinates),
-						l.latitude::float
-					) AS latitude,
-					COALESCE(
-						ST_X(pl.coordinates),
-						ST_X(ol.coordinates),
-						l.longitude::float
-					) AS longitude,
+					COALESCE(pl.name, ol.name) AS name,
+					COALESCE(pl.address_line_1, ol.address_line_1) AS address_line_1,
+					COALESCE(pl.city, ol.city) AS city,
+					COALESCE(pl.state_or_region, ol.state_or_region) AS state_or_region,
+					ST_Y(COALESCE(pl.coordinates, ol.coordinates)) AS latitude,
+					ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
 					(
 						SELECT tla.contact_made
-						FROM turf_location_attempt tla
+						FROM universe.turf_location_attempt tla
 						WHERE tla.turf_location_id = tl.id
 						ORDER BY tla.updated_at DESC
 						LIMIT 1
 					) AS contact_made
-				FROM turf_location tl
-				LEFT JOIN universe.public_location pl ON tl.universe_public_location_id = pl.id
-				LEFT JOIN universe.org_location ol ON tl.universe_org_location_id = ol.id
-				LEFT JOIN location l ON tl.location_id = l.id
-				WHERE tl.turf_id = $1 AND tl.organization_id = $2
-				AND COALESCE(ST_Y(pl.coordinates), ST_Y(ol.coordinates), l.latitude::float) IS NOT NULL
-				ORDER BY COALESCE(pl.name, ol.name, l.location_name)`,
+				FROM universe.turf_location tl
+				LEFT JOIN universe.public_location pl ON tl.public_location_id = pl.id
+				LEFT JOIN universe.org_location ol ON tl.org_location_id = ol.id
+				WHERE tl.turf_id = $1 AND tl.org_id = $2
+				AND COALESCE(pl.coordinates, ol.coordinates) IS NOT NULL
+				ORDER BY COALESCE(pl.name, ol.name)`,
 				[turf.id, locals.organization!.id]
 			);
 

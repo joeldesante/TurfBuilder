@@ -141,22 +141,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
-	// 4. Geometry helper function
-	// -------------------------------------------------------------------------
-	{
-		label: 'Creating geometry functions',
-		statements: [
-			`CREATE OR REPLACE FUNCTION update_geometry() RETURNS trigger AS $$
-			BEGIN
-				NEW.geom = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326);
-				RETURN NEW;
-			END;
-			$$ LANGUAGE plpgsql`
-		]
-	},
-
-	// -------------------------------------------------------------------------
-	// 5. perm_scope enum
+	// 4. perm_scope enum
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating permission scope enum',
@@ -164,184 +149,6 @@ export const SETUP_STEPS: SetupStep[] = [
 			`DO $$ BEGIN
 				CREATE TYPE perm_scope AS ENUM ('organization', 'infrastructure');
 			EXCEPTION WHEN duplicate_object THEN NULL; END $$`
-		]
-	},
-
-	// -------------------------------------------------------------------------
-	// 6. Core app tables: survey, survey_question, turf, location
-	// -------------------------------------------------------------------------
-	{
-		label: 'Creating survey and turf tables',
-		statements: [
-			`CREATE TABLE IF NOT EXISTS survey (
-				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				name            TEXT NOT NULL,
-				description     TEXT,
-				organization_id UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				created_at      TIMESTAMP NOT NULL DEFAULT now(),
-				updated_at      TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`CREATE INDEX IF NOT EXISTS survey_org_id_idx ON survey (organization_id)`,
-
-			`CREATE TABLE IF NOT EXISTS survey_question (
-				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				survey_id       UUID NOT NULL REFERENCES survey(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				question_text   TEXT NOT NULL,
-				question_type   TEXT NOT NULL,
-				order_index     INTEGER NOT NULL DEFAULT 0,
-				choices         TEXT[] NOT NULL DEFAULT ARRAY[]::text[],
-				organization_id UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				created_at      TIMESTAMP NOT NULL DEFAULT now(),
-				updated_at      TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`CREATE INDEX IF NOT EXISTS survey_question_org_id_idx ON survey_question (organization_id)`,
-
-			`CREATE TABLE IF NOT EXISTS turf (
-				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				code            TEXT NOT NULL,
-				author_id       UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				survey_id       UUID REFERENCES survey(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				organization_id UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				bounds          geometry,
-				expires_at      TIMESTAMP NOT NULL DEFAULT now(),
-				created_at      TIMESTAMP NOT NULL DEFAULT now(),
-				updated_at      TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`DO $$ BEGIN
-				ALTER TABLE turf ADD CONSTRAINT turf_code_unique UNIQUE (code);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`CREATE INDEX IF NOT EXISTS turf_org_id_idx ON turf (organization_id)`,
-
-			`CREATE TABLE IF NOT EXISTS location (
-				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				location_name   TEXT,
-				category        TEXT,
-				confidence      TEXT,
-				street          TEXT,
-				locality        TEXT,
-				postcode        TEXT,
-				region          TEXT,
-				country         TEXT,
-				latitude        NUMERIC(10,8) NOT NULL,
-				longitude       NUMERIC(11,8) NOT NULL,
-				geom            geometry(point, 4326),
-				organization_id UUID REFERENCES auth.organization(id) ON DELETE CASCADE,
-				created_at      TIMESTAMP NOT NULL DEFAULT now(),
-				updated_at      TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`CREATE INDEX IF NOT EXISTS locations_category_idx  ON location (category)`,
-			`CREATE INDEX IF NOT EXISTS locations_confidence_idx ON location (confidence)`,
-			`CREATE INDEX IF NOT EXISTS locations_geom_idx       ON location USING gist (geom)`,
-			`CREATE INDEX IF NOT EXISTS locations_locality_idx   ON location (locality)`,
-			`CREATE INDEX IF NOT EXISTS location_org_id_idx      ON location (organization_id)`,
-			`DROP TRIGGER IF EXISTS locations_geom_trigger ON location`,
-			`CREATE TRIGGER locations_geom_trigger
-				BEFORE INSERT OR UPDATE ON location
-				FOR EACH ROW EXECUTE FUNCTION update_geometry()`
-		]
-	},
-
-	// -------------------------------------------------------------------------
-	// 7. org_location (Tier 2 private locations)
-	// -------------------------------------------------------------------------
-	{
-		label: 'Creating org_location table',
-		statements: [
-			`CREATE TABLE IF NOT EXISTS org_location (
-				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				organization_id UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				location_name   TEXT,
-				category        TEXT,
-				confidence      TEXT,
-				street          TEXT,
-				locality        TEXT,
-				postcode        TEXT,
-				region          TEXT,
-				country         TEXT,
-				latitude        NUMERIC(10,8) NOT NULL,
-				longitude       NUMERIC(11,8) NOT NULL,
-				geom            geometry(point, 4326),
-				created_at      TIMESTAMP NOT NULL DEFAULT now(),
-				updated_at      TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`CREATE INDEX IF NOT EXISTS org_location_org_id_idx   ON org_location (organization_id)`,
-			`CREATE INDEX IF NOT EXISTS org_location_category_idx ON org_location (category)`,
-			`CREATE INDEX IF NOT EXISTS org_location_geom_idx     ON org_location USING gist (geom)`,
-			`DROP TRIGGER IF EXISTS org_location_geom_trigger ON org_location`,
-			`CREATE TRIGGER org_location_geom_trigger
-				BEFORE INSERT OR UPDATE ON org_location
-				FOR EACH ROW EXECUTE FUNCTION update_geometry()`
-		]
-	},
-
-	// -------------------------------------------------------------------------
-	// 8. Turf-location join tables and canvassing tables
-	// -------------------------------------------------------------------------
-	{
-		label: 'Creating canvassing tables',
-		statements: [
-			`CREATE TABLE IF NOT EXISTS turf_location (
-				id               UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				turf_id          UUID NOT NULL REFERENCES turf(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				location_id      UUID REFERENCES location(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				org_location_id  UUID REFERENCES org_location(id) ON DELETE CASCADE,
-				organization_id  UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				created_at       TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`DO $$ BEGIN
-				ALTER TABLE turf_location ADD CONSTRAINT turf_location_tier_check CHECK (
-					(location_id IS NOT NULL AND org_location_id IS NULL) OR
-					(location_id IS NULL AND org_location_id IS NOT NULL)
-				);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_tier1_unique
-				ON turf_location (turf_id, location_id) WHERE location_id IS NOT NULL`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_tier2_unique
-				ON turf_location (turf_id, org_location_id) WHERE org_location_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS turf_location_org_id_idx          ON turf_location (organization_id)`,
-			`CREATE INDEX IF NOT EXISTS turf_location_org_location_id_idx ON turf_location (org_location_id)`,
-
-			`CREATE TABLE IF NOT EXISTS turf_location_attempt (
-				id               UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				turf_location_id UUID NOT NULL REFERENCES turf_location(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				user_id          UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				organization_id  UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				attempt_note     TEXT,
-				contact_made     BOOLEAN,
-				created_at       TIMESTAMP NOT NULL DEFAULT now(),
-				updated_at       TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`DO $$ BEGIN
-				ALTER TABLE turf_location_attempt ADD CONSTRAINT turf_location_user_unique
-					UNIQUE (turf_location_id, user_id);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`CREATE INDEX IF NOT EXISTS turf_location_attempt_org_id_idx ON turf_location_attempt (organization_id)`,
-
-			`CREATE TABLE IF NOT EXISTS survey_question_response (
-				id                       UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				response_value           TEXT,
-				survey_question_id       UUID NOT NULL REFERENCES survey_question(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				turf_location_attempt_id UUID NOT NULL REFERENCES turf_location_attempt(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				organization_id          UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				created_at               TIMESTAMP NOT NULL DEFAULT now(),
-				updated_at               TIMESTAMP NOT NULL DEFAULT now()
-			)`,
-			`DO $$ BEGIN
-				ALTER TABLE survey_question_response ADD CONSTRAINT survey_question_response_unique
-					UNIQUE (survey_question_id, turf_location_attempt_id);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`CREATE INDEX IF NOT EXISTS survey_question_response_org_id_idx ON survey_question_response (organization_id)`,
-
-			`CREATE TABLE IF NOT EXISTS turf_user (
-				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				turf_id         UUID NOT NULL REFERENCES turf(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				user_id         UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE ON UPDATE CASCADE,
-				organization_id UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE
-			)`,
-			`DO $$ BEGIN
-				ALTER TABLE turf_user ADD CONSTRAINT turf_user_unique UNIQUE (turf_id, user_id);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`CREATE INDEX IF NOT EXISTS turf_user_org_id_idx ON turf_user (organization_id)`
 		]
 	},
 
@@ -600,30 +407,10 @@ export const SETUP_STEPS: SetupStep[] = [
 		label: 'Enabling row-level security',
 		statements: [
 			// Direct org_id tables
-			...['survey', 'turf', 'plugin_installation', 'survey_question',
-				'turf_location', 'turf_location_attempt', 'survey_question_response', 'turf_user'
-			].flatMap((table) => [
-				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
-				`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`,
-				`DROP POLICY IF EXISTS org_isolation ON ${table}`,
-				`CREATE POLICY org_isolation ON ${table}
-					USING (organization_id = ${safe})
-					WITH CHECK (organization_id = ${safe})`
-			]),
-
-			// location: two-tier — global rows always visible, org-private only to their org
-			`ALTER TABLE location ENABLE ROW LEVEL SECURITY`,
-			`ALTER TABLE location FORCE ROW LEVEL SECURITY`,
-			`DROP POLICY IF EXISTS location_visibility ON location`,
-			`CREATE POLICY location_visibility ON location
-				USING (organization_id IS NULL OR organization_id = ${safe})
-				WITH CHECK (organization_id IS NULL OR organization_id = ${safe})`,
-
-			// org_location
-			`ALTER TABLE org_location ENABLE ROW LEVEL SECURITY`,
-			`ALTER TABLE org_location FORCE ROW LEVEL SECURITY`,
-			`DROP POLICY IF EXISTS org_isolation ON org_location`,
-			`CREATE POLICY org_isolation ON org_location
+			`ALTER TABLE plugin_installation ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE plugin_installation FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON plugin_installation`,
+			`CREATE POLICY org_isolation ON plugin_installation
 				USING (organization_id = ${safe})
 				WITH CHECK (organization_id = ${safe})`,
 
@@ -751,47 +538,6 @@ export const SETUP_STEPS: SetupStep[] = [
 					'["username", "reset_url"]'
 				)
 			ON CONFLICT (key) DO NOTHING`
-		]
-	},
-
-	// -------------------------------------------------------------------------
-	// 16. Full-text search GIN indexes
-	// -------------------------------------------------------------------------
-	{
-		label: 'Creating full-text search indexes',
-		statements: [
-			`CREATE INDEX IF NOT EXISTS survey_fts_idx ON survey USING GIN (to_tsvector('simple', name || ' ' || COALESCE(description, '')))`,
-			`CREATE INDEX IF NOT EXISTS location_fts_idx ON location USING GIN (to_tsvector('simple', location_name || ' ' || COALESCE(street, '') || ' ' || COALESCE(locality, '')))`,
-			`CREATE INDEX IF NOT EXISTS org_location_fts_idx ON org_location USING GIN (to_tsvector('simple', location_name || ' ' || COALESCE(street, '') || ' ' || COALESCE(locality, '')))`
-		]
-	},
-
-	// -------------------------------------------------------------------------
-	// 16. location_unified view
-	// -------------------------------------------------------------------------
-	{
-		label: 'Creating location_unified view',
-		statements: [
-			`CREATE OR REPLACE VIEW location_unified AS
-				SELECT
-					id,
-					NULL::uuid AS organization_id,
-					location_name, category, confidence,
-					street, locality, postcode, region, country,
-					latitude, longitude, geom,
-					created_at, updated_at,
-					'tier1'::text AS tier
-				FROM location
-			UNION ALL
-				SELECT
-					id,
-					organization_id,
-					location_name, category, confidence,
-					street, locality, postcode, region, country,
-					latitude, longitude, geom,
-					created_at, updated_at,
-					'tier2'::text AS tier
-				FROM org_location`
 		]
 	},
 
@@ -1444,19 +1190,6 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
-	// 28.5. Add bucket_id to survey table
-	// -------------------------------------------------------------------------
-	{
-		label: 'Adding bucket_id to survey table',
-		statements: [
-			`DO $$ BEGIN
-				ALTER TABLE survey ADD COLUMN bucket_id UUID REFERENCES universe.bucket(id) ON DELETE CASCADE;
-			EXCEPTION WHEN duplicate_column THEN NULL; END $$`,
-			`CREATE INDEX IF NOT EXISTS survey_bucket_id_idx ON survey (bucket_id)`
-		]
-	},
-
-	// -------------------------------------------------------------------------
 	// 29. Universe script table
 	// -------------------------------------------------------------------------
 	{
@@ -1564,37 +1297,192 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
-	// 33. Turf-universe linkage: bucket/list scope on turf, universe locations on turf_location
+	// 33. Universe survey tables
+	//
+	// Surveys belong to a bucket. Questions belong to a survey.
 	// -------------------------------------------------------------------------
 	{
-		label: 'Linking turfs to universe buckets and lists',
+		label: 'Creating universe survey tables',
 		statements: [
-			`ALTER TABLE turf ADD COLUMN IF NOT EXISTS bucket_id UUID REFERENCES universe.bucket(id) ON DELETE SET NULL`,
-			`ALTER TABLE turf ADD COLUMN IF NOT EXISTS list_id UUID REFERENCES universe.list(id) ON DELETE SET NULL`,
-			`CREATE INDEX IF NOT EXISTS turf_bucket_id_idx ON turf (bucket_id) WHERE bucket_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS turf_list_id_idx ON turf (list_id) WHERE list_id IS NOT NULL`,
+			`CREATE TABLE IF NOT EXISTS universe.survey (
+				id          UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id      UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				bucket_id   UUID NOT NULL REFERENCES universe.bucket(id) ON DELETE CASCADE,
+				name        TEXT NOT NULL,
+				description TEXT,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`CREATE INDEX IF NOT EXISTS survey_org_id_idx    ON universe.survey (org_id)`,
+			`CREATE INDEX IF NOT EXISTS survey_bucket_id_idx ON universe.survey (bucket_id)`,
+			`CREATE INDEX IF NOT EXISTS survey_fts_idx       ON universe.survey USING GIN (
+				to_tsvector('simple', name || ' ' || COALESCE(description, ''))
+			)`,
 
-			`ALTER TABLE turf_location ADD COLUMN IF NOT EXISTS universe_public_location_id UUID REFERENCES universe.public_location(id) ON DELETE CASCADE`,
-			`ALTER TABLE turf_location ADD COLUMN IF NOT EXISTS universe_org_location_id UUID REFERENCES universe.org_location(id) ON DELETE CASCADE`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_universe_public_unique ON turf_location (turf_id, universe_public_location_id) WHERE universe_public_location_id IS NOT NULL`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_universe_org_unique ON turf_location (turf_id, universe_org_location_id) WHERE universe_org_location_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS turf_location_universe_public_id_idx ON turf_location (universe_public_location_id) WHERE universe_public_location_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS turf_location_universe_org_id_idx ON turf_location (universe_org_location_id) WHERE universe_org_location_id IS NOT NULL`,
+			`CREATE TABLE IF NOT EXISTS universe.survey_question (
+				id            UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id        UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				survey_id     UUID NOT NULL REFERENCES universe.survey(id) ON DELETE CASCADE,
+				question_text TEXT NOT NULL,
+				question_type TEXT NOT NULL,
+				order_index   INTEGER NOT NULL DEFAULT 0,
+				choices       TEXT[] NOT NULL DEFAULT ARRAY[]::text[],
+				created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`CREATE INDEX IF NOT EXISTS survey_question_org_id_idx    ON universe.survey_question (org_id)`,
+			`CREATE INDEX IF NOT EXISTS survey_question_survey_id_idx ON universe.survey_question (survey_id)`,
 
-			`ALTER TABLE turf_location DROP CONSTRAINT IF EXISTS turf_location_tier_check`,
-			`ALTER TABLE turf_location ADD CONSTRAINT turf_location_tier_check CHECK (
-				(location_id IS NOT NULL AND org_location_id IS NULL AND universe_public_location_id IS NULL AND universe_org_location_id IS NULL) OR
-				(location_id IS NULL AND org_location_id IS NOT NULL AND universe_public_location_id IS NULL AND universe_org_location_id IS NULL) OR
-				(location_id IS NULL AND org_location_id IS NULL AND universe_public_location_id IS NOT NULL AND universe_org_location_id IS NULL) OR
-				(location_id IS NULL AND org_location_id IS NULL AND universe_public_location_id IS NULL AND universe_org_location_id IS NOT NULL)
-			)`
+			...['universe.survey', 'universe.survey_question'].flatMap((table) => [
+				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
+				`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`,
+				`DROP POLICY IF EXISTS org_isolation ON ${table}`,
+				`CREATE POLICY org_isolation ON ${table}
+					USING (org_id = ${safe})
+					WITH CHECK (org_id = ${safe})`
+			])
 		]
 	},
+
+	// -------------------------------------------------------------------------
+	// 34. Universe turf and canvassing tables
+	//
+	// Turfs are cut from a list (the list is the holder of its turfs) and
+	// reference the bucket's surveys and scripts. Locations assigned to a turf
+	// point at universe location records; attempts and survey responses hang
+	// off those assignments.
+	// -------------------------------------------------------------------------
 	{
-		label: 'Adding script reference to turfs',
+		label: 'Creating universe turf and canvassing tables',
 		statements: [
-			`ALTER TABLE turf ADD COLUMN IF NOT EXISTS script_id UUID REFERENCES universe.script(id) ON DELETE SET NULL`,
-			`CREATE INDEX IF NOT EXISTS turf_script_id_idx ON turf (script_id) WHERE script_id IS NOT NULL`
+			`CREATE TABLE IF NOT EXISTS universe.turf (
+				id         UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id     UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				list_id    UUID NOT NULL REFERENCES universe.list(id) ON DELETE CASCADE,
+				code       TEXT NOT NULL,
+				author_id  UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE,
+				survey_id  UUID REFERENCES universe.survey(id) ON DELETE CASCADE,
+				script_id  UUID REFERENCES universe.script(id) ON DELETE SET NULL,
+				bounds     geometry,
+				expires_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+				created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.turf ADD CONSTRAINT turf_code_unique UNIQUE (code);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`CREATE INDEX IF NOT EXISTS turf_org_id_idx    ON universe.turf (org_id)`,
+			`CREATE INDEX IF NOT EXISTS turf_list_id_idx   ON universe.turf (list_id)`,
+			`CREATE INDEX IF NOT EXISTS turf_survey_id_idx ON universe.turf (survey_id) WHERE survey_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_script_id_idx ON universe.turf (script_id) WHERE script_id IS NOT NULL`,
+
+			`CREATE TABLE IF NOT EXISTS universe.turf_location (
+				id                 UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id             UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				turf_id            UUID NOT NULL REFERENCES universe.turf(id) ON DELETE CASCADE,
+				public_location_id UUID REFERENCES universe.public_location(id) ON DELETE CASCADE,
+				org_location_id    UUID REFERENCES universe.org_location(id) ON DELETE CASCADE,
+				created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.turf_location ADD CONSTRAINT turf_location_source_check CHECK (
+					(public_location_id IS NOT NULL AND org_location_id IS NULL) OR
+					(public_location_id IS NULL AND org_location_id IS NOT NULL)
+				);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_public_unique
+				ON universe.turf_location (turf_id, public_location_id) WHERE public_location_id IS NOT NULL`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_org_unique
+				ON universe.turf_location (turf_id, org_location_id) WHERE org_location_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_location_org_id_idx          ON universe.turf_location (org_id)`,
+			`CREATE INDEX IF NOT EXISTS turf_location_turf_id_idx         ON universe.turf_location (turf_id)`,
+			`CREATE INDEX IF NOT EXISTS turf_location_public_location_idx ON universe.turf_location (public_location_id) WHERE public_location_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_location_org_location_idx    ON universe.turf_location (org_location_id) WHERE org_location_id IS NOT NULL`,
+
+			`CREATE TABLE IF NOT EXISTS universe.turf_location_attempt (
+				id               UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id           UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				turf_location_id UUID NOT NULL REFERENCES universe.turf_location(id) ON DELETE CASCADE,
+				user_id          UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE,
+				attempt_note     TEXT,
+				contact_made     BOOLEAN,
+				created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.turf_location_attempt ADD CONSTRAINT turf_location_user_unique
+					UNIQUE (turf_location_id, user_id);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`CREATE INDEX IF NOT EXISTS turf_location_attempt_org_id_idx           ON universe.turf_location_attempt (org_id)`,
+			`CREATE INDEX IF NOT EXISTS turf_location_attempt_turf_location_id_idx ON universe.turf_location_attempt (turf_location_id)`,
+
+			`CREATE TABLE IF NOT EXISTS universe.survey_question_response (
+				id                       UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id                   UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				survey_question_id       UUID NOT NULL REFERENCES universe.survey_question(id) ON DELETE CASCADE,
+				turf_location_attempt_id UUID NOT NULL REFERENCES universe.turf_location_attempt(id) ON DELETE CASCADE,
+				response_value           TEXT,
+				created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.survey_question_response ADD CONSTRAINT survey_question_response_unique
+					UNIQUE (survey_question_id, turf_location_attempt_id);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`CREATE INDEX IF NOT EXISTS survey_question_response_org_id_idx  ON universe.survey_question_response (org_id)`,
+			`CREATE INDEX IF NOT EXISTS survey_question_response_attempt_idx ON universe.survey_question_response (turf_location_attempt_id)`,
+
+			`CREATE TABLE IF NOT EXISTS universe.turf_user (
+				id         UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id     UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				turf_id    UUID NOT NULL REFERENCES universe.turf(id) ON DELETE CASCADE,
+				user_id    UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.turf_user ADD CONSTRAINT turf_user_unique UNIQUE (turf_id, user_id);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`CREATE INDEX IF NOT EXISTS turf_user_org_id_idx  ON universe.turf_user (org_id)`,
+			`CREATE INDEX IF NOT EXISTS turf_user_user_id_idx ON universe.turf_user (user_id)`,
+
+			...[
+				'universe.turf',
+				'universe.turf_location',
+				'universe.turf_location_attempt',
+				'universe.survey_question_response',
+				'universe.turf_user'
+			].flatMap((table) => [
+				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
+				`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`,
+				`DROP POLICY IF EXISTS org_isolation ON ${table}`,
+				`CREATE POLICY org_isolation ON ${table}
+					USING (org_id = ${safe})
+					WITH CHECK (org_id = ${safe})`
+			])
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 35. Drop legacy public-schema tables
+	//
+	// These tables predate the universe schema and are fully superseded by
+	// universe.survey, universe.turf, and the universe location tables. The
+	// drops are idempotent so this step is safe to rerun.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Dropping legacy public schema tables',
+		statements: [
+			`DROP VIEW IF EXISTS location_unified`,
+			`DROP TABLE IF EXISTS survey_question_response CASCADE`,
+			`DROP TABLE IF EXISTS turf_location_attempt CASCADE`,
+			`DROP TABLE IF EXISTS turf_user CASCADE`,
+			`DROP TABLE IF EXISTS turf_location CASCADE`,
+			`DROP TABLE IF EXISTS turf CASCADE`,
+			`DROP TABLE IF EXISTS survey_question CASCADE`,
+			`DROP TABLE IF EXISTS survey CASCADE`,
+			`DROP TABLE IF EXISTS org_location CASCADE`,
+			`DROP TABLE IF EXISTS location CASCADE`,
+			`DROP FUNCTION IF EXISTS update_geometry() CASCADE`
 		]
 	}
 ];

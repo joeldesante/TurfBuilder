@@ -35,7 +35,7 @@
 		error = null;
 		try {
 			const [surveysRes, scriptsRes] = await Promise.all([
-				fetch(`/o/${orgSlug}/s/api/surveys`),
+				fetch(`/o/${orgSlug}/s/api/surveys?bucketSlug=${encodeURIComponent(bucketSlug)}`),
 				fetch(`/o/${orgSlug}/s/api/scripts?bucket=${encodeURIComponent(bucketSlug)}`)
 			]);
 

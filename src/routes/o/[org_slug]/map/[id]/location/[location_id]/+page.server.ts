@@ -13,19 +13,17 @@ export async function load({ locals, params }) {
 			        tl.id AS turf_location_id,
 			        t.survey_id,
 			        sc.contents AS script_contents,
-			        COALESCE(l.location_name, ol.location_name, upl.name, uol.name) AS location_name,
-			        COALESCE(l.street, ol.street, upl.address_line_1, uol.address_line_1) AS street,
-			        COALESCE(l.locality, ol.locality, upl.city, uol.city) AS locality,
-			        COALESCE(l.postcode, ol.postcode, upl.postal_code, uol.postal_code) AS postcode,
-			        COALESCE(l.region, ol.region, upl.state_or_region, uol.state_or_region) AS region
-			 FROM turf_location tl
-			 JOIN turf t ON t.id = tl.turf_id
+			        COALESCE(pl.name, ol.name) AS location_name,
+			        COALESCE(pl.address_line_1, ol.address_line_1) AS street,
+			        COALESCE(pl.city, ol.city) AS locality,
+			        COALESCE(pl.postal_code, ol.postal_code) AS postcode,
+			        COALESCE(pl.state_or_region, ol.state_or_region) AS region
+			 FROM universe.turf_location tl
+			 JOIN universe.turf t ON t.id = tl.turf_id
 			 LEFT JOIN universe.script sc ON sc.id = t.script_id
-			 LEFT JOIN location l ON l.id = tl.location_id
-			 LEFT JOIN org_location ol ON ol.id = tl.org_location_id
-			 LEFT JOIN universe.public_location upl ON upl.id = tl.universe_public_location_id
-			 LEFT JOIN universe.org_location uol ON uol.id = tl.universe_org_location_id
-			 WHERE tl.id = $1 AND tl.turf_id = $2 AND tl.organization_id = $3`,
+			 LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
+			 LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
+			 WHERE tl.id = $1 AND tl.turf_id = $2 AND tl.org_id = $3`,
 			[locationId, turfId, orgId]
 		);
 
@@ -37,7 +35,7 @@ export async function load({ locals, params }) {
 
 		const questionsResult = await client.query(
 			`SELECT id, question_text, question_type, order_index, choices
-			 FROM survey_question
+			 FROM universe.survey_question
 			 WHERE survey_id = $1
 			 ORDER BY order_index ASC`,
 			[surveyId]
@@ -48,7 +46,7 @@ export async function load({ locals, params }) {
 		// created when the user explicitly selects a contact status and saves.
 		const attemptResult = await client.query(
 			`SELECT id, contact_made, attempt_note
-			 FROM turf_location_attempt
+			 FROM universe.turf_location_attempt
 			 WHERE turf_location_id = $1 AND user_id = $2`,
 			[turfLocationId, userId]
 		);
@@ -59,7 +57,7 @@ export async function load({ locals, params }) {
 			const questionIds = questions.map((q) => q.id);
 			const responsesResult = await client.query(
 				`SELECT survey_question_id, response_value
-				 FROM survey_question_response
+				 FROM universe.survey_question_response
 				 WHERE turf_location_attempt_id = $1 AND survey_question_id = ANY($2)`,
 				[existingAttempt.id, questionIds]
 			);

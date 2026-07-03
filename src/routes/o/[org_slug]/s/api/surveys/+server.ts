@@ -8,6 +8,7 @@ import { can } from '$lib/auth-helpers';
  * @auth staff
  * @permission survey:read
  * @query bucketId {string} optional - bucket UUID to filter by
+ * @query bucketSlug {string} optional - bucket slug to filter by (alternative to bucketId)
  * @returns Array of { id: string, name: string, description: string | null }
  */
 export async function GET({ locals, url }) {
@@ -19,18 +20,30 @@ export async function GET({ locals, url }) {
 	}
 
 	const bucketId = url.searchParams.get('bucketId');
+	const bucketSlug = url.searchParams.get('bucketSlug');
 
 	try {
 		return await withOrgTransaction(locals.organization.id, async (client) => {
-			const result = bucketId
-				? await client.query(
-						`SELECT id, name FROM survey WHERE organization_id = $1 AND bucket_id = $2 ORDER BY name ASC`,
-						[locals.organization!.id, bucketId]
-					)
-				: await client.query(
-						`SELECT id, name FROM survey WHERE organization_id = $1 ORDER BY name ASC`,
-						[locals.organization!.id]
-					);
+			let result;
+			if (bucketId) {
+				result = await client.query(
+					`SELECT id, name FROM universe.survey WHERE org_id = $1 AND bucket_id = $2 ORDER BY name ASC`,
+					[locals.organization!.id, bucketId]
+				);
+			} else if (bucketSlug) {
+				result = await client.query(
+					`SELECT s.id, s.name FROM universe.survey s
+					 JOIN universe.bucket b ON b.id = s.bucket_id
+					 WHERE s.org_id = $1 AND b.slug = $2 AND b.org_id = $1
+					 ORDER BY s.name ASC`,
+					[locals.organization!.id, bucketSlug]
+				);
+			} else {
+				result = await client.query(
+					`SELECT id, name FROM universe.survey WHERE org_id = $1 ORDER BY name ASC`,
+					[locals.organization!.id]
+				);
+			}
 			return json(result.rows);
 		});
 	} catch (error) {
@@ -79,7 +92,7 @@ export async function POST({ request, locals }) {
 			}
 
 			return client.query(
-				`INSERT INTO survey (name, organization_id, bucket_id) VALUES ($1, $2, $3) RETURNING id`,
+				`INSERT INTO universe.survey (name, org_id, bucket_id) VALUES ($1, $2, $3) RETURNING id`,
 				[name.trim(), locals.organization!.id, bucketId]
 			);
 		});

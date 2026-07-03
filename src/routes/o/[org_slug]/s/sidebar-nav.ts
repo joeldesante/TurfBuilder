@@ -1,13 +1,14 @@
 import type { SidebarNavEntry } from '$components/layout/fragments/sidebar/types';
 import { can } from '$lib/auth-helpers';
 import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
+import PersonSimpleWalkIcon from 'phosphor-svelte/lib/PersonSimpleWalk';
 import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 import MapPinIcon from 'phosphor-svelte/lib/MapPinIcon';
 import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 import ShieldIcon from 'phosphor-svelte/lib/Shield';
-import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
+// import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
 import GlobeIcon from 'phosphor-svelte/lib/Globe';
-import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
+// import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
 import FilesIcon from 'phosphor-svelte/lib/FilesIcon';
 import StackIcon from 'phosphor-svelte/lib/Stack';
 import CircleIcon from 'phosphor-svelte/lib/Circle';
@@ -15,7 +16,7 @@ import PlusIcon from 'phosphor-svelte/lib/Plus';
 import ScrollIcon from 'phosphor-svelte/lib/ScrollIcon';
 import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
-import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
+// import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
 import ChartPieSliceIcon from 'phosphor-svelte/lib/ChartPieSlice';
 
 interface ActivePlugin {
@@ -76,12 +77,17 @@ export function buildStaffNav(
 			item: { label: 'Dashboard', href: `/o/${orgSlug}/s/`, icon: SquaresFourIcon }
 		},
 		{
+			kind: 'item',
+			item: { label: 'Join', href: `/o/${orgSlug}/join`, icon: PersonSimpleWalkIcon }
+		},
+		{
 			kind: 'section',
 			section: {
 				label: 'Universe',
 				icon: GlobeIcon,
 				items: [
-					{ label: 'Quick Search', href: `/o/${orgSlug}/s/universe/search`, icon: MagnifyingGlassIcon },
+					// Quick Search tab hidden from sidebar; page kept for later use.
+					// { label: 'Quick Search', href: `/o/${orgSlug}/s/universe/search`, icon: MagnifyingGlassIcon },
 					{
 						label: 'Buckets',
 						icon: StackIcon,
@@ -115,10 +121,12 @@ export function buildStaffNav(
 				items: [
 					{ label: 'Members', href: `/o/${orgSlug}/s/members`, icon: UsersIcon },
 					{ label: 'Roles', href: `/o/${orgSlug}/s/settings/roles`, icon: ShieldIcon },
-					{ label: 'Integrations', href: `/o/${orgSlug}/s/universe/data/integrations`, icon: HardDrivesIcon },
-					...(can(org, 'plugin', 'manage')
-						? [{ label: 'Addons', href: `/o/${orgSlug}/s/addons`, icon: PuzzlePieceIcon }]
-						: [])
+					// Integrations tab hidden from sidebar; page kept for later use.
+					// { label: 'Integrations', href: `/o/${orgSlug}/s/universe/data/integrations`, icon: HardDrivesIcon },
+					// Addons tab hidden from sidebar; page kept for later use.
+					// ...(can(org, 'plugin', 'manage')
+					// 	? [{ label: 'Addons', href: `/o/${orgSlug}/s/addons`, icon: PuzzlePieceIcon }]
+					// 	: [])
 				]
 			}
 		},

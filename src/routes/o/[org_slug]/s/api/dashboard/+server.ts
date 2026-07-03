@@ -34,8 +34,8 @@ export async function GET({ locals, url }) {
 					`SELECT
 						date_trunc('day', created_at) AS date,
 						COUNT(*)::int AS count
-					FROM turf_location_attempt
-					WHERE organization_id = $1
+					FROM universe.turf_location_attempt
+					WHERE org_id = $1
 					  AND created_at >= now() - $2::interval
 					GROUP BY date_trunc('day', created_at)
 					ORDER BY date ASC`,
@@ -45,8 +45,8 @@ export async function GET({ locals, url }) {
 					`SELECT
 						contact_made,
 						COUNT(*)::int AS count
-					FROM turf_location_attempt
-					WHERE organization_id = $1
+					FROM universe.turf_location_attempt
+					WHERE org_id = $1
 					  AND created_at >= now() - $2::interval
 					GROUP BY contact_made`,
 					[locals.organization!.id, interval]
