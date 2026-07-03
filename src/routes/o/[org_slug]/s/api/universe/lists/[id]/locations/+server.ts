@@ -53,12 +53,12 @@ export async function GET({ params, locals }) {
 					ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
 					(
 						SELECT tla.contact_made
-						FROM turf_location tl
-						JOIN turf t ON t.id = tl.turf_id AND t.list_id = le.list_id
-						JOIN turf_location_attempt tla ON tla.turf_location_id = tl.id
+						FROM universe.turf_location tl
+						JOIN universe.turf t ON t.id = tl.turf_id AND t.list_id = le.list_id
+						JOIN universe.turf_location_attempt tla ON tla.turf_location_id = tl.id
 						WHERE (
-							(le.record_source = 'public_location' AND tl.universe_public_location_id = le.record_id)
-							OR (le.record_source = 'org_location' AND tl.universe_org_location_id = le.record_id)
+							(le.record_source = 'public_location' AND tl.public_location_id = le.record_id)
+							OR (le.record_source = 'org_location' AND tl.org_location_id = le.record_id)
 						)
 						ORDER BY tla.updated_at DESC
 						LIMIT 1

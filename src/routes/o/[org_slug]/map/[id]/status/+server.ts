@@ -17,7 +17,7 @@ export async function GET({ locals, params }) {
 
 	return withOrgTransaction(orgId, async (client) => {
 		const membership = await client.query(
-			`SELECT id FROM turf_user WHERE turf_id = $1 AND user_id = $2 AND organization_id = $3`,
+			`SELECT id FROM universe.turf_user WHERE turf_id = $1 AND user_id = $2 AND org_id = $3`,
 			[turfId, userId, orgId]
 		);
 		if (membership.rows.length === 0) throw error(403, 'Forbidden');
@@ -27,9 +27,9 @@ export async function GET({ locals, params }) {
 			        tl.id AS id,
 			        COUNT(tla.id) > 0 AS visited,
 			        (array_agg(tla.contact_made ORDER BY tla.updated_at DESC NULLS LAST))[1] AS contact_made
-			 FROM turf_location tl
-			 LEFT JOIN turf_location_attempt tla ON tla.turf_location_id = tl.id
-			 WHERE tl.turf_id = $1 AND tl.organization_id = $2
+			 FROM universe.turf_location tl
+			 LEFT JOIN universe.turf_location_attempt tla ON tla.turf_location_id = tl.id
+			 WHERE tl.turf_id = $1 AND tl.org_id = $2
 			 GROUP BY tl.id`,
 			[turfId, orgId]
 		);

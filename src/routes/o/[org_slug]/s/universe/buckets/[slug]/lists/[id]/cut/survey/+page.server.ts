@@ -7,10 +7,12 @@ export async function load({ params, locals }) {
 
 	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const surveys = await client.query(
-			`SELECT id, name, description FROM survey
-			 WHERE organization_id = $1
-			 ORDER BY name ASC`,
-			[locals.organization!.id]
+			`SELECT s.id, s.name, s.description
+			 FROM universe.survey s
+			 JOIN universe.bucket b ON b.id = s.bucket_id
+			 WHERE s.org_id = $1 AND b.slug = $2
+			 ORDER BY s.name ASC`,
+			[locals.organization!.id, params.slug]
 		);
 
 		return { surveys: surveys.rows, bucketSlug: params.slug, listId: params.id };

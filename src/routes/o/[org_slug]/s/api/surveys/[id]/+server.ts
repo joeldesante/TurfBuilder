@@ -35,7 +35,7 @@ export async function PUT({ request, locals, params }) {
 
 		await withOrgTransaction(locals.organization.id, async (client) => {
 			await client.query(
-				`UPDATE survey SET "name" = $1, description = $2 WHERE id = $3 AND organization_id = $4`,
+				`UPDATE universe.survey SET name = $1, description = $2, updated_at = now() WHERE id = $3 AND org_id = $4`,
 				[name.trim(), description ?? null, id, locals.organization!.id]
 			);
 		});

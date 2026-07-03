@@ -2,7 +2,6 @@
 	type Location = {
 		id: string;
 		location_name: string;
-		category: string | null;
 		visited: boolean | null;
 		contact_made: boolean | null;
 		latitude: number;

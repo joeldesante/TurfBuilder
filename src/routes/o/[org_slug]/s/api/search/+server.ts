@@ -24,9 +24,9 @@ export async function GET({ locals, url }) {
 		const surveys = can(org, 'survey', 'read')
 			? await client.query(
 				`SELECT s.id, s.name AS title, COALESCE(s.description, '') AS subtitle, b.slug AS bucket_slug
-				 FROM survey s
+				 FROM universe.survey s
 				 JOIN universe.bucket b ON b.id = s.bucket_id
-				 WHERE s.organization_id = $1
+				 WHERE s.org_id = $1
 				   AND to_tsvector('simple', s.name || ' ' || COALESCE(s.description, ''))
 				       @@ to_tsquery('simple', $2)
 				 LIMIT 5`,
@@ -36,10 +36,12 @@ export async function GET({ locals, url }) {
 
 		const turfs = can(org, 'turf', 'read')
 			? await client.query(
-				`SELECT id, code AS title
-				 FROM turf
-				 WHERE organization_id = $1
-				   AND code ILIKE '%' || $2 || '%'
+				`SELECT t.id, t.code AS title, t.list_id, b.slug AS bucket_slug
+				 FROM universe.turf t
+				 JOIN universe.list l ON l.id = t.list_id
+				 JOIN universe.bucket b ON b.id = l.bucket
+				 WHERE t.org_id = $1
+				   AND t.code ILIKE '%' || $2 || '%'
 				 LIMIT 5`,
 				[org.id, q]
 			)
@@ -59,14 +61,13 @@ export async function GET({ locals, url }) {
 
 		const locations = can(org, 'location', 'read')
 			? await client.query(
-				`SELECT id, location_name AS title,
-				        COALESCE(street || ', ' || locality, street, locality, '') AS subtitle
-				 FROM location_unified
-				 WHERE organization_id = $1
-				   AND to_tsvector('simple', location_name || ' ' || COALESCE(street, '') || ' ' || COALESCE(locality, ''))
-				       @@ to_tsquery('simple', $2)
+				`SELECT id, name AS title,
+				        COALESCE(address_line_1 || ', ' || city, address_line_1, city, '') AS subtitle
+				 FROM universe.v_locations
+				 WHERE to_tsvector('simple', COALESCE(name, '') || ' ' || COALESCE(address_line_1, '') || ' ' || COALESCE(city, ''))
+				       @@ to_tsquery('simple', $1)
 				 LIMIT 5`,
-				[org.id, tsquery]
+				[tsquery]
 			)
 			: { rows: [] };
 
@@ -90,9 +91,9 @@ export async function GET({ locals, url }) {
 
 		return json({
 			surveys:   surveys.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/universe/buckets/${r.bucket_slug}/surveys/${r.id}` })),
-			turfs:     turfs.rows.map(r => ({ ...r, subtitle: '', href: `/o/${orgSlug}/s/turfs` })),
+			turfs:     turfs.rows.map(r => ({ id: r.id, title: r.title, subtitle: '', href: `/o/${orgSlug}/s/universe/buckets/${r.bucket_slug}/lists/${r.list_id}/turfs/${r.id}` })),
 			members:   members.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/members/${r.id}` })),
-			locations: locations.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/data/locations` })),
+			locations: locations.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/universe/data/locations` })),
 			people:    people.rows.map(r => ({ ...r, href: `/o/${orgSlug}/s/universe/people/${r.id}` })),
 		});
 	});

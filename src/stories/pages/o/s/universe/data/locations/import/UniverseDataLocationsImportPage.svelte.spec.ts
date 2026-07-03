@@ -8,8 +8,8 @@ describe('UniverseDataLocationsImportPage', () => {
 			props: { orgSlug: 'test-org', source: 'csv' }
 		});
 
-		await expect.element(getByRole('heading', { name: 'Import from CSV or Excel' })).toBeVisible();
-		await expect.element(getByLabelText('Select CSV or Excel file')).toBeInTheDocument();
+		await expect.element(getByRole('heading', { name: 'Import from CSV' })).toBeVisible();
+		await expect.element(getByLabelText('Select CSV file')).toBeInTheDocument();
 		await expect.element(getByRole('button', { name: /choose file/i })).toBeVisible();
 	});
 

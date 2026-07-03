@@ -44,16 +44,16 @@ export async function POST({ request, locals, params }) {
 	}
 
 	return withOrgTransaction(orgId, async (client) => {
-		const turf_userResult = await client.query(
-			`SELECT id FROM turf_user WHERE turf_id = $1 AND user_id = $2`,
+		const turfUserResult = await client.query(
+			`SELECT id FROM universe.turf_user WHERE turf_id = $1 AND user_id = $2`,
 			[turfId, userId]
 		);
-		if (turf_userResult.rows.length === 0) {
+		if (turfUserResult.rows.length === 0) {
 			throw error(403, 'User must be a turf user to make a location attempt.');
 		}
 
 		const turfLocationResult = await client.query(
-			`SELECT id FROM turf_location WHERE id = $1 AND turf_id = $2 AND organization_id = $3`,
+			`SELECT id FROM universe.turf_location WHERE id = $1 AND turf_id = $2 AND org_id = $3`,
 			[locationId, turfId, orgId]
 		);
 		if (turfLocationResult.rows.length === 0) {
@@ -64,7 +64,7 @@ export async function POST({ request, locals, params }) {
 		const contactMade = val.contactStatus === 'contacted';
 
 		const attemptResult = await client.query(
-			`INSERT INTO turf_location_attempt (turf_location_id, user_id, organization_id, contact_made, attempt_note)
+			`INSERT INTO universe.turf_location_attempt (turf_location_id, user_id, org_id, contact_made, attempt_note)
 			 VALUES ($1, $2, $3, $4, $5)
 			 ON CONFLICT (turf_location_id, user_id)
 			 DO UPDATE SET contact_made = $4, attempt_note = $5, updated_at = NOW()
@@ -76,7 +76,7 @@ export async function POST({ request, locals, params }) {
 		if (contactMade) {
 			for (const question of val.questions) {
 				await client.query(
-					`INSERT INTO survey_question_response (response_value, survey_question_id, turf_location_attempt_id, organization_id)
+					`INSERT INTO universe.survey_question_response (response_value, survey_question_id, turf_location_attempt_id, org_id)
 					 VALUES ($1, $2, $3, $4)
 					 ON CONFLICT (survey_question_id, turf_location_attempt_id)
 					 DO UPDATE SET response_value = $1, updated_at = NOW()`,

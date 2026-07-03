@@ -31,6 +31,7 @@ vite.config.ts.timestamp-*
 storybook-static
 
 /.volumes
+.temp
 
 *.crt
 docs/.vitepress/dist

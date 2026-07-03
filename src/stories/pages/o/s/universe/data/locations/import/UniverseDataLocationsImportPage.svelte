@@ -23,7 +23,7 @@
 	const { orgSlug, source, onImportCsv, onImportGoogleSheets }: Props = $props();
 
 	const sourceLabels: Record<ImportSource, string> = {
-		csv: 'CSV or Excel',
+		csv: 'CSV',
 		'google-sheets': 'Google Sheets'
 	};
 
@@ -120,7 +120,7 @@
 				</div>
 				<div>
 					<h2 class="text-base font-medium text-on-surface">Upload file</h2>
-					<p class="text-sm text-on-surface-subtle">Accepts .csv and .xlsx files</p>
+					<p class="text-sm text-on-surface-subtle">Accepts .csv files</p>
 				</div>
 			</div>
 			<p class="text-sm text-on-surface-subtle">
@@ -136,9 +136,9 @@
 			<input
 				bind:this={fileInput}
 				type="file"
-				accept=".csv,.xlsx"
+				accept=".csv"
 				class="sr-only"
-				aria-label="Select CSV or Excel file"
+				aria-label="Select CSV file"
 				onchange={handleCsvFile}
 			/>
 			<Button

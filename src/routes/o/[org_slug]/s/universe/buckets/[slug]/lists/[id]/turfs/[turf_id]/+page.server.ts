@@ -24,13 +24,13 @@ export async function load({ params, locals }) {
 				ST_AsGeoJSON(t.bounds)::text AS bounds,
 				l.name AS list_name,
 				b.name AS bucket_name
-			 FROM turf t
+			 FROM universe.turf t
 			 JOIN auth.user u ON t.author_id = u.id
-			 LEFT JOIN survey s ON t.survey_id = s.id
+			 LEFT JOIN universe.survey s ON t.survey_id = s.id
 			 JOIN universe.list l ON l.id = t.list_id
 			 JOIN universe.bucket b ON b.id = l.bucket
 			 WHERE t.id = $1
-			   AND t.organization_id = $2
+			   AND t.org_id = $2
 			   AND t.list_id = $3
 			   AND b.slug = $4`,
 			[params.turf_id, locals.organization.id, params.id, params.slug]
@@ -55,29 +55,28 @@ export async function load({ params, locals }) {
 		}>(
 			`SELECT
 				tl.id AS turf_location_id,
-				COALESCE(pl.name, ol.name, l.location_name) AS name,
-				COALESCE(pl.address_line_1, ol.address_line_1, l.street) AS address_line_1,
-				COALESCE(pl.city, ol.city, l.locality) AS city,
-				COALESCE(pl.state_or_region, ol.state_or_region, l.region) AS state_or_region,
-				COALESCE(ST_Y(pl.coordinates), ST_Y(ol.coordinates), l.latitude::float) AS latitude,
-				COALESCE(ST_X(pl.coordinates), ST_X(ol.coordinates), l.longitude::float) AS longitude,
+				COALESCE(pl.name, ol.name) AS name,
+				COALESCE(pl.address_line_1, ol.address_line_1) AS address_line_1,
+				COALESCE(pl.city, ol.city) AS city,
+				COALESCE(pl.state_or_region, ol.state_or_region) AS state_or_region,
+				ST_Y(COALESCE(pl.coordinates, ol.coordinates)) AS latitude,
+				ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
 				tla.id AS attempt_id,
 				tla.contact_made,
 				tla.attempt_note,
 				tla.updated_at AS attempted_at
-			FROM turf_location tl
-			LEFT JOIN universe.public_location pl ON tl.universe_public_location_id = pl.id
-			LEFT JOIN universe.org_location ol ON tl.universe_org_location_id = ol.id
-			LEFT JOIN location l ON tl.location_id = l.id
+			FROM universe.turf_location tl
+			LEFT JOIN universe.public_location pl ON tl.public_location_id = pl.id
+			LEFT JOIN universe.org_location ol ON tl.org_location_id = ol.id
 			LEFT JOIN LATERAL (
 				SELECT id, contact_made, attempt_note, updated_at
-				FROM turf_location_attempt
+				FROM universe.turf_location_attempt
 				WHERE turf_location_id = tl.id
 				ORDER BY updated_at DESC
 				LIMIT 1
 			) tla ON true
-			WHERE tl.turf_id = $1 AND tl.organization_id = $2
-			ORDER BY COALESCE(pl.name, ol.name, l.location_name)`,
+			WHERE tl.turf_id = $1 AND tl.org_id = $2
+			ORDER BY COALESCE(pl.name, ol.name)`,
 			[params.turf_id, locals.organization.id]
 		);
 
@@ -105,9 +104,9 @@ export async function load({ params, locals }) {
 					sq.question_type,
 					sq.order_index::int AS order_index,
 					sqr.response_value
-				FROM turf_location_attempt tla
-				JOIN survey_question_response sqr ON sqr.turf_location_attempt_id = tla.id
-				JOIN survey_question sq ON sq.id = sqr.survey_question_id
+				FROM universe.turf_location_attempt tla
+				JOIN universe.survey_question_response sqr ON sqr.turf_location_attempt_id = tla.id
+				JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id
 				WHERE tla.id = ANY($1)
 				ORDER BY tla.turf_location_id, sq.order_index::int`,
 				[attemptIds]

@@ -7,9 +7,9 @@ export async function load({ params, locals }) {
 	return withOrgTransaction(locals.organization.id, async (client) => {
 		const result = await client.query<{ id: string; name: string; updated_at: string }>(
 			`SELECT s.id, s.name, s.updated_at
-			 FROM survey s
+			 FROM universe.survey s
 			 JOIN universe.bucket b ON b.id = s.bucket_id
-			 WHERE b.slug = $1 AND s.organization_id = $2
+			 WHERE b.slug = $1 AND s.org_id = $2
 			 ORDER BY s.updated_at DESC`,
 			[params.slug, locals.organization!.id]
 		);

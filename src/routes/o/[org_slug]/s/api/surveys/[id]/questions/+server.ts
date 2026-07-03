@@ -38,7 +38,7 @@ export async function POST({ request, locals, params }) {
 		await withOrgTransaction(locals.organization.id, async (client) => {
 			// Verify the survey belongs to this org before mutating.
 			const surveyCheck = await client.query(
-				`SELECT id FROM survey WHERE id = $1 AND organization_id = $2`,
+				`SELECT id FROM universe.survey WHERE id = $1 AND org_id = $2`,
 				[id, locals.organization!.id]
 			);
 			if (surveyCheck.rows.length === 0) {
@@ -50,16 +50,16 @@ export async function POST({ request, locals, params }) {
 			for (let i = 0; i < schemaResult.length; i++) {
 				if (schemaResult[i].db_id) {
 					await client.query(
-						`UPDATE survey_question
-						 SET question_text = $1, question_type = $2, order_index = $3, choices = $4
-						 WHERE survey_id = $5 AND id = $6 AND organization_id = $7`,
+						`UPDATE universe.survey_question
+						 SET question_text = $1, question_type = $2, order_index = $3, choices = $4, updated_at = now()
+						 WHERE survey_id = $5 AND id = $6 AND org_id = $7`,
 						[schemaResult[i].text, schemaResult[i].type, i, schemaResult[i].choices, id, schemaResult[i].db_id, locals.organization!.id]
 					);
 					continue;
 				}
 
 				await client.query(
-					`INSERT INTO survey_question (question_text, survey_id, question_type, order_index, choices, organization_id)
+					`INSERT INTO universe.survey_question (question_text, survey_id, question_type, order_index, choices, org_id)
 					 VALUES ($1, $2, $3, $4, $5, $6)`,
 					[schemaResult[i].text, id, schemaResult[i].type, i, schemaResult[i].choices, locals.organization!.id]
 				);
