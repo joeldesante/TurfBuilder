@@ -24,7 +24,9 @@
 		...restProps
 	}: Props = $props();
 
-	let containerClass = $derived(['pt-4 pb-10', className].filter(Boolean).join(' '));
+	let containerClass = $derived(
+		['pt-2 lg:pt-4 pb-2 lg:pb-6 select-none', className].filter(Boolean).join(' ')
+	);
 </script>
 
 <div class={containerClass} {...restProps}>
@@ -52,15 +54,15 @@
 		</nav>
 	{/if}
 
-	<div class="flex flex-col gap-6 md:flex-row md:items-center">
+	<div class="flex items-center justify-between gap-4 min-h-10">
 		<div class="space-y-2 flex-1">
-			<h1 class="text-2xl text-on-surface">{title}</h1>
+			<h1 class="text-xl lg:text-2xl text-on-surface">{title}</h1>
 			{#if subheading}
 				<p class="mt-1 text-sm text-on-surface-subtle">{subheading}</p>
 			{/if}
 		</div>
 		{#if actions}
-			<div class="flex gap-3 *:flex-1 md:*:flex-none md:shrink-0">
+			<div class="flex gap-3 shrink-0">
 				{@render actions()}
 			</div>
 		{/if}
