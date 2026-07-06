@@ -3,7 +3,7 @@
 	import { authClient } from '$lib/client';
 	import OrgPicker from '$pages/orgs/OrgPicker.svelte';
 
-	const { data } = $props();
+	const { data: Data } = $props();
 
 	async function handleSelect(org: { id: string; slug: string }) {
 		await authClient.organization.setActive({ organizationId: org.id });
@@ -15,4 +15,4 @@
 	<title>Select Organization</title>
 </svelte:head>
 
-<OrgPicker orgs={data.orgs} allowCreation={false} onSelect={handleSelect} />
+<OrgPicker allowCreation={false} onSelect={handleSelect} />
