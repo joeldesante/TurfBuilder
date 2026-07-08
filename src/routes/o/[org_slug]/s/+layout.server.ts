@@ -3,6 +3,7 @@ import { can } from '$lib/auth-helpers';
 import { getActivePlugins } from '$lib/server/plugins';
 import { withOrgTransaction } from '$lib/server/database';
 import { parseBucketFilter } from '$lib/server/filter-converter';
+import { isEmailVerificationDisabled } from '$lib/server/security';
 
 export async function load({ locals, parent }) {
 	const parentData = await parent();
@@ -15,7 +16,7 @@ export async function load({ locals, parent }) {
 		throw redirect(303, '/orgs');
 	}
 
-	if (!locals.user.emailVerified) {
+	if (!locals.user.emailVerified && !isEmailVerificationDisabled()) {
 		throw redirect(303, '/auth/verify-email');
 	}
 
