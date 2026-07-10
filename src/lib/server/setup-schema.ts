@@ -141,7 +141,49 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
-	// 4. perm_scope enum
+	// 2. Map Layers
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating public layers table',
+		statements: [
+			`CREATE TABLE IF NOT EXISTS public.map_layer (
+				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				name						TEXT NOT NULL,
+				description			TEXT,
+				geojson					JSONB NOT NULL,
+				created_at      TIMESTAMP NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE public.map_layer ADD CONSTRAINT map_layer_name_unique UNIQUE (name);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`
+		]
+	},
+
+	{
+		label: 'Creating organization layers join table',
+		statements: [
+			`CREATE SCHEMA IF NOT EXISTS organization`,
+			`CREATE TABLE IF NOT EXISTS organization.map_layer (
+				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				organization_id UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE ON UPDATE CASCADE,
+				map_layer_id    UUID NOT NULL REFERENCES public.map_layer(id) ON DELETE CASCADE ON UPDATE CASCADE,
+				visible         BOOLEAN NOT NULL DEFAULT true,
+				created_at      TIMESTAMP NOT NULL DEFAULT now()
+			)`,
+			`ALTER TABLE organization.map_layer ADD COLUMN IF NOT EXISTS visible BOOLEAN NOT NULL DEFAULT true`,
+			`DO $$ BEGIN
+				ALTER TABLE organization.map_layer
+					ADD CONSTRAINT org_map_layer_org_layer_unique UNIQUE (organization_id, map_layer_id);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`CREATE INDEX IF NOT EXISTS org_map_layer_org_id_idx
+				ON organization.map_layer (organization_id)`
+		]
+	},
+
+
+
+	// -------------------------------------------------------------------------
+	// 3. perm_scope enum
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating permission scope enum',
@@ -457,7 +499,15 @@ export const SETUP_STEPS: SetupStep[] = [
 			`DROP POLICY IF EXISTS org_isolation ON user_permission`,
 			`CREATE POLICY org_isolation ON user_permission
 				USING (organization_id IS NULL OR organization_id = ${safe})
-				WITH CHECK (organization_id IS NULL OR organization_id = ${safe})`
+				WITH CHECK (organization_id IS NULL OR organization_id = ${safe})`,
+
+			// organization.map_layer: each org only sees layers it has added
+			`ALTER TABLE organization.map_layer ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE organization.map_layer FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON organization.map_layer`,
+			`CREATE POLICY org_isolation ON organization.map_layer
+				USING (organization_id = ${safe})
+				WITH CHECK (organization_id = ${safe})`
 		]
 	},
 

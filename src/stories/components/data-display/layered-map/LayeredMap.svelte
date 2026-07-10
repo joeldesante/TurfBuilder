@@ -14,21 +14,25 @@
 		layers?: MapLayer[];
 		defaultCenter?: [number, number];
 		defaultZoom?: number;
-		class?: string;
-		onSelectedGeometriesChange: (features: Array<GeoJSON.Geometry>) => void;
+		onSelectedGeometriesChange?: (features: Array<GeoJSON.Geometry>) => void;
 	}
 
 	let {
 		layers = [],
 		defaultCenter = [-75.2238, 40.0259],
 		defaultZoom = 12,
-		onSelectedGeometriesChange
+		onSelectedGeometriesChange = (_: Array<GeoJSON.Geometry>) => {}
 	}: Props = $props();
 
 	let map: maplibregl.Map | undefined;
 	let mapContainer: HTMLDivElement;
 	let isMapReady: boolean = $state(false);
 	let selectedFeatures: maplibregl.MapGeoJSONFeature[] = $state([]);
+	let layerVisibility = $state<Record<string, boolean>>({});
+
+	function isLayerVisible(layer: MapLayer): boolean {
+		return layerVisibility[layer.id] ?? layer.visible ?? false;
+	}
 
 	onMount(() => {
 		map = new maplibregl.Map({
@@ -158,7 +162,7 @@
 				existingSource.setData(layer.data);
 			}
 
-			const visibility = layer.visible === true ? 'visible' : 'none';
+			const visibility = isLayerVisible(layer) ? 'visible' : 'none';
 			map.setLayoutProperty(layer.id, 'visibility', visibility);
 			map.setLayoutProperty(`${layer.id}-area`, 'visibility', visibility);
 			map.setLayoutProperty(`${layer.id}-labels`, 'visibility', visibility);
@@ -171,7 +175,7 @@
 				const layer = layers.find((l) => `${l.id}-area` === feature.layer.id);
 				if (layer?.id === undefined) return;
 				const layerId = `${layer?.id}-area`;
-				if (feature.layer.id === layerId && layer.visible === true) {
+				if (feature.layer.id === layerId && isLayerVisible(layer)) {
 					return feature;
 				}
 			})
@@ -195,7 +199,10 @@
 			</p>
 			<div class="flex flex-col gap-2">
 				{#each layers as layer (layer.id)}
-					<Checkbox bind:checked={layer.visible}>
+					<Checkbox
+						checked={isLayerVisible(layer)}
+						onCheckedChange={(checked) => (layerVisibility[layer.id] = checked)}
+					>
 						{layer.label}
 					</Checkbox>
 				{/each}

@@ -18,6 +18,7 @@ import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
 // import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
 import ChartPieSliceIcon from 'phosphor-svelte/lib/ChartPieSlice';
+import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
 
 interface ActivePlugin {
 	navEntries: SidebarNavEntry[];
@@ -110,6 +111,17 @@ export function buildStaffNav(
 						]
 					},
 					{ label: 'Metrics', href: `/o/${orgSlug}/s/universe/metrics`, icon: ChartPieSliceIcon },
+				]
+			}
+		},
+		{
+			kind: 'section',
+			section: {
+				label: 'Map',
+				icon: MapTrifoldIcon,
+				items: [
+					{ label: 'Map', href: `/o/${orgSlug}/s/map`, icon: MapTrifoldIcon },
+					{ label: 'Browse Layers', href: `/o/${orgSlug}/s/map/browse`, icon: StackIcon }
 				]
 			}
 		},
