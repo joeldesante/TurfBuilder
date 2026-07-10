@@ -8,6 +8,36 @@
 	import { Story } from '@storybook/addon-svelte-csf';
 	import OvertureImportPage from './OvertureImportPage.svelte';
 	import type { ImportProgress } from './OvertureImportPage.svelte';
+	import type { MapLayer } from '$components/data-display/layered-map/LayeredMap.svelte';
+
+	const sampleLayers: MapLayer[] = [
+		{
+			id: 'sample-turf',
+			label: 'Sample Turf',
+			visible: true,
+			data: {
+				type: 'FeatureCollection',
+				features: [
+					{
+						type: 'Feature',
+						properties: { name: 'Sample Turf' },
+						geometry: {
+							type: 'Polygon',
+							coordinates: [
+								[
+									[-75.235, 40.02],
+									[-75.21, 40.02],
+									[-75.21, 40.032],
+									[-75.235, 40.032],
+									[-75.235, 40.02]
+								]
+							]
+						}
+					}
+				]
+			}
+		}
+	];
 
 	async function* mockImportSuccess(): AsyncGenerator<ImportProgress> {
 		yield { stage: 'querying' };
@@ -41,9 +71,13 @@
 </script>
 
 <Story name="Default">
-	<OvertureImportPage orgSlug="demo-org" onImport={mockImportSuccess} />
+	<OvertureImportPage orgSlug="demo-org" layers={sampleLayers} onImport={mockImportSuccess} />
 </Story>
 
 <Story name="With Errors">
-	<OvertureImportPage orgSlug="demo-org" onImport={mockImportWithErrors} />
+	<OvertureImportPage orgSlug="demo-org" layers={sampleLayers} onImport={mockImportWithErrors} />
+</Story>
+
+<Story name="No Layers">
+	<OvertureImportPage orgSlug="demo-org" layers={[]} onImport={mockImportSuccess} />
 </Story>

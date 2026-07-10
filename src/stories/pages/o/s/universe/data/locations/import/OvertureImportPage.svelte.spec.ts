@@ -3,58 +3,58 @@ import { expect, test, vi } from 'vitest';
 import OvertureImportPage from './OvertureImportPage.svelte';
 import type { ImportProgress } from './OvertureImportPage.svelte';
 
-vi.mock('maplibre-gl', () => ({
-	default: {
-		Map: vi.fn().mockImplementation(() => ({
-			remove: vi.fn(),
-			on: vi.fn(),
-			setStyle: vi.fn(),
-			getCanvas: vi.fn().mockReturnValue({ addEventListener: vi.fn() })
-		}))
+vi.mock('maplibre-gl', () => {
+	class Map {
+		remove = vi.fn();
+		on = vi.fn();
+		setStyle = vi.fn();
+		getCanvas = vi.fn().mockReturnValue({ addEventListener: vi.fn() });
 	}
-}));
-
-vi.mock('@geoman-io/maplibre-geoman-free', () => ({
-	Geoman: vi.fn().mockImplementation(() => ({
-		features: { getAll: vi.fn().mockReturnValue({ features: [] }) }
-	}))
-}));
-
-vi.mock('$lib/map-style', () => ({
-	getMapStyle: vi.fn().mockResolvedValue({})
-}));
-
-vi.mock('$lib/theme.svelte', () => ({
-	themeStore: { theme: 'light' }
-}));
+	return { default: { Map }, Map };
+});
 
 async function* neverCalled(): AsyncGenerator<ImportProgress> {
 	yield { stage: 'done', result: { imported: 0, skipped: 0, errors: [] } };
 }
 
-test('renders the panel with instructions when no polygon is drawn', async () => {
+test('renders the panel with instructions when nothing is selected', async () => {
 	const { getByText } = render(OvertureImportPage, {
-		props: { orgSlug: 'test-org', onImport: neverCalled }
+		props: { orgSlug: 'test-org', layers: [], onImport: neverCalled }
 	});
 
-	await expect
-		.element(getByText(/use the polygon tool/i))
-		.toBeVisible();
+	await expect.element(getByText(/click areas on the map to select them/i)).toBeVisible();
 });
 
-test('import button is disabled when no polygon is drawn', async () => {
+test('import button is disabled when nothing is selected', async () => {
 	const { getByRole } = render(OvertureImportPage, {
-		props: { orgSlug: 'test-org', onImport: neverCalled }
+		props: { orgSlug: 'test-org', layers: [], onImport: neverCalled }
 	});
 
-	await expect
-		.element(getByRole('button', { name: /import businesses/i }))
-		.toBeDisabled();
+	await expect.element(getByRole('button', { name: /import businesses/i })).toBeDisabled();
+});
+
+test('shows a loading indicator while layers are pending', async () => {
+	const pending = new Promise<never>(() => {});
+	const { getByRole } = render(OvertureImportPage, {
+		props: { orgSlug: 'test-org', layers: pending, onImport: neverCalled }
+	});
+
+	await expect.element(getByRole('status')).toBeVisible();
+});
+
+test('shows an error message when loading layers fails', async () => {
+	const failed = Promise.reject(new Error('Failed to load map layers.'));
+	failed.catch(() => {});
+	const { getByRole } = render(OvertureImportPage, {
+		props: { orgSlug: 'test-org', layers: failed, onImport: neverCalled }
+	});
+
+	await expect.element(getByRole('alert')).toHaveTextContent('Failed to load map layers.');
 });
 
 test('renders back link to locations page', async () => {
 	const { getByRole } = render(OvertureImportPage, {
-		props: { orgSlug: 'my-org', onImport: neverCalled }
+		props: { orgSlug: 'my-org', layers: [], onImport: neverCalled }
 	});
 
 	const link = getByRole('link', { name: /back to locations/i });

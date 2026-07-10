@@ -1,16 +1,14 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import maplibregl from 'maplibre-gl';
-	import '@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css';
-	import { themeStore } from '$lib/theme.svelte';
-	import { getMapStyle } from '$lib/map-style';
+	import LayeredMap, {
+		type MapLayer
+	} from '$components/data-display/layered-map/LayeredMap.svelte';
+	import Spinner from '$components/feedback/spinner/Spinner.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
 	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
 	import DatabaseIcon from 'phosphor-svelte/lib/Database';
 	import SpinnerGapIcon from 'phosphor-svelte/lib/SpinnerGap';
-	import type { Geoman } from '@geoman-io/maplibre-geoman-free';
 
 	export interface ImportResult {
 		imported: number;
@@ -25,44 +23,26 @@
 
 	interface Props {
 		orgSlug: string;
-		onImport: (polygon: GeoJSON.Polygon) => Promise<void>;
+		layers: Promise<MapLayer[]> | MapLayer[];
+		onImport: (geometries: GeoJSON.Geometry[]) => AsyncIterable<ImportProgress>;
 	}
 
-	const { orgSlug, onImport }: Props = $props();
+	const { orgSlug, layers, onImport }: Props = $props();
 
-	let mapContainer: HTMLDivElement;
-	let map: maplibregl.Map;
-	let geoman: Geoman | undefined;
-
-	let drawnPolygon = $state<GeoJSON.Polygon | null>(null);
+	let selectedGeometries = $state<GeoJSON.Geometry[]>([]);
 	let importing = $state(false);
 	let progressMessage = $state('');
 	let result = $state<ImportResult | null>(null);
 	let importError = $state<string | null>(null);
 
-	function isDarkTheme() {
-		return document.documentElement.getAttribute('data-theme') === 'dark';
-	}
-
-	function updateDrawnPolygon() {
-		if (!geoman) return;
-		const all = (geoman as Geoman).features.getAll();
-		const polygons = all.features.filter(
-			(f) => f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'
-		);
-		drawnPolygon =
-			polygons.length > 0 ? (polygons[polygons.length - 1].geometry as GeoJSON.Polygon) : null;
-	}
-
 	async function handleImport() {
-		if (!drawnPolygon || importing) return;
+		if (selectedGeometries.length === 0 || importing) return;
 		importing = true;
 		result = null;
 		importError = null;
 
 		try {
-			const gen = onImport(drawnPolygon);
-			for await (const progress of gen) {
+			for await (const progress of onImport($state.snapshot(selectedGeometries))) {
 				if (progress.stage === 'querying') {
 					progressMessage = progress.message ?? 'Querying Overture data...';
 				} else if (progress.stage === 'uploading') {
@@ -78,63 +58,27 @@
 			progressMessage = '';
 		}
 	}
-
-	onMount(() => {
-		(async () => {
-			const [{ Geoman: GeomanClass }, style] = await Promise.all([
-				import('@geoman-io/maplibre-geoman-free'),
-				getMapStyle(isDarkTheme())
-			]);
-
-			map = new maplibregl.Map({
-				container: mapContainer,
-				// @ts-ignore
-				style,
-				center: [-98.5795, 39.8283],
-				zoom: 4,
-				attributionControl: { compact: true }
-			});
-
-			geoman = new GeomanClass(map, {
-				settings: {
-					controlsPosition: 'top-right',
-					controlsUiEnabledByDefault: false
-				},
-				controls: {
-					draw: {
-						polygon: { uiEnabled: true }
-					},
-					edit: {
-						drag: { active: false },
-						delete: { uiEnabled: true },
-						change: { uiEnabled: true }
-					},
-					helper: {
-						snapping: { uiEnabled: true, active: true }
-					}
-				}
-			});
-
-			(['gm:create', 'gm:edit', 'gm:remove', 'gm:change'] as const).forEach((evt) => {
-				map.on(evt as any, () => queueMicrotask(updateDrawnPolygon));
-			});
-		})();
-	});
-
-	$effect(() => {
-		const _ = themeStore.theme;
-		if (map) {
-			// @ts-ignore
-			getMapStyle(isDarkTheme()).then((s) => map.setStyle(s));
-		}
-	});
-
-	onDestroy(() => {
-		map?.remove();
-	});
 </script>
 
-<div bind:this={mapContainer} class="w-screen h-screen"></div>
+<div class="h-dvh w-screen">
+	{#await layers}
+		<div class="flex h-full w-full items-center justify-center gap-2" role="status">
+			<Spinner />
+			<span class="text-on-surface-subtle text-sm">Loading map layers...</span>
+		</div>
+	{:then resolvedLayers}
+		<LayeredMap
+			layers={resolvedLayers}
+			onSelectedGeometriesChange={(geometries) => (selectedGeometries = geometries)}
+		/>
+	{:catch error}
+		<div class="flex h-full w-full items-center justify-center">
+			<p class="text-error text-sm" role="alert">
+				{error instanceof Error ? error.message : 'Failed to load map layers.'}
+			</p>
+		</div>
+	{/await}
+</div>
 
 <div
 	class="absolute top-4 left-4 z-10 w-80 rounded-xl border border-outline bg-surface/90 backdrop-blur-md p-5 space-y-4 shadow-lg"
@@ -190,19 +134,25 @@
 			<SpinnerGapIcon class="size-4 animate-spin shrink-0" />
 			<span>{progressMessage}</span>
 		</div>
-	{:else if drawnPolygon}
+	{:else if selectedGeometries.length > 0}
 		<p class="text-xs text-on-surface-subtle">
-			Area selected. Click Import to fetch businesses from Overture Maps for this region.
+			{selectedGeometries.length}
+			{selectedGeometries.length === 1 ? 'area' : 'areas'} selected. Click Import to fetch businesses
+			from Overture Maps for the selected region.
 		</p>
 	{:else}
 		<p class="text-xs text-on-surface-subtle">
-			Use the polygon tool on the map to draw an area. Businesses within that area will be imported
-			from Overture Maps.
+			Turn on a layer using the layers panel, then click areas on the map to select them.
+			Businesses within the selected areas will be imported from Overture Maps.
 		</p>
 	{/if}
 
 	<div class="flex flex-col gap-2">
-		<Button disabled={!drawnPolygon || importing} loading={importing} onclick={handleImport}>
+		<Button
+			disabled={selectedGeometries.length === 0 || importing}
+			loading={importing}
+			onclick={handleImport}
+		>
 			<DatabaseIcon />
 			Import Businesses
 		</Button>
