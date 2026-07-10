@@ -140,6 +140,15 @@
 	</div>
 {/snippet}
 
-<Story name="Default" args={{ layers: sampleLayers }} {template} />
+<Story
+	name="Default"
+	args={{
+		layers: sampleLayers,
+		onSelectedGeometriesChange: (geometries) => {
+			console.log('Selected:', geometries);
+		}
+	}}
+	{template}
+/>
 
 <Story name="Empty" args={{ layers: [] }} {template} />

@@ -77,7 +77,14 @@
 						source: layer.id,
 						paint: {
 							'fill-color': '#000000',
-							'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.15, 0]
+							'fill-opacity': [
+								'case',
+								['boolean', ['feature-state', 'selected'], false],
+								0.4,
+								['boolean', ['feature-state', 'hover'], false],
+								0.15,
+								0
+							]
 						}
 					},
 					firstLabelId
@@ -100,7 +107,26 @@
 
 				// Interactivity
 				map.on('click', `${layer.id}-area`, (event) => {
-					console.log('Click', event);
+					let clickedFeature = event.features?.[0] || null;
+					if (clickedFeature === null) {
+						return;
+					}
+
+					const isSame = (f: maplibregl.MapGeoJSONFeature) =>
+						f.id === clickedFeature.id && f.source === clickedFeature.source;
+					if (selectedFeatures.some(isSame)) {
+						selectedFeatures = selectedFeatures.filter((f) => !isSame(f));
+						map!.setFeatureState(
+							{ source: clickedFeature.source, id: clickedFeature.id },
+							{ selected: false }
+						);
+					} else {
+						selectedFeatures.push(clickedFeature);
+						map!.setFeatureState(
+							{ source: clickedFeature.source, id: clickedFeature.id },
+							{ selected: true }
+						);
+					}
 				});
 
 				let hoveredId: number | undefined;
@@ -140,9 +166,19 @@
 	});
 
 	$effect(() => {
-		let geometries = selectedFeatures.map((feature) => {
-			return feature.geometry;
-		});
+		let geometries = selectedFeatures
+			.filter((feature) => {
+				const layer = layers.find((l) => `${l.id}-area` === feature.layer.id);
+				if (layer?.id === undefined) return;
+				const layerId = `${layer?.id}-area`;
+				if (feature.layer.id === layerId && layer.visible === true) {
+					return feature;
+				}
+			})
+			.map((feature) => {
+				return feature.geometry;
+			});
+
 		onSelectedGeometriesChange(geometries);
 	});
 </script>
