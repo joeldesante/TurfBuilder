@@ -1,5 +1,7 @@
-<script lang="ts" module>
-	import type { GeoJsonObject } from 'geojson';
+<script lang="ts">
+	import maplibregl from 'maplibre-gl';
+	import { onMount } from 'svelte';
+	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
 
 	export interface MapLayer {
 		id: string;
@@ -7,25 +9,26 @@
 		data: GeoJSON.GeoJSON;
 		visible?: boolean;
 	}
-</script>
-
-<script lang="ts">
-	import maplibregl from 'maplibre-gl';
-	import { onMount } from 'svelte';
-	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
 
 	interface Props {
 		layers?: MapLayer[];
 		defaultCenter?: [number, number];
 		defaultZoom?: number;
 		class?: string;
+		onSelectedGeometriesChange: (features: Array<GeoJSON.Geometry>) => void;
 	}
 
-	let { layers = [], defaultCenter = [-75.2238, 40.0259], defaultZoom = 12 }: Props = $props();
+	let {
+		layers = [],
+		defaultCenter = [-75.2238, 40.0259],
+		defaultZoom = 12,
+		onSelectedGeometriesChange
+	}: Props = $props();
 
 	let map: maplibregl.Map | undefined;
 	let mapContainer: HTMLDivElement;
 	let isMapReady: boolean = $state(false);
+	let selectedFeatures: maplibregl.MapGeoJSONFeature[] = $state([]);
 
 	onMount(() => {
 		map = new maplibregl.Map({
@@ -134,6 +137,13 @@
 			map.setLayoutProperty(`${layer.id}-area`, 'visibility', visibility);
 			map.setLayoutProperty(`${layer.id}-labels`, 'visibility', visibility);
 		}
+	});
+
+	$effect(() => {
+		let geometries = selectedFeatures.map((feature) => {
+			return feature.geometry;
+		});
+		onSelectedGeometriesChange(geometries);
 	});
 </script>
 
