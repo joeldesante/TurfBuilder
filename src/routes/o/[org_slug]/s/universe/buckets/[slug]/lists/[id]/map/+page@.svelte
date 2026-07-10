@@ -36,7 +36,6 @@
 	import SmileyIcon from 'phosphor-svelte/lib/Smiley';
 	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
 
-	import 'maplibre-gl/dist/maplibre-gl.css';
 
 	let { data } = $props();
 

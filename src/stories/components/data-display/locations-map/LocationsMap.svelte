@@ -21,7 +21,6 @@
 	import Spinner from '$components/feedback/spinner/Spinner.svelte';
 	import SmileyIcon from 'phosphor-svelte/lib/Smiley';
 
-	import 'maplibre-gl/dist/maplibre-gl.css';
 
 	interface Props {
 		locations?: MapLocation[];

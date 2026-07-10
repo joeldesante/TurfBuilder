@@ -8,7 +8,6 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
-	import 'maplibre-gl/dist/maplibre-gl.css';
 
 	interface TurfData {
 		id: string;

@@ -15,7 +15,6 @@
 
 	import { mount, onMount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
-	import 'maplibre-gl/dist/maplibre-gl.css';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
 	import GpsIcon from 'phosphor-svelte/lib/Gps';
 	import MapMarker, { type Variant } from '$components/data-display/map-marker/MapMarker.svelte';

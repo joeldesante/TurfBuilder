@@ -9,7 +9,6 @@
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 	import SpinnerGap from 'phosphor-svelte/lib/SpinnerGap';
 	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
-	import 'maplibre-gl/dist/maplibre-gl.css';
 
 	interface LocationPreview {
 		id: string;

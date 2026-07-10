@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'maplibre-gl/dist/maplibre-gl.css' layer(base);
 @import './fonts.css';
 
 @utility no-scrollbar {

@@ -27,7 +27,6 @@
 	import Spinner from '$components/feedback/spinner/Spinner.svelte';
 	import SmileyIcon from 'phosphor-svelte/lib/Smiley';
 
-	import 'maplibre-gl/dist/maplibre-gl.css';
 	import '@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css';
 	import type { Geoman } from '@geoman-io/maplibre-geoman-free';
 

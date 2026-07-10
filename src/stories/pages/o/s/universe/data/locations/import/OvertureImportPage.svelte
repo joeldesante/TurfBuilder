@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import maplibregl from 'maplibre-gl';
-	import 'maplibre-gl/dist/maplibre-gl.css';
 	import '@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css';
 	import { themeStore } from '$lib/theme.svelte';
 	import { getMapStyle } from '$lib/map-style';
