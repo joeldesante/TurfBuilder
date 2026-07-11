@@ -30,6 +30,13 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Creating auth tables',
 		statements: [
+			`CREATE TABLE IF NOT EXISTS auth.jwks (
+				"id" UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				"public_key" text NOT NULL,
+				"private_key" text NOT NULL,
+				"created_at" TIMESTAMP NOT NULL DEFAULT now(),
+				"expires_at" TIMESTAMP
+			);`,
 			`CREATE TABLE IF NOT EXISTS auth.user (
 				id            UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 				name          TEXT NOT NULL,

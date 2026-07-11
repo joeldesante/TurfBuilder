@@ -1,7 +1,8 @@
 <script lang="ts">
 	import maplibregl from 'maplibre-gl';
-	import { onMount } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
+	import MapSidebarItem from './MapSidebarItem.svelte';
 
 	export interface MapLayer {
 		id: string;
@@ -14,14 +15,16 @@
 		layers?: MapLayer[];
 		defaultCenter?: [number, number];
 		defaultZoom?: number;
-		onSelectedGeometriesChange?: (features: Array<GeoJSON.Geometry>) => void;
+		sidebar?: Snippet;
+		onSelectedFeaturesChange?: (features: Array<GeoJSON.Feature>) => void;
 	}
 
 	let {
 		layers = [],
 		defaultCenter = [-75.2238, 40.0259],
 		defaultZoom = 12,
-		onSelectedGeometriesChange = (_: Array<GeoJSON.Geometry>) => {}
+		sidebar,
+		onSelectedFeaturesChange = (_: Array<GeoJSON.Feature>) => {}
 	}: Props = $props();
 
 	let map: maplibregl.Map | undefined;
@@ -170,7 +173,7 @@
 	});
 
 	$effect(() => {
-		let geometries = selectedFeatures
+		let features = selectedFeatures
 			.filter((feature) => {
 				const layer = layers.find((l) => `${l.id}-area` === feature.layer.id);
 				if (layer?.id === undefined) return;
@@ -180,35 +183,36 @@
 				}
 			})
 			.map((feature) => {
-				return feature.geometry;
+				return feature;
 			});
 
-		onSelectedGeometriesChange(geometries);
+		onSelectedFeaturesChange(features);
 	});
 </script>
 
 <div class="h-full w-full relative">
 	<!-- Map -->
 	<div bind:this={mapContainer} class="absolute inset-0"></div>
-	{#if layers.length > 0}
-		<div
-			class="absolute right-3 top-3 z-10 min-w-40 rounded-lg border border-outline-subtle bg-surface-container-lowest p-3 shadow-md"
-		>
-			<p class="mb-2 text-xs font-semibold tracking-wide text-on-surface-subtle uppercase">
-				Layers
-			</p>
-			<div class="flex flex-col gap-2">
-				{#each layers as layer (layer.id)}
-					<Checkbox
-						checked={isLayerVisible(layer)}
-						onCheckedChange={(checked) => (layerVisibility[layer.id] = checked)}
-					>
-						{layer.label}
-					</Checkbox>
-				{/each}
-			</div>
-		</div>
-	{/if}
+
+	<aside class="absolute right-3 top-3 max-w-120 flex flex-col gap-2 items-end overflow-y-auto">
+		<!-- Layers panel will always be visible -->
+		{#if layers.length > 0}
+			<MapSidebarItem label="Layers">
+				<div class="flex flex-col gap-2 text-nowrap">
+					{#each layers as layer (layer.id)}
+						<Checkbox
+							checked={isLayerVisible(layer)}
+							onCheckedChange={(checked) => (layerVisibility[layer.id] = checked)}
+						>
+							<span>{layer.label}</span>
+						</Checkbox>
+					{/each}
+				</div>
+			</MapSidebarItem>
+		{/if}
+
+		{@render sidebar?.()}
+	</aside>
 </div>
 
 <style>

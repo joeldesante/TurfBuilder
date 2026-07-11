@@ -1,10 +1,10 @@
 <script module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import SetupPage from './SetupPage.svelte';
+	import SetupWizardPage from './SetupWizardPage.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Setup/SetupPage',
-		component: SetupPage,
+		title: 'Pages/Setup/SetupWizardPage',
+		component: SetupWizardPage,
 		parameters: {
 			layout: 'fullscreen'
 		}

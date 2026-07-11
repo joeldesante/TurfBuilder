@@ -5,7 +5,7 @@ import { twoFactor, username } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { organization } from 'better-auth/plugins';
-import { admin } from 'better-auth/plugins';
+import { admin, jwt } from 'better-auth/plugins';
 import { ac, userRole } from '$lib/permissions';
 import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database';
 
@@ -238,6 +238,23 @@ async function buildAuth(): Promise<AuthInstance> {
 							banReason: 'ban_reason',
 							banExpires: 'ban_expires',
 							impersonatedBy: 'impersonated_by'
+						}
+					}
+				}
+			}),
+			jwt({
+				jwks: {
+					keyPairConfig: {
+						alg: "ES256"
+					}
+				},
+				schema: {
+					jwks: {
+						fields: {
+							publicKey: 'public_key',
+							privateKey: 'private_key',
+							createdAt: 'created_at',
+							expiresAt: 'expires_at',
 						}
 					}
 				}

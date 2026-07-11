@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SetupPage from '$pages/setup/SetupPage.svelte';
+	import SetupWizardPage from '$pages/setup/SetupWizardPage.svelte';
 </script>
 
-<SetupPage />
+<SetupWizardPage />

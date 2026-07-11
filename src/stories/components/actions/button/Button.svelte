@@ -91,7 +91,7 @@
 	};
 
 	const baseClasses =
-		'no-underline inline-flex items-center justify-center rounded-sm cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2';
+		'no-underline inline-flex items-center justify-center rounded-sm cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 text-nowrap';
 
 	const sizeClasses: Record<Size, string> = {
 		default: 'h-12 md:h-10 min-w-12 md:min-w-10 [&>svg]:size-5 text-sm gap-2',
