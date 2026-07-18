@@ -41,7 +41,7 @@
 		| undefined
 	>('formField');
 
-	let checkboxId = $derived(id ?? ctx?.id);
+	let checkboxId = $derived(id ?? ctx?.id ?? `checkbox-${Math.random().toString(36).slice(2, 10)}`);
 	let isInvalid = $derived(invalid ?? ctx?.invalid ?? false);
 	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
 	let describedBy = $derived(ctx?.describedBy);

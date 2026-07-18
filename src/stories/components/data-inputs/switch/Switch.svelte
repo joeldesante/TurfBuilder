@@ -37,7 +37,7 @@
 		| undefined
 	>('formField');
 
-	let switchId = $derived(id ?? ctx?.id);
+	let switchId = $derived(id ?? ctx?.id ?? `switch-${Math.random().toString(36).slice(2, 10)}`);
 	let isInvalid = $derived(ctx?.invalid ?? false);
 	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
 	let describedBy = $derived(ctx?.describedBy);

@@ -9,13 +9,15 @@
 		delay?: number;
 		fadeInDuration?: number;
 		fadeOutDuration?: number;
+		statusText?: string;
 	}
 
 	const {
 		logoWidth = 150,
 		delay = 300,
 		fadeInDuration = 150,
-		fadeOutDuration = 400
+		fadeOutDuration = 400,
+		statusText = undefined
 	}: Props = $props();
 
 	let visible = $state(false);
@@ -39,6 +41,11 @@
 		aria-label="Loading"
 	>
 		<Logo width={logoWidth} />
-		<Spinner />
+		<div class="flex flex-row">
+			<Spinner />
+			{#if statusText}
+				<span class="pl-2 text-sm text-color-secondary">{statusText}</span>
+			{/if}
+		</div>
 	</div>
 {/if}
