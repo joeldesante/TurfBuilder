@@ -4,6 +4,7 @@ import { z } from "zod";
 
 function createInitialState(initialState: Settings): Settings {
 	return {
+		setupComplete: false,
 		applicationName: "TurfBuilder",
 		baseURLs: [],
 		trustedOrigins: [],
