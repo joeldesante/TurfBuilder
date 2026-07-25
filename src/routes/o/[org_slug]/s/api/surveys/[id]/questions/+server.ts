@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import * as z from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { logger } from '$lib/server/logger';
 
 const SurveyQuestionsSchema = z.array(
 	z.object({
@@ -68,7 +69,7 @@ export async function POST({ request, locals, params }) {
 
 		return json({ success: true }, { status: 201 });
 	} catch (error) {
-		console.error('Error updating questions:', error);
+		logger.error({ err: error }, 'Error updating questions');
 		return json({ error: 'Failed to update questions' }, { status: 500 });
 	}
 }

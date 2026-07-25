@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { customAlphabet } from 'nanoid';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { logger } from '$lib/server/logger';
 
 const CreateTurfsSchema = z.object({
 	polygons: z
@@ -118,7 +119,7 @@ export async function POST({ request, locals }) {
 		if (status === 404) {
 			return json({ error: 'List not found' }, { status: 404 });
 		}
-		console.error('Error creating turfs:', error);
+		logger.error({ err: error }, 'Error creating turfs');
 		return json({ error: 'Failed to create turfs' }, { status: 500 });
 	}
 }

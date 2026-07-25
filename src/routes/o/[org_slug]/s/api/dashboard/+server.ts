@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { logger } from '$lib/server/logger';
 
 const RANGE_INTERVALS: Record<string, string> = {
 	'1w': '7 days',
@@ -59,7 +60,7 @@ export async function GET({ locals, url }) {
 			});
 		});
 	} catch (error) {
-		console.error('Error fetching dashboard data:', error);
+		logger.error({ err: error }, 'Error fetching dashboard data');
 		return json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
 	}
 }

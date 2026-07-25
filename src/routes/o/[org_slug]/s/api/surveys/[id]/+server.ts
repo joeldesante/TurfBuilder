@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { logger } from '$lib/server/logger';
 
 /**
  * Updates the name and optional description of an existing survey.
@@ -42,7 +43,7 @@ export async function PUT({ request, locals, params }) {
 
 		return json({ success: true }, { status: 201 });
 	} catch (error) {
-		console.error('Error updating survey:', error);
+		logger.error({ err: error }, 'Error updating survey');
 		return json({ error: 'Failed to update survey' }, { status: 500 });
 	}
 }

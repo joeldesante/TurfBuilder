@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { POOL } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 interface MailSettings {
 	transport: string;
@@ -57,7 +58,7 @@ async function sendDirect(
 	html: string
 ): Promise<boolean> {
 	if (!settings.domain) {
-		console.warn('[mail] No mail domain configured (mail.domain is empty). Emails will not be sent.');
+		logger.warn('No mail domain configured (mail.domain is empty). Emails will not be sent.');
 		return false;
 	}
 	// `direct: true` is a valid nodemailer transport option not reflected in @types/nodemailer
@@ -75,11 +76,11 @@ async function sendSES(
 	html: string
 ): Promise<boolean> {
 	if (!settings.domain) {
-		console.warn('[mail] No mail domain configured (mail.domain is empty). Emails will not be sent.');
+		logger.warn('No mail domain configured (mail.domain is empty). Emails will not be sent.');
 		return false;
 	}
 	if (!settings.sesRegion) {
-		console.warn('[mail] SES region not configured (mail.ses.region). Emails will not be sent.');
+		logger.warn('SES region not configured (mail.ses.region). Emails will not be sent.');
 		return false;
 	}
 
@@ -115,6 +116,6 @@ export async function sendEmail(
 	const sent = await send(settings, to, subject, html);
 
 	if (sent) {
-		console.log(`[mail] Sent "${subject}" (template: ${template}) to ${to}`);
+		logger.info({ template, to }, `Sent "${subject}"`);
 	}
 }

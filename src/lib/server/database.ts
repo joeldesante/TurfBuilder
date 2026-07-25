@@ -1,5 +1,6 @@
 import { Pool, type PoolClient } from 'pg';
 import { env } from '$env/dynamic/private';
+import { logger } from '$lib/server/logger';
 
 export const POOL = new Pool({
 	connectionString: env.DATABASE_URL
@@ -11,7 +12,7 @@ export const AUTH_POOL = new Pool({
 });
 
 POOL.on('error', (err) => {
-	console.error('Unexpected Database Error:', err);
+	logger.error({ err }, 'Unexpected database error');
 });
 
 process.on('SIGTERM', async () => {

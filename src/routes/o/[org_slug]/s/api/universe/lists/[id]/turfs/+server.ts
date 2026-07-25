@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 /**
  * Returns all turfs for a universe list, including polygon geometry (GeoJSON),
@@ -46,7 +47,7 @@ export async function GET({ params, locals }) {
 
 		return json(turfs);
 	} catch (err) {
-		console.error('Error fetching list turfs:', err);
+		logger.error({ err }, 'Error fetching list turfs');
 		return json({ error: 'Failed to fetch turfs' }, { status: 500 });
 	}
 }

@@ -1,10 +1,12 @@
 import { POOL } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 export interface AmazonSESConfig {
 	region: string
 }
 
 export interface Settings {
+	setupComplete: boolean,
 	applicationName: string	// Stylize
 	baseURLs: Array<string>
 	trustedOrigins: Array<string>
@@ -32,10 +34,12 @@ export interface Settings {
 	}
 }
 
+let cachedSettings: Settings | null = null;
+
 export async function getSettings(): Promise<Settings> {
 	let settings = null;
 	const result = await POOL.query<{ value: string }>(
-		`SELECT value FROM system_setting WHERE key = "settings";`
+		`SELECT value FROM system_setting WHERE key = 'settings';`
 	);
 	if(result.rowCount == 0) throw new Error("Could not find any settings.");
 	settings = JSON.parse(result.rows[0].value);
@@ -44,6 +48,16 @@ export async function getSettings(): Promise<Settings> {
 }
 
 export async function commitSettings(settings: Settings): Promise<Settings> {
-	// Create or update settings record...
+	try {
+		await POOL.query(
+			`INSERT INTO system_setting (key, value)
+			VALUES ('settings', $1)
+			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+			[JSON.stringify(settings)]
+		);
+	} catch (e) {
+		logger.error({ err: e }, 'Error committing settings');
+	}
+
 	return settings;
 }

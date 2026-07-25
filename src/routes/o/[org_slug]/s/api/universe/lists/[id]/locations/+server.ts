@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 /**
  * Returns all location entries from a universe list with their coordinates.
@@ -83,7 +84,7 @@ export async function GET({ params, locals }) {
 
 		return json(locations);
 	} catch (err) {
-		console.error('Error fetching list locations:', err);
+		logger.error({ err }, 'Error fetching list locations');
 		return json({ error: 'Failed to fetch locations' }, { status: 500 });
 	}
 }

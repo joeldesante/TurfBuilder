@@ -6,10 +6,10 @@ import { POOL, withOrgTransaction } from '$lib/server/database';
 import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
 import { isSetupComplete } from '$lib/server/setup';
 import { getSettings, SettingsMissingError } from '$lib/server/settings';
+import { logger } from '$lib/server/logger';
 
 export function handleError({ error: err, event, status, message }) {
-	console.error(`[${status}] ${event.request.method} ${event.url.pathname}`);
-	console.error(err);
+	logger.error({ err, status, method: event.request.method, path: event.url.pathname }, 'Unhandled error');
 	return { message: status === 500 ? 'Internal server error' : message };
 }
 
@@ -17,6 +17,8 @@ export async function handle({ event, resolve }) {
 	const { pathname } = event.url;
 	const isSetupRoute = pathname.startsWith('/setup');
 	const isAuthRoute = pathname.startsWith('/auth');
+
+	const auth = await getAuth();
 
 	if (!building) {
 		if (!isSetupRoute) {
@@ -41,7 +43,7 @@ export async function handle({ event, resolve }) {
 		return resolve(event);
 	}
 
-	const auth = await getAuth();
+	
 
 	let session: Awaited<ReturnType<typeof auth.api.getSession>> = null;
 	try {

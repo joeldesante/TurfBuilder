@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { logger } from '$lib/server/logger';
 
 /**
  * Deletes all questions for a survey except those listed in `exclude`.
@@ -43,7 +44,7 @@ export async function POST({ request, locals, params }) {
 
 		return json({ success: true }, { status: 201 });
 	} catch (error) {
-		console.error('Error purging questions:', error);
+		logger.error({ err: error }, 'Error purging questions');
 		return json({ error: 'Failed to purge questions' }, { status: 500 });
 	}
 }

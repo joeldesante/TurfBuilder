@@ -8,6 +8,7 @@ import { organization } from 'better-auth/plugins';
 import { admin, jwt } from 'better-auth/plugins';
 import { ac, userRole } from '$lib/permissions';
 import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 type AuthInstance = ReturnType<typeof betterAuth>;
 
@@ -126,7 +127,7 @@ async function buildAuth(): Promise<AuthInstance> {
 			organization({
 				organizationHooks: {
 					afterCreateOrganization: async ({ organization, member }) => {
-						console.log('[afterCreateOrganization] fired for org', organization.id, 'member', member.id);
+						logger.info({ orgId: organization.id, memberId: member.id }, 'afterCreateOrganization fired');
 						try {
 							await withOrgTransaction(organization.id, async (client) => {
 							async function insertPerms(roleId: string, keys: string[]) {
@@ -191,7 +192,7 @@ async function buildAuth(): Promise<AuthInstance> {
 							);
 						});
 						} catch (err) {
-							console.error('[afterCreateOrganization] error:', err);
+							logger.error({ err, orgId: organization.id }, 'afterCreateOrganization failed');
 							throw err;
 						}
 					}

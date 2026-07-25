@@ -1,5 +1,5 @@
 import type { AmazonSESConfig, Settings } from "$lib/server/services/settings.service";
-import { createMachine, state, reduce, transition, type Transition } from "robot3";
+import { createMachine, state, reduce, transition, type Transition, invoke } from "robot3";
 import { z } from "zod";
 
 function createInitialState(initialState: Settings): Settings {
@@ -71,7 +71,7 @@ export const machine = createMachine('checkDatabaseConnection', {
 		}})))
 	),
 	theme: state<Transition<'next'>>(
-		transition('next', 'done', reduce((state: Settings, ev: Theme): Settings => (
+		transition('next', 'submitting', reduce((state: Settings, ev: Theme): Settings => (
 			{
 				...state,
 				applicationName: ev.applicationName,
@@ -82,6 +82,12 @@ export const machine = createMachine('checkDatabaseConnection', {
 			}
 		)))
 	),
+	submitting: invoke<Transition<'done' | 'error'>>(
+		(state: Settings) => {},
+		transition('done', 'done'),
+		transition('error', 'submissionError'),
+	),
+	submissionError: state(),
 	done: state()
 }, createInitialState);
 

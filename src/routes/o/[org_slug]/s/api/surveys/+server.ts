@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { logger } from '$lib/server/logger';
 
 /**
  * Lists surveys for the organization, optionally filtered by bucket.
@@ -47,7 +48,7 @@ export async function GET({ locals, url }) {
 			return json(result.rows);
 		});
 	} catch (error) {
-		console.error('Error fetching surveys:', error);
+		logger.error({ err: error }, 'Error fetching surveys');
 		return json({ error: 'Failed to fetch surveys' }, { status: 500 });
 	}
 }
@@ -99,7 +100,7 @@ export async function POST({ request, locals }) {
 
 		return json({ id: result.rows[0].id }, { status: 201 });
 	} catch (error) {
-		console.error('Error creating survey:', error);
+		logger.error({ err: error }, 'Error creating survey');
 		return json({ error: 'Failed to create survey' }, { status: 500 });
 	}
 }

@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 /**
  * Returns the polygon bounds and all assigned locations for a turf, for map preview.
@@ -65,7 +66,7 @@ export async function GET({ params, locals }) {
 
 		return json(result);
 	} catch (err) {
-		console.error('Error fetching turf preview:', err);
+		logger.error({ err }, 'Error fetching turf preview');
 		return json({ error: 'Failed to fetch turf preview' }, { status: 500 });
 	}
 }

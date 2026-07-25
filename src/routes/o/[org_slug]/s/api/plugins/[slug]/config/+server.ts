@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
 import { getPlugin } from '$plugins/registry';
 import { POOL } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 /**
  * Updates the stored configuration for an installed plugin.
@@ -26,7 +27,7 @@ export async function PUT({ locals, params, request }) {
 	if (plugin.configSchema) {
 		const result = plugin.configSchema.safeParse(body);
 		if (!result.success) {
-			console.error('Plugin config validation failed:', result.error);
+			logger.error({ err: result.error }, 'Plugin config validation failed');
 			throw error(400, 'Invalid configuration.');
 		}
 	}
