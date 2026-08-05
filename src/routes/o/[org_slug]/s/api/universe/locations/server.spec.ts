@@ -21,7 +21,7 @@ vi.mock('pg', () => ({
 	})
 }));
 
-import { POST } from './+server';
+import { GET, POST, MAX_VIEWPORT_LOCATIONS } from './+server';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const ENTITY = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -36,6 +36,28 @@ const denied = {
 	user: { id: 'u2' },
 	organization: { id: ORG, permissions: ['location.read'] }
 };
+
+const reader = {
+	user: { id: 'u3' },
+	organization: { id: ORG, permissions: ['location.read'] }
+};
+
+const noReader = {
+	user: { id: 'u4' },
+	organization: { id: ORG, permissions: [] }
+};
+
+/** A GET event for the viewport handler. */
+function makeGet(params: Record<string, string>) {
+	return { url: new URL(`https://x/api?${new URLSearchParams(params)}`) };
+}
+
+const VIEWPORT = { west: '-75.3', south: '39.9', east: '-75.1', north: '40.1' };
+
+/** The SELECT the viewport handler issues, with its parameters. */
+function viewportCall() {
+	return mockClient.query.mock.calls.find((c) => String(c[0]).includes('ST_MakeEnvelope'))!;
+}
 
 const body = {
 	name: 'Rosa Deli',
@@ -64,6 +86,93 @@ beforeEach(() => {
 		if (sql.includes('INSERT INTO universe.org_entity')) return { rows: [{ id: ENTITY }] };
 		if (sql.includes('INSERT INTO universe.org_location')) return { rows: [{ id: VERSION }] };
 		return { rows: [] };
+	});
+});
+
+describe('GET /s/api/universe/locations', () => {
+	it('rejects a caller without location.read', async () => {
+		const response = await GET({ ...makeGet(VIEWPORT), locals: noReader } as never);
+
+		expect(response.status).toBe(403);
+	});
+
+	it('rejects a viewport with a missing corner', async () => {
+		const { north, ...incomplete } = VIEWPORT;
+		const response = await GET({ ...makeGet(incomplete), locals: reader } as never);
+
+		expect(response.status).toBe(400);
+	});
+
+	it('rejects a latitude off the globe', async () => {
+		const response = await GET({
+			...makeGet({ ...VIEWPORT, north: '91' }),
+			locals: reader
+		} as never);
+
+		expect(response.status).toBe(400);
+	});
+
+	it('returns the rows inside the viewport', async () => {
+		mockClient.query.mockImplementation(async (sql: string) =>
+			sql.includes('ST_MakeEnvelope') ? { rows: [{ id: 'v-1', entity_id: 'e-1' }] } : { rows: [] }
+		);
+
+		const response = await GET({ ...makeGet(VIEWPORT), locals: reader } as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({
+			locations: [{ id: 'v-1', entity_id: 'e-1' }],
+			truncated: false
+		});
+	});
+
+	it('envelopes the viewport it was given, scoped to the org', async () => {
+		await GET({ ...makeGet(VIEWPORT), locals: reader } as never);
+
+		expect(viewportCall()[1]).toEqual([ORG, -75.3, 39.9, -75.1, 40.1]);
+	});
+
+	it('scopes the read to the org transaction', async () => {
+		await GET({ ...makeGet(VIEWPORT), locals: reader } as never);
+
+		const sql = issued();
+		expect(sql).toContain('BEGIN');
+		expect(sql.some((q) => q.includes(`SET LOCAL app.current_org_id = '${ORG}'`))).toBe(true);
+		expect(sql).toContain('COMMIT');
+	});
+
+	// Only live versions are on the map; a superseded row would draw the same
+	// location twice, once at its old coordinates.
+	it('excludes superseded and deleted versions', async () => {
+		await GET({ ...makeGet(VIEWPORT), locals: reader } as never);
+
+		expect(viewportCall()[0]).toContain('ol.valid_to IS NULL');
+	});
+
+	// A map panned past 180 degrees reports west > east, which is an inside-out
+	// box to PostGIS and would silently return nothing.
+	it('splits a viewport that crosses the antimeridian into two boxes', async () => {
+		await GET({
+			...makeGet({ west: '170', south: '-10', east: '-170', north: '10' }),
+			locals: reader
+		} as never);
+
+		const [sql, params] = viewportCall();
+		expect(String(sql).match(/ST_MakeEnvelope/g)).toHaveLength(2);
+		expect(params).toEqual([ORG, 170, -10, 180, 10, -180, -10, -170, 10]);
+	});
+
+	it('caps the response and says it did so', async () => {
+		const rows = Array.from({ length: MAX_VIEWPORT_LOCATIONS + 1 }, (_, i) => ({ id: `v-${i}` }));
+		mockClient.query.mockImplementation(async (sql: string) =>
+			sql.includes('ST_MakeEnvelope') ? { rows } : { rows: [] }
+		);
+
+		const response = await GET({ ...makeGet(VIEWPORT), locals: reader } as never);
+		const body = await response.json();
+
+		expect(body.locations).toHaveLength(MAX_VIEWPORT_LOCATIONS);
+		expect(body.truncated).toBe(true);
 	});
 });
 
