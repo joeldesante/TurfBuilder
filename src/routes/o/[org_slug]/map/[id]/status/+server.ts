@@ -28,8 +28,11 @@ export async function GET({ locals, params }) {
 			        COUNT(tla.id) > 0 AS visited,
 			        (array_agg(tla.contact_made ORDER BY tla.updated_at DESC NULLS LAST))[1] AS contact_made
 			 FROM universe.turf_location tl
+			 LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
+			 LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
 			 LEFT JOIN universe.turf_location_attempt tla ON tla.turf_location_id = tl.id
 			 WHERE tl.turf_id = $1 AND tl.org_id = $2
+			   AND COALESCE(pl.valid_to, ol.valid_to) IS NULL
 			 GROUP BY tl.id`,
 			[turfId, orgId]
 		);

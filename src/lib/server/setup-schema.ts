@@ -11,9 +11,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	// -------------------------------------------------------------------------
 	{
 		label: 'Installing PostgreSQL extensions',
-		statements: [
-			`CREATE EXTENSION IF NOT EXISTS postgis`
-		]
+		statements: [`CREATE EXTENSION IF NOT EXISTS postgis`]
 	},
 
 	// -------------------------------------------------------------------------
@@ -546,9 +544,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating universe schema',
-		statements: [
-			`CREATE SCHEMA IF NOT EXISTS universe`
-		]
+		statements: [`CREATE SCHEMA IF NOT EXISTS universe`]
 	},
 
 	// -------------------------------------------------------------------------
@@ -1483,6 +1479,186 @@ export const SETUP_STEPS: SetupStep[] = [
 			`DROP TABLE IF EXISTS org_location CASCADE`,
 			`DROP TABLE IF EXISTS location CASCADE`,
 			`DROP FUNCTION IF EXISTS update_geometry() CASCADE`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 36. Location suggestions and photo storage
+	//
+	// Volunteers can suggest new locations from the field. A suggestion is
+	// workflow state about an entity, not an attribute of it, so it lives in
+	// its own table rather than forking a new org_location version on every
+	// status change. Photo keys reference objects in the Spaces bucket.
+	//
+	// This step runs last because the amended v_locations references
+	// location_suggestion, which in turn references universe.turf (step 34).
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating location suggestions and photo storage',
+		statements: [
+			`ALTER TABLE universe.org_location
+				ADD COLUMN IF NOT EXISTS photo_keys TEXT[] NOT NULL DEFAULT '{}'`,
+
+			`CREATE TABLE IF NOT EXISTS universe.location_suggestion (
+				id          UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id      UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				entity_id   UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				turf_id     UUID REFERENCES universe.turf(id) ON DELETE SET NULL,
+				user_id     UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE,
+				status      TEXT NOT NULL DEFAULT 'tentative'
+				              CHECK (status IN ('tentative', 'approved')),
+				reviewed_by UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				reviewed_at TIMESTAMPTZ,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+
+			`CREATE UNIQUE INDEX IF NOT EXISTS location_suggestion_entity_unique
+				ON universe.location_suggestion (entity_id)`,
+			`CREATE INDEX IF NOT EXISTS location_suggestion_org_id_idx
+				ON universe.location_suggestion (org_id)`,
+			`CREATE INDEX IF NOT EXISTS location_suggestion_turf_id_idx
+				ON universe.location_suggestion (turf_id)`,
+			`CREATE INDEX IF NOT EXISTS location_suggestion_user_id_idx
+				ON universe.location_suggestion (user_id)`,
+			`CREATE INDEX IF NOT EXISTS location_suggestion_pending_idx
+				ON universe.location_suggestion (org_id, created_at DESC) WHERE status = 'tentative'`,
+
+			// Required by createLocationVersion, which repoints list_entry rows
+			// from a superseded org_location version to its successor.
+			`CREATE INDEX IF NOT EXISTS list_entry_record_id_idx
+				ON universe.list_entry (record_id)`,
+
+			...['universe.location_suggestion'].flatMap((table) => [
+				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
+				`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`,
+				`DROP POLICY IF EXISTS org_isolation ON ${table}`,
+				`CREATE POLICY org_isolation ON ${table}
+					USING (org_id = ${safe})
+					WITH CHECK (org_id = ${safe})`
+			]),
+
+			// Dropped rather than replaced: CREATE OR REPLACE VIEW cannot change
+			// the column shape of an existing view, and this one gains entity_id
+			// and photo_keys. Nothing depends on it as a database object.
+			`DROP VIEW IF EXISTS universe.v_locations`,
+			`CREATE VIEW universe.v_locations AS
+				SELECT
+					pl.id,
+					pl.name,
+					pl.address_line_1,
+					pl.address_line_2,
+					pl.address_line_3,
+					pl.city,
+					pl.state_or_region,
+					pl.postal_code,
+					pl.country_code,
+					pl.coordinates,
+					'public_location' AS source,
+					pl.entity_id,
+					ARRAY[]::text[] AS photo_keys
+				FROM universe.public_location pl
+				WHERE pl.valid_to IS NULL
+				UNION ALL
+				SELECT
+					ol.id,
+					ol.name,
+					ol.address_line_1,
+					ol.address_line_2,
+					ol.address_line_3,
+					ol.city,
+					ol.state_or_region,
+					ol.postal_code,
+					ol.country_code,
+					ol.coordinates,
+					'org_location' AS source,
+					ol.entity_id,
+					ol.photo_keys
+				FROM universe.org_location ol
+				WHERE ol.valid_to IS NULL
+				  AND ol.org_id = ${safe}
+				  AND NOT EXISTS (
+					SELECT 1 FROM universe.location_suggestion ls
+					WHERE ls.entity_id = ol.entity_id
+					  AND ls.status = 'tentative'
+				  )`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 37. Location correction proposals
+	//
+	// A canvasser standing in front of a door can see when the record is wrong.
+	// The correction cannot be written into the location itself, because that
+	// would change the official dataset before anyone has checked it, so the
+	// proposed values are parked here until an organizer approves them. On
+	// approval they become a new version of the location; the photos are the
+	// evidence the organizer reviews.
+	//
+	// The target is an entity rather than a version row so a proposal survives
+	// the location being edited underneath it. Exactly one of the two entity
+	// columns is set: public locations belong to the shared pool and cannot be
+	// written, so approving a correction against one forks an org-private copy
+	// instead.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating location correction proposals',
+		statements: [
+			`CREATE TABLE IF NOT EXISTS universe.location_edit_suggestion (
+				id                UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id            UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				org_entity_id     UUID REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				public_entity_id  UUID REFERENCES universe.public_entity(id) ON DELETE CASCADE,
+				turf_id           UUID REFERENCES universe.turf(id) ON DELETE SET NULL,
+				turf_location_id  UUID REFERENCES universe.turf_location(id) ON DELETE SET NULL,
+				user_id           UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE,
+				status            TEXT NOT NULL DEFAULT 'pending'
+				                    CHECK (status IN ('pending', 'approved', 'rejected')),
+				name              TEXT,
+				address_line_1    TEXT,
+				address_line_2    TEXT,
+				address_line_3    TEXT,
+				city              TEXT,
+				state_or_region   TEXT,
+				postal_code       TEXT,
+				country_code      TEXT,
+				coordinates       geometry(point, 4326),
+				photo_keys        TEXT[] NOT NULL DEFAULT '{}',
+				note              TEXT,
+				reviewed_by       UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				reviewed_at       TIMESTAMPTZ,
+				created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+				updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.location_edit_suggestion
+					ADD CONSTRAINT location_edit_suggestion_target_check CHECK (
+						(org_entity_id IS NOT NULL AND public_entity_id IS NULL) OR
+						(org_entity_id IS NULL AND public_entity_id IS NOT NULL)
+					);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+
+			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_org_id_idx
+				ON universe.location_edit_suggestion (org_id)`,
+			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_org_entity_idx
+				ON universe.location_edit_suggestion (org_entity_id) WHERE org_entity_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_public_entity_idx
+				ON universe.location_edit_suggestion (public_entity_id) WHERE public_entity_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_turf_location_idx
+				ON universe.location_edit_suggestion (turf_location_id)`,
+			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_user_id_idx
+				ON universe.location_edit_suggestion (user_id)`,
+			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_pending_idx
+				ON universe.location_edit_suggestion (org_id, created_at DESC) WHERE status = 'pending'`,
+
+			...['universe.location_edit_suggestion'].flatMap((table) => [
+				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
+				`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`,
+				`DROP POLICY IF EXISTS org_isolation ON ${table}`,
+				`CREATE POLICY org_isolation ON ${table}
+					USING (org_id = ${safe})
+					WITH CHECK (org_id = ${safe})`
+			])
 		]
 	}
 ];

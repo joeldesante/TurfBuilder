@@ -82,7 +82,9 @@
 		"vitest-browser-svelte": "^2.0.1"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1103.0",
 		"@aws-sdk/client-sesv2": "^3.1045.0",
+		"@aws-sdk/s3-request-presigner": "^3.1103.0",
 		"@codemirror/commands": "^6.10.3",
 		"@codemirror/lang-html": "^6.4.11",
 		"@codemirror/state": "^6.6.0",
