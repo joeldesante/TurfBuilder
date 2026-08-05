@@ -7,16 +7,18 @@
 		latitude: number;
 		longitude: number;
 	}
+
+	export type { Variant as MarkerVariant } from '$components/data-display/map-marker/MapMarker.svelte';
 </script>
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { mount, onMount } from 'svelte';
+	import { mount, onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import maplibregl from 'maplibre-gl';
 	import { themeStore } from '$lib/theme.svelte';
 	import { getMapStyle } from '$lib/map-style';
-	import MapMarker from '$components/data-display/map-marker/MapMarker.svelte';
+	import MapMarker, { type Variant } from '$components/data-display/map-marker/MapMarker.svelte';
 	import MapPopup from '$components/data-display/map-popup/MapPopup.svelte';
 	import Spinner from '$components/feedback/spinner/Spinner.svelte';
 	import SmileyIcon from 'phosphor-svelte/lib/Smiley';
@@ -35,6 +37,43 @@
 		class?: string;
 		/** Overlay content rendered above the map (buttons, legends, etc.). */
 		children?: Snippet;
+		/**
+		 * Marker colour per location. Defaults to 'unvisited' for every marker.
+		 * Called on each render of the marker, so a variant that depends on
+		 * reactive state updates without rebuilding the marker.
+		 */
+		variantFor?: (loc: MapLocation) => Variant;
+		/**
+		 * Popup body for a location. When omitted each marker gets the default
+		 * name-and-address popup; pass `null` to suppress popups entirely (useful
+		 * when the parent drives its own detail panel instead).
+		 */
+		popup?: Snippet<[MapLocation]> | null;
+		/** Refit the viewport to the locations whenever the set of them changes. */
+		autoFit?: boolean;
+		/** Adds maplibre's own geolocate control to the map. */
+		geolocate?: boolean;
+		/** Turns the next map click into a pin drop rather than a pan. */
+		pinDropMode?: boolean;
+		onPinDrop?: (coords: { latitude: number; longitude: number }) => void;
+		/**
+		 * A pin for a location that does not exist yet, shown while its details
+		 * are being filled in. Draggable, so the position can be nudged before
+		 * saving.
+		 */
+		draftPin?: { latitude: number; longitude: number } | null;
+		onDraftMove?: (coords: { latitude: number; longitude: number }) => void;
+		/**
+		 * Where the viewer is, drawn as a pulsing dot. Supplied by the caller
+		 * rather than read here, so a page that already watches the position for
+		 * its own controls does not open a second geolocation subscription.
+		 */
+		userPosition?: { latitude: number; longitude: number } | null;
+		/** The one location the user may reposition by dragging, if any. */
+		draggableLocationId?: string | null;
+		onLocationMove?: (id: string, coords: { latitude: number; longitude: number }) => void;
+		/** Outline drawn over the map, typically the bounds of a turf. */
+		boundsGeoJSON?: GeoJSON.Polygon | GeoJSON.MultiPolygon | null;
 	}
 
 	let {
@@ -44,13 +83,39 @@
 		defaultCenter = [-75.2238, 40.0259],
 		defaultZoom = 12,
 		class: className = '',
-		children
+		children,
+		variantFor,
+		popup,
+		autoFit = true,
+		geolocate = false,
+		pinDropMode = false,
+		onPinDrop,
+		draftPin = null,
+		onDraftMove,
+		userPosition = null,
+		draggableLocationId = null,
+		onLocationMove,
+		boundsGeoJSON = null
 	}: Props = $props();
 
 	let mapContainer: HTMLDivElement;
 	let map: maplibregl.Map | undefined;
 	let markers: { id: string; marker: maplibregl.Marker }[] = [];
 	let mapReady = $state(false);
+
+	/**
+	 * Popup bodies are rendered by Svelte into hidden host nodes and handed to
+	 * maplibre by reference, so caller-supplied buttons keep their event handlers
+	 * and stay reactive without the markers being rebuilt.
+	 */
+	let popupHosts = $state<Record<string, HTMLDivElement>>({});
+
+	/**
+	 * Set while a marker is mid-drag. The rebuild effect bails out on it so a
+	 * parent writing the new coordinates back into `locations` cannot destroy the
+	 * marker the user is still holding.
+	 */
+	let dragging = $state(false);
 
 	let mapLoading = $state(false);
 	let mapLoadingComplete = $state(false);
@@ -81,35 +146,70 @@
 		mount(MapMarker, {
 			target: element,
 			props: {
-				variant: 'unvisited',
+				get variant() {
+					return variantFor?.(loc) ?? 'unvisited';
+				},
 				get isSelected() {
 					return selectedLocationId === loc.id;
 				}
 			}
 		});
 
-		const popupEl = document.createElement('div');
-		mount(MapPopup, {
-			target: popupEl,
-			props: {
-				locationName: loc.name ?? loc.address_line_1 ?? '',
-				street: loc.address_line_1,
-				locality: loc.city
-			}
-		});
-
-		const marker = new maplibregl.Marker({ element, anchor: 'bottom' })
+		const draggable = draggableLocationId === loc.id;
+		const marker = new maplibregl.Marker({ element, anchor: 'bottom', draggable })
 			.setLngLat([loc.longitude, loc.latitude])
-			.setPopup(new maplibregl.Popup({ offset: 34 }).setDOMContent(popupEl))
 			.addTo(map!);
+
+		if (popup !== null) {
+			const host = popupHosts[loc.id];
+			let content: HTMLElement;
+			if (popup && host) {
+				content = host;
+			} else {
+				content = document.createElement('div');
+				mount(MapPopup, {
+					target: content,
+					props: {
+						locationName: loc.name ?? loc.address_line_1 ?? '',
+						street: loc.address_line_1,
+						locality: loc.city
+					}
+				});
+			}
+			marker.setPopup(new maplibregl.Popup({ offset: 34 }).setDOMContent(content));
+		}
+
+		if (draggable) {
+			marker.on('dragstart', () => {
+				dragging = true;
+			});
+			marker.on('dragend', () => {
+				const { lng, lat } = marker.getLngLat();
+				dragging = false;
+				onLocationMove?.(loc.id, { latitude: lat, longitude: lng });
+			});
+		}
 
 		markers.push({ id: loc.id, marker });
 	}
 
-	// Recreate markers whenever the location list changes.
+	/**
+	 * Identity of the drawn marker set. Keying the rebuild off this rather than
+	 * the array reference means a parent that re-creates `locations` on every
+	 * status poll does not tear down and redraw every marker.
+	 */
+	let markerSignature = $derived(
+		locations.map((l) => `${l.id}:${l.longitude}:${l.latitude}`).join('|') +
+			`#${draggableLocationId ?? ''}`
+	);
+
+	// Recreate markers whenever the drawn set changes.
 	$effect(() => {
+		// Read first so the effect re-runs on any of these.
+		const signature = markerSignature;
 		const locs = locations;
-		if (!mapReady || !map) return;
+		if (!mapReady || !map || dragging) return;
+		void signature;
 
 		markers.forEach(({ marker }) => marker.remove());
 		markers = [];
@@ -117,13 +217,139 @@
 			selectedLocationId = null;
 		}
 
-		for (const loc of locs) {
-			createMarker(loc);
-		}
+		// Popup hosts are bound in the template, so wait a tick for a newly added
+		// location's host node to exist before handing it to maplibre.
+		tick().then(() => {
+			if (!mapReady || !map) return;
+			for (const loc of locs) {
+				createMarker(loc);
+			}
+		});
 
-		if (locs.length > 0) {
+		if (autoFit && locs.length > 0) {
 			map.fitBounds(locationBounds(locs), { padding: 60, maxZoom: 16 });
 		}
+	});
+
+	// Pin drop: a plain map click reports coordinates instead of doing nothing.
+	$effect(() => {
+		if (!mapReady || !map || !pinDropMode) return;
+
+		const canvas = map.getCanvas();
+		canvas.style.cursor = 'crosshair';
+
+		const handler = (e: maplibregl.MapMouseEvent) => {
+			onPinDrop?.({ latitude: e.lngLat.lat, longitude: e.lngLat.lng });
+		};
+		map.on('click', handler);
+
+		return () => {
+			map?.off('click', handler);
+			canvas.style.cursor = '';
+		};
+	});
+
+	// The draft pin is kept out of the marker list so the rebuild effect cannot
+	// drop it, and so it survives the location set changing underneath it.
+	let draftMarker: maplibregl.Marker | undefined;
+
+	$effect(() => {
+		if (!mapReady || !map) return;
+		const pin = draftPin;
+
+		if (!pin) {
+			draftMarker?.remove();
+			draftMarker = undefined;
+			return;
+		}
+
+		if (draftMarker) {
+			draftMarker.setLngLat([pin.longitude, pin.latitude]);
+			return;
+		}
+
+		const element = document.createElement('div');
+		element.dataset.testid = 'draft-pin';
+		// Drawn selected so it reads as the one being worked on.
+		mount(MapMarker, { target: element, props: { variant: 'unvisited', isSelected: true } });
+
+		const marker = new maplibregl.Marker({ element, anchor: 'bottom', draggable: true })
+			.setLngLat([pin.longitude, pin.latitude])
+			.addTo(map);
+
+		marker.on('dragend', () => {
+			const { lng, lat } = marker.getLngLat();
+			onDraftMove?.({ latitude: lat, longitude: lng });
+		});
+
+		draftMarker = marker;
+	});
+
+	// The viewer's own position, kept separate from the location markers for the
+	// same reason as the draft pin: the rebuild effect must not touch it.
+	let userMarker: maplibregl.Marker | undefined;
+
+	$effect(() => {
+		if (!mapReady || !map) return;
+		const position = userPosition;
+
+		if (!position) {
+			userMarker?.remove();
+			userMarker = undefined;
+			return;
+		}
+
+		if (userMarker) {
+			userMarker.setLngLat([position.longitude, position.latitude]);
+			return;
+		}
+
+		const element = document.createElement('div');
+		element.className = 'locations-map-user-dot';
+		element.dataset.testid = 'user-position';
+
+		userMarker = new maplibregl.Marker({ element, anchor: 'center' })
+			.setLngLat([position.longitude, position.latitude])
+			.addTo(map);
+	});
+
+	// Turf bounds outline. The flag keeps the effect from calling into maplibre
+	// at all on the far more common no-bounds path.
+	let boundsAdded = false;
+
+	$effect(() => {
+		if (!mapReady || !map) return;
+		const geometry = boundsGeoJSON;
+
+		if (!geometry) {
+			if (!boundsAdded) return;
+			if (map.getLayer('location-map-bounds-fill')) map.removeLayer('location-map-bounds-fill');
+			if (map.getLayer('location-map-bounds-line')) map.removeLayer('location-map-bounds-line');
+			map.removeSource('location-map-bounds');
+			boundsAdded = false;
+			return;
+		}
+
+		const data = { type: 'Feature' as const, properties: {}, geometry };
+		if (boundsAdded) {
+			(map.getSource('location-map-bounds') as maplibregl.GeoJSONSource)?.setData(data);
+			return;
+		}
+
+		boundsAdded = true;
+		map.addSource('location-map-bounds', { type: 'geojson', data });
+		map.addLayer({
+			id: 'location-map-bounds-fill',
+			type: 'fill',
+			source: 'location-map-bounds',
+			paint: { 'fill-color': '#10b981', 'fill-opacity': 0.08 }
+		});
+		map.addLayer({
+			id: 'location-map-bounds-line',
+			type: 'line',
+			source: 'location-map-bounds',
+			paint: { 'line-color': '#10b981', 'line-width': 2, 'line-dasharray': [2, 1] }
+		});
 	});
 
 	// Swap the base style when the site theme changes. Reading themeStore.theme
@@ -136,6 +362,11 @@
 			getMapStyle(dark).then((style) => map!.setStyle(style));
 		}
 	});
+
+	/** Pans the map to an arbitrary point, for callers driving their own controls. */
+	export function panTo(coords: { latitude: number; longitude: number }, zoom = 18) {
+		map?.flyTo({ center: [coords.longitude, coords.latitude], zoom });
+	}
 
 	/** Pans the map to a location, selects it, and opens its popup. */
 	export function flyToLocation(id: string) {
@@ -171,6 +402,18 @@
 					: { center: defaultCenter, zoom: defaultZoom }),
 				attributionControl: { compact: true }
 			});
+
+			if (geolocate) {
+				map.addControl(
+					new maplibregl.GeolocateControl({
+						positionOptions: { enableHighAccuracy: true },
+						trackUserLocation: true,
+						showUserLocation: true,
+						showAccuracyCircle: true,
+						fitBoundsOptions: { zoom: 18 }
+					})
+				);
+			}
 
 			map.on('dataloading', () => {
 				mapLoading = true;
@@ -247,7 +490,66 @@
 	{/if}
 </div>
 
+<!-- Popup bodies live here so Svelte owns them; maplibre is handed the node and
+     moves it into its own popup container when the popup opens. -->
+{#if popup}
+	<div hidden>
+		{#each locations as loc (loc.id)}
+			<div bind:this={popupHosts[loc.id]}>{@render popup(loc)}</div>
+		{/each}
+	</div>
+{/if}
+
 <style>
+	/* The viewer's own position. Global because the element is created
+	   imperatively and handed to maplibre, so it is outside this component's
+	   scoped-style tree. */
+	:global(.locations-map-user-dot) {
+		background-color: var(--primary);
+		border-radius: 50%;
+		height: 15px;
+		width: 15px;
+		position: relative;
+	}
+	:global(.locations-map-user-dot::before) {
+		animation: locations-map-user-dot-pulse 2s infinite;
+		background-color: var(--primary);
+		border-radius: 50%;
+		content: '';
+		height: 15px;
+		width: 15px;
+		position: absolute;
+	}
+	/* The ring is a contrast device against the map tiles rather than a brand
+	   colour, so it stays white in both themes. */
+	:global(.locations-map-user-dot::after) {
+		border: 2px solid #fff;
+		border-radius: 50%;
+		box-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
+		box-sizing: border-box;
+		content: '';
+		height: 19px;
+		left: -2px;
+		position: absolute;
+		top: -2px;
+		width: 19px;
+	}
+
+	@keyframes locations-map-user-dot-pulse {
+		0% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		70% {
+			opacity: 0;
+			transform: scale(3);
+		}
+		100% {
+			opacity: 0;
+			transform: scale(3);
+		}
+	}
+
 	:global(.maplibregl-popup) {
 		font-family: inherit;
 	}
