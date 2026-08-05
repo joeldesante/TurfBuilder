@@ -168,6 +168,10 @@
 	const firstShown = $derived(totalCount === 0 ? 0 : (page - 1) * pageSize + 1);
 	const lastShown = $derived(Math.min(page * pageSize, totalCount));
 
+	const rangeSummary = $derived(
+		`Showing ${firstShown.toLocaleString()}–${lastShown.toLocaleString()} of ${totalCount.toLocaleString()} records.`
+	);
+
 	/**
 	 * Page numbers to offer, with nulls standing in for gaps. Always includes the
 	 * first and last page so the ends of a long list stay one click away.
@@ -473,8 +477,7 @@
 				aria-label="Pagination"
 			>
 				<p class="text-xs text-on-surface-subtle">
-					Showing {firstShown.toLocaleString()}–{lastShown.toLocaleString()} of {totalCount.toLocaleString()}
-					records. Use
+					{rangeSummary} Use
 					<a href="/o/{orgSlug}/s/universe/search" class="underline hover:text-on-surface"
 						>Quick Search</a
 					> to filter.
