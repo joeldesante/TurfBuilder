@@ -17,6 +17,24 @@ import type { LocationFields } from '$lib/schemas/location';
  * behind createLocationVersion rather than being inlined into handlers.
  */
 
+/**
+ * Columns the admin list and the admin map both render, shaped to the
+ * LocationRow interface the page component declares. Shared so a column added
+ * for one view cannot go missing from the other, which is how the map ended up
+ * drawing a different set of locations than the list.
+ *
+ * Expects `universe.org_location ol` LEFT JOINed to
+ * `universe.location_suggestion ls` on entity_id.
+ */
+export const LOCATION_ROW_COLUMNS = `
+	ol.id, ol.entity_id, ol.name,
+	ol.address_line_1, ol.address_line_2,
+	ol.city, ol.state_or_region, ol.postal_code, ol.country_code,
+	ST_Y(ol.coordinates) AS latitude,
+	ST_X(ol.coordinates) AS longitude,
+	ol.photo_keys,
+	ls.status AS suggestion_status`;
+
 /** Column list shared by both insert paths, in parameter order. */
 const VERSION_COLUMNS = `
 	org_id, entity_id, name, address_line_1, address_line_2, address_line_3,

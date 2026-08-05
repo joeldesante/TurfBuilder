@@ -19,7 +19,13 @@ const { mapHandlers, markerInstances, mapApi, popupContent } = vi.hoisted(() => 
 		getSource: vi.fn(() => ({ setData: vi.fn() })),
 		getCanvas: vi.fn(() => ({ style: {} as CSSStyleDeclaration })),
 		addControl: vi.fn(),
-		flyTo: vi.fn()
+		flyTo: vi.fn(),
+		getBounds: vi.fn(() => ({
+			getWest: () => -75.3,
+			getSouth: () => 39.9,
+			getEast: () => -75.1,
+			getNorth: () => 40.1
+		}))
 	},
 	popupContent: [] as HTMLElement[]
 }));
@@ -140,6 +146,12 @@ beforeEach(() => {
 	mapApi.getLayer.mockReturnValue({});
 	mapApi.getSource.mockReturnValue({ setData: vi.fn() });
 	mapApi.getCanvas.mockReturnValue({ style: {} as CSSStyleDeclaration });
+	mapApi.getBounds.mockReturnValue({
+		getWest: () => -75.3,
+		getSouth: () => 39.9,
+		getEast: () => -75.1,
+		getNorth: () => 40.1
+	});
 });
 
 /** Waits for the map to be constructed, then fires 'load' to draw markers. */
@@ -373,6 +385,62 @@ test('draws the viewer position as a centred dot', async () => {
 	const dot = userDot()!;
 	expect(dot.anchor).toBe('center');
 	expect(dot.lngLat).toEqual([-75.16, 39.95]);
+});
+
+// A caller that loads locations per viewport has nothing to load until the map
+// says where it opened, so the first report cannot wait for a pan.
+test('reports the opening viewport once the map loads', async () => {
+	const onViewportChange = vi.fn();
+	render(LocationsMap, { props: { locations, onViewportChange, class: 'w-96 h-96' } });
+
+	await loadMap();
+
+	expect(onViewportChange).toHaveBeenCalledWith({
+		west: -75.3,
+		south: 39.9,
+		east: -75.1,
+		north: 40.1
+	});
+});
+
+test('reports the viewport again once the map settles', async () => {
+	const onViewportChange = vi.fn();
+	render(LocationsMap, { props: { locations, onViewportChange, class: 'w-96 h-96' } });
+
+	await loadMap();
+	onViewportChange.mockClear();
+	mapApi.getBounds.mockReturnValue({
+		getWest: () => -80,
+		getSouth: () => 35,
+		getEast: () => -79,
+		getNorth: () => 36
+	});
+	fireMapEvent('moveend');
+
+	expect(onViewportChange).toHaveBeenCalledWith({ west: -80, south: 35, east: -79, north: 36 });
+});
+
+test('stays silent without a viewport listener', async () => {
+	render(LocationsMap, { props: { locations, class: 'w-96 h-96' } });
+
+	await loadMap();
+	fireMapEvent('moveend');
+
+	expect(mapApi.getBounds).not.toHaveBeenCalled();
+});
+
+test('opens on initialBounds rather than fitting to the locations', async () => {
+	render(LocationsMap, {
+		props: {
+			locations,
+			initialBounds: { west: -75.5, south: 39.8, east: -75.0, north: 40.2 },
+			class: 'w-96 h-96'
+		}
+	});
+
+	await vi.waitFor(() => {
+		expect(maplibregl.LngLatBounds).toHaveBeenCalledWith([-75.5, 39.8], [-75.0, 40.2]);
+	});
 });
 
 // The dot only appears once the viewer opts into sharing their position.
