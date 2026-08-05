@@ -12,7 +12,13 @@ const { mapHandlers, mapApi } = vi.hoisted(() => ({
 		removeLayer: vi.fn(),
 		removeSource: vi.fn(),
 		addControl: vi.fn(),
-		flyTo: vi.fn()
+		flyTo: vi.fn(),
+		getBounds: vi.fn(() => ({
+			getWest: () => -75.3,
+			getSouth: () => 39.9,
+			getEast: () => -75.1,
+			getNorth: () => 40.1
+		}))
 	}
 }));
 
@@ -135,12 +141,12 @@ test('shows the empty state when there are no locations', async () => {
 	await expect.element(getByText('No location records found.')).toBeVisible();
 });
 
-test('notes when the list is truncated', async () => {
+test('reports which slice of the records is on screen', async () => {
 	const { getByText } = render(UniverseDataLocationsPage, {
-		props: { ...base, totalCount: 4820 }
+		props: { ...base, totalCount: 4820, page: 3, pageSize: 2 }
 	});
 
-	await expect.element(getByText(/Showing 2 of 4,820 records/)).toBeVisible();
+	await expect.element(getByText(/Showing 5–6 of 4,820 records/).first()).toBeVisible();
 });
 
 test('flags a tentative location', async () => {
@@ -278,6 +284,127 @@ test('creates a location from the dropped pin', async () => {
 		name: 'New Bodega',
 		latitude: 40.1,
 		longitude: -75.9
+	});
+});
+
+// Pagination is the only way to reach a record past the first page, so the
+// controls have to appear as soon as there is more than one page.
+test('offers page controls when the records do not fit on one page', async () => {
+	const { getByRole } = render(UniverseDataLocationsPage, {
+		props: { ...base, totalCount: 6, page: 1, pageSize: 2 }
+	});
+
+	await expect.element(getByRole('link', { name: 'Page 2' })).toHaveAttribute('href', '?page=2');
+	await expect.element(getByRole('link', { name: 'Next page' })).toHaveAttribute('href', '?page=2');
+});
+
+test('offers no page controls when everything fits on one page', async () => {
+	const { getByRole } = render(UniverseDataLocationsPage, {
+		props: { ...base, totalCount: 2, pageSize: 100 }
+	});
+
+	await expect.element(getByRole('link', { name: 'Next page' })).not.toBeInTheDocument();
+});
+
+test('marks the current page and disables the edges it sits on', async () => {
+	const { getByRole } = render(UniverseDataLocationsPage, {
+		props: { ...base, totalCount: 6, page: 1, pageSize: 2 }
+	});
+
+	await expect
+		.element(getByRole('link', { name: 'Page 1' }))
+		.toHaveAttribute('aria-current', 'page');
+	await expect.element(getByRole('button', { name: 'Previous page' })).toBeDisabled();
+});
+
+test('links back a page from the last one', async () => {
+	const { getByRole } = render(UniverseDataLocationsPage, {
+		props: { ...base, totalCount: 6, page: 3, pageSize: 2 }
+	});
+
+	await expect
+		.element(getByRole('link', { name: 'Previous page' }))
+		.toHaveAttribute('href', '?page=2');
+	await expect.element(getByRole('button', { name: 'Next page' })).toBeDisabled();
+});
+
+/** Switches to the map view and fires the map's load event. */
+async function openMap(getByRole: ReturnType<typeof render>['getByRole']) {
+	await getByRole('button', { name: 'Map' }).click();
+	await vi.waitFor(() => {
+		if (!mapHandlers['load']) throw new Error('map not initialized yet');
+	});
+	for (const handler of mapHandlers['load']) handler();
+}
+
+// The whole point of the viewport loader: the map draws what is on screen, not
+// the page of the alphabetical list that happens to be loaded.
+test('loads map locations for the viewport rather than the list page', async () => {
+	const onViewportLoad = vi.fn().mockResolvedValue({ locations: [], truncated: false });
+	const { getByRole } = render(UniverseDataLocationsPage, {
+		props: { ...base, onViewportLoad }
+	});
+
+	await openMap(getByRole);
+
+	await vi.waitFor(() => {
+		expect(onViewportLoad).toHaveBeenCalledWith({
+			west: -75.3,
+			south: 39.9,
+			east: -75.1,
+			north: 40.1
+		});
+	});
+});
+
+test('draws the locations the viewport loader returned', async () => {
+	const onViewportLoad = vi.fn().mockResolvedValue({
+		locations: [{ ...locations[0], entity_id: 'e-9', name: 'Viewport Bodega' }],
+		truncated: false
+	});
+	const { getByRole, getByText } = render(UniverseDataLocationsPage, {
+		props: { ...base, onViewportLoad }
+	});
+
+	await openMap(getByRole);
+	await vi.waitFor(() => {
+		expect(onViewportLoad).toHaveBeenCalled();
+	});
+	for (const handler of mapHandlers['idle'] ?? []) handler();
+
+	await expect.element(getByText('1 location loaded')).toBeVisible();
+});
+
+test('says so when the viewport holds more locations than it can draw', async () => {
+	const onViewportLoad = vi.fn().mockResolvedValue({ locations: [], truncated: true });
+	const { getByRole, getByText } = render(UniverseDataLocationsPage, {
+		props: { ...base, onViewportLoad }
+	});
+
+	await openMap(getByRole);
+
+	await expect.element(getByText(/Zoom in to see the rest/)).toBeVisible();
+});
+
+test('reloads the viewport after a location is created', async () => {
+	const onViewportLoad = vi.fn().mockResolvedValue({ locations: [], truncated: false });
+	const onCreate = vi.fn().mockResolvedValue(undefined);
+	const { getByRole, getByLabelText } = render(UniverseDataLocationsPage, {
+		props: { ...base, canCreate: true, onCreate, onViewportLoad }
+	});
+
+	await getByRole('button', { name: 'Add location' }).click();
+	await armPinDrop();
+	await vi.waitFor(() => {
+		expect(onViewportLoad).toHaveBeenCalledTimes(1);
+	});
+
+	mapHandlers['click'][0]({ lngLat: { lat: 40.1, lng: -75.9 } });
+	await getByLabelText('Business name').fill('New Bodega');
+	await getByRole('button', { name: 'Add location', exact: true }).nth(1).click();
+
+	await vi.waitFor(() => {
+		expect(onViewportLoad).toHaveBeenCalledTimes(2);
 	});
 });
 

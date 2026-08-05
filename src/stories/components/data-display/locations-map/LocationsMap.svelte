@@ -8,6 +8,14 @@
 		longitude: number;
 	}
 
+	/** A viewport, in degrees. */
+	export interface MapBounds {
+		west: number;
+		south: number;
+		east: number;
+		north: number;
+	}
+
 	export type { Variant as MarkerVariant } from '$components/data-display/map-marker/MapMarker.svelte';
 </script>
 
@@ -34,6 +42,18 @@
 		/** Fallback center when there are no locations to fit. */
 		defaultCenter?: [number, number];
 		defaultZoom?: number;
+		/**
+		 * Opening viewport. Takes precedence over fitting to `locations`, which is
+		 * what a caller loading locations per viewport wants: the map has to be
+		 * somewhere sensible before it can report what to load.
+		 */
+		initialBounds?: MapBounds | null;
+		/**
+		 * Fired once the map has settled, with the area now on screen. Lets a
+		 * caller fetch the locations that fall inside it instead of passing a
+		 * fixed set. Also fires once on load, so the first viewport is not missed.
+		 */
+		onViewportChange?: (bounds: MapBounds) => void;
 		class?: string;
 		/** Overlay content rendered above the map (buttons, legends, etc.). */
 		children?: Snippet;
@@ -82,6 +102,8 @@
 		locationsLoading = false,
 		defaultCenter = [-75.2238, 40.0259],
 		defaultZoom = 12,
+		initialBounds = null,
+		onViewportChange,
 		class: className = '',
 		children,
 		variantFor,
@@ -124,6 +146,21 @@
 
 	function isDarkTheme() {
 		return document.documentElement.getAttribute('data-theme') === 'dark';
+	}
+
+	function toLngLatBounds(b: MapBounds): maplibregl.LngLatBounds {
+		return new maplibregl.LngLatBounds([b.west, b.south], [b.east, b.north]);
+	}
+
+	function reportViewport() {
+		if (!map || !onViewportChange) return;
+		const b = map.getBounds();
+		onViewportChange({
+			west: b.getWest(),
+			south: b.getSouth(),
+			east: b.getEast(),
+			north: b.getNorth()
+		});
 	}
 
 	function locationBounds(locs: MapLocation[]): maplibregl.LngLatBounds {
@@ -394,12 +431,17 @@
 				container: mapContainer,
 				// @ts-expect-error getMapStyle returns a plain object rather than a StyleSpecification
 				style,
-				...(locations.length > 0
+				...(initialBounds
 					? {
-							bounds: locationBounds(locations),
+							bounds: toLngLatBounds(initialBounds),
 							fitBoundsOptions: { padding: 60, maxZoom: 16 }
 						}
-					: { center: defaultCenter, zoom: defaultZoom }),
+					: locations.length > 0
+						? {
+								bounds: locationBounds(locations),
+								fitBoundsOptions: { padding: 60, maxZoom: 16 }
+							}
+						: { center: defaultCenter, zoom: defaultZoom }),
 				attributionControl: { compact: true }
 			});
 
@@ -434,7 +476,12 @@
 
 			map.on('load', () => {
 				mapReady = true;
+				reportViewport();
 			});
+
+			// moveend rather than move: one fetch when the organizer stops, not one
+			// per animation frame while they are still dragging.
+			map.on('moveend', reportViewport);
 		})();
 
 		return () => {
