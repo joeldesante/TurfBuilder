@@ -15,10 +15,29 @@
 		suggestion_status?: 'tentative' | 'approved' | null;
 	}
 
+	export interface ViewportResult {
+		locations: LocationRow[];
+		/** Set when the server capped the response, so the map can say so. */
+		truncated?: boolean;
+	}
+
 	export interface Props {
 		orgSlug: string;
 		totalCount: number;
+		/** One page of the list, already ordered and sliced by the server. */
 		locations: LocationRow[];
+		/** 1-based index of the page in `locations`. */
+		page?: number;
+		pageSize?: number;
+		/** Opening viewport for the map, normally the extent of every location. */
+		initialBounds?: MapBounds | null;
+		/**
+		 * Loads the locations inside a viewport. The map calls this instead of
+		 * drawing `locations`, which is only ever one page of an alphabetical
+		 * ordering and so has no relationship to what is on screen. Without it the
+		 * map falls back to `locations`.
+		 */
+		onViewportLoad?: (bounds: MapBounds) => Promise<ViewportResult>;
 		canCreate?: boolean;
 		canUpdate?: boolean;
 		canDelete?: boolean;
@@ -40,8 +59,11 @@
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import Badge from '$components/data-display/badge/Badge.svelte';
+	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
 	import LocationsMap, {
-		type MapLocation
+		type MapLocation,
+		type MapBounds
 	} from '$components/data-display/locations-map/LocationsMap.svelte';
 	import LocationForm from '$components/data-inputs/location-form/LocationForm.svelte';
 	import ConfirmDialog from '$components/feedback/confirm-dialog/ConfirmDialog.svelte';
@@ -51,6 +73,10 @@
 		orgSlug,
 		totalCount,
 		locations,
+		page = 1,
+		pageSize = 100,
+		initialBounds = null,
+		onViewportLoad,
 		canCreate = false,
 		canUpdate = false,
 		canDelete = false,
@@ -80,9 +106,47 @@
 	let deleteBusy = $state(false);
 	let selectedLocationId = $state<string | null>(null);
 
+	/** Rows for the area the map is showing, kept apart from the list's page. */
+	let viewportRows = $state<LocationRow[]>([]);
+	let viewportLoading = $state(false);
+	let viewportTruncated = $state(false);
+	let viewportBounds: MapBounds | null = null;
+
+	/**
+	 * Ticks on every viewport request. A pan that outruns an in-flight fetch
+	 * would otherwise let the slower response land last and draw markers for a
+	 * viewport that is no longer on screen.
+	 */
+	let viewportRequest = 0;
+
+	async function loadViewport(bounds: MapBounds) {
+		if (!onViewportLoad) return;
+		viewportBounds = bounds;
+		const request = ++viewportRequest;
+		viewportLoading = true;
+		try {
+			const result = await onViewportLoad(bounds);
+			if (request === viewportRequest) {
+				viewportRows = result.locations;
+				viewportTruncated = result.truncated ?? false;
+			}
+		} finally {
+			if (request === viewportRequest) viewportLoading = false;
+		}
+	}
+
+	/** Redraws the map after a write, so a change is visible where it was made. */
+	async function refreshViewport() {
+		if (viewportBounds) await loadViewport(viewportBounds);
+	}
+
+	// Falls back to the list page when no loader is wired, which keeps the
+	// component usable from a story with fixed props.
+	const mapRows = $derived(onViewportLoad ? viewportRows : locations);
+
 	// Only locations with coordinates can be drawn.
 	const mapLocations: MapLocation[] = $derived(
-		locations
+		mapRows
 			.filter((l) => l.latitude !== null && l.longitude !== null)
 			.map((l) => ({
 				id: l.entity_id,
@@ -94,7 +158,33 @@
 			}))
 	);
 
-	const byEntityId = $derived(new Map(locations.map((l) => [l.entity_id, l])));
+	// Both sets, so a popup opened on the map and a row acted on in the list
+	// resolve through the same lookup.
+	const byEntityId = $derived(
+		new Map([...locations, ...mapRows].map((l) => [l.entity_id, l]))
+	);
+
+	const totalPages = $derived(Math.max(1, Math.ceil(totalCount / pageSize)));
+	const firstShown = $derived(totalCount === 0 ? 0 : (page - 1) * pageSize + 1);
+	const lastShown = $derived(Math.min(page * pageSize, totalCount));
+
+	/**
+	 * Page numbers to offer, with nulls standing in for gaps. Always includes the
+	 * first and last page so the ends of a long list stay one click away.
+	 */
+	const pageLinks = $derived.by<(number | null)[]>(() => {
+		if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+		const window = [page - 1, page, page + 1].filter((p) => p > 1 && p < totalPages);
+		const shown = [1, ...window, totalPages];
+
+		const out: (number | null)[] = [];
+		for (const [i, p] of shown.entries()) {
+			if (i > 0 && p - shown[i - 1] > 1) out.push(null);
+			out.push(p);
+		}
+		return out;
+	});
 
 	function formatPrimary(row: LocationRow): string {
 		if (row.name) return row.name;
@@ -121,6 +211,7 @@
 	async function handleCreate(fields: LocationFields) {
 		await onCreate?.(fields);
 		cancelPlacing();
+		await refreshViewport();
 	}
 
 	async function handleUpdate(fields: LocationFields) {
@@ -128,6 +219,7 @@
 		if (!target) return;
 		await onUpdate?.(target.entity_id, fields);
 		editing = null;
+		await refreshViewport();
 	}
 
 	async function confirmDelete() {
@@ -138,6 +230,7 @@
 		try {
 			await onDelete?.(target.entity_id);
 			deleting = null;
+			await refreshViewport();
 		} catch (e) {
 			deleteError = e instanceof Error ? e.message : 'Failed to delete location.';
 		} finally {
@@ -200,6 +293,15 @@
 
 {#if view === 'map'}
 	<div class="border-t border-outline-subtle">
+		{#if viewportTruncated}
+			<p
+				class="border-b border-outline-subtle bg-surface-container px-4 py-2 text-sm text-on-surface-subtle"
+				role="status"
+			>
+				Too many locations here to draw them all. Zoom in to see the rest.
+			</p>
+		{/if}
+
 		{#if placing}
 			<div
 				class="flex items-center justify-between gap-4 border-b border-outline-subtle bg-surface-container px-4 py-2"
@@ -220,11 +322,14 @@
 			<LocationsMap
 				bind:selectedLocationId
 				locations={mapLocations}
+				locationsLoading={viewportLoading}
+				{initialBounds}
+				onViewportChange={onViewportLoad ? loadViewport : undefined}
 				pinDropMode={placing}
 				onPinDrop={(coords) => (draft = coords)}
 				draftPin={draft}
 				onDraftMove={(coords) => (draft = coords)}
-				autoFit={!placing}
+				autoFit={!onViewportLoad && !placing}
 				class="h-[32rem] flex-1"
 			>
 				{#snippet popup(loc)}
@@ -362,13 +467,61 @@
 			<p class="px-4 py-8 text-sm text-on-surface-subtle text-center">No location records found.</p>
 		{/each}
 
-		{#if locations.length < totalCount}
-			<p class="px-4 py-3 text-xs text-on-surface-subtle text-center">
-				Showing {locations.length.toLocaleString()} of {totalCount.toLocaleString()} records. Use
-				<a href="/o/{orgSlug}/s/universe/search" class="underline hover:text-on-surface"
-					>Quick Search</a
-				> to filter.
-			</p>
+		{#if totalCount > 0}
+			<nav
+				class="flex flex-col items-center gap-3 px-4 py-3 sm:flex-row sm:justify-between"
+				aria-label="Pagination"
+			>
+				<p class="text-xs text-on-surface-subtle">
+					Showing {firstShown.toLocaleString()}–{lastShown.toLocaleString()} of {totalCount.toLocaleString()}
+					records. Use
+					<a href="/o/{orgSlug}/s/universe/search" class="underline hover:text-on-surface"
+						>Quick Search</a
+					> to filter.
+				</p>
+
+				{#if totalPages > 1}
+					<div class="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
+							aria-label="Previous page"
+							disabled={page <= 1}
+							href="?page={page - 1}"
+						>
+							<CaretLeftIcon />
+						</Button>
+
+						{#each pageLinks as target, i (i)}
+							{#if target === null}
+								<span class="px-1 text-xs text-on-surface-subtle" aria-hidden="true">…</span>
+							{:else}
+								<Button
+									variant={target === page ? 'outline' : 'ghost'}
+									size="sm"
+									href="?page={target}"
+									aria-label="Page {target}"
+									aria-current={target === page ? 'page' : undefined}
+								>
+									{target}
+								</Button>
+							{/if}
+						{/each}
+
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
+							aria-label="Next page"
+							disabled={page >= totalPages}
+							href="?page={page + 1}"
+						>
+							<CaretRightIcon />
+						</Button>
+					</div>
+				{/if}
+			</nav>
 		{/if}
 	</div>
 {/if}
