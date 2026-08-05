@@ -983,6 +983,11 @@ export const SETUP_STEPS: SetupStep[] = [
 	// every request. Because PostgreSQL views bypass underlying-table RLS by
 	// default, the org filter is applied explicitly in the view WHERE clause
 	// using the same `safe` expression as the RLS policies.
+	//
+	// v_locations is created in step 36 instead of here: it references
+	// location_suggestion, which does not exist yet at this point. Defining it
+	// in both places breaks reruns, because CREATE OR REPLACE VIEW cannot
+	// narrow a view that step 36 has already widened.
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating universe entity views',
@@ -1009,39 +1014,7 @@ export const SETUP_STEPS: SetupStep[] = [
 					'org_person' AS source
 				FROM universe.org_person op
 				WHERE op.valid_to IS NULL
-				  AND op.org_id = ${safe}`,
-
-			`CREATE OR REPLACE VIEW universe.v_locations AS
-				SELECT
-					pl.id,
-					pl.name,
-					pl.address_line_1,
-					pl.address_line_2,
-					pl.address_line_3,
-					pl.city,
-					pl.state_or_region,
-					pl.postal_code,
-					pl.country_code,
-					pl.coordinates,
-					'public_location' AS source
-				FROM universe.public_location pl
-				WHERE pl.valid_to IS NULL
-				UNION ALL
-				SELECT
-					ol.id,
-					ol.name,
-					ol.address_line_1,
-					ol.address_line_2,
-					ol.address_line_3,
-					ol.city,
-					ol.state_or_region,
-					ol.postal_code,
-					ol.country_code,
-					ol.coordinates,
-					'org_location' AS source
-				FROM universe.org_location ol
-				WHERE ol.valid_to IS NULL
-				  AND ol.org_id = ${safe}`
+				  AND op.org_id = ${safe}`
 		]
 	},
 
@@ -1490,7 +1463,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	// its own table rather than forking a new org_location version on every
 	// status change. Photo keys reference objects in the Spaces bucket.
 	//
-	// This step runs last because the amended v_locations references
+	// This step runs late because v_locations, defined here, references
 	// location_suggestion, which in turn references universe.turf (step 34).
 	// -------------------------------------------------------------------------
 	{
@@ -1538,9 +1511,11 @@ export const SETUP_STEPS: SetupStep[] = [
 					WITH CHECK (org_id = ${safe})`
 			]),
 
-			// Dropped rather than replaced: CREATE OR REPLACE VIEW cannot change
-			// the column shape of an existing view, and this one gains entity_id
-			// and photo_keys. Nothing depends on it as a database object.
+			// The only definition of v_locations; step 26.5 deliberately leaves it
+			// out. Dropped rather than replaced so a rerun against a database
+			// carrying an older column shape converges instead of failing, since
+			// CREATE OR REPLACE VIEW cannot change a view's columns. Nothing
+			// depends on it as a database object.
 			`DROP VIEW IF EXISTS universe.v_locations`,
 			`CREATE VIEW universe.v_locations AS
 				SELECT
