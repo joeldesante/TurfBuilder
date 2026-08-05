@@ -23,7 +23,8 @@ export async function load({ locals, params }) {
 			 LEFT JOIN universe.script sc ON sc.id = t.script_id
 			 LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
 			 LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
-			 WHERE tl.id = $1 AND tl.turf_id = $2 AND tl.org_id = $3`,
+			 WHERE tl.id = $1 AND tl.turf_id = $2 AND tl.org_id = $3
+			   AND COALESCE(pl.valid_to, ol.valid_to) IS NULL`,
 			[locationId, turfId, orgId]
 		);
 
@@ -31,7 +32,12 @@ export async function load({ locals, params }) {
 			throw error(404, 'Location not found in this turf.');
 		}
 
-		const { turf_location_id: turfLocationId, survey_id: surveyId, script_contents: scriptContents, ...locationFields } = turfLocationResult.rows[0];
+		const {
+			turf_location_id: turfLocationId,
+			survey_id: surveyId,
+			script_contents: scriptContents,
+			...locationFields
+		} = turfLocationResult.rows[0];
 
 		const questionsResult = await client.query(
 			`SELECT id, question_text, question_type, order_index, choices

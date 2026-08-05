@@ -76,6 +76,7 @@ export async function load({ params, locals }) {
 				LIMIT 1
 			) tla ON true
 			WHERE tl.turf_id = $1 AND tl.org_id = $2
+			  AND COALESCE(pl.valid_to, ol.valid_to) IS NULL
 			ORDER BY COALESCE(pl.name, ol.name)`,
 			[params.turf_id, locals.organization.id]
 		);

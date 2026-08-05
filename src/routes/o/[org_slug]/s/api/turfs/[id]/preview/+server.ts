@@ -54,6 +54,7 @@ export async function GET({ params, locals }) {
 				LEFT JOIN universe.org_location ol ON tl.org_location_id = ol.id
 				WHERE tl.turf_id = $1 AND tl.org_id = $2
 				AND COALESCE(pl.coordinates, ol.coordinates) IS NOT NULL
+				AND COALESCE(pl.valid_to, ol.valid_to) IS NULL
 				ORDER BY COALESCE(pl.name, ol.name)`,
 				[turf.id, locals.organization!.id]
 			);
