@@ -4,6 +4,7 @@ import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import PersonSimpleWalkIcon from 'phosphor-svelte/lib/PersonSimpleWalk';
 import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 import MapPinIcon from 'phosphor-svelte/lib/MapPinIcon';
+import MapPinAreaIcon from 'phosphor-svelte/lib/MapPinArea';
 import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 import ShieldIcon from 'phosphor-svelte/lib/Shield';
 // import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
@@ -36,7 +37,11 @@ interface Bucket {
 	filter?: BucketFilter;
 }
 
-export function buildBucketNav(orgSlug: string, bucketSlug: string, filter?: BucketFilter): SidebarNavEntry[] {
+export function buildBucketNav(
+	orgSlug: string,
+	bucketSlug: string,
+	filter?: BucketFilter
+): SidebarNavEntry[] {
 	const base = `/o/${orgSlug}/s/universe/buckets/${bucketSlug}`;
 	return [
 		{
@@ -45,8 +50,12 @@ export function buildBucketNav(orgSlug: string, bucketSlug: string, filter?: Buc
 				label: 'Entities',
 				icon: GlobeIcon,
 				items: [
-					...(filter?.people.enabled ? [{ label: 'People', href: `${base}/people`, icon: UsersIcon }] : []),
-					...(filter?.locations.enabled ? [{ label: 'Locations', href: `${base}/locations`, icon: MapPinIcon }] : []),
+					...(filter?.people.enabled
+						? [{ label: 'People', href: `${base}/people`, icon: UsersIcon }]
+						: []),
+					...(filter?.locations.enabled
+						? [{ label: 'Locations', href: `${base}/locations`, icon: MapPinIcon }]
+						: []),
 					{ label: 'Scripts', href: `${base}/scripts`, icon: ScrollIcon },
 					{ label: 'Surveys', href: `${base}/surveys`, icon: ClipboardTextIcon }
 				]
@@ -57,9 +66,7 @@ export function buildBucketNav(orgSlug: string, bucketSlug: string, filter?: Buc
 			section: {
 				label: 'Data',
 				icon: FilesIcon,
-				items: [
-					{ label: 'Lists', href: `${base}/lists`, icon: ListBulletsIcon }
-				]
+				items: [{ label: 'Lists', href: `${base}/lists`, icon: ListBulletsIcon }]
 			}
 		}
 	];
@@ -98,7 +105,11 @@ export function buildStaffNav(
 								href: `/o/${orgSlug}/s/universe/buckets/${b.slug}`,
 								icon: CircleIcon
 							})),
-							{ label: 'Create New Bucket', href: `/o/${orgSlug}/s/universe/buckets/new`, icon: PlusIcon }
+							{
+								label: 'Create New Bucket',
+								href: `/o/${orgSlug}/s/universe/buckets/new`,
+								icon: PlusIcon
+							}
 						]
 					},
 					{
@@ -106,10 +117,19 @@ export function buildStaffNav(
 						icon: DatabaseIcon,
 						items: [
 							{ label: 'People', href: `/o/${orgSlug}/s/universe/data/people`, icon: UsersIcon },
-							{ label: 'Locations', href: `/o/${orgSlug}/s/universe/data/locations`, icon: MapPinIcon },
+							{
+								label: 'Locations',
+								href: `/o/${orgSlug}/s/universe/data/locations`,
+								icon: MapPinIcon
+							},
+							{
+								label: 'Pending Locations',
+								href: `/o/${orgSlug}/s/universe/data/locations/suggestions`,
+								icon: MapPinAreaIcon
+							}
 						]
 					},
-					{ label: 'Metrics', href: `/o/${orgSlug}/s/universe/metrics`, icon: ChartPieSliceIcon },
+					{ label: 'Metrics', href: `/o/${orgSlug}/s/universe/metrics`, icon: ChartPieSliceIcon }
 				]
 			}
 		},
@@ -120,7 +140,7 @@ export function buildStaffNav(
 				icon: UsersIcon,
 				items: [
 					{ label: 'Members', href: `/o/${orgSlug}/s/members`, icon: UsersIcon },
-					{ label: 'Roles', href: `/o/${orgSlug}/s/settings/roles`, icon: ShieldIcon },
+					{ label: 'Roles', href: `/o/${orgSlug}/s/settings/roles`, icon: ShieldIcon }
 					// Integrations tab hidden from sidebar; page kept for later use.
 					// { label: 'Integrations', href: `/o/${orgSlug}/s/universe/data/integrations`, icon: HardDrivesIcon },
 					// Addons tab hidden from sidebar; page kept for later use.
@@ -129,11 +149,14 @@ export function buildStaffNav(
 					// 	: [])
 				]
 			}
-		},
+		}
 	];
 
 	const pluginNav = plugins.flatMap((p) => {
-		if (p.requiredPermission && !can(org, p.requiredPermission.resource, p.requiredPermission.action)) {
+		if (
+			p.requiredPermission &&
+			!can(org, p.requiredPermission.resource, p.requiredPermission.action)
+		) {
 			return [];
 		}
 		return p.navEntries;

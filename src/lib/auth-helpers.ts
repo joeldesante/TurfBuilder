@@ -15,16 +15,11 @@ export function hasSystemAccess(userRole: string | null | undefined): boolean {
  * Usage:
  *   if (!can(locals.organization, 'turf', 'create')) throw error(403, 'Forbidden');
  */
-export function can(
-	org: App.Locals['organization'],
-	resource: string,
-	action: string
-): boolean {
-	if(!org) return false;
-	console.log(org.permissions)
-	const canTheUserDoIt = org.permissions.includes(`${resource}.${action}`);
-	console.log(`User has "${resource}.${action}": ${canTheUserDoIt}`)
-	return canTheUserDoIt;
+export function can(org: App.Locals['organization'], resource: string, action: string): boolean {
+	if (!org) return false;
+	// A member with no resolved permissions can do nothing, which is not the
+	// same as a crash: hooks.server.ts leaves this unset for a non-staff member.
+	return org.permissions?.includes(`${resource}.${action}`) ?? false;
 }
 
 /**

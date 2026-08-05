@@ -42,11 +42,14 @@ describe('hasSystemAccess', () => {
 });
 
 describe('can', () => {
+	// hooks.server.ts resolves permissions onto the organization itself, not
+	// onto the role, so that direct grants and role grants arrive as one list.
 	const makeOrg = (permissions: string[]) => ({
 		id: 'org-1',
 		name: 'Test Org',
 		slug: 'test-org',
-		role: { id: 'group-1', name: 'Test Group', permissions }
+		role: { id: 'group-1', name: 'Test Group' },
+		permissions
 	});
 
 	it('returns false when organization is undefined', () => {
@@ -54,7 +57,12 @@ describe('can', () => {
 	});
 
 	it('returns false when organization has no role', () => {
-		expect(can({ id: 'org-1', name: 'Test Org', slug: 'test-org' }, 'turf', 'create')).toBe(false);
+		// Cast: an org reaching can() without resolved permissions is exactly the
+		// shape this guards against, so it cannot be built from the real type.
+		const unresolved = { id: 'org-1', name: 'Test Org', slug: 'test-org' } as unknown as Parameters<
+			typeof can
+		>[0];
+		expect(can(unresolved, 'turf', 'create')).toBe(false);
 	});
 
 	it('returns true when the permission is present', () => {
