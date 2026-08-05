@@ -1,48 +1,50 @@
 import { POOL } from '$lib/server/database';
 import { logger } from '$lib/server/logger';
+import { z } from 'zod';
 
-export interface AmazonSESConfig {
-	region: string
-}
+export const AmazonSESConfigSchema = z.object({
+	region: z.string()
+});
 
-export interface Settings {
-	setupComplete: boolean,
-	applicationName: string	// Stylize
-	baseURLs: Array<string>
-	trustedOrigins: Array<string>
-	services: {
-		overture: {
-			enabled: boolean
-			natsHost: string
-			natsPort: number
-			apiPort: number
-		},
-		email: {
-			transport: 'ses' | 'direct'
-			domain: string
-			other?: AmazonSESConfig
-		}
-	},
-	technical: {
-		head: string
-		catGifs: boolean	// Stylize
-		tenateMode: 'single' | 'multi',
-		telemetry: boolean
-	},
-	organizations: {
-		allowCreation: boolean
-	}
-}
+export const SettingsSchema = z.object({
+	setupComplete: z.boolean(),
+	applicationName: z.string().min(1, 'Application name is required'), // Stylize
+	baseURLs: z.array(z.string()),
+	trustedOrigins: z.array(z.string()),
+	services: z.object({
+		overture: z.object({
+			enabled: z.boolean(),
+			natsHost: z.string(),
+			natsPort: z.number(),
+			apiPort: z.number()
+		}),
+		email: z.object({
+			transport: z.enum(['ses', 'direct']),
+			domain: z.string(),
+			other: AmazonSESConfigSchema.optional()
+		})
+	}),
+	technical: z.object({
+		head: z.string(),
+		catGifs: z.boolean(), // Stylize
+		tenateMode: z.enum(['single', 'multi']),
+		telemetry: z.boolean()
+	}),
+	organizations: z.object({
+		allowCreation: z.boolean()
+	})
+});
 
-let cachedSettings: Settings | null = null;
+export type AmazonSESConfig = z.infer<typeof AmazonSESConfigSchema>;
+export type Settings = z.infer<typeof SettingsSchema>;
 
 export async function getSettings(): Promise<Settings> {
-	let settings = null;
 	const result = await POOL.query<{ value: string }>(
 		`SELECT value FROM system_setting WHERE key = 'settings';`
 	);
-	if(result.rowCount == 0) throw new Error("Could not find any settings.");
-	settings = JSON.parse(result.rows[0].value);
+
+	if(result.rowCount == 0) throw new Error("could not find any settings.");
+	let settings = JSON.parse(result.rows[0].value);
 
 	return settings as Settings;
 }
@@ -61,3 +63,4 @@ export async function commitSettings(settings: Settings): Promise<Settings> {
 
 	return settings;
 }
+
