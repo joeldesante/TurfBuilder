@@ -30,6 +30,7 @@ export default defineConfig({
 			}
 		: undefined,
 	server: {
+		hmr: process.env.NO_HMR === 'true' ? false : undefined,
 		fs: {
 			// Allow serving files from the main repo root (needed for git worktrees
 			// where node_modules is in the main repo, not the worktree)
