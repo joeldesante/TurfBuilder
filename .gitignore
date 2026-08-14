@@ -37,3 +37,9 @@ storybook-static
 docs/.vitepress/dist
 docs/.vitepress/cache
 docs/.vitepress/sidebar.ts
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
