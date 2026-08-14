@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('test', async ({ page }) => {
+test('application setup flow', async ({ page }) => {
   await page.goto('http://localhost:5173/setup');
   await page.getByRole('button', { name: 'Test Connection' }).click();
   await expect(page.locator('body')).toContainText('Connected successfully.');
