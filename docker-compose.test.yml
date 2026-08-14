@@ -1,4 +1,4 @@
-name: turfbuilder
+name: turfbuilder-e2e
 services:
   postgres:
     platform: linux/amd64
@@ -13,33 +13,39 @@ services:
       - POSTGRES_DB=postgres
       - TZ=${TZ}
     shm_size: 128mb
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
     networks:
       - turfbuilder
     restart: ${RESTART_POLICY}
 
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    ports:
-      - '3000:3000'
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
-      - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
-      - BETTER_AUTH_URL=http://localhost:3000
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  #frontend:
+  #  build:
+  #    context: .
+  #    dockerfile: Dockerfile
+  #    target: production
+  #  ports:
+  #    - '3000:3000'
+  #  environment:
+  #    - NODE_ENV=production
+  #    - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
+  #    - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
+  #    - BETTER_AUTH_URL=http://localhost:3000
+  #    - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+  #    - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     # volumes:
     #   - .:/app
     #   - /app/node_modules
-    depends_on:
-      - postgres
-    networks:
-      - turfbuilder
-    restart: unless-stopped
-  frontend-dev:
+  #  depends_on:
+  #    - postgres
+  #  networks:
+  #    - turfbuilder
+  #  restart: unless-stopped
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -54,11 +60,13 @@ services:
       - BETTER_AUTH_URL=http://localhost:5173
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    command: sh -c "npm install && npm run dev:nohmr -- --host 0.0.0.0"
     volumes:
       - .:/app
       - /app/node_modules
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - turfbuilder
     restart: unless-stopped
@@ -78,16 +86,9 @@ services:
       - nats_data:/data/jetstream
     networks:
       - turfbuilder
-  jaeger:
-    image: cr.jaegertracing.io/jaegertracing/jaeger:latest
-    environment:
-      - SPAN_STORAGE_TYPE=memory
-      - METRICS_STORAGE_TYPE=prometheus
-    ports:
-      - "16686:16686"
-      - "4318:4318"
-    networks:
-      - turfbuilder
+
+  ## ADD DB SEEDING AND WHAT NOT FIRST
+
 volumes:
   postgres_data:
   nats_data:
