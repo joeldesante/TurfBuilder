@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './helpers';
 
 test('application setup flow', async ({ page }) => {
-  await page.goto('http://localhost:5173/setup');
+  await gotoHydrated(page, '/setup');
   await page.getByRole('button', { name: 'Test Connection' }).click();
   await expect(page.locator('body')).toContainText('Connected successfully.');
   await page.getByRole('button', { name: 'Continue →' }).click();
