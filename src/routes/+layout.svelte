@@ -48,7 +48,7 @@
 		{@html data.config.header_content}
 	{/if}
 </svelte:head>
-
+<!--
 {#if process.env.NODE_ENV?.toLowerCase() !== 'production'}
 	<div class="fixed bottom-0 right-0 m-1 z-50">
 		<DropdownMenu items={devMenuItems} side="top" align="end">
@@ -64,5 +64,6 @@
 		</DropdownMenu>
 	</div>
 {/if}
+-->
 
 {@render children()}
