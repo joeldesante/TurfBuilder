@@ -18,11 +18,21 @@
 		};
 	}
 
-	async function handleImport(polygon: GeoJSON.Polygon): Promise<void> {
-		console.log('Import');
+	const BATCH_SIZE = 500;
+
+	interface OvertureRecord {
+		name?: string;
+		longitude: number;
+		latitude: number;
+	}
+
+	async function* handleImport(polygon: GeoJSON.Polygon): AsyncGenerator<ImportProgress> {
+		yield { stage: 'querying' };
+
 		const duckdb = await getDuckDB();
 		const conn = await duckdb.connect();
 
+		let records: OvertureRecord[];
 		try {
 			// Install extensions (run once per session)
 			await conn.query(`INSTALL spatial`);
@@ -37,10 +47,9 @@
 			const bbox = getBoundingBox(polygon); // derive from your GeoJSON polygon
 			const result = await conn.query(`
 				SELECT
-					id,
 					names.primary AS name,
-					categories.primary AS category,
-					geometry
+					ST_X(geometry) AS longitude,
+					ST_Y(geometry) AS latitude
 				FROM read_parquet(
 					'https://overturemaps-us-west-2.s3.amazonaws.com/release/2026-05-20.0/theme=places/type=place/*.parquet')
 				WHERE
@@ -48,10 +57,40 @@
 					AND bbox.ymin BETWEEN ${bbox.minY} AND ${bbox.maxY}
 		`);
 
-			console.log(result);
+			records = result.toArray().map((row: any) => ({
+				name: row.name ?? undefined,
+				longitude: row.longitude,
+				latitude: row.latitude
+			}));
 		} finally {
 			await conn.close();
 		}
+
+		const total = Math.ceil(records.length / BATCH_SIZE) || 1;
+		const aggregate: ImportResult = { imported: 0, skipped: 0, errors: [] };
+
+		for (let i = 0; i < records.length; i += BATCH_SIZE) {
+			const batchNum = i / BATCH_SIZE + 1;
+			yield { stage: 'uploading', batch: batchNum, total };
+
+			const chunk = records.slice(i, i + BATCH_SIZE);
+			const res = await fetch(`/o/${data.orgSlug}/s/api/universe/locations/import/overture`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ records: chunk })
+			});
+			if (!res.ok) {
+				aggregate.skipped += chunk.length;
+				aggregate.errors.push({ row: i + 1, reason: `Upload failed (${res.status})` });
+				continue;
+			}
+			const body = (await res.json()) as ImportResult;
+			aggregate.imported += body.imported;
+			aggregate.skipped += body.skipped;
+			aggregate.errors.push(...body.errors.map((e) => ({ ...e, row: e.row + i })));
+		}
+
+		yield { stage: 'done', result: aggregate };
 	}
 </script>
 

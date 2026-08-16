@@ -27,7 +27,7 @@
 </script>
 
 <Story name="Horizontal" args={{ orientation: 'horizontal' }}>
-	{#snippet children(args)}
+	{#snippet template(args)}
 		<div class="w-64 py-4">
 			<p class="text-sm mb-2">Above</p>
 			<Separator {...args} />
@@ -37,7 +37,7 @@
 </Story>
 
 <Story name="Vertical" args={{ orientation: 'vertical' }}>
-	{#snippet children(args)}
+	{#snippet template(args)}
 		<div class="flex h-8 items-center gap-4 text-sm">
 			Left
 			<Separator {...args} />

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Form } from '$lib/client/formstorm/form.svelte.ts';
+	import { Form } from '$lib/client/formstorm/form.svelte';
 	import { z } from 'zod';
 
 	type StepStatus = 'pending' | 'running' | 'done' | 'error';
@@ -181,6 +181,14 @@
 		}
 		window.location.href = '/auth/signin';
 	});
+
+	const adminFormFields = [
+		{ id: 'setup-name', key: 'name', label: 'Full Name', type: 'text', placeholder: 'Jane Smith', autocomplete: 'name' },
+		{ id: 'setup-username', key: 'username', label: 'Username', type: 'text', placeholder: 'janesmith', autocomplete: 'username' },
+		{ id: 'setup-email', key: 'email', label: 'Email Address', type: 'email', placeholder: 'jane@example.com', autocomplete: 'email' },
+		{ id: 'setup-password', key: 'password', label: 'Password', type: 'password', placeholder: '••••••••', autocomplete: 'new-password' },
+		{ id: 'setup-confirm', key: 'confirmPassword', label: 'Confirm Password', type: 'password', placeholder: '••••••••', autocomplete: 'new-password' }
+	] as const;
 
 	let progressPercent = $derived(
 		progressItems.length === 0
@@ -506,13 +514,7 @@
 					onsubmit={(e) => { e.preventDefault(); adminForm.submit(); }}
 					class="space-y-4"
 				>
-					{#each [
-						{ id: 'setup-name', key: 'name', label: 'Full Name', type: 'text', placeholder: 'Jane Smith', autocomplete: 'name' },
-						{ id: 'setup-username', key: 'username', label: 'Username', type: 'text', placeholder: 'janesmith', autocomplete: 'username' },
-						{ id: 'setup-email', key: 'email', label: 'Email Address', type: 'email', placeholder: 'jane@example.com', autocomplete: 'email' },
-						{ id: 'setup-password', key: 'password', label: 'Password', type: 'password', placeholder: '••••••••', autocomplete: 'new-password' },
-						{ id: 'setup-confirm', key: 'confirmPassword', label: 'Confirm Password', type: 'password', placeholder: '••••••••', autocomplete: 'new-password' },
-					] as field}
+					{#each adminFormFields as field}
 						<div>
 							<label class="block text-sm font-medium text-on-surface mb-1" for={field.id}>
 								{field.label}

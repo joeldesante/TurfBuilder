@@ -7,12 +7,12 @@ const emptyChildren = createRawSnippet(() => ({ render: () => `<span></span>` })
 
 test('renders children', async () => {
 	const children = createRawSnippet(() => ({ render: () => `<p>Test content</p>` }));
-	const screen = render(PdfPage, { children });
+	const screen = render(PdfPage, { type: 'Letter', children });
 	await expect.element(screen.getByText('Test content')).toBeVisible();
 });
 
 test('renders pdf-page wrapper', async () => {
-	const screen = render(PdfPage, { children: emptyChildren });
+	const screen = render(PdfPage, { type: 'Letter', children: emptyChildren });
 	const el = screen.container.querySelector('.pdf-page');
 	expect(el).not.toBeNull();
 });

@@ -9,12 +9,16 @@ import { admin } from 'better-auth/plugins';
 import { ac, userRole } from '$lib/permissions';
 import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database';
 
-type AuthInstance = ReturnType<typeof betterAuth>;
+// Derived from buildAuth's own inferred return type rather than
+// `ReturnType<typeof betterAuth>`, which loses the plugins (organization,
+// admin, etc.) actually passed at the call site below and falls back to
+// betterAuth's unplugged base API surface.
+type AuthInstance = Awaited<ReturnType<typeof buildAuth>>;
 
 let _instance: AuthInstance | null = null;
 let _initPromise: Promise<AuthInstance> | null = null;
 
-async function buildAuth(): Promise<AuthInstance> {
+async function buildAuth() {
 	// Read base_url from DB on first init; fall back to env during setup phase
 	// when the system_setting table doesn't exist yet.
 	let baseURLs: string[];
@@ -253,8 +257,8 @@ async function buildAuth(): Promise<AuthInstance> {
 		}
 	});
 
-	_instance = instance as unknown as AuthInstance;
-	return _instance;
+	_instance = instance;
+	return instance;
 }
 
 export function getAuth(): Promise<AuthInstance> {

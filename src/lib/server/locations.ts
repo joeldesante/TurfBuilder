@@ -18,6 +18,13 @@ import type { LocationFields } from '$lib/schemas/location';
  */
 
 /**
+ * Ceiling on markers returned for one viewport. High enough that a city-block
+ * view is complete, low enough that a zoomed-out view cannot try to serialize
+ * an entire imported universe into the browser.
+ */
+export const MAX_VIEWPORT_LOCATIONS = 2000;
+
+/**
  * Columns the admin list and the admin map both render, shaped to the
  * LocationRow interface the page component declares. Shared so a column added
  * for one view cannot go missing from the other, which is how the map ended up

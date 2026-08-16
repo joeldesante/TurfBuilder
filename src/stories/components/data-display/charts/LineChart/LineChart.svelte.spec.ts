@@ -1,49 +1,54 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import * as Plot from '@observablehq/plot';
 import LineChart from './LineChart.svelte';
+import type { Series } from './LineChart.svelte';
 
-const data = [
-	{ week: 0, doors: 10 },
-	{ week: 1, doors: 40 },
-	{ week: 2, doors: 25 }
+const numericSeries: Series[] = [
+	{
+		name: 'Doors Knocked',
+		color: '#4f46e5',
+		data: [
+			{ date: new Date('2024-01-01T00:00:00Z'), qty: 10 },
+			{ date: new Date('2024-01-08T00:00:00Z'), qty: 40 },
+			{ date: new Date('2024-01-15T00:00:00Z'), qty: 25 }
+		]
+	}
 ];
-
-const baseOptions: Plot.PlotOptions = {
-	marks: [Plot.lineY(data, { x: 'week', y: 'doors' })]
-};
 
 describe('LineChart', () => {
 	it('renders an svg element', async () => {
-		const { container } = render(LineChart, { options: baseOptions });
+		const { container } = render(LineChart, { series: numericSeries });
 		const svg = container.querySelector('svg');
 		expect(svg).not.toBeNull();
 	});
 
 	it('renders a line path', async () => {
-		const { container } = render(LineChart, { options: baseOptions });
+		const { container } = render(LineChart, { series: numericSeries });
 		const path = container.querySelector('path');
 		expect(path).not.toBeNull();
 	});
 
-	it('renders with time scale', async () => {
-		const timeData = [
-			{ date: new Date('2024-01-01'), value: 10 },
-			{ date: new Date('2024-02-01'), value: 40 }
+	it('renders with a time scale across a wider date range', async () => {
+		const timeSeries: Series[] = [
+			{
+				name: 'Responses',
+				color: '#16a34a',
+				data: [
+					{ date: new Date('2024-01-01T00:00:00Z'), qty: 10 },
+					{ date: new Date('2024-06-01T00:00:00Z'), qty: 40 }
+				]
+			}
 		];
-		const { container } = render(LineChart, {
-			options: { marks: [Plot.lineY(timeData, { x: 'date', y: 'value' })] }
-		});
+		const { container } = render(LineChart, { series: timeSeries, granularity: 'month' });
 		const svg = container.querySelector('svg');
 		expect(svg).not.toBeNull();
+		expect(container.textContent).toContain('Jan 2024');
 	});
 
-	it('applies width and height options', async () => {
-		const { container } = render(LineChart, {
-			options: { ...baseOptions, width: 800, height: 400 }
-		});
+	it('applies the chart default width and height', async () => {
+		const { container } = render(LineChart, { series: numericSeries });
 		const svg = container.querySelector('svg');
-		expect(svg?.getAttribute('width')).toBe('800');
-		expect(svg?.getAttribute('height')).toBe('400');
+		expect(svg?.getAttribute('width')).toBe('700');
+		expect(svg?.getAttribute('height')).toBe('300');
 	});
 });

@@ -9,14 +9,22 @@ const sampleMembers = [
 	{ id: '3', name: 'Carol White', email: 'carol@example.com', role_id: null, role_name: null }
 ];
 
+const sampleRoles = [
+	{ id: 'r1', name: 'Owner' },
+	{ id: 'r2', name: 'Member' }
+];
+
 const baseProps = {
 	members: sampleMembers,
+	roles: sampleRoles,
 	canRemoveMembers: false,
-	isOwner: false,
+	canManageRoles: false,
+	canInvite: false,
 	inviteLinks: [],
 	slugInviteEnabled: false,
 	orgSlug: 'test-org',
 	onRemove: vi.fn(),
+	onAssignRole: vi.fn(),
 	onCreateLink: vi.fn(),
 	onRevokeLink: vi.fn(),
 	onToggleSlugInvite: vi.fn()
@@ -37,8 +45,8 @@ describe('MembersPage', () => {
 
 	it('renders member role names', async () => {
 		render(MembersPage, baseProps);
-		await expect.element(page.getByText('Owner')).toBeVisible();
-		await expect.element(page.getByText('Member')).toBeVisible();
+		await expect.element(page.getByText('Owner', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('Member', { exact: true })).toBeVisible();
 	});
 
 	it('shows empty state when no members', async () => {
@@ -66,12 +74,12 @@ describe('MembersPage', () => {
 		expect(onRemove).toHaveBeenCalledWith(sampleMembers[0].id);
 	});
 
-	it('shows InviteLinksSection when isOwner is true', async () => {
-		render(MembersPage, { ...baseProps, isOwner: true });
+	it('shows InviteLinksSection when canInvite is true', async () => {
+		render(MembersPage, { ...baseProps, canInvite: true });
 		await expect.element(page.getByRole('heading', { name: 'Invite Links' })).toBeVisible();
 	});
 
-	it('hides InviteLinksSection when isOwner is false', async () => {
+	it('hides InviteLinksSection when canInvite is false', async () => {
 		render(MembersPage, baseProps);
 		await expect
 			.element(page.getByRole('heading', { name: 'Invite Links' }))

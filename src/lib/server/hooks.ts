@@ -11,7 +11,7 @@ export async function fireHook<K extends keyof PluginHooks>(
 	hookName: K,
 	orgId: string,
 	userId: string,
-	userRole: App.Locals['organization']['role'],
+	userRole: NonNullable<App.Locals['organization']>['role'],
 	...args: Parameters<NonNullable<PluginHooks[K]>> extends [...infer A, any] ? A : never
 ): Promise<void> {
 	const plugins = await getActivePlugins(orgId);

@@ -20,7 +20,8 @@ const baseProps = {
 	listHref: '/o/test-org/s/universe/buckets/registered-voters/lists/list-1',
 	list: baseList,
 	entries: [],
-	turfs: []
+	turfs: [],
+	selectedTab: null
 };
 
 const sampleTurfs = [
@@ -31,7 +32,8 @@ const sampleTurfs = [
 		created_at: new Date().toISOString(),
 		author: 'jdoe',
 		survey_name: 'Door Knock Survey',
-		location_count: '14'
+		location_count: '14',
+		attempted_count: '9'
 	},
 	{
 		id: 'turf-2',
@@ -40,7 +42,8 @@ const sampleTurfs = [
 		created_at: new Date().toISOString(),
 		author: 'asmith',
 		survey_name: null,
-		location_count: '7'
+		location_count: '7',
+		attempted_count: '0'
 	}
 ];
 
@@ -166,47 +169,50 @@ test('turfs section not shown for people lists', async () => {
 });
 
 test('renders turfs empty state for location list with no turfs', async () => {
-	const { getByRole, getByText } = render(ListDetailPage, {
-		props: { ...baseProps, list: { ...baseList, entity_type: 'locations' } }
+	const { getByText } = render(ListDetailPage, {
+		props: {
+			...baseProps,
+			list: { ...baseList, entity_type: 'locations' },
+			selectedTab: 'turfs'
+		}
 	});
-	await getByRole('button', { name: /Turfs/ }).click();
 	await expect.element(getByText('No turfs cut yet.')).toBeVisible();
 });
 
 test('renders turf codes in turfs section', async () => {
-	const { getByRole, getByText } = render(ListDetailPage, {
+	const { getByText } = render(ListDetailPage, {
 		props: {
 			...baseProps,
 			list: { ...baseList, entity_type: 'locations' },
-			turfs: sampleTurfs
+			turfs: sampleTurfs,
+			selectedTab: 'turfs'
 		}
 	});
-	await getByRole('button', { name: /Turfs/ }).click();
 	await expect.element(getByText('AB12CD')).toBeVisible();
 	await expect.element(getByText('XY34ZW')).toBeVisible();
 });
 
 test('renders turf survey name and author', async () => {
-	const { getByRole, getByText } = render(ListDetailPage, {
+	const { getByText } = render(ListDetailPage, {
 		props: {
 			...baseProps,
 			list: { ...baseList, entity_type: 'locations' },
-			turfs: sampleTurfs
+			turfs: sampleTurfs,
+			selectedTab: 'turfs'
 		}
 	});
-	await getByRole('button', { name: /Turfs/ }).click();
 	await expect.element(getByText('Door Knock Survey')).toBeVisible();
 	await expect.element(getByText('jdoe')).toBeVisible();
 });
 
 test('renders Expired for expired turfs', async () => {
-	const { getByRole, container } = render(ListDetailPage, {
+	const { container } = render(ListDetailPage, {
 		props: {
 			...baseProps,
 			list: { ...baseList, entity_type: 'locations' },
-			turfs: sampleTurfs
+			turfs: sampleTurfs,
+			selectedTab: 'turfs'
 		}
 	});
-	await getByRole('button', { name: /Turfs/ }).click();
 	expect(container.textContent).toContain('Expired');
 });

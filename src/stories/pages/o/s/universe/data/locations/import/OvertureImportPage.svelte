@@ -26,7 +26,7 @@
 
 	interface Props {
 		orgSlug: string;
-		onImport: (polygon: GeoJSON.Polygon) => Promise<void>;
+		onImport: (polygon: GeoJSON.Polygon) => AsyncGenerator<ImportProgress>;
 	}
 
 	const { orgSlug, onImport }: Props = $props();

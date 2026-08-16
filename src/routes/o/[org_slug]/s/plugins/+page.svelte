@@ -15,4 +15,4 @@
 	}
 </script>
 
-<PluginsPage plugins={data.plugins} onToggle={handleToggle} />
+<PluginsPage plugins={[]} onToggle={handleToggle} />

@@ -4,17 +4,23 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const mockClient = {
-	query: vi.fn(),
-	release: vi.fn()
-};
+// Hoisted so the mock factory, which vitest lifts above this file's consts,
+// can still reach it.
+const { mockClient } = vi.hoisted(() => ({
+	mockClient: {
+		query: vi.fn(),
+		release: vi.fn()
+	}
+}));
 
 vi.mock('pg', () => ({
-	Pool: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(mockClient),
-		on: vi.fn(),
-		end: vi.fn()
-	}))
+	Pool: vi.fn(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(mockClient),
+			on: vi.fn(),
+			end: vi.fn()
+		};
+	})
 }));
 
 import { withOrgTransaction } from './database';

@@ -5,6 +5,7 @@
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import Textarea from '$components/data-inputs/textarea/Textarea.svelte';
 	import SurveyQuestion from '$components/data-inputs/survey-question/SurveyQuestion.svelte';
+	import type { Tokens } from 'marked';
 
 	type ContactStatus = 'no_contact' | 'contacted' | null;
 	type QuestionType = 'radio' | 'check' | 'text';
@@ -82,8 +83,8 @@
 								return { type: 'ins', raw: match[0], text: match[1] };
 							}
 						},
-						renderer(token: { text: string }) {
-							return `<ins>${token.text}</ins>`;
+						renderer(token: Tokens.Generic) {
+							return `<ins>${token.text as string}</ins>`;
 						}
 					}
 				]

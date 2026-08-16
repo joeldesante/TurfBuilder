@@ -105,7 +105,7 @@
 	<SurveyScreen
 		location={sampleLocation}
 		questions={sampleQuestions}
-		contactMade={true}
+		contactStatus="contacted"
 		backHref="#"
 		onSubmit={noop}
 	/>
@@ -115,7 +115,7 @@
 	<SurveyScreen
 		location={sampleLocation}
 		questions={prefilledQuestions}
-		contactMade={true}
+		contactStatus="contacted"
 		attemptNote="Resident was friendly and interested in volunteering."
 		backHref="#"
 		onSubmit={noop}
@@ -126,7 +126,7 @@
 	<SurveyScreen
 		location={sampleLocation}
 		questions={sampleQuestions}
-		contactMade={false}
+		contactStatus="no_contact"
 		backHref="#"
 		onSubmit={noop}
 	/>
@@ -136,7 +136,7 @@
 	<SurveyScreen
 		location={sampleLocation}
 		questions={[]}
-		contactMade={true}
+		contactStatus="contacted"
 		backHref="#"
 		onSubmit={noop}
 	/>

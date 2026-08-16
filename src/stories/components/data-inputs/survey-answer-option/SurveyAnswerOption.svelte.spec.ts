@@ -37,7 +37,7 @@ describe('SurveyAnswerOption', () => {
 		it('radio is not checked by default', async () => {
 			const screen = render(SurveyAnswerOption, { type: 'radio', label: 'A' });
 			const radio = screen.getByRole('radio');
-			expect(radio.element().checked).toBe(false);
+			expect((radio.element() as HTMLInputElement).checked).toBe(false);
 		});
 
 		it('radio is checked when selected is true', async () => {
@@ -47,7 +47,7 @@ describe('SurveyAnswerOption', () => {
 				selected: true
 			});
 			const radio = screen.getByRole('radio');
-			expect(radio.element().checked).toBe(true);
+			expect((radio.element() as HTMLInputElement).checked).toBe(true);
 		});
 
 		it('applies selected styling when selected', async () => {

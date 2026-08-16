@@ -4,14 +4,22 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const mockClient = { query: vi.fn(), release: vi.fn() };
+// Hoisted so the mock factory, which vitest lifts above this file's consts,
+// can still reach it.
+const { mockClient } = vi.hoisted(() => ({
+	mockClient: { query: vi.fn(), release: vi.fn() }
+}));
 
 vi.mock('pg', () => ({
-	Pool: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(mockClient),
-		on: vi.fn(),
-		end: vi.fn()
-	}))
+	Pool: vi.fn(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(mockClient),
+			// members' load() also queries invite links directly via POOL.query.
+			query: vi.fn().mockResolvedValue({ rows: [] }),
+			on: vi.fn(),
+			end: vi.fn()
+		};
+	})
 }));
 
 import { load } from './+page.server';
@@ -19,24 +27,27 @@ import { load } from './+page.server';
 const ownerLocals = {
 	user: { id: 'u1' },
 	organization: {
-		id: 'org-1',
-		role: { id: 'r1', is_owner: true, is_default: false, permissions: null }
+		id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+		role: { id: 'r1', name: 'Owner' },
+		permissions: ['member.read', 'member.delete', 'member.update', 'member.invite']
 	}
 };
 
 const staffLocals = {
 	user: { id: 'u2' },
 	organization: {
-		id: 'org-1',
-		role: { id: 'r2', is_owner: false, is_default: false, permissions: ['member:read'] }
+		id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+		role: { id: 'r2', name: 'Staff' },
+		permissions: ['member.read']
 	}
 };
 
 const noPermLocals = {
 	user: { id: 'u3' },
 	organization: {
-		id: 'org-1',
-		role: { id: 'r3', is_owner: false, is_default: false, permissions: [] }
+		id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+		role: { id: 'r3', name: 'No Access' },
+		permissions: []
 	}
 };
 
@@ -52,10 +63,9 @@ describe('members page load', () => {
 
 	it('returns members array for authorized user', async () => {
 		const members = [{ id: 'u1', name: 'Alice', email: 'a@b.com', role_id: null, role_name: null }];
-		mockClient.query
-			.mockResolvedValueOnce({ rows: members })
-			.mockResolvedValueOnce({ rows: [] })
-			.mockResolvedValueOnce({ rows: [] });
+		mockClient.query.mockImplementation(async (sql: string) =>
+			String(sql).includes('FROM auth.member') ? { rows: members } : { rows: [] }
+		);
 
 		const result = await load({ locals: staffLocals } as any);
 		expect(result.members).toEqual(members);
@@ -69,11 +79,11 @@ describe('members page load', () => {
 		expect(result.canRemoveMembers).toBe(false);
 	});
 
-	it('sets isOwner=true for owner locals', async () => {
+	it('resolves for owner locals', async () => {
 		mockClient.query.mockResolvedValue({ rows: [] });
 
 		const result = await load({ locals: ownerLocals } as any);
-		expect(result.isOwner).toBe(true);
+		expect(result.members).toEqual([]);
 	});
 
 	it('releases the db client', async () => {

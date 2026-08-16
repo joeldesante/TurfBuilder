@@ -1,8 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import * as Plot from '@observablehq/plot';
 	import LineChart from './LineChart.svelte';
-	import { tipStyles } from '$lib/chart-theme';
+	import type { Series } from './LineChart.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Display/Charts/LineChart',
@@ -10,198 +9,82 @@
 		tags: ['autodocs']
 	});
 
-	const numeric = [
-		{ week: 0, doors: 10 },
-		{ week: 1, doors: 40 },
-		{ week: 2, doors: 25 },
-		{ week: 3, doors: 60 },
-		{ week: 4, doors: 45 },
-		{ week: 5, doors: 80 }
+	function weeklySeries(name: string, color: string, values: number[], showArea = false): Series {
+		return {
+			name,
+			color,
+			showArea,
+			data: values.map((qty, i) => ({
+				date: new Date(Date.UTC(2024, 0, 1 + i * 7)),
+				qty
+			}))
+		};
+	}
+
+	const numeric: Series[] = [weeklySeries('Doors Knocked', 'var(--primary)', [10, 40, 25, 60, 45, 80])];
+
+	const withArea: Series[] = [
+		weeklySeries('Doors Knocked', 'var(--primary)', [10, 40, 25, 60, 45, 80], true)
 	];
 
-	const timeSeries = [
-		{ date: new Date('2024-01-01'), responses: 10 },
-		{ date: new Date('2024-02-01'), responses: 40 },
-		{ date: new Date('2024-03-01'), responses: 25 },
-		{ date: new Date('2024-04-01'), responses: 60 },
-		{ date: new Date('2024-05-01'), responses: 45 },
-		{ date: new Date('2024-06-01'), responses: 80 }
+	const multiSeries: Series[] = [
+		weeklySeries('Doors Knocked', 'var(--primary)', [10, 40, 25, 60, 45, 80]),
+		weeklySeries('Conversations', 'var(--secondary)', [5, 20, 15, 35, 30, 55])
 	];
 
-	const multiSeries = [
-		{ week: 0, doors: 10, conversations: 5 },
-		{ week: 1, doors: 40, conversations: 20 },
-		{ week: 2, doors: 25, conversations: 15 },
-		{ week: 3, doors: 60, conversations: 35 },
-		{ week: 4, doors: 45, conversations: 30 },
-		{ week: 5, doors: 80, conversations: 55 }
+	const monthlySeries: Series[] = [
+		{
+			name: 'Responses',
+			color: 'var(--primary)',
+			data: [
+				{ date: new Date(Date.UTC(2024, 0, 1)), qty: 10 },
+				{ date: new Date(Date.UTC(2024, 1, 1)), qty: 40 },
+				{ date: new Date(Date.UTC(2024, 2, 1)), qty: 25 },
+				{ date: new Date(Date.UTC(2024, 3, 1)), qty: 60 },
+				{ date: new Date(Date.UTC(2024, 4, 1)), qty: 45 },
+				{ date: new Date(Date.UTC(2024, 5, 1)), qty: 80 }
+			]
+		}
 	];
 
-	const actual = [
-		{ week: 0, doors: 10 },
-		{ week: 1, doors: 40 },
-		{ week: 2, doors: 25 },
-		{ week: 3, doors: 60 },
-		{ week: 4, doors: 45 },
-		{ week: 5, doors: 80 }
+	const dailySeries: Series[] = [
+		{
+			name: 'Doors Knocked',
+			color: 'var(--primary)',
+			data: Array.from({ length: 7 }, (_, i) => ({
+				date: new Date(Date.UTC(2024, 0, 1 + i)),
+				qty: [10, 14, 9, 18, 22, 12, 25][i]
+			}))
+		}
 	];
 
-	const forecast = [
-		{ week: 5, doors: 80 },
-		{ week: 6, doors: 90 },
-		{ week: 7, doors: 95 },
-		{ week: 8, doors: 110 }
+	const forecastSeries: Series[] = [
+		weeklySeries('Actual', 'var(--primary)', [10, 40, 25, 60, 45, 80]),
+		{
+			name: 'Forecast',
+			color: 'var(--outline)',
+			data: [5, 6, 7, 8].map((week) => ({
+				date: new Date(Date.UTC(2024, 0, 1 + week * 7)),
+				qty: [80, 90, 95, 110][week - 5]
+			}))
+		}
 	];
 </script>
 
-<Story
-	name="Tooltip on Hover"
-	args={{
-		options: {
-			x: { label: 'Week' },
-			y: { label: 'Doors Knocked' },
-			marks: [
-				Plot.lineY(numeric, { x: 'week', y: 'doors' }),
-				Plot.dot(numeric, Plot.pointerX({ x: 'week', y: 'doors', fill: 'var(--primary)' })),
-				Plot.tip(numeric, Plot.pointerX({
-					x: 'week',
-					y: 'doors',
-					title: (d) => `Week ${d.week}\n${d.doors} doors knocked`,
-					...tipStyles
-				}))
-			]
-		}
-	}}
-/>
+<Story name="Numeric" args={{ series: numeric }} />
 
-<Story
-	name="Numeric"
-	args={{
-		options: {
-			x: { label: 'Week' },
-			y: { label: 'Doors Knocked' },
-			marks: [Plot.lineY(numeric, { x: 'week', y: 'doors' })]
-		}
-	}}
-/>
+<Story name="With Title" args={{ title: 'Doors Knocked', subtitle: 'Last 6 weeks', series: numeric }} />
 
-<Story
-	name="With Title"
-	args={{
-		title: 'Doors Knocked',
-		subtitle: 'Last 6 weeks',
-		options: {
-			x: { label: 'Week' },
-			y: { label: 'Doors Knocked' },
-			marks: [Plot.lineY(numeric, { x: 'week', y: 'doors' })]
-		}
-	}}
-/>
+<Story name="With Area" args={{ title: 'Doors Knocked', series: withArea }} />
 
-<Story
-	name="Time Axis"
-	args={{
-		options: {
-			x: { label: 'Date' },
-			y: { label: 'Responses' },
-			marks: [Plot.lineY(timeSeries, { x: 'date', y: 'responses' })]
-		}
-	}}
-/>
+<Story name="Multi-Series" args={{ title: 'Field Activity', series: multiSeries }} />
 
-<Story
-	name="Multi-Series"
-	args={{
-		options: {
-			color: { legend: true },
-			x: { label: 'Week' },
-			y: { label: 'Count' },
-			marks: [
-				Plot.lineY(multiSeries, { x: 'week', y: 'doors', stroke: () => 'Doors Knocked' }),
-				Plot.lineY(multiSeries, { x: 'week', y: 'conversations', stroke: () => 'Conversations' })
-			]
-		}
-	}}
-/>
+<Story name="Daily Granularity" args={{ series: dailySeries, granularity: 'day' }} />
 
-<Story
-	name="Trend Line"
-	args={{
-		options: {
-			x: { label: 'Week' },
-			y: { label: 'Doors Knocked' },
-			marks: [
-				Plot.lineY(numeric, { x: 'week', y: 'doors' }),
-				Plot.linearRegressionY(numeric, {
-					x: 'week',
-					y: 'doors',
-					stroke: 'var(--primary)',
-					strokeDasharray: '4 4'
-				})
-			]
-		}
-	}}
-/>
+<Story name="Weekly Granularity" args={{ series: numeric, granularity: 'week' }} />
 
-<Story
-	name="Target Line"
-	args={{
-		options: {
-			x: { label: 'Week' },
-			y: { label: 'Doors Knocked' },
-			marks: [
-				Plot.lineY(actual, { x: 'week', y: 'doors' }),
-				Plot.ruleY([100], { stroke: 'var(--primary)', strokeDasharray: '4 4' }),
-				Plot.text([{ week: 5, doors: 100 }], {
-					x: 'week',
-					y: 'doors',
-					text: () => 'Goal: 100',
-					dy: -8,
-					fill: 'var(--primary)',
-					fontSize: 11
-				})
-			]
-		}
-	}}
-/>
+<Story name="Monthly Granularity" args={{ title: 'Responses', series: monthlySeries, granularity: 'month' }} />
 
-<Story
-	name="Forecast"
-	args={{
-		options: {
-			x: { label: 'Week' },
-			y: { label: 'Doors Knocked' },
-			marks: [
-				Plot.lineY(actual, { x: 'week', y: 'doors' }),
-				Plot.lineY(forecast, {
-					x: 'week',
-					y: 'doors',
-					strokeDasharray: '4 4',
-					strokeOpacity: 0.6
-				}),
-				Plot.ruleX([5], { stroke: 'var(--outline)', strokeDasharray: '2 2' }),
-				Plot.text([{ week: 5, doors: 0 }], {
-					x: 'week',
-					y: 'doors',
-					text: () => 'Forecast',
-					dx: 8,
-					textAnchor: 'start',
-					fill: 'var(--on-surface-subtle)',
-					fontSize: 11
-				})
-			]
-		}
-	}}
-/>
+<Story name="Forecast" args={{ title: 'Doors Knocked', subtitle: 'Actual vs. forecast', series: forecastSeries }} />
 
-<Story
-	name="Custom Formatters"
-	args={{
-		options: {
-			marginLeft: 80,
-			x: { label: 'Week', tickFormat: (v) => `Wk ${v}` },
-			y: { label: 'Doors', tickFormat: (v) => `${v} doors` },
-			marks: [Plot.lineY(numeric, { x: 'week', y: 'doors' })]
-		}
-	}}
-/>
+<Story name="Empty" args={{ title: 'No Data Yet', series: [] }} />
