@@ -19,6 +19,7 @@ const mockGetActivePlugins = vi.mocked(getActivePlugins);
 const orgId = 'org-123';
 const userId = 'user-456';
 const userRole = { id: 'role-1', is_owner: false, is_default: true, permissions: [] } as any;
+const attempt = { id: 'attempt-1', surveyId: 'survey-1' };
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -27,7 +28,7 @@ beforeEach(() => {
 describe('fireHook', () => {
 	it('does nothing when no plugins are active', async () => {
 		mockGetActivePlugins.mockResolvedValue([]);
-		await expect(fireHook('onSurveySubmitted', orgId, userId, userRole)).resolves.toBeUndefined();
+		await expect(fireHook('onSurveySubmitted', orgId, userId, userRole, attempt)).resolves.toBeUndefined();
 	});
 
 	it('calls the matching hook on each active plugin', async () => {
@@ -39,7 +40,7 @@ describe('fireHook', () => {
 			}
 		]);
 
-		await fireHook('onSurveySubmitted', orgId, userId, userRole);
+		await fireHook('onSurveySubmitted', orgId, userId, userRole, attempt);
 
 		expect(hook).toHaveBeenCalledTimes(1);
 	});
@@ -54,7 +55,7 @@ describe('fireHook', () => {
 		]);
 
 		// Fire onSurveySubmitted — plugin only has onTurfCreated
-		await fireHook('onSurveySubmitted', orgId, userId, userRole);
+		await fireHook('onSurveySubmitted', orgId, userId, userRole, attempt);
 
 		expect(hook).not.toHaveBeenCalled();
 	});
@@ -74,7 +75,7 @@ describe('fireHook', () => {
 		]);
 
 		// Should not throw even though one plugin failed
-		await expect(fireHook('onSurveySubmitted', orgId, userId, userRole)).resolves.toBeUndefined();
+		await expect(fireHook('onSurveySubmitted', orgId, userId, userRole, attempt)).resolves.toBeUndefined();
 		expect(passingHook).toHaveBeenCalled();
 	});
 
@@ -87,9 +88,9 @@ describe('fireHook', () => {
 			}
 		]);
 
-		await fireHook('onSurveySubmitted', orgId, userId, userRole);
+		await fireHook('onSurveySubmitted', orgId, userId, userRole, attempt);
 
-		const ctx = hook.mock.calls[0][0];
+		const ctx = hook.mock.calls[0][1];
 		expect(ctx.orgId).toBe(orgId);
 		expect(ctx.userId).toBe(userId);
 		expect(ctx.userRole).toBe(userRole);
@@ -111,7 +112,7 @@ describe('fireHook', () => {
 			}
 		]);
 
-		await fireHook('onSurveySubmitted', orgId, userId, userRole);
+		await fireHook('onSurveySubmitted', orgId, userId, userRole, attempt);
 
 		expect(hook1).toHaveBeenCalledTimes(1);
 		expect(hook2).toHaveBeenCalledTimes(1);

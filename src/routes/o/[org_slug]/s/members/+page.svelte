@@ -4,7 +4,7 @@
 	import MembersPage from '$pages/o/s/members/MembersPage.svelte';
 
 	const { data } = $props();
-	const orgSlug = $derived($page.params.org_slug);
+	const orgSlug = $derived($page.params.org_slug!);
 
 	async function handleAssignRole(userId: string, roleId: string | null) {
 		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}`, {

@@ -8,7 +8,7 @@ export interface PluginContext {
 	db: <T>(fn: (client: PoolClient) => Promise<T>) => Promise<T>;
 	orgId: string;
 	userId: string;
-	userRole: App.Locals['organization']['role'];
+	userRole: NonNullable<App.Locals['organization']>['role'];
 	config: Record<string, unknown>;
 }
 

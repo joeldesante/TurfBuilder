@@ -10,7 +10,7 @@
 </script>
 
 <Story name="Default" asChild>
-	<PdfPage>
+	<PdfPage type="Letter">
 		{#snippet children()}
 			<p>PDF page content goes here.</p>
 		{/snippet}

@@ -11,7 +11,7 @@ import { can } from '$lib/auth-helpers.js';
  * @returns { ok: true, enabled: boolean }
  */
 export async function PUT({ request, locals }) {
-	if (!can(locals.organization, 'member', 'invite')) {
+	if (!locals.organization || !can(locals.organization, 'member', 'invite')) {
 		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 

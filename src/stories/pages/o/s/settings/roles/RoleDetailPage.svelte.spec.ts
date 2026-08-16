@@ -6,31 +6,24 @@ import RoleDetailPage from './RoleDetailPage.svelte';
 const baseRole = {
 	id: 'r1',
 	name: 'Member',
-	is_owner: false,
 	is_default: false,
-	permissions: ['survey:read']
+	is_admin: false,
+	permissions: ['survey.read']
 };
 
-const ownerRole = {
-	id: 'r-owner',
-	name: 'Owner',
-	is_owner: true,
+const adminRole = {
+	id: 'r-admin',
+	name: 'Admin',
 	is_default: false,
-	permissions: null
+	is_admin: true,
+	permissions: ['system.access']
 };
-
-const members = [
-	{ id: 'u1', name: 'Alice', email: 'alice@example.com', role_id: 'r1', role_name: 'Member' },
-	{ id: 'u2', name: 'Bob', email: 'bob@example.com', role_id: null, role_name: null }
-];
 
 const baseProps = {
 	role: baseRole,
-	members,
 	rolesHref: '/settings/roles',
 	onSavePermissions: vi.fn(),
-	onSaveName: vi.fn(),
-	onAssignRole: vi.fn()
+	onSaveName: vi.fn()
 };
 
 describe('RoleDetailPage', () => {
@@ -46,7 +39,7 @@ describe('RoleDetailPage', () => {
 		});
 	});
 
-	describe('role settings section (non-owner)', () => {
+	describe('role settings section', () => {
 		it('shows the role name input', async () => {
 			render(RoleDetailPage, baseProps);
 			await expect.element(page.getByLabelText('Name')).toBeVisible();
@@ -78,49 +71,19 @@ describe('RoleDetailPage', () => {
 		});
 	});
 
-	describe('owner role', () => {
-		it('shows owner description instead of permission editor', async () => {
-			render(RoleDetailPage, { ...baseProps, role: ownerRole });
+	describe('admin role', () => {
+		it('shows the Default role subheading when the admin role is also the default role', async () => {
+			render(RoleDetailPage, { ...baseProps, role: { ...adminRole, is_default: true } });
 			await expect
-				.element(page.getByText('Owner role — has all permissions by default.'))
+				.element(page.getByText('Default role — automatically assigned to all new members.'))
 				.toBeVisible();
 		});
 
-		it('hides the Save button for owner role', async () => {
-			render(RoleDetailPage, { ...baseProps, role: ownerRole });
-			await expect.element(page.getByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-		});
-	});
-
-	describe('members section', () => {
-		it('renders member names', async () => {
-			render(RoleDetailPage, baseProps);
-			await expect.element(page.getByText('Alice')).toBeVisible();
-			await expect.element(page.getByText('Bob')).toBeVisible();
-		});
-
-		it('shows Remove for members already assigned to this role', async () => {
-			render(RoleDetailPage, baseProps);
-			await expect.element(page.getByRole('button', { name: 'Remove' })).toBeVisible();
-		});
-
-		it('shows Assign for members not assigned to this role', async () => {
-			render(RoleDetailPage, baseProps);
-			await expect.element(page.getByRole('button', { name: 'Assign' })).toBeVisible();
-		});
-
-		it('calls onAssignRole with null when Remove is clicked', async () => {
-			const onAssignRole = vi.fn().mockResolvedValue(undefined);
-			render(RoleDetailPage, { ...baseProps, onAssignRole });
-			await page.getByRole('button', { name: 'Remove' }).click();
-			expect(onAssignRole).toHaveBeenCalledWith('u1', null);
-		});
-
-		it('calls onAssignRole with the role id when Assign is clicked', async () => {
-			const onAssignRole = vi.fn().mockResolvedValue(undefined);
-			render(RoleDetailPage, { ...baseProps, onAssignRole });
-			await page.getByRole('button', { name: 'Assign' }).click();
-			expect(onAssignRole).toHaveBeenCalledWith('u2', 'r1');
+		it('locks the system.access toggle for the admin role', async () => {
+			render(RoleDetailPage, { ...baseProps, role: adminRole });
+			// system.access is the first permission rendered, and is locked on for admin roles.
+			const switches = page.getByRole('switch');
+			await expect.element(switches.first()).toBeDisabled();
 		});
 	});
 });

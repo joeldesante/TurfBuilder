@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { page } from '@vitest/browser/context';
+import { page, userEvent } from '@vitest/browser/context';
 import TagInput from './TagInput.svelte';
 
 describe('TagInput', () => {
@@ -20,7 +20,7 @@ describe('TagInput', () => {
 
 		const input = page.getByRole('textbox');
 		await input.fill('https://example.com');
-		await input.press('Enter');
+		await userEvent.keyboard('{Enter}');
 
 		expect(onchange).toHaveBeenCalledWith(['https://example.com']);
 	});
@@ -38,7 +38,8 @@ describe('TagInput', () => {
 		const onchange = vi.fn();
 		render(TagInput, { tags: ['https://turfbuilder.org', 'https://www.turfbuilder.org'], onchange });
 
-		await page.getByRole('textbox').press('Backspace');
+		await page.getByRole('textbox').click();
+		await userEvent.keyboard('{Backspace}');
 
 		expect(onchange).toHaveBeenCalledWith(['https://turfbuilder.org']);
 	});
@@ -49,7 +50,7 @@ describe('TagInput', () => {
 
 		const input = page.getByRole('textbox');
 		await input.fill('https://turfbuilder.org');
-		await input.press('Enter');
+		await userEvent.keyboard('{Enter}');
 
 		expect(onchange).not.toHaveBeenCalled();
 	});

@@ -6,6 +6,8 @@ describe('Card', () => {
 	test('renders', async () => {
 		const screen = render(Card, {});
 		// TODO: add assertions
-		await expect.element(screen.container.firstElementChild).toBeInTheDocument();
+		await expect
+			.element(screen.container.firstElementChild as HTMLElement)
+			.toBeInTheDocument();
 	});
 });

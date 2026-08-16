@@ -1,7 +1,8 @@
 import { redirect, error } from '@sveltejs/kit';
+import type { PoolClient } from 'pg';
 import { POOL } from '$lib/server/database.js';
 
-async function resolveInvite(token: string, client: Awaited<ReturnType<typeof POOL.connect>>) {
+async function resolveInvite(token: string, client: PoolClient) {
 	// Try token-based link first.
 	const linkResult = await client.query(
 		`SELECT l.org_id, o.name AS org_name, o.slug AS org_slug

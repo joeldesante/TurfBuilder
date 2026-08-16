@@ -21,7 +21,8 @@ vi.mock('pg', () => ({
 	})
 }));
 
-import { GET, POST, MAX_VIEWPORT_LOCATIONS } from './+server';
+import { GET, POST } from './+server';
+import { MAX_VIEWPORT_LOCATIONS } from '$lib/server/locations';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const ENTITY = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';

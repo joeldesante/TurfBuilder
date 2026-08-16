@@ -2,9 +2,11 @@ import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
 
 export async function load({ params, locals }) {
-	if (!locals.organization?.role) throw error(401, 'Unauthorized');
+	if (!locals.organization) throw error(401, 'Unauthorized');
+	if (!locals.organization.role) throw error(401, 'Unauthorized');
+	const orgId = locals.organization.id;
 
-	return withOrgTransaction(locals.organization.id, async (client) => {
+	return withOrgTransaction(orgId, async (client) => {
 		// Load the turf, verifying it belongs to this list and bucket.
 		const turfResult = await client.query<{
 			id: string;
@@ -33,7 +35,7 @@ export async function load({ params, locals }) {
 			   AND t.org_id = $2
 			   AND t.list_id = $3
 			   AND b.slug = $4`,
-			[params.turf_id, locals.organization.id, params.id, params.slug]
+			[params.turf_id, orgId, params.id, params.slug]
 		);
 
 		if (turfResult.rows.length === 0) throw error(404, 'Turf not found.');
@@ -78,7 +80,7 @@ export async function load({ params, locals }) {
 			WHERE tl.turf_id = $1 AND tl.org_id = $2
 			  AND COALESCE(pl.valid_to, ol.valid_to) IS NULL
 			ORDER BY COALESCE(pl.name, ol.name)`,
-			[params.turf_id, locals.organization.id]
+			[params.turf_id, orgId]
 		);
 
 		const locations = locationsResult.rows;

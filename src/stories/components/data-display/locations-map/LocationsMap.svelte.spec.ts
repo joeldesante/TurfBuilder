@@ -21,10 +21,10 @@ const { mapHandlers, markerInstances, mapApi, popupContent } = vi.hoisted(() => 
 		addControl: vi.fn(),
 		flyTo: vi.fn(),
 		getBounds: vi.fn(() => ({
-			getWest: () => -75.3,
-			getSouth: () => 39.9,
-			getEast: () => -75.1,
-			getNorth: () => 40.1
+			getWest: (): number => -75.3,
+			getSouth: (): number => 39.9,
+			getEast: (): number => -75.1,
+			getNorth: (): number => 40.1
 		}))
 	},
 	popupContent: [] as HTMLElement[]

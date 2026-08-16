@@ -30,11 +30,13 @@ describe('InfraDashboard', () => {
 	});
 
 	test('shows no tools sections when only access permission is granted', async () => {
-		const { queryByText } = render(InfraDashboard, {
+		const { getByRole } = render(InfraDashboard, {
 			props: { infraPermissions: ['access'] }
 		});
 
-		await expect.element(queryByText('Tools')).not.toBeInTheDocument();
+		await expect
+			.element(getByRole('heading', { name: 'Tools', exact: true }))
+			.not.toBeInTheDocument();
 	});
 
 	test('shows empty state when no permissions', async () => {

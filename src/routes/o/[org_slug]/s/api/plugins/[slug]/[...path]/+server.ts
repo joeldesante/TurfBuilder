@@ -12,6 +12,8 @@ async function dispatch(event: RequestEvent, method: string) {
 		throw error(403, 'Forbidden.');
 	}
 
+	if (!params.slug) throw error(404, 'Plugin not found.');
+
 	const plugin = getPlugin(params.slug);
 	if (!plugin) throw error(404, 'Plugin not found.');
 

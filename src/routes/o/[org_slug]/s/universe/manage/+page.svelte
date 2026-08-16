@@ -4,8 +4,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
-	const { data } = $props();
-
 	const base = $derived(`/o/${page.params.org_slug}/s/api/universe`);
 
 	async function postImport(url: string, file: File): Promise<ImportResult> {
@@ -32,9 +30,4 @@
 	}
 </script>
 
-<UniverseDataManagerPage
-	peopleCount={data.peopleCount}
-	locationsCount={data.locationsCount}
-	onImportPeople={importPeople}
-	onImportLocations={importLocations}
-/>
+<UniverseDataManagerPage onImportPeople={importPeople} onImportLocations={importLocations} />

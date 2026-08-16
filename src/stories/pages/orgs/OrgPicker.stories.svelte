@@ -14,20 +14,9 @@
 		}
 	});
 
-	const sampleOrgs = [
-		{ id: '1', name: 'North West Philly Alliance', slug: 'north-west-philly-alliance' },
-		{ id: '2', name: 'South Side Organizers', slug: 'south-side-organizers' },
-		{ id: '3', name: 'Kensington Community', slug: 'kensington-community' }
-	];
-
 	function noop() {}
 </script>
 
-<Story name="Multiple Orgs" args={{ orgs: sampleOrgs, onSelect: noop }} />
+<Story name="Default" args={{ onSelect: noop }} />
 
-<Story
-	name="Single Org"
-	args={{ orgs: [sampleOrgs[0]], onSelect: noop }}
-/>
-
-<Story name="No Orgs" args={{ orgs: [], onSelect: noop }} />
+<Story name="With Create Link" args={{ allowCreation: true, onSelect: noop }} />

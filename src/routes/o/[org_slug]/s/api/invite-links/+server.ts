@@ -10,7 +10,7 @@ import { can } from '$lib/auth-helpers.js';
  * @returns { links: Array<{ id, created_at, expires_at }>, slugInviteEnabled: boolean }
  */
 export async function GET({ locals }) {
-	if (!can(locals.organization, 'member', 'invite')) {
+	if (!locals.organization || !can(locals.organization, 'member', 'invite')) {
 		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 
@@ -44,7 +44,7 @@ export async function GET({ locals }) {
  * @returns { id, created_at, expires_at }
  */
 export async function POST({ request, locals }) {
-	if (!can(locals.organization, 'member', 'invite')) {
+	if (!locals.organization || !can(locals.organization, 'member', 'invite')) {
 		return json({ error: 'Forbidden.' }, { status: 403 });
 	}
 

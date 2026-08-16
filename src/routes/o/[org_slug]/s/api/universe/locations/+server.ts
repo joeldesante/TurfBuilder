@@ -2,15 +2,8 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers.js';
-import { insertLocation, LOCATION_ROW_COLUMNS } from '$lib/server/locations.js';
+import { insertLocation, LOCATION_ROW_COLUMNS, MAX_VIEWPORT_LOCATIONS } from '$lib/server/locations.js';
 import { LocationFieldsSchema } from '$lib/schemas/location.js';
-
-/**
- * Ceiling on markers returned for one viewport. High enough that a city-block
- * view is complete, low enough that a zoomed-out view cannot try to serialize
- * an entire imported universe into the browser.
- */
-export const MAX_VIEWPORT_LOCATIONS = 2000;
 
 const ViewportSchema = z.object({
 	west: z.coerce.number().min(-180).max(180),
