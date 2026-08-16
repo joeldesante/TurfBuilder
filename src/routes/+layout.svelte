@@ -7,12 +7,30 @@
 	import type { DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	let { children, data } = $props();
 
-	onMount(() => themeStore.init());
+	onMount(() => {
+		document.body.dataset.hydrated = 'true';
+		return themeStore.init();
+	});
 
 	const devMenuItems = $derived<DropdownMenuEntry[]>([
-		{ label: 'Light', icon: SunIcon, onclick: () => themeStore.setTheme('light'), active: themeStore.theme === 'light' },
-		{ label: 'Dark', icon: MoonIcon, onclick: () => themeStore.setTheme('dark'), active: themeStore.theme === 'dark' },
-		{ label: 'System', icon: DesktopIcon, onclick: () => themeStore.setTheme('system'), active: themeStore.theme === 'system' },
+		{
+			label: 'Light',
+			icon: SunIcon,
+			onclick: () => themeStore.setTheme('light'),
+			active: themeStore.theme === 'light'
+		},
+		{
+			label: 'Dark',
+			icon: MoonIcon,
+			onclick: () => themeStore.setTheme('dark'),
+			active: themeStore.theme === 'dark'
+		},
+		{
+			label: 'System',
+			icon: DesktopIcon,
+			onclick: () => themeStore.setTheme('system'),
+			active: themeStore.theme === 'system'
+		}
 	]);
 </script>
 
@@ -31,7 +49,6 @@
 	{/if}
 </svelte:head>
 
-
 {#if process.env.NODE_ENV?.toLowerCase() !== 'production'}
 	<div class="fixed bottom-0 right-0 m-1 z-50">
 		<DropdownMenu items={devMenuItems} side="top" align="end">
@@ -47,6 +64,5 @@
 		</DropdownMenu>
 	</div>
 {/if}
-
 
 {@render children()}
