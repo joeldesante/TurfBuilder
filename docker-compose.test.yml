@@ -5,8 +5,6 @@ services:
     image: postgis/postgis:18-3.6
     ports:
       - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=db_password
@@ -82,16 +80,9 @@ services:
     ports:
       - "4222:4222"   # client connections
       - "8222:8222"   # monitoring
-    volumes:
-      - nats_data:/data/jetstream
     networks:
       - turfbuilder
 
-  ## ADD DB SEEDING AND WHAT NOT FIRST
-
-volumes:
-  postgres_data:
-  nats_data:
 networks:
   turfbuilder:
     driver: bridge
