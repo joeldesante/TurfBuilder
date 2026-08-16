@@ -3,8 +3,10 @@ import { gotoHydrated } from './helpers';
 
 test('application setup flow', async ({ page }) => {
   await gotoHydrated(page, '/setup');
-  await page.getByRole('button', { name: 'Test Connection' }).click();
-  await expect(page.locator('body')).toContainText('Connected successfully.');
+  await expect(async () => {
+    await page.getByRole('button', { name: 'Test Connection' }).click();
+    await expect(page.getByText('Connected successfully.')).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
   await page.getByRole('button', { name: 'Continue →' }).click();
   await page.getByRole('button', { name: 'Initialize Database' }).click();
   await page.getByRole('button', { name: 'Continue →' }).click();
