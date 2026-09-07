@@ -116,6 +116,7 @@
     "nodemailer": "^8.0.7",
     "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.20.2",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
     "remark-ins": "^1.2.4",
