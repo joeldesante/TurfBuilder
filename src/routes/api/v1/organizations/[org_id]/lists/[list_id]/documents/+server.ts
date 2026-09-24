@@ -7,3 +7,4 @@ export const GET: RequestHandler = async () => {
 export const POST: RequestHandler = async () => {
 	return new Response(null, { status: 501 });
 };
+ 
