@@ -26,7 +26,7 @@ vi.mock('pg', () => ({
 vi.mock('$lib/server/permissions', () => ({ canOrg }));
 vi.mock('$lib/server/storage', () => ({ presignDocumentDownload }));
 
-import { GET } from './+server';
+import { GET, DELETE } from './+server';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const LIST = 'f1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -139,5 +139,64 @@ describe('GET list document', () => {
 		canOrg.mockResolvedValue(false);
 
 		await expect(get()).rejects.toMatchObject({ status: 403 });
+	});
+});
+
+describe('DELETE list document', () => {
+	function del(p = params, locals: object = staff) {
+		return DELETE({ params: p, locals } as never);
+	}
+
+	/** The UPDATE the handler ran, if any: [sql, params]. */
+	function softDelete() {
+		return mockClient.query.mock.calls.find((c) => String(c[0]).includes('SET deleted_at'));
+	}
+
+	beforeEach(() => {
+		mockClient.query.mockImplementation((sql: string) => {
+			if (sql.includes('FROM universe.list WHERE')) {
+				return Promise.resolve({ rowCount: 1, rows: [{ name: 'Main St' }] });
+			}
+			if (sql.includes('SET deleted_at')) return Promise.resolve({ rowCount: 1, rows: [] });
+			return Promise.resolve({ rows: [], rowCount: 0 });
+		});
+	});
+
+	it('soft-deletes the document and returns 204', async () => {
+		const res = await del();
+
+		expect(res.status).toBe(204);
+		const [sql, values] = softDelete()!;
+		expect(sql).toContain('SET deleted_at = now()');
+		expect(sql).not.toContain('DELETE FROM');
+		expect(sql).toContain('id = $1 AND list_id = $2 AND org_id = $3 AND deleted_at IS NULL');
+		expect(values).toEqual([DOC, LIST, ORG]);
+	});
+
+	it('returns 404 when the document is not on this list or is already deleted', async () => {
+		mockClient.query.mockImplementation((sql: string) => {
+			if (sql.includes('FROM universe.list WHERE')) {
+				return Promise.resolve({ rowCount: 1, rows: [{ name: 'Main St' }] });
+			}
+			return Promise.resolve({ rows: [], rowCount: 0 });
+		});
+
+		await expect(del()).rejects.toMatchObject({ status: 404 });
+	});
+
+	it('returns 400 for a malformed document id', async () => {
+		await expect(del({ ...params, document_id: 'nope' })).rejects.toMatchObject({ status: 400 });
+		expect(softDelete()).toBeUndefined();
+	});
+
+	it('returns 401 when signed out', async () => {
+		await expect(del(params, {})).rejects.toMatchObject({ status: 401 });
+	});
+
+	it('returns 403 without staff access and deletes nothing', async () => {
+		canOrg.mockResolvedValue(false);
+
+		await expect(del()).rejects.toMatchObject({ status: 403 });
+		expect(softDelete()).toBeUndefined();
 	});
 });

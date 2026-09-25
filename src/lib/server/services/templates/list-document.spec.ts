@@ -103,4 +103,13 @@ describe('list document template', () => {
 
 		expect(html).not.toMatch(/(src|href)="https?:/);
 	});
+
+	// Notes belong in Handlebars comments, which are stripped; HTML comments
+	// would be sent into every generated page.
+	it('sends no comments into the rendered page', () => {
+		const html = render({ ...base, turfs: [{ code: 'KX7-42B', locations: [location(1)] }] });
+
+		expect(html).not.toContain('<!--');
+		expect(html).not.toContain('{{');
+	});
 });

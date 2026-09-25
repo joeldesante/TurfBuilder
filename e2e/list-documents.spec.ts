@@ -2,7 +2,6 @@ import { test, expect, type Download, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { Client } from 'pg';
-import { PDFDocument } from 'pdf-lib';
 import { S3Client, CreateBucketCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { DATABASE_URL } from './config';
 import { gotoHydrated, signInAsAdmin } from './helpers';
@@ -105,7 +104,9 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 
 		const bytes = await readFile((await download.path())!);
 		expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
-		return (await PDFDocument.load(bytes)).getPageCount();
+		// Chrome writes each page as an uncompressed /Type /Page object (the
+		// page tree itself is /Type /Pages), so counting them counts pages.
+		return bytes.toString('latin1').match(/\/Type\s*\/Page(?!s)/g)?.length ?? 0;
 	}
 
 	async function createStorageBucket() {
@@ -255,5 +256,22 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 		// Soft delete: the old file stays in storage until retention removes it.
 		expect(await objectExists(old.storage_key)).toBe(true);
 		expect(await objectExists(current.storage_key)).toBe(true);
+	});
+
+	test('deleting the current pdf leaves the list with none to download', async () => {
+		const current = (await documents()).find((d) => d.deleted_at === null)!;
+
+		const res = await page.request.delete(
+			`/api/v1/organizations/${orgId}/lists/${listId}/documents/${current.id}`,
+			{ headers: { origin: 'http://localhost:5173' } }
+		);
+		expect(res.status()).toBe(204);
+
+		expect((await documents()).every((d) => d.deleted_at !== null)).toBe(true);
+		// Soft delete: the file stays until retention removes it.
+		expect(await objectExists(current.storage_key)).toBe(true);
+
+		await gotoHydrated(page, listPath);
+		await expect(page.getByRole('button', { name: 'Generate PDF' })).toBeVisible();
 	});
 });

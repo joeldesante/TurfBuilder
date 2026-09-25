@@ -108,6 +108,45 @@
 
 ---
 
+## LocationForm
+
+**Import:** `$components/data-inputs/location-form/LocationForm.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initialValues` | `any` | — | Existing values for an edit flow. Omit to author a new location. |
+| `coordinates` | `{ latitude: number; longitude: number; }` | **required** | Pin position. Kept as a prop rather than a form field so a parent map
+can move the pin while the form is open and have it follow. |
+| `submitLabel` | `string | undefined` | — |  |
+| `cancelLabel` | `string | undefined` | — |  |
+| `instructions` | `string | undefined` | — | Copy shown above the fields, e.g. field instructions for volunteers. |
+| `orgSlug` | `string | undefined` | — | Enables photo attachment. Omit to hide the uploader entirely. |
+| `maxPhotos` | `number | undefined` | — |  |
+| `onSubmit` | `(fields: LocationFields) => Promise<void>` | **required** |  |
+| `onCancel` | `(() => void) | undefined` | — |  |
+| `children` | `any` | — | Extra controls rendered above the buttons. |
+
+---
+
+## PhotoUpload
+
+**Import:** `$components/data-inputs/photo-upload/PhotoUpload.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `keys` | `string[] | undefined` | — | Object keys of the uploaded photos. Bindable. |
+| `orgSlug` | `string` | **required** | Org slug, used to build the presign and read URLs. |
+| `max` | `number | undefined` | — |  |
+| `label` | `string | undefined` | — |  |
+| `helperText` | `string | undefined` | — |  |
+| `disabled` | `boolean | undefined` | — |  |
+
+---
+
 ## PinInput
 
 **Import:** `$components/data-inputs/pin-input/PinInput.svelte`

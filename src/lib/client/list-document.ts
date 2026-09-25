@@ -15,13 +15,37 @@ const POLL_TIMEOUT_MS = 2 * 60_000;
  */
 const STALE_PENDING_MS = 5 * 60_000;
 
+/**
+ * Fetches JSON, turning every failure into a message fit to show the user.
+ * The document routes write their 4xx messages for people; a 5xx or a network
+ * failure could say anything, so those get generic wording instead.
+ */
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-	const res = await fetch(url, init);
+	let res: Response;
+	try {
+		res = await fetch(url, init);
+	} catch {
+		throw new Error('Could not reach the server. Check your connection and try again.');
+	}
 	if (!res.ok) {
+		if (res.status >= 500) throw new Error('Something went wrong on the server. Try again shortly.');
 		const body = await res.json().catch(() => null);
-		throw new Error(body?.message ?? `Request failed (${res.status})`);
+		throw new Error(body?.message ?? 'The request could not be completed.');
 	}
 	return res.json();
+}
+
+/**
+ * Starts generating a PDF. Sends the browser's timezone so times print as the
+ * requester reads them, until organizations have their own timezone setting
+ * (#183).
+ */
+function create(base: string): Promise<ListDocument> {
+	return request<ListDocument>(base, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+	});
 }
 
 /**
@@ -42,14 +66,15 @@ export async function downloadListDocument(
 		documents.find(
 			(d) => d.status === 'pending' && Date.now() - Date.parse(d.created_at) < STALE_PENDING_MS
 		);
-	const { id } = existing ?? (await request<ListDocument>(base, { method: 'POST' }));
+	const { id } = existing ?? (await create(base));
 
 	await waitAndDownload(base, id, onGenerating);
 }
 
 /**
  * Generates a fresh PDF for the list and downloads it once ready. The server
- * soft-deletes the list's previous PDFs when the new one is created.
+ * soft-deletes the list's previous PDFs when the new one is created, and
+ * restores them if the new one fails.
  */
 export async function regenerateListDocument(
 	orgId: string,
@@ -57,7 +82,7 @@ export async function regenerateListDocument(
 	onGenerating: () => void
 ): Promise<void> {
 	const base = `/api/v1/organizations/${orgId}/lists/${listId}/documents`;
-	const { id } = await request<ListDocument>(base, { method: 'POST' });
+	const { id } = await create(base);
 	await waitAndDownload(base, id, onGenerating);
 }
 

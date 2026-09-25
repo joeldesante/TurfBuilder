@@ -8,7 +8,8 @@ const { page, browser, launchBrowser, getMapStyle } = vi.hoisted(() => {
 		addScriptTag: vi.fn(),
 		evaluate: vi.fn(),
 		waitForFunction: vi.fn(),
-		screenshot: vi.fn()
+		screenshot: vi.fn(),
+		close: vi.fn(async () => {})
 	};
 	const browser = { newPage: vi.fn(async () => page), close: vi.fn() };
 	return {
@@ -22,9 +23,19 @@ const { page, browser, launchBrowser, getMapStyle } = vi.hoisted(() => {
 vi.mock('./browser', () => ({ launchBrowser }));
 vi.mock('$lib/map-style', () => ({ getMapStyle }));
 
-import { renderMap } from './map-engine.service';
+import { openMapRenderer, type MapDetails } from './map-engine.service';
 
 const SIZE = { width: 1400, height: 720 };
+
+/** Renders one map on a fresh renderer, closing it afterwards like callers do. */
+async function renderMap(size: typeof SIZE, details: MapDetails) {
+	const renderer = await openMapRenderer();
+	try {
+		return await renderer.render(size, details);
+	} finally {
+		await renderer.close();
+	}
+}
 
 /** The arguments handed to the in-page map script: [style, bounds, boundary, points]. */
 function mapArgs() {
@@ -36,12 +47,28 @@ beforeEach(() => {
 	page.screenshot.mockResolvedValue(new Uint8Array([255, 216, 255]));
 });
 
-describe('renderMap', () => {
-	it('refuses to render when there is nothing to frame, without starting Chrome', async () => {
+describe('openMapRenderer', () => {
+	it('refuses to render when there is nothing to frame, without opening a page', async () => {
 		await expect(renderMap(SIZE, { points: [] })).rejects.toThrow(
 			'needs a boundary or at least one point'
 		);
-		expect(launchBrowser).not.toHaveBeenCalled();
+		expect(browser.newPage).not.toHaveBeenCalled();
+	});
+
+	// A document with 30 turfs must not launch Chrome 30 times.
+	it('draws every map in the same browser, each on its own page', async () => {
+		const renderer = await openMapRenderer();
+		await renderer.render(SIZE, { points: [{ longitude: 0, latitude: 0 }] });
+		await renderer.render(SIZE, { points: [{ longitude: 1, latitude: 1 }] });
+		await renderer.render(SIZE, { points: [{ longitude: 2, latitude: 2 }] });
+
+		expect(launchBrowser).toHaveBeenCalledOnce();
+		expect(browser.newPage).toHaveBeenCalledTimes(3);
+		expect(page.close).toHaveBeenCalledTimes(3);
+		expect(browser.close).not.toHaveBeenCalled();
+
+		await renderer.close();
+		expect(browser.close).toHaveBeenCalledOnce();
 	});
 
 	it('frames the map on the boundary and the points together', async () => {
@@ -116,12 +143,18 @@ describe('renderMap', () => {
 		expect(browser.close).toHaveBeenCalledOnce();
 	});
 
-	it('closes the browser even when rendering fails', async () => {
-		page.waitForFunction.mockRejectedValue(new Error('map never went idle'));
+	it('closes the page when a render fails, keeping the browser for the next map', async () => {
+		page.waitForFunction.mockRejectedValueOnce(new Error('map never went idle'));
+		const renderer = await openMapRenderer();
 
-		await expect(renderMap(SIZE, { points: [{ longitude: 0, latitude: 0 }] })).rejects.toThrow(
-			'map never went idle'
-		);
-		expect(browser.close).toHaveBeenCalledOnce();
+		await expect(
+			renderer.render(SIZE, { points: [{ longitude: 0, latitude: 0 }] })
+		).rejects.toThrow('map never went idle');
+		expect(page.close).toHaveBeenCalledOnce();
+		expect(browser.close).not.toHaveBeenCalled();
+
+		await expect(
+			renderer.render(SIZE, { points: [{ longitude: 0, latitude: 0 }] })
+		).resolves.toBeInstanceOf(Uint8Array);
 	});
 });

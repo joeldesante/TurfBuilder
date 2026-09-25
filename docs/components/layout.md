@@ -184,3 +184,20 @@
 | `children` | `Snippet<[]>` | **required** |  |
 
 ---
+
+## TabBar
+
+**Import:** `$components/layout/tab-bar/TabBar.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tabs` | `Tab[]` | **required** |  |
+| `activeId` | `string` | **required** |  |
+| `onSelect` | `(id: string) => void` | **required** |  |
+| `onAdd` | `() => void` | **required** |  |
+| `onClose` | `(id: string) => void` | **required** |  |
+| `onReorder` | `(tabs: Tab[]) => void` | **required** |  |
+
+---

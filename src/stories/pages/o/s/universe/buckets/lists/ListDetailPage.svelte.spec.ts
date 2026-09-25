@@ -1,6 +1,13 @@
 import { render } from 'vitest-browser-svelte';
-import { expect, test } from 'vitest';
+import { page } from '@vitest/browser/context';
+import { afterEach, expect, test } from 'vitest';
+import { toast } from 'svelte-sonner';
+import Toaster from '$components/feedback/toaster/Toaster.svelte';
 import ListDetailPage from './ListDetailPage.svelte';
+
+afterEach(() => {
+	toast.dismiss();
+});
 
 const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 const pastDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -313,6 +320,8 @@ test('regenerates from the pdf options menu', async () => {
 });
 
 test('shows the reason when regenerating fails and keeps offering the download', async () => {
+	// The toaster lives in the root layout in the app.
+	render(Toaster);
 	const { getByRole } = render(ListDetailPage, {
 		props: {
 			...locationProps,
@@ -325,7 +334,7 @@ test('shows the reason when regenerating fails and keeps offering the download',
 	await getByRole('button', { name: 'More PDF options' }).click();
 	await getByRole('menuitem', { name: 'Regenerate PDF' }).click();
 
-	await expect.element(getByRole('alert')).toHaveTextContent('render failed');
+	await expect.element(page.getByText('render failed')).toBeVisible();
 	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeEnabled();
 });
 
@@ -340,7 +349,8 @@ test('has no options menu when regenerating is not wired up', async () => {
 		.not.toBeInTheDocument();
 });
 
-test('shows the reason when the download fails', async () => {
+test('shows the reason in a toast when the download fails', async () => {
+	render(Toaster);
 	const { getByRole } = render(ListDetailPage, {
 		props: {
 			...locationProps,
@@ -349,6 +359,27 @@ test('shows the reason when the download fails', async () => {
 	});
 
 	await getByRole('button', { name: 'Generate PDF' }).click();
-	await expect.element(getByRole('alert')).toHaveTextContent('The PDF could not be generated.');
+	await expect.element(page.getByText('The PDF could not be generated.')).toBeVisible();
+	await expect.element(getByRole('button', { name: 'Generate PDF' })).toBeEnabled();
+});
+
+// The client gives up after two minutes; that must reach the user too.
+test('shows a toast when waiting for the pdf times out', async () => {
+	render(Toaster);
+	const { getByRole } = render(ListDetailPage, {
+		props: {
+			...locationProps,
+			onDownloadPdf: (onGenerating: () => void) => {
+				onGenerating();
+				return Promise.reject(new Error('The PDF is taking too long. Try again shortly.'));
+			}
+		}
+	});
+
+	await getByRole('button', { name: 'Generate PDF' }).click();
+
+	await expect
+		.element(page.getByText('The PDF is taking too long. Try again shortly.'))
+		.toBeVisible();
 	await expect.element(getByRole('button', { name: 'Generate PDF' })).toBeEnabled();
 });

@@ -11,6 +11,8 @@ export default defineConfig({
   description: 'Internal documentation — API reference, component library, and plugin system.',
   srcDir: '.',
   outDir: './.vitepress/dist',
+  // Setup instructions link to the local dev server, which is never up at build time.
+  ignoreDeadLinks: 'localhostLinks',
 
   themeConfig: {
     logo: {
@@ -22,6 +24,7 @@ export default defineConfig({
 
     nav: [
       { text: 'Getting Started', link: '/getting-started' },
+      { text: 'Guides', link: '/guides/list-documents' },
       { text: 'API Reference', link: '/api/' },
       { text: 'Components', link: '/components/' },
       { text: 'Plugins', link: '/plugins/' },

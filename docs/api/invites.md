@@ -12,7 +12,7 @@ Returns all token-based invite links for the org plus the slug invite toggle sta
 
 **Response**
 
-{ links: Array<{ id, created_at, expires_at }>, slugInviteEnabled: boolean }
+&#123; links: Array&lt;&#123; id, created_at, expires_at &#125;>, slugInviteEnabled: boolean &#125;
 
 ---
 
@@ -31,7 +31,7 @@ Accessible at `/invite/{token}` once created.
 
 **Response**
 
-{ id, created_at, expires_at }
+&#123; id, created_at, expires_at &#125;
 
 ---
 
@@ -43,7 +43,7 @@ Permanently revokes an invite link. The link can no longer be used to join the o
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -62,6 +62,6 @@ When enabled, anyone with the link can join at `/invite/{org_slug}`.
 
 **Response**
 
-{ ok: true, enabled: boolean }
+&#123; ok: true, enabled: boolean &#125;
 
 ---

@@ -14,6 +14,7 @@
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwise';
 	import DropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
+	import { toast } from 'svelte-sonner';
 	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
 	import { untrack } from 'svelte';
 
@@ -96,7 +97,6 @@
 
 	// 'preparing' covers the lookup before we know whether generation is needed.
 	let pdfState = $state<'idle' | 'preparing' | 'generating'>('idle');
-	let pdfError = $state<string | null>(null);
 	// Starts from the server and flips once a PDF is generated on this page.
 	// svelte-ignore state_referenced_locally
 	let pdfExists = $state(hasPdf);
@@ -107,13 +107,14 @@
 
 	async function runPdf(action: (onGenerating: () => void) => Promise<void>) {
 		if (pdfState !== 'idle') return;
-		pdfError = null;
 		pdfState = 'preparing';
 		try {
 			await action(() => (pdfState = 'generating'));
 			pdfExists = true;
 		} catch (e) {
-			pdfError = e instanceof Error ? e.message : 'The PDF could not be downloaded.';
+			// Covers failed generation and giving up after waiting too long. The
+			// toaster lives in the root layout.
+			toast.error(e instanceof Error ? e.message : 'The PDF could not be downloaded.');
 		} finally {
 			pdfState = 'idle';
 		}
@@ -222,10 +223,6 @@
 		{/if}
 	{/snippet}
 </PageHeader>
-
-{#if pdfError}
-	<p role="alert" class="mt-2 text-sm text-error">{pdfError}</p>
-{/if}
 
 <div
 	class="flex items-center gap-6 px-4 py-3 border-b border-outline-subtle text-sm text-on-surface-subtle"

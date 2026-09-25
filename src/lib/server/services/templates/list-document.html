@@ -6,6 +6,10 @@
 	layout table: Chrome repeats <thead>/<tfoot> on every printed page, and the
 	spacer rows in them reserve the top margin and the room for the fixed footer.
 
+	Write notes as Handlebars block comments, never HTML comments: Handlebars
+	strips its own comments when rendering, while HTML comments would be sent
+	into every generated page.
+
 	Readability comes first: near-black text, nothing smaller than 8.5pt. After
 	that, it is designed to be printed in bulk: black and gray only, no filled
 	areas, thin rules. Keep new styles ink-light (no backgrounds or color
@@ -36,18 +40,18 @@
 	</head>
 	<body style="margin: 0; padding: 0; background: #ffffff; color: #111827; font-family: 'Helvetica Neue', Helvetica, Arial, 'Noto Sans', sans-serif; font-size: 10pt; line-height: 1.45;">
 
-		<!-- Footer: repeated on every printed page because it is position: fixed. -->
+		{{!-- Footer: repeated on every printed page because it is position: fixed. --}}
 		<div style="position: fixed; left: 0.6in; right: 0.6in; bottom: 0.3in; height: 0.3in; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #e5e7eb; padding-top: 6px; font-size: 8.5pt; color: #374151;">
-			<!--
+			{{!--
 				Turfbuilder wordmark (static/logos/default-logo.svg, minified, gray for print).
 				Must stay an <img>: Chrome paints an inline <svg> inside a position: fixed
 				element on the first printed page only.
-			-->
+			--}}
 			<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNDIuNzEgNzQuMDYiIHdpZHRoPSIxNDIuNzEiIGhlaWdodD0iNzQuMDYiPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yNi4zODc0NDcsLTQ3LjkxMDg5OCkiIGZpbGw9IiM0YjU1NjMiIGZpbGwtcnVsZT0iZXZlbm9kZCI+PHBhdGggZD0ibSAxNjUuMjMsMTIxLjk3IGggLTIuNDcgbCA4LjllLTQsLTUuODggaCAyLjQ3IHoiLz48cGF0aCBkPSJtIDQ2LjU2LDExNC4wNSBjIDEuOSwwIDMuNTMsLTAuNjkgNC44OSwtMi4wNiAxLjM2LC0xLjM3IDIuMDQsLTMgMi4wNCwtNC44NyBWIDk2LjcgYyAwLC0xLjkgLTAuNjgsLTMuNTMgLTIuMDQsLTQuOTEgLTEuMzYsLTEuMzcgLTIuOTksLTIuMDYgLTQuODksLTIuMDYgaCAtMy40OCBjIC0xLjAyLDAgLTEuODIsMC4yOSAtMi40LDAuODYgLTAuNTgsMC41OCAtMC45NCwxLjQ1IC0xLjA4LDIuNjIgViA4Mi44IGggLTYuOTMgViAxMTQuMDUgWiBNIDM5LjU5LDk2LjcgYyAwLjAxLC0xLjkyIDEuNTYsLTMuNDcgMy40OCwtMy40OCAwLjk0LDAgMS43NiwwLjM0IDIuNDUsMS4wMyAwLjY3LDAuNjQgMS4wNCwxLjUzIDEuMDMsMi40NiB2IDEwLjQyIGMgMCwwLjkzIC0wLjM0LDEuNzQgLTEuMDIsMi40MyAtMC42NCwwLjY3IC0xLjU0LDEuMDQgLTIuNDcsMS4wMyBoIC0zLjQ4IHogbSAyOS43MywtNi45NyB2IDE3LjM4IGMgMCwwLjkzIC0wLjM0LDEuNzQgLTEuMDIsMi40MyAtMS4zNiwxLjM3IC0zLjU3LDEuMzcgLTQuOTMsMCAtMC42OCwtMC42OCAtMS4wMiwtMS40OSAtMS4wMiwtMi40MyBWIDg5LjczIGggLTYuOTMgdiAxNy4zOCBjIDAsMS45IDAuNjgsMy41MyAyLjA0LDQuODkgMS4zNiwxLjM2IDIuOTksMi4wNCA0Ljg5LDIuMDQgaCAzLjQ4IGMgMi4wNSwwIDMuMjEsLTEuMTYgMy40OCwtMy40OCB2IDMuNDggaCA2LjkzIFYgODkuNzMgWiBtIDE2LjYzLC0zLjQ1IHYgLTMuNDggaCAtNi45MyB2IDMuNDggeiBtIDAsMjcuNzYgViA4OS43MyBoIC02LjkzIHYgMjQuMzEgeiBtIDEwLjgyLDAgViA3My43IEggODkuODUgdiA0MC4zNSBoIDYuOTMgeiBNIDEyMC4xNSw3My43IGggLTYuOTMgdiAxNi4wMyBoIC02Ljk3IGMgLTEuODksMCAtMy41MiwwLjY4IC00Ljg4LDIuMDQgLTEuMzcsMS4zNiAtMi4wNSwzIC0yLjA1LDQuOTIgdiAxMC40MiBjIDAsMS45IDAuNjgsMy41MyAyLjA0LDQuODkgMS4zNiwxLjM2IDIuOTksMi4wNCA0Ljg5LDIuMDQgaCAzLjQ4IGMgMi4wNSwwIDMuMjEsLTEuMTYgMy40OCwtMy40OCB2IDMuNDggaCA2LjkzIHogbSAtNi45MywzMy40MSBjIDAsMC45MyAtMC4zNCwxLjc0IC0xLjAyLDIuNDMgLTEuMzYsMS4zNyAtMy41NywxLjM3IC00LjkzLDAgLTAuNjgsLTAuNjggLTEuMDIsLTEuNDkgLTEuMDIsLTIuNDMgViA5Ni43IGMgMC4wMSwtMS45MiAxLjU2LC0zLjQ3IDMuNDgsLTMuNDggaCAzLjQ4IHogbSAzMC41MywtMTAuNDIgYyAwLC0xLjkgLTAuNjgsLTMuNTMgLTIuMDQsLTQuOTEgLTEuMzYsLTEuMzcgLTIuOTksLTIuMDYgLTQuODksLTIuMDYgaCAtNi45NiBjIC0xLjg5LDAgLTMuNTIsMC42OCAtNC44OCwyLjA0IC0xLjM3LDEuMzYgLTIuMDUsMyAtMi4wNSw0LjkyIHYgMTAuNDIgYyAwLDEuOSAwLjY4LDMuNTMgMi4wNCw0Ljg5IDEuMzYsMS4zNiAyLjk5LDIuMDQgNC44OSwyLjA0IGggNi45NiBjIDQuMDgsMCA2LjM5LC0yLjMxIDYuOTMsLTYuOTMgaCAtMy40OCBjIDAsMi4zIC0xLjE1LDMuNDUgLTMuNDUsMy40NSBoIC0zLjQ4IGMgLTAuOTMsMC4wMiAtMS44MiwtMC4zNiAtMi40NywtMS4wMyAtMC42OCwtMC42OCAtMS4wMiwtMS40OSAtMS4wMiwtMi40MyB2IC0zLjQ4IGggMTMuOSB2IC02LjkzIHogbSAtMTMuOSwwIGMgMC4wMSwtMS45MiAxLjU2LC0zLjQ3IDMuNDgsLTMuNDggMC45NCwwIDEuNzYsMC4zNCAyLjQ1LDEuMDMgMC42NywwLjY0IDEuMDQsMS41MyAxLjAzLDIuNDYgdiAzLjQ1IGggLTYuOTYgeiBtIDIzLjYsMy40NSBjIC0wLjAxLC0wLjkyIDAuMzYsLTEuOCAxLjAzLC0yLjQzIDAuNjQsLTAuNjYgMS41MywtMS4wMyAyLjQ2LC0xLjAyIGggNi45MyB2IC02Ljk3IGggLTMuNDUgYyAtMi4wNSwwIC0zLjY2LDAuNTggLTQuODIsMS43NCAtMS4xNiwxLjE2IC0xLjg4LDIuOSAtMi4xNSw1LjIyIHYgLTYuOTcgaCAtNi45MyB2IDI0LjMxIGggNi45MyB6Ii8+PHBhdGggZD0ibSA0Mi4xNCw2MS43MyBoIC0zLjQ4IHYgMy40OCBoIDMuNDggdiAxMy45IHEgMCwyLjg1IDIuMDMsNC44OSAyLjAzLDIuMDQgNC45LDIuMDQgaCAzLjQ4IHYgLTMuNDggaCAtMC4zMyBxIC0wLjk0LDAgLTIuMDUsLTAuODkgLTEuMTEsLTAuODkgLTEuMTEsLTIuNTYgViA2NS4yMSBoIDMuNDggViA2MS43MyBoIC0zLjQ4IHYgLTYuOTMgaCAtNi45MyB2IDYuOTMgeiBtIDI3LjA4LDAgdiAxNy4zOCBxIDAsMS40IC0xLjAyLDIuNDIgYSAzLjQ4LDMuNDggMCAwIDEgLTQuOTMsMCBRIDYyLjI1LDgwLjUxIDYyLjI1LDc5LjExIFYgNjEuNzMgaCAtNi45MyB2IDE3LjM4IHEgMCwyLjg1IDIuMDQsNC44OSAyLjA0LDIuMDQgNC44OSwyLjA0IGggMy40OCBxIDMuMDgsMCAzLjQ4LC0zLjQ4IHYgMy40OCBoIDYuOTMgViA2MS43MyBaIG0gMTYuNjMsMTAuNDIgYSAzLjMxLDMuMzEgMCAwIDEgMS4wMywtMi40MyAzLjM3LDMuMzcgMCAwIDEgMi40NiwtMS4wMiBoIDYuOTMgViA2MS43MyBoIC0zLjQ1IHEgLTMuMDgsMCAtNC44MiwxLjc0IC0xLjc0LDEuNzQgLTIuMTUsNS4yMiBWIDYxLjczIGggLTYuOTMgdiAyNC4zMSBoIDYuOTMgeiBNIDEwOC41LDg2LjA0IFYgNjUuMjEgaCAzLjQ4IFYgNjEuNzMgaCAtMy40OCB2IC0wLjMxIHEgMCwtMS4yNyAwLjkzLC0yLjIxIGEgMy4wMywzLjAzIDAgMCAxIDIuMjMsLTAuOTQgaCAzLjc4IHYgLTMuNDggaCAtNy4yNCBxIC0yLjcyLDAgLTQuNjcsMS45NSAtMS45NSwxLjk1IC0xLjk1LDQuNjcgdiAwLjMxIGggLTMuNDggdiAzLjQ4IGggMy40OCB2IDIwLjgzIGggNi45MyB6Ii8+PHBhdGggZD0ibSAxMzIuOTIsNzcuMTcgYyAtMC4xOCwtMC4yIC0wLjc3LC0xLjA0IC0xLjMsLTEuODUgLTAuNTMsLTAuODEgLTEuNDQsLTIuMSAtMi4wMiwtMi44NiAtMS4zMywtMS43NyAtMS44MywtMi41NCAtMi4zNywtMy42NSAtMS40MSwtMi45NCAtMS4wMiwtNS42MSAxLjE3LC03Ljg3IDEuMDEsLTEuMDUgMS45NywtMS41OCAzLjQ4LC0xLjkyIDEuMDQsLTAuMjMgMS4wOSwtMC4yNCAxLjkxLC0wLjE1IDEuMTksMC4xMiAxLjk1LDAuMzMgMi44OSwwLjggMS43NiwwLjg3IDIuOTgsMi41NyAzLjQ2LDQuOCAwLjUxLDIuNCAtMC4xNCw0LjIgLTIuNzEsNy41NSAtMC43MywwLjk1IC0zLjIxLDQuNDcgLTMuNTYsNS4wNSAtMC4xNSwwLjI1IC0wLjQ0LDAuNDggLTAuNTksMC40OCAtMC4wMiwwIC0wLjE4LC0wLjE3IC0wLjM2LC0wLjM3IHogbSAxLjM0LC04LjI0IGMgMS4wMSwtMC4zNSAxLjgyLC0wLjkyIDIuMzksLTEuNjggMC43OCwtMS4wMyAxLjMxLC0yLjc2IDAuOTgsLTMuMTUgLTAuMjcsLTAuMzIgLTAuNDcsLTAuMDIgLTAuNzIsMS4wNSAtMC4xOSwwLjgyIC0wLjUyLDEuMzggLTEuMTgsMi4wMiAtMS4zOCwxLjM0IC0zLjE5LDEuNjUgLTQuODEsMC44MyAtMC41MywtMC4yNyAtMS4xMiwtMC44NCAtMS4zNiwtMS4zMiAtMC4yNCwtMC40NyAtMC40LC0wLjY3IC0wLjU1LC0wLjY3IC0wLjA5LDAgLTAuMTEsMC4wOCAtMC4wOCwwLjM1IDAuMTcsMS41NSAyLjE4LDIuODYgNC4yMiwyLjc2IDAuMzcsLTAuMDIgMC44NiwtMC4xIDEuMSwtMC4xOSB6IG0gLTIuNTcsLTQuOTggYyAwLjE5LC0wLjUxIDAuMTEsLTEuNDkgLTAuMTUsLTEuNyAtMC4zMiwtMC4yNiAtMC41NiwwLjczIC0wLjM1LDEuNDggMC4wNywwLjI3IDAuMTIsMC4zMyAwLjI3LDAuMzMgMC4xLDAgMC4yLC0wLjA1IDAuMjMsLTAuMTEgeiBtIDMuMzEsLTAuMjMgYyAwLjI0LC0wLjM0IDAuMDcsLTEuMzkgLTAuMjQsLTEuNTEgLTAuNDEsLTAuMTYgLTAuNTUsMC42OCAtMC4yNSwxLjQ3IDAuMSwwLjI2IDAuMzIsMC4yOCAwLjQ5LDAuMDQgeiIvPjxwYXRoIGQ9Im0gMjguMDksMTIxLjk3IHYgLTIuNDQgSCAxNjQuNDYgdiAyLjQ0IHoiLz48cGF0aCBkPSJtIDEzMy4zOCw4NC4yNSB2IC0yLjQ3IGggMTQuODQgdiAyLjQ3IHoiLz48cGF0aCBkPSJNIDMwLjI1LDUwLjM5IFYgNDcuOTEgSCAxNDguMjIgdiAyLjQ3IHoiLz48cGF0aCBkPSJtIDEzNC42Miw4NC4yNSBoIC0yLjQ3IHYgLTUuODggaCAyLjQ3IHYgNS44OCB6Ii8+PHBhdGggZD0ibSAxNDguMjIsODQuMjUgLTIuNDcsLTguNTNlLTQgViA0OS4xNSBsIDIuNDcsOC41M2UtNCB6Ii8+PHBhdGggZD0ibSAyOC44NiwxMjEuOTcgLTIuNDcsLTguOWUtNCBWIDc3LjYgbCAyLjQ3LDkuOTdlLTQgeiIvPjxwYXRoIGQ9Im0gMzIuNzMsNzguODQgLTIuNDcsLTcuNzRlLTQgViA0Ny45MSBsIDIuNDcsNy43NGUtNCB6Ii8+PHBhdGggZD0ibSAyNi4zOSw3OC44NSAtMCwtMi40NyA2LjI3LC0wIDAsMi40NyB6Ii8+PHBhdGggZD0ibSAxNjMuOTIsMTA2Ljk4IGMgMi44NiwwIDUuMTgsMi4yOCA1LjE4LDUuMSAwLDIuODIgLTIuMzIsNS4xIC01LjE4LDUuMSAtMi44NiwwIC01LjE4LC0yLjI4IC01LjE4LC01LjEgMCwtMi44MiAyLjMyLC01LjEgNS4xOCwtNS4xIHoiLz48L2c+PC9zdmc+" alt="Turfbuilder" width="42" height="22" style="display: block;" />
 			<div>{{list.name}}</div>
 		</div>
 
-		<!-- Layout table: thead/tfoot spacers act as per-page top and bottom margins. -->
+		{{!-- Layout table: thead/tfoot spacers act as per-page top and bottom margins. --}}
 		<table style="width: 100%; border-collapse: collapse; border: 0;">
 			<thead>
 				<tr><td style="padding: 0; border: 0;"><div style="height: 0.5in;"></div></td></tr>
@@ -59,13 +63,13 @@
 				<tr>
 					<td style="padding: 0 0.6in; border: 0; vertical-align: top;">
 
-						<!-- Document header -->
+						{{!-- Document header --}}
 						<div style="border-bottom: 1px solid #374151; padding-bottom: 10px; margin-bottom: 16px;">
 							<div style="font-size: 18pt; font-weight: 700; color: #111827; line-height: 1.2;">{{list.name}}</div>
 							<div style="font-size: 9pt; color: #374151; margin-top: 4px;">Generated {{generatedAt}}</div>
 						</div>
 
-						<!-- Table of contents (omitted when no turfs are cut) -->
+						{{!-- Table of contents (omitted when no turfs are cut) --}}
 						{{#if turfs}}
 							<div style="border-left: 1px solid #9ca3af; padding: 2px 0 2px 12px; margin-bottom: 20px;">
 								<div style="font-size: 10pt; font-weight: 700; color: #111827; margin-bottom: 4px;">Contents</div>
@@ -77,7 +81,7 @@
 							</div>
 						{{/if}}
 
-						<!-- Section 1: master list of all locations (may run across several pages) -->
+						{{!-- Section 1: master list of all locations (may run across several pages) --}}
 						<section>
 							<h1 style="font-size: 14pt; font-weight: 700; color: #111827; margin: 0 0 4px 0;">Master list of all locations</h1>
 							<p style="margin: 0 0 8px 0; color: #111827;">
@@ -112,7 +116,7 @@
 						</section>
 
 						{{#if turfs}}
-							<!-- Section 2: master list of turfs available to canvass -->
+							{{!-- Section 2: master list of turfs available to canvass --}}
 							<section style="break-before: page;">
 								<h1 style="font-size: 14pt; font-weight: 700; color: #111827; margin: 0 0 12px 0;">Master list of turfs available to canvass</h1>
 
@@ -122,7 +126,7 @@
 											<th style="text-align: left; padding: 6px 8px; border-bottom: 1px solid #6b7280; font-size: 9pt; font-weight: 700; color: #111827;">Turf code</th>
 											<th style="width: 1.3in; text-align: right; padding: 6px 8px; border-bottom: 1px solid #6b7280; font-size: 9pt; font-weight: 700; color: #111827;">Locations</th>
 											<th style="width: 1.3in; text-align: center; padding: 6px 8px; border-bottom: 1px solid #6b7280; font-size: 9pt; font-weight: 700; color: #111827;">Checked out</th>
-											<!-- TODO: QR code column so canvassers can scan to open the turf. -->
+											{{!-- TODO(#185): QR code column so canvassers can scan to join the turf. --}}
 										</tr>
 									</thead>
 									<tbody>
@@ -133,23 +137,23 @@
 												<td style="padding: 10px 8px; border-bottom: 1px solid #d1d5db; text-align: center;">
 													<span style="display: inline-block; width: 18px; height: 18px; border: 1.5px solid #111827; border-radius: 2px; vertical-align: middle;"></span>
 												</td>
-												<!-- TODO: <td>QR code for this turf</td> -->
+												{{!-- TODO(#185): <td>QR code for this turf</td> --}}
 											</tr>
 										{{/each}}
 									</tbody>
 								</table>
 							</section>
 
-							<!-- Section 3: one page per turf -->
+							{{!-- Section 3: one page per turf --}}
 							{{#each turfs}}
-								<!--
+								{{!--
 									Always starts on a fresh page, so nothing from the previous section
 									can share a page with this turf. The turf heading sits in the outer
 									table's <thead>, which Chrome repeats on every page this turf runs
 									onto, so a loose overflow page still says which turf it belongs to.
 									(break-before: right would make it duplex-safe, but Chrome treats
 									it as a plain page break and never inserts the blank page.)
-								-->
+								--}}
 								<section style="break-before: page;">
 									<table style="width: 100%; border-collapse: collapse; border: 0;">
 										<thead>
@@ -193,7 +197,7 @@
 										</tbody>
 									</table>
 
-									<!-- TODO: QR code for this turf goes here (tracked separately). -->
+									{{!-- TODO(#185): QR code for this turf goes here. --}}
 								</section>
 							{{/each}}
 						{{/if}}

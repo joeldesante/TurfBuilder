@@ -43,4 +43,26 @@ describe('generatePDF', () => {
 		await expect(generatePDF('<p></p>', {})).rejects.toThrow('print failed');
 		expect(browser.close).toHaveBeenCalledOnce();
 	});
+
+	// The service aborts a document that runs past its deadline.
+	it('closes the browser when aborted mid-render, so the render stops', async () => {
+		const controller = new AbortController();
+		page.pdf.mockImplementation(() => {
+			controller.abort();
+			return new Promise(() => {});
+		});
+
+		void generatePDF('<p></p>', {}, { signal: controller.signal });
+		await vi.waitFor(() => expect(browser.close).toHaveBeenCalled());
+	});
+
+	it('does not start Chrome when already aborted', async () => {
+		const controller = new AbortController();
+		controller.abort(new Error('too late'));
+
+		await expect(generatePDF('<p></p>', {}, { signal: controller.signal })).rejects.toThrow(
+			'too late'
+		);
+		expect(launchBrowser).not.toHaveBeenCalled();
+	});
 });

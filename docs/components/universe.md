@@ -30,3 +30,23 @@
 | `filters` | `FilterDefinition[] | undefined` | `[]` | Available filter definitions for the entity type |
 
 ---
+
+## LocationResponseDetail
+
+**Import:** `$components/universe/location-response-detail/LocationResponseDetail.svelte`
+
+---
+
+## MetricsWorkflowSidebar
+
+**Import:** `$components/universe/metrics-workflow-sidebar/MetricsWorkflowSidebar.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `orgSlug` | `string` | **required** |  |
+| `buckets` | `MetricsBucket[]` | **required** |  |
+| `onGenerate` | `(selection: MetricsWorkflowSelection) => void` | **required** |  |
+
+---

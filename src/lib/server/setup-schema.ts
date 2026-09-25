@@ -1646,8 +1646,9 @@ export const SETUP_STEPS: SetupStep[] = [
 	// A generated file (e.g. a printable turf list) for a list. The storage key
 	// is assigned when the row is created, before the file exists, so status
 	// says whether there is anything at that key yet. Generating a new one
-	// soft-deletes the list's earlier documents, so a list has at most one
-	// current document; the files stay in storage.
+	// soft-deletes the list's earlier documents (superseded_by points at the
+	// new one), so a list has one current document; the files stay in storage.
+	// If the new one fails, the documents it superseded are restored.
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating list documents',
@@ -1663,9 +1664,14 @@ export const SETUP_STEPS: SetupStep[] = [
 				requested_by  UUID REFERENCES auth.user(id) ON DELETE SET NULL,
 				created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
 				completed_at  TIMESTAMPTZ,
-				deleted_at    TIMESTAMPTZ
+				deleted_at    TIMESTAMPTZ,
+				superseded_by UUID REFERENCES universe.list_document(id) ON DELETE SET NULL
 			)`,
 			`ALTER TABLE universe.list_document ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+			`ALTER TABLE universe.list_document ADD COLUMN IF NOT EXISTS superseded_by UUID
+				REFERENCES universe.list_document(id) ON DELETE SET NULL`,
+			`CREATE INDEX IF NOT EXISTS list_document_superseded_by_idx
+				ON universe.list_document (superseded_by) WHERE superseded_by IS NOT NULL`,
 			`CREATE INDEX IF NOT EXISTS list_document_org_id_idx ON universe.list_document (org_id)`,
 			`CREATE INDEX IF NOT EXISTS list_document_list_id_idx
 				ON universe.list_document (list_id, created_at DESC)`,

@@ -6,14 +6,21 @@ Staff endpoints for creating and managing survey templates and questions.
 
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/surveys`
 
-Lists surveys for the organization.
+Lists surveys for the organization, optionally filtered by bucket.
 
 **Auth:** Staff  
 **Permission:** `survey:read`
 
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `bucketId` | `string` | optional - bucket UUID to filter by |
+| `bucketSlug` | `string` | optional - bucket slug to filter by (alternative to bucketId) |
+
 **Response**
 
-Array of { id: string, name: string, description: string | null }
+Array of &#123; id: string, name: string, description: string | null &#125;
 
 ---
 
@@ -33,7 +40,7 @@ Questions are added separately via the /questions endpoint.
 
 **Response**
 
-{ id: string } UUID of the created survey
+&#123; id: string &#125; UUID of the created survey
 
 ---
 
@@ -53,7 +60,7 @@ Updates the name and optional description of an existing survey.
 
 **Response**
 
-{ success: true }
+&#123; success: true &#125;
 
 ---
 
@@ -74,7 +81,7 @@ fully replace the question set.
 
 **Response**
 
-{ success: true }
+&#123; success: true &#125;
 
 ---
 
@@ -95,6 +102,6 @@ editor dropped. Pass all retained question IDs in `exclude`.
 
 **Response**
 
-{ success: true }
+&#123; success: true &#125;
 
 ---

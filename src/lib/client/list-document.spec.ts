@@ -135,6 +135,27 @@ describe('downloadListDocument', () => {
 		await assertion;
 	});
 
+	it('says the server could not be reached when the request fails outright', async () => {
+		fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+
+		await expect(downloadListDocument('org-1', 'list-1', vi.fn())).rejects.toThrow(
+			'Could not reach the server. Check your connection and try again.'
+		);
+	});
+
+	// A 5xx body could hold anything; never show it.
+	it('replaces server error details with a generic message', async () => {
+		fetchMock.mockResolvedValue(
+			new Response(JSON.stringify({ message: 'relation "universe.list" does not exist' }), {
+				status: 500
+			})
+		);
+
+		await expect(downloadListDocument('org-1', 'list-1', vi.fn())).rejects.toThrow(
+			'Something went wrong on the server. Try again shortly.'
+		);
+	});
+
 	it('surfaces the API error message', async () => {
 		fetchMock.mockResolvedValue(
 			new Response(JSON.stringify({ message: 'Forbidden' }), { status: 403 })
@@ -164,6 +185,21 @@ describe('regenerateListDocument', () => {
 		expect(calls()).not.toContain(`GET ${BASE}`);
 		expect(onGenerating).toHaveBeenCalledOnce();
 		expect(assign).toHaveBeenCalledWith('https://spaces/new');
+	});
+
+	it('sends the browser\'s timezone so times print as the requester reads them', async () => {
+		respond({
+			[`POST ${BASE}`]: { id: 'new', status: 'pending', created_at: now() },
+			[`GET ${BASE}/new`]: { id: 'new', status: 'ready', download_url: 'https://spaces/new' }
+		});
+
+		await regenerateListDocument('org-1', 'list-1', vi.fn());
+
+		const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')!;
+		expect(JSON.parse(post[1].body)).toEqual({
+			timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+		});
+		expect(post[1].headers).toEqual({ 'content-type': 'application/json' });
 	});
 
 	it('rejects with the server reason when regeneration fails', async () => {

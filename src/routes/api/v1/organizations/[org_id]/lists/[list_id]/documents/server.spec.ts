@@ -34,13 +34,21 @@ const LIST = 'f1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const params = { org_id: ORG, list_id: LIST };
 const staff = { user: { id: 'u1' } };
 
-function call(p: Record<string, string>, locals: object) {
-	return POST({ params: p, locals } as never);
+function call(p: Record<string, string>, locals: object, body?: unknown) {
+	const request = new Request('http://localhost/documents', {
+		method: 'POST',
+		body: body === undefined ? undefined : JSON.stringify(body)
+	});
+	return POST({ params: p, locals, request } as never);
 }
 
-async function status(p: Record<string, string>, locals: object): Promise<number> {
+async function status(
+	p: Record<string, string>,
+	locals: object,
+	body?: unknown
+): Promise<number> {
 	try {
-		const res = await call(p, locals);
+		const res = await call(p, locals, body);
 		return res.status;
 	} catch (e) {
 		return (e as { status: number }).status;
@@ -118,21 +126,48 @@ describe('POST list documents', () => {
 			orgId: ORG,
 			documentId: id,
 			listId: LIST,
-			storageKey: `orgs/${ORG}/lists/${LIST}/documents/${id}.pdf`
+			storageKey: `orgs/${ORG}/lists/${LIST}/documents/${id}.pdf`,
+			timeZone: undefined
 		});
 	});
 
-	it('soft-deletes the list\'s earlier documents before creating the new one', async () => {
-		await call(params, staff);
+	it('soft-deletes the list\'s earlier documents, marking them replaced by the new one', async () => {
+		const res = await call(params, staff);
+		const { id } = await res.json();
 
 		const sql = mockClient.query.mock.calls.map((c) => String(c[0]));
-		const supersede = sql.findIndex((q) => q.includes('SET deleted_at = now()'));
 		const insert = sql.findIndex((q) => q.includes('INSERT INTO universe.list_document'));
+		const supersede = sql.findIndex((q) => q.includes('SET deleted_at = now()'));
 
-		expect(supersede).toBeGreaterThan(-1);
-		expect(supersede).toBeLessThan(insert);
+		// After the insert: superseded_by references the new row.
+		expect(insert).toBeGreaterThan(-1);
+		expect(supersede).toBeGreaterThan(insert);
+		expect(sql[supersede]).toContain('superseded_by = $3');
 		expect(sql[supersede]).toContain('list_id = $1 AND org_id = $2 AND deleted_at IS NULL');
-		expect(mockClient.query.mock.calls[supersede][1]).toEqual([LIST, ORG]);
+		expect(sql[supersede]).toContain('id <> $3');
+		expect(mockClient.query.mock.calls[supersede][1]).toEqual([LIST, ORG, id]);
+	});
+
+	it('passes the requester\'s timezone to the generation', async () => {
+		await call(params, staff, { timeZone: 'America/Chicago' });
+
+		expect(generateListDocument).toHaveBeenCalledWith(
+			expect.objectContaining({ timeZone: 'America/Chicago' })
+		);
+	});
+
+	it('accepts a request with no body', async () => {
+		const res = await call(params, staff);
+
+		expect(res.status).toBe(202);
+		expect(generateListDocument).toHaveBeenCalledWith(
+			expect.objectContaining({ timeZone: undefined })
+		);
+	});
+
+	it('returns 400 for an unknown timezone and creates nothing', async () => {
+		expect(await status(params, staff, { timeZone: 'Mars/Olympus_Mons' })).toBe(400);
+		expect(sqlRun()).not.toContainEqual(expect.stringContaining('INSERT INTO'));
 	});
 
 	it('scopes the list lookup to the org', async () => {

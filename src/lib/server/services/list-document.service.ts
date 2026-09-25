@@ -1,19 +1,43 @@
 import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
-import { uploadObject } from '$lib/server/storage';
+import { uploadObject, StorageNotConfiguredError } from '$lib/server/storage';
 import { generatePDF } from './pdf-engine.service';
-import { renderMap } from './map-engine.service';
+import { openMapRenderer, type MapRenderer } from './map-engine.service';
 import TEMPLATE from './templates/list-document.html?raw';
 
 // The template shows maps at the full 7.3in content width and up to 3.75in
 // tall; this size keeps that ratio and prints at roughly 190 dpi.
 const MAP_SIZE = { width: 1400, height: 720 };
 
+/**
+ * How long a document may take before it is marked failed. Shorter than the
+ * client's 2 minute wait, so the page always learns the outcome.
+ */
+export const GENERATION_TIMEOUT_MS = 90_000;
+
+/**
+ * A failure whose message is written for the person who asked for the PDF.
+ * Only these messages are stored on the row and shown in the app; anything
+ * else is logged and replaced with a generic message, so internal details
+ * (storage, database, Chrome) never reach the UI.
+ */
+export class ListDocumentError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'ListDocumentError';
+	}
+}
+
+export const GENERIC_FAILURE =
+	'The PDF could not be generated. Try again, or ask an administrator if it keeps happening.';
+
 export interface ListDocumentJob {
 	orgId: string;
 	documentId: string;
 	listId: string;
 	storageKey: string;
+	/** IANA zone to print times in; the server's own zone when omitted. Replaced by the org setting in #183. */
+	timeZone?: string;
 }
 
 interface LocationRow {
@@ -51,48 +75,99 @@ type ListDocumentData = {
  * so the row's status is the only place a failure can be reported.
  */
 export async function generateListDocument(job: ListDocumentJob): Promise<void> {
+	const controller = new AbortController();
+	const timer = setTimeout(
+		() =>
+			controller.abort(
+				new ListDocumentError('The PDF took too long to generate. Try again shortly.')
+			),
+		GENERATION_TIMEOUT_MS
+	);
 	try {
-		const data = await buildDocumentData(job.orgId, job.listId);
-		const pdf = await generatePDF(TEMPLATE, data);
-		await uploadObject(job.storageKey, pdf, 'application/pdf');
+		// The race makes the timeout win even if a render ignores the abort.
+		await Promise.race([render(job, controller.signal), whenAborted(controller.signal)]);
 		await finish(job, 'ready', null);
 	} catch (e) {
+		// The full error stays in the server log; the row gets a safe message.
 		console.error(`List document ${job.documentId} failed`, e);
-		const message = e instanceof Error ? e.message : String(e);
-		await finish(job, 'failed', message).catch((err) =>
+		await fail(job, userMessage(e)).catch((err) =>
 			console.error(`Could not record failure for list document ${job.documentId}`, err)
 		);
+	} finally {
+		clearTimeout(timer);
 	}
 }
 
-async function buildDocumentData(orgId: string, listId: string): Promise<ListDocumentData> {
-	const { list, entries, turfs } = await withOrgTransaction(orgId, (client) =>
-		loadList(client, orgId, listId)
+async function render(job: ListDocumentJob, signal: AbortSignal): Promise<void> {
+	const data = await buildDocumentData(job, signal);
+	const pdf = await generatePDF(TEMPLATE, data, { signal });
+	// Past the deadline the row is already failed; do not leave a file behind.
+	signal.throwIfAborted();
+	await uploadObject(job.storageKey, pdf, 'application/pdf');
+}
+
+/** The message safe to show for a failure; see ListDocumentError. */
+function userMessage(e: unknown): string {
+	if (e instanceof ListDocumentError) return e.message;
+	if (e instanceof StorageNotConfiguredError) {
+		return 'PDF storage has not been set up yet. Ask an administrator to configure it.';
+	}
+	return GENERIC_FAILURE;
+}
+
+function whenAborted(signal: AbortSignal): Promise<never> {
+	return new Promise((_, reject) =>
+		signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+	);
+}
+
+async function buildDocumentData(
+	job: ListDocumentJob,
+	signal: AbortSignal
+): Promise<ListDocumentData> {
+	const { list, entries, turfs } = await withOrgTransaction(job.orgId, (client) =>
+		loadList(client, job.orgId, job.listId)
 	);
 
-	// Maps are drawn one at a time: each one runs its own headless Chrome.
-	const turfPages = [];
-	for (const turf of turfs) {
-		turfPages.push({
-			code: turf.code,
-			map: await mapOf(turf.locations, turf.boundary),
-			locations: turf.locations.map(toDocumentLocation)
-		});
-	}
-
-	const now = new Date();
-	return {
-		list: { name: list.name },
-		generatedAt: `${formatDate(now)} ${formatTime(now)}`,
-		expires: {
-			date: formatDate(list.expires_at),
-			time: formatTime(list.expires_at),
-			timezone: formatTimezone(list.expires_at)
-		},
-		map: await mapOf(entries),
-		locations: entries.map(toDocumentLocation),
-		turfs: turfPages
+	// One browser draws every map, opened only if some map has something to
+	// show, and shut down on timeout so a hung render cannot hold it open.
+	let renderer: MapRenderer | undefined;
+	const closeRenderer = () => void renderer?.close();
+	signal.addEventListener('abort', closeRenderer, { once: true });
+	const draw = async (details: MapInput) => {
+		renderer ??= await openMapRenderer();
+		signal.throwIfAborted();
+		return renderer.render(MAP_SIZE, details);
 	};
+
+	try {
+		const turfPages = [];
+		for (const turf of turfs) {
+			turfPages.push({
+				code: turf.code,
+				map: await mapOf(draw, turf.locations, turf.boundary),
+				locations: turf.locations.map(toDocumentLocation)
+			});
+		}
+
+		const now = new Date();
+		const zone = job.timeZone;
+		return {
+			list: { name: list.name },
+			generatedAt: `${formatDate(now, zone)} ${formatTime(now, zone)}`,
+			expires: {
+				date: formatDate(list.expires_at, zone),
+				time: formatTime(list.expires_at, zone),
+				timezone: formatTimezone(list.expires_at, zone)
+			},
+			map: await mapOf(draw, entries),
+			locations: entries.map(toDocumentLocation),
+			turfs: turfPages
+		};
+	} finally {
+		signal.removeEventListener('abort', closeRenderer);
+		await renderer?.close();
+	}
 }
 
 async function loadList(client: PoolClient, orgId: string, listId: string) {
@@ -103,9 +178,9 @@ async function loadList(client: PoolClient, orgId: string, listId: string) {
 		[listId, orgId]
 	);
 	const list = listResult.rows[0];
-	if (!list) throw new Error('List not found');
+	if (!list) throw new ListDocumentError('This list no longer exists.');
 	if (list.entity_type !== 'locations') {
-		throw new Error('Documents can only be generated for location lists');
+		throw new ListDocumentError('PDFs can only be generated for location lists.');
 	}
 
 	// Joins the snapshotted records (not the view), like the list page, so the
@@ -178,11 +253,20 @@ function toDocumentLocation(row: LocationRow, index: number): DocumentLocation {
 	};
 }
 
+type MapInput = {
+	boundary?: Boundary;
+	points: { latitude: number; longitude: number; label: string }[];
+};
+
 /**
  * A map of the rows as markers numbered by table position, as a data URI the
  * template can embed. Undefined when there is nothing to frame.
  */
-async function mapOf(rows: LocationRow[], boundary?: Boundary): Promise<string | undefined> {
+async function mapOf(
+	draw: (details: MapInput) => Promise<Uint8Array>,
+	rows: LocationRow[],
+	boundary?: Boundary
+): Promise<string | undefined> {
 	const points = rows.flatMap((row, i) =>
 		row.latitude != null && row.longitude != null
 			? [{ latitude: row.latitude, longitude: row.longitude, label: String(i + 1) }]
@@ -190,32 +274,61 @@ async function mapOf(rows: LocationRow[], boundary?: Boundary): Promise<string |
 	);
 	if (!boundary && points.length === 0) return undefined;
 
-	const jpeg = await renderMap(MAP_SIZE, { boundary, points });
+	const jpeg = await draw({ boundary, points });
 	return `data:image/jpeg;base64,${Buffer.from(jpeg).toString('base64')}`;
 }
 
-// Organizations have no timezone setting yet, so times print in the server's
-// zone, labelled with its abbreviation so the reader knows which one.
-function formatDate(date: Date): string {
-	return date.toLocaleDateString('en-US', { dateStyle: 'medium' });
+// Times print in the requester's zone (or the server's, if none was sent),
+// labelled with its abbreviation so the reader knows which one.
+function formatDate(date: Date, timeZone?: string): string {
+	return date.toLocaleDateString('en-US', { dateStyle: 'medium', timeZone });
 }
 
-function formatTime(date: Date): string {
-	return date.toLocaleTimeString('en-US', { timeStyle: 'short' });
+function formatTime(date: Date, timeZone?: string): string {
+	return date.toLocaleTimeString('en-US', { timeStyle: 'short', timeZone });
 }
 
-function formatTimezone(date: Date): string {
-	const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(date);
+function formatTimezone(date: Date, timeZone?: string): string {
+	const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone }).formatToParts(
+		date
+	);
 	return parts.find((p) => p.type === 'timeZoneName')?.value ?? '';
 }
 
 function finish(job: ListDocumentJob, status: 'ready' | 'failed', error: string | null) {
-	return withOrgTransaction(job.orgId, (client) =>
-		client.query(
-			`UPDATE universe.list_document
-			 SET status = $1, error = $2, completed_at = now()
-			 WHERE id = $3 AND org_id = $4`,
-			[status, error, job.documentId, job.orgId]
-		)
+	return withOrgTransaction(job.orgId, (client) => record(client, job, status, error));
+}
+
+function record(
+	client: PoolClient,
+	job: ListDocumentJob,
+	status: 'ready' | 'failed',
+	error: string | null
+) {
+	return client.query<{ deleted_at: Date | null }>(
+		`UPDATE universe.list_document
+		 SET status = $1, error = $2, completed_at = now()
+		 WHERE id = $3 AND org_id = $4
+		 RETURNING deleted_at`,
+		[status, error, job.documentId, job.orgId]
 	);
+}
+
+/**
+ * Marks the document failed and brings back the documents it replaced, so a
+ * failed regeneration leaves the previous PDF downloadable. Skipped if this
+ * document was itself replaced meanwhile: a newer one is now current.
+ */
+function fail(job: ListDocumentJob, error: string) {
+	return withOrgTransaction(job.orgId, async (client) => {
+		const result = await record(client, job, 'failed', error);
+		if (result.rows[0] && result.rows[0].deleted_at === null) {
+			await client.query(
+				`UPDATE universe.list_document
+				 SET deleted_at = NULL, superseded_by = NULL
+				 WHERE superseded_by = $1 AND org_id = $2`,
+				[job.documentId, job.orgId]
+			);
+		}
+	});
 }

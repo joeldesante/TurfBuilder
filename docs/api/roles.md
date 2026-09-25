@@ -12,7 +12,7 @@ Returns all roles for the organization, each with their permission set.
 
 **Response**
 
-Array of { id, name, is_default, permissions: string[] }
+Array of &#123; id, name, is_default, permissions: string[] &#125;
 
 ---
 
@@ -31,7 +31,7 @@ Creates a new role for the organization.
 
 **Response**
 
-{ id, name, is_default }
+&#123; id, name, is_default &#125;
 
 ---
 
@@ -49,7 +49,7 @@ Renames a role. The default (Everyone) role cannot be renamed.
 
 **Response**
 
-{ id, name, is_default }
+&#123; id, name, is_default &#125;
 
 ---
 
@@ -79,6 +79,6 @@ Replaces the full permission set for a role.
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---

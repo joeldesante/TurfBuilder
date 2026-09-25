@@ -1,15 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const { mockClient, generatePDF, uploadObject, renderMap } = vi.hoisted(() => ({
-	mockClient: { query: vi.fn(), release: vi.fn() },
-	generatePDF: vi.fn(),
-	uploadObject: vi.fn(),
-	renderMap: vi.fn()
-}));
+// renderMap is the shared renderer's render(size, details); closeRenderer its close().
+const {
+	mockClient,
+	generatePDF,
+	uploadObject,
+	renderMap,
+	closeRenderer,
+	openMapRenderer,
+	StorageNotConfiguredError
+} = vi.hoisted(() => {
+	const renderMap = vi.fn();
+	const closeRenderer = vi.fn(async () => {});
+	return {
+		StorageNotConfiguredError: class StorageNotConfiguredError extends Error {},
+		mockClient: { query: vi.fn(), release: vi.fn() },
+		generatePDF: vi.fn(),
+		uploadObject: vi.fn(),
+		renderMap,
+		closeRenderer,
+		openMapRenderer: vi.fn(async () => ({ render: renderMap, close: closeRenderer }))
+	};
+});
 
 // A function expression, not an arrow: the Pool mock is called with `new`.
 vi.mock('pg', () => ({
@@ -23,10 +39,14 @@ vi.mock('pg', () => ({
 }));
 
 vi.mock('./pdf-engine.service', () => ({ generatePDF }));
-vi.mock('./map-engine.service', () => ({ renderMap }));
-vi.mock('$lib/server/storage', () => ({ uploadObject }));
+vi.mock('./map-engine.service', () => ({ openMapRenderer }));
+vi.mock('$lib/server/storage', () => ({ uploadObject, StorageNotConfiguredError }));
 
-import { generateListDocument } from './list-document.service';
+import {
+	generateListDocument,
+	GENERATION_TIMEOUT_MS,
+	GENERIC_FAILURE
+} from './list-document.service';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const job = {
@@ -48,7 +68,18 @@ const TURF_BOUNDS = {
 	]
 };
 
-function location(name: string, address: string, coords = true) {
+/** A location row as the loader's queries return it; any part can be missing. */
+interface Row {
+	name: string | null;
+	address_line_1: string | null;
+	city: string | null;
+	state_or_region: string | null;
+	postal_code: string | null;
+	latitude: number | null;
+	longitude: number | null;
+}
+
+function location(name: string, address: string, coords = true): Row {
 	return {
 		name,
 		address_line_1: address,
@@ -60,8 +91,6 @@ function location(name: string, address: string, coords = true) {
 	};
 }
 
-type Row = ReturnType<typeof location>;
-
 const DEFAULT_LIST = {
 	name: 'Downtown',
 	entity_type: 'locations',
@@ -69,7 +98,17 @@ const DEFAULT_LIST = {
 	expires_at: new Date('2026-10-08T12:00:00Z')
 };
 
-const TURF_2_BOUNDS = { ...TURF_BOUNDS, coordinates: [[[-75, 39], [-74.9, 39], [-74.9, 39.1], [-75, 39]]] };
+const TURF_2_BOUNDS = {
+	...TURF_BOUNDS,
+	coordinates: [
+		[
+			[-75, 39],
+			[-74.9, 39],
+			[-74.9, 39.1],
+			[-75, 39]
+		]
+	]
+};
 
 /** Answers the loader's queries by table; everything else (BEGIN, UPDATE, ...) succeeds. */
 function mockDatabase(
@@ -78,6 +117,8 @@ function mockDatabase(
 		entries?: Row[];
 		turfs?: { id: string; code: string; bounds: string | null }[];
 		turfLocations?: (Row & { turf_id: string })[];
+		/** deleted_at of this document when its outcome is recorded; set if a newer one replaced it. */
+		replacedAt?: Date | null;
 	} = {}
 ) {
 	const {
@@ -95,7 +136,8 @@ function mockDatabase(
 			{ turf_id: 'turf-1', ...location('Hardware', '2 Main St') },
 			{ turf_id: 'turf-2', ...location('No Pin Cafe', '3 Main St', false) },
 			{ turf_id: 'turf-1', ...location('Quick Mart', '1 Main St') }
-		]
+		],
+		replacedAt = null
 	} = options;
 
 	mockClient.query.mockImplementation(async (sql: string) => {
@@ -103,6 +145,7 @@ function mockDatabase(
 		if (sql.includes('FROM universe.list_entry')) return { rows: entries };
 		if (sql.includes('FROM universe.turf\n')) return { rows: turfs };
 		if (sql.includes('FROM universe.turf_location')) return { rows: turfLocations };
+		if (sql.includes('SET status')) return { rows: [{ deleted_at: replacedAt }], rowCount: 1 };
 		return { rows: [], rowCount: 1 };
 	});
 }
@@ -119,8 +162,14 @@ function renderedData() {
 }
 
 function statusUpdate() {
+	const call = mockClient.query.mock.calls.find((c) => String(c[0]).includes('SET status'));
+	return call?.[1] as unknown[] | undefined;
+}
+
+/** Params of the query that brings back the documents this one replaced, if it ran. */
+function restoreQuery() {
 	const call = mockClient.query.mock.calls.find((c) =>
-		String(c[0]).includes('UPDATE universe.list_document')
+		String(c[0]).includes('SET deleted_at = NULL')
 	);
 	return call?.[1] as unknown[] | undefined;
 }
@@ -134,11 +183,19 @@ beforeEach(() => {
 	uploadObject.mockResolvedValue(undefined);
 });
 
+afterEach(() => {
+	vi.useRealTimers();
+});
+
 describe('generateListDocument', () => {
 	it('uploads the pdf to the reserved key and marks it ready', async () => {
 		await generateListDocument(job);
 
-		expect(generatePDF).toHaveBeenCalledWith(expect.stringContaining('{{list.name}}'), expect.any(Object));
+		expect(generatePDF).toHaveBeenCalledWith(
+			expect.stringContaining('{{list.name}}'),
+			expect.any(Object),
+			{ signal: expect.any(AbortSignal) }
+		);
 		expect(uploadObject).toHaveBeenCalledWith(
 			job.storageKey,
 			expect.any(Uint8Array),
@@ -222,6 +279,7 @@ describe('generateListDocument', () => {
 		await generateListDocument(job);
 
 		const data = renderedData();
+		expect(openMapRenderer).not.toHaveBeenCalled();
 		expect(renderMap).not.toHaveBeenCalled();
 		expect(data.map).toBeUndefined();
 		expect(data.turfs[0].map).toBeUndefined();
@@ -266,6 +324,93 @@ describe('generateListDocument', () => {
 		}
 	});
 
+	// A document with 30 turfs must not launch Chrome 30 times.
+	it('draws every map with one renderer and closes it', async () => {
+		await generateListDocument(job);
+
+		expect(openMapRenderer).toHaveBeenCalledOnce();
+		expect(renderMap).toHaveBeenCalledTimes(3);
+		expect(closeRenderer).toHaveBeenCalledOnce();
+	});
+
+	it('closes the renderer and fails the document when a map fails', async () => {
+		renderMap.mockRejectedValueOnce(new Error('map never went idle'));
+
+		await generateListDocument(job);
+
+		expect(closeRenderer).toHaveBeenCalled();
+		expect(generatePDF).not.toHaveBeenCalled();
+		expect(statusUpdate()).toEqual(['failed', GENERIC_FAILURE, 'doc-1', ORG]);
+	});
+
+	it("prints times in the requester's timezone", async () => {
+		mockDatabase({ list: { ...DEFAULT_LIST, expires_at: new Date('2026-10-09T03:00:00Z') } });
+
+		await generateListDocument({ ...job, timeZone: 'America/Los_Angeles' });
+
+		expect(renderedData().expires).toEqual({
+			date: 'Oct 8, 2026',
+			time: expect.stringMatching(/^8:00\sPM$/),
+			timezone: 'PDT'
+		});
+	});
+
+	it('uses the given zone even when it moves the date', async () => {
+		mockDatabase({ list: { ...DEFAULT_LIST, expires_at: new Date('2026-10-09T03:00:00Z') } });
+
+		await generateListDocument({ ...job, timeZone: 'UTC' });
+
+		expect(renderedData().expires).toMatchObject({ date: 'Oct 9, 2026', timezone: 'UTC' });
+	});
+
+	it('fails a document that runs past the deadline and stops rendering it', async () => {
+		vi.useFakeTimers();
+		generatePDF.mockReturnValue(new Promise(() => {}));
+
+		const done = generateListDocument(job);
+		await vi.advanceTimersByTimeAsync(GENERATION_TIMEOUT_MS);
+		await done;
+
+		const signal = generatePDF.mock.calls[0][2].signal as AbortSignal;
+		expect(signal.aborted).toBe(true);
+		expect(uploadObject).not.toHaveBeenCalled();
+		expect(statusUpdate()).toEqual([
+			'failed',
+			'The PDF took too long to generate. Try again shortly.',
+			'doc-1',
+			ORG
+		]);
+	});
+
+	it('fails well within the two minutes the page waits', () => {
+		expect(GENERATION_TIMEOUT_MS).toBeLessThan(120_000);
+	});
+
+	// A failed regeneration must not leave the list without a PDF.
+	it('brings back the documents it replaced when it fails', async () => {
+		generatePDF.mockRejectedValue(new Error('render failed'));
+
+		await generateListDocument(job);
+
+		expect(restoreQuery()).toEqual(['doc-1', ORG]);
+	});
+
+	it('restores nothing when a newer document replaced it meanwhile', async () => {
+		mockDatabase({ replacedAt: new Date() });
+		generatePDF.mockRejectedValue(new Error('render failed'));
+
+		await generateListDocument(job);
+
+		expect(statusUpdate()?.[0]).toBe('failed');
+		expect(restoreQuery()).toBeUndefined();
+	});
+
+	it('restores nothing when it succeeds', async () => {
+		await generateListDocument(job);
+
+		expect(restoreQuery()).toBeUndefined();
+	});
+
 	it('marks the document failed for a people list', async () => {
 		mockDatabase({ list: { name: 'Voters', entity_type: 'people', expires_at: new Date() } });
 
@@ -274,7 +419,7 @@ describe('generateListDocument', () => {
 		expect(generatePDF).not.toHaveBeenCalled();
 		expect(statusUpdate()).toEqual([
 			'failed',
-			'Documents can only be generated for location lists',
+			'PDFs can only be generated for location lists.',
 			'doc-1',
 			ORG
 		]);
@@ -285,24 +430,47 @@ describe('generateListDocument', () => {
 
 		await generateListDocument(job);
 
-		expect(statusUpdate()).toEqual(['failed', 'List not found', 'doc-1', ORG]);
+		expect(statusUpdate()).toEqual(['failed', 'This list no longer exists.', 'doc-1', ORG]);
 	});
 
-	it('marks the document failed with the reason when rendering throws', async () => {
-		generatePDF.mockRejectedValue(new Error('Chrome is missing'));
+	// Internal errors (Chrome, storage, database) must not reach the UI.
+	it('records a generic message, not the internal error, when rendering throws', async () => {
+		generatePDF.mockRejectedValue(new Error('Protocol error: Target closed at /usr/lib/chromium'));
 
 		await generateListDocument(job);
 
 		expect(uploadObject).not.toHaveBeenCalled();
-		expect(statusUpdate()).toEqual(['failed', 'Chrome is missing', 'doc-1', ORG]);
+		expect(statusUpdate()).toEqual(['failed', GENERIC_FAILURE, 'doc-1', ORG]);
 	});
 
-	it('marks the document failed when the upload throws', async () => {
-		uploadObject.mockRejectedValue(new Error('Object storage is not configured.'));
+	it('records a generic message when the upload throws', async () => {
+		uploadObject.mockRejectedValue(new Error('AccessDenied: bucket turfbuilder-prod'));
 
 		await generateListDocument(job);
 
-		expect(statusUpdate()).toEqual(['failed', 'Object storage is not configured.', 'doc-1', ORG]);
+		expect(statusUpdate()).toEqual(['failed', GENERIC_FAILURE, 'doc-1', ORG]);
+	});
+
+	it('says storage needs setting up when it is not configured', async () => {
+		uploadObject.mockRejectedValue(new StorageNotConfiguredError('internal detail'));
+
+		await generateListDocument(job);
+
+		expect(statusUpdate()).toEqual([
+			'failed',
+			'PDF storage has not been set up yet. Ask an administrator to configure it.',
+			'doc-1',
+			ORG
+		]);
+	});
+
+	it('still logs the real error for operators', async () => {
+		const internal = new Error('connection terminated unexpectedly');
+		generatePDF.mockRejectedValue(internal);
+
+		await generateListDocument(job);
+
+		expect(console.error).toHaveBeenCalledWith(expect.stringContaining('doc-1'), internal);
 	});
 
 	// It runs after the response is sent, so a throw would be an unhandled rejection.

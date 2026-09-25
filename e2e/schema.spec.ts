@@ -113,11 +113,17 @@ test('list documents are org-isolated and can be soft-deleted', async () => {
 	);
 	expect(policy.rowCount).toBe(1);
 
-	const column = await db.query<{ data_type: string; is_nullable: string }>(
-		`SELECT data_type, is_nullable FROM information_schema.columns
-		 WHERE table_schema = 'universe' AND table_name = 'list_document' AND column_name = 'deleted_at'`
+	const columns = await db.query<{ column_name: string; data_type: string; is_nullable: string }>(
+		`SELECT column_name, data_type, is_nullable FROM information_schema.columns
+		 WHERE table_schema = 'universe' AND table_name = 'list_document'
+		   AND column_name IN ('deleted_at', 'superseded_by')
+		 ORDER BY column_name`
 	);
-	expect(column.rows).toEqual([{ data_type: 'timestamp with time zone', is_nullable: 'YES' }]);
+	expect(columns.rows).toEqual([
+		{ column_name: 'deleted_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
+		// Which document replaced this one, so a failed replacement can restore it.
+		{ column_name: 'superseded_by', data_type: 'uuid', is_nullable: 'YES' }
+	]);
 });
 
 test('setup seeded the object storage settings', async () => {

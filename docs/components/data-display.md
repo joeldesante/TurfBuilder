@@ -49,6 +49,22 @@ Small pill label for status, categories, and location visit states.
 
 ---
 
+## ChartTooltip
+
+**Import:** `$components/data-display/charts/ChartTooltip/ChartTooltip.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `heading` | `string` | **required** |  |
+| `rows` | `Row[]` | **required** |  |
+| `x` | `number` | **required** | Left offset in px relative to the nearest positioned ancestor. |
+| `y` | `number` | **required** | Top offset in px relative to the nearest positioned ancestor. |
+| `flip` | `boolean | undefined` | `false` | When true the tooltip renders to the left of x instead of the right. |
+
+---
+
 ## LineChart
 
 **Import:** `$components/data-display/charts/LineChart/LineChart.svelte`
@@ -59,7 +75,8 @@ Small pill label for status, categories, and location visit states.
 |------|------|---------|-------------|
 | `title` | `string | undefined` | — |  |
 | `subtitle` | `string | undefined` | — |  |
-| `options` | `Plot.PlotOptions` | **required** |  |
+| `series` | `Series[]` | `[]` |  |
+| `granularity` | `Granularity | undefined` | — |  |
 
 ---
 
@@ -100,6 +117,12 @@ Small pill label for status, categories, and location visit states.
 | `date` | `string | Date` | **required** |  |
 | `href` | `string` | **required** |  |
 | `icon` | `Component<{}, {}, string> | undefined` | — |  |
+
+---
+
+## LocationsMap
+
+**Import:** `$components/data-display/locations-map/LocationsMap.svelte`
 
 ---
 

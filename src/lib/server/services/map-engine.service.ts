@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import type { Browser } from 'puppeteer';
 import { getMapStyle } from '$lib/map-style';
 import { launchBrowser } from './browser';
 
@@ -27,8 +28,28 @@ export interface MapDetails {
 	dark?: boolean;
 }
 
-/** Renders a static map framed to fit the boundary and points, as a JPEG. */
-export async function renderMap(
+export interface MapRenderer {
+	/** Renders a static map framed to fit the boundary and points, as a JPEG. */
+	render(dimensions: MapDimensions, details: MapDetails): Promise<Uint8Array>;
+	/** Shuts down the browser; any render still running rejects. */
+	close(): Promise<void>;
+}
+
+/**
+ * Starts one headless Chrome that renders any number of maps, each on its own
+ * page, so a document with many turfs does not launch Chrome once per map.
+ * Always close it when done.
+ */
+export async function openMapRenderer(): Promise<MapRenderer> {
+	const browser = await launchBrowser(WEBGL_ARGS);
+	return {
+		render: (dimensions, details) => renderOn(browser, dimensions, details),
+		close: () => browser.close()
+	};
+}
+
+async function renderOn(
+	browser: Browser,
 	dimensions: MapDimensions,
 	details: MapDetails
 ): Promise<Uint8Array> {
@@ -50,9 +71,8 @@ export async function renderMap(
 
 	const style = await getMapStyle(details.dark ?? false);
 
-	const browser = await launchBrowser(WEBGL_ARGS);
+	const page = await browser.newPage();
 	try {
-		const page = await browser.newPage();
 		await page.setViewport(dimensions);
 		await page.setContent(
 			'<body style="margin:0"><div id="map" style="width:100vw;height:100vh"></div></body>'
@@ -145,6 +165,7 @@ export async function renderMap(
 		await page.waitForFunction('window.mapIdle === true');
 		return await page.screenshot({ type: 'jpeg', quality: 85 });
 	} finally {
-		await browser.close();
+		// Swallowed: the page is already gone if the renderer was closed mid-render.
+		await page.close().catch(() => {});
 	}
 }
