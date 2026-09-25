@@ -30,7 +30,12 @@ test('can be dismissed with the close button', async () => {
 
 	toast.error('Dismiss me');
 	await expect.element(page.getByText('Dismiss me')).toBeVisible();
-	await page.getByRole('button', { name: 'Close toast' }).click();
+	// Scoped to this toast: earlier tests' toasts may still be animating out.
+	await page
+		.getByRole('listitem')
+		.filter({ hasText: 'Dismiss me' })
+		.getByRole('button', { name: 'Close toast' })
+		.click();
 
 	await expect.element(page.getByText('Dismiss me')).not.toBeInTheDocument();
 });
