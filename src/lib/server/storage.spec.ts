@@ -28,9 +28,11 @@ const { getSignedUrl } = vi.hoisted(() => ({
 
 vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl }));
 
+const { send } = vi.hoisted(() => ({ send: vi.fn().mockResolvedValue({}) }));
+
 vi.mock('@aws-sdk/client-s3', () => ({
 	S3Client: vi.fn(function (config: unknown) {
-		return { config };
+		return { config, send };
 	}),
 	PutObjectCommand: vi.fn(function (input: unknown) {
 		return { input };
@@ -45,6 +47,8 @@ import {
 	presignPhotoUpload,
 	presignPhotoDownload,
 	locationPhotoKey,
+	listDocumentKey,
+	uploadObject,
 	keyBelongsToOrg,
 	StorageNotConfiguredError
 } from './storage';
@@ -81,6 +85,16 @@ describe('locationPhotoKey', () => {
 	// Nothing the client sends contributes to the key, so it cannot be guessed.
 	it('produces a distinct key each call', () => {
 		expect(locationPhotoKey(ORG, 'image/jpeg')).not.toBe(locationPhotoKey(ORG, 'image/jpeg'));
+	});
+});
+
+describe('listDocumentKey', () => {
+	// keyBelongsToOrg guards reads by this prefix, so documents must share it.
+	it('places the document under the org and list', () => {
+		const key = listDocumentKey(ORG, 'list-1', 'doc-1');
+
+		expect(key).toBe(`orgs/${ORG}/lists/list-1/documents/doc-1.pdf`);
+		expect(keyBelongsToOrg(key, ORG)).toBe(true);
 	});
 });
 
@@ -154,5 +168,30 @@ describe('presignPhotoDownload', () => {
 		await expect(presignPhotoDownload(`orgs/${ORG}/locations/abc.jpg`)).resolves.toBe(
 			'https://signed.example/get'
 		);
+	});
+});
+
+describe('uploadObject', () => {
+	it('puts the body at the key with its content type', async () => {
+		const body = new Uint8Array([1, 2, 3]);
+
+		await uploadObject(`orgs/${ORG}/lists/l/documents/d.pdf`, body, 'application/pdf');
+
+		expect(PutObjectCommand).toHaveBeenCalledWith({
+			Bucket: 'deice-photos',
+			Key: `orgs/${ORG}/lists/l/documents/d.pdf`,
+			Body: body,
+			ContentType: 'application/pdf'
+		});
+		expect(send).toHaveBeenCalledOnce();
+	});
+
+	it('throws when storage is not configured', async () => {
+		stubSettings([]);
+
+		await expect(uploadObject('k', new Uint8Array(), 'application/pdf')).rejects.toThrow(
+			StorageNotConfiguredError
+		);
+		expect(send).not.toHaveBeenCalled();
 	});
 });

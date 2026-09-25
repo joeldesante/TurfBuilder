@@ -1,4 +1,4 @@
-<script module>
+<script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import ListDetailPage from './ListDetailPage.svelte';
 
@@ -7,6 +7,12 @@
 		component: ListDetailPage,
 		tags: ['autodocs']
 	});
+
+	// Stands in for the real download: pretends a PDF had to be generated.
+	async function fakeDownloadPdf(onGenerating: () => void) {
+		onGenerating();
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+	}
 </script>
 
 <Story
@@ -39,6 +45,7 @@
 		bucketName: 'Downtown Properties',
 		bucketSlug: 'downtown-properties',
 		listHref: '/o/test-org/s/universe/buckets/downtown-properties/lists/2',
+		onDownloadPdf: fakeDownloadPdf,
 		list: {
 			id: '2',
 			name: 'Main St Block',
@@ -58,7 +65,8 @@
 				created_at: new Date().toISOString(),
 				author: 'jdoe',
 				survey_name: 'Door Knock Survey',
-				location_count: '14'
+				location_count: '14',
+				attempted_count: '9'
 			},
 			{
 				id: 'turf-2',
@@ -67,9 +75,34 @@
 				created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
 				author: 'asmith',
 				survey_name: null,
-				location_count: '7'
+				location_count: '7',
+				attempted_count: '0'
 			}
 		]
+	}}
+/>
+
+<Story
+	name="Locations List With PDF"
+	args={{
+		orgSlug: 'test-org',
+		bucketName: 'Downtown Properties',
+		bucketSlug: 'downtown-properties',
+		listHref: '/o/test-org/s/universe/buckets/downtown-properties/lists/5',
+		hasPdf: true,
+		onDownloadPdf: () => new Promise((resolve) => setTimeout(resolve, 500)),
+		onRegeneratePdf: fakeDownloadPdf,
+		list: {
+			id: '5',
+			name: 'Main St Block',
+			entity_type: 'locations',
+			expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+			created_at: new Date().toISOString()
+		},
+		entries: [
+			{ record_id: 'x', record_source: 'org_location', entity_id: 'ent-x', name: 'City Hall', address_line_1: '100 Main St', city: 'Springfield', state_or_region: 'IL', postal_code: '62701' }
+		],
+		turfs: []
 	}}
 />
 

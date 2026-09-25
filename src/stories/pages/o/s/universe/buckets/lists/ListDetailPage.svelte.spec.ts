@@ -116,11 +116,15 @@ test('entry rows link to entity detail page with version and prevPage', async ()
 		props: { ...baseProps, entries: peopleEntries }
 	});
 	const link = getByRole('link', { name: /Alice Nguyen/i });
-	const expectedPrevPage = encodeURIComponent('/o/test-org/s/universe/buckets/registered-voters/lists/list-1');
-	await expect.element(link).toHaveAttribute(
-		'href',
-		`/o/test-org/s/universe/entity/ent-a?version=rec-a&backHref=${expectedPrevPage}`
+	const expectedPrevPage = encodeURIComponent(
+		'/o/test-org/s/universe/buckets/registered-voters/lists/list-1'
 	);
+	await expect
+		.element(link)
+		.toHaveAttribute(
+			'href',
+			`/o/test-org/s/universe/entity/ent-a?version=rec-a&backHref=${expectedPrevPage}`
+		);
 });
 
 test('renders dash for missing email', async () => {
@@ -215,4 +219,108 @@ test('renders Expired for expired turfs', async () => {
 		}
 	});
 	expect(container.textContent).toContain('Expired');
+});
+
+const locationProps = { ...baseProps, list: { ...baseList, entity_type: 'locations' } };
+
+test('shows Generate PDF next to View Map when the list has no pdf yet', async () => {
+	const { getByRole } = render(ListDetailPage, {
+		props: { ...locationProps, onDownloadPdf: () => Promise.resolve() }
+	});
+	await expect.element(getByRole('link', { name: 'View Map' })).toBeVisible();
+	await expect.element(getByRole('button', { name: 'Generate PDF' })).toBeVisible();
+	await expect
+		.element(getByRole('button', { name: 'More PDF options' }))
+		.not.toBeInTheDocument();
+});
+
+test('shows Download PDF when the list already has one', async () => {
+	const { getByRole } = render(ListDetailPage, {
+		props: { ...locationProps, hasPdf: true, onDownloadPdf: () => Promise.resolve() }
+	});
+	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeVisible();
+});
+
+test('hides the pdf button for people lists', async () => {
+	const { getByRole } = render(ListDetailPage, {
+		props: { ...baseProps, onDownloadPdf: () => Promise.resolve() }
+	});
+	await expect.element(getByRole('button', { name: /PDF/ })).not.toBeInTheDocument();
+});
+
+test('says Generating until the pdf is ready, then offers to download it', async () => {
+	let finish!: () => void;
+	const { getByRole } = render(ListDetailPage, {
+		props: {
+			...locationProps,
+			onDownloadPdf: (onGenerating: () => void) => {
+				onGenerating();
+				return new Promise<void>((resolve) => (finish = resolve));
+			},
+			onRegeneratePdf: () => Promise.resolve()
+		}
+	});
+
+	await getByRole('button', { name: 'Generate PDF' }).click();
+	await expect.element(getByRole('button', { name: 'Generating' })).toBeVisible();
+
+	finish();
+	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeVisible();
+	await expect.element(getByRole('button', { name: 'More PDF options' })).toBeVisible();
+});
+
+test('does not say Generating when downloading an existing pdf', async () => {
+	let finish!: () => void;
+	const { getByRole } = render(ListDetailPage, {
+		props: {
+			...locationProps,
+			hasPdf: true,
+			onDownloadPdf: () => new Promise<void>((resolve) => (finish = resolve))
+		}
+	});
+
+	await getByRole('button', { name: 'Download PDF' }).click();
+	await expect
+		.element(getByRole('button', { name: 'Download PDF' }))
+		.toHaveAttribute('aria-busy', 'true');
+	await expect.element(getByRole('button', { name: 'Generating' })).not.toBeInTheDocument();
+	finish();
+});
+
+test('regenerates from the pdf options menu', async () => {
+	let finish!: () => void;
+	let regenerated = 0;
+	const { getByRole } = render(ListDetailPage, {
+		props: {
+			...locationProps,
+			hasPdf: true,
+			onDownloadPdf: () => Promise.resolve(),
+			onRegeneratePdf: (onGenerating: () => void) => {
+				regenerated++;
+				onGenerating();
+				return new Promise<void>((resolve) => (finish = resolve));
+			}
+		}
+	});
+
+	await getByRole('button', { name: 'More PDF options' }).click();
+	await getByRole('menuitem', { name: 'Regenerate PDF' }).click();
+	await expect.element(getByRole('button', { name: 'Generating' })).toBeVisible();
+	expect(regenerated).toBe(1);
+
+	finish();
+	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeVisible();
+});
+
+test('shows the reason when the download fails', async () => {
+	const { getByRole } = render(ListDetailPage, {
+		props: {
+			...locationProps,
+			onDownloadPdf: () => Promise.reject(new Error('The PDF could not be generated.'))
+		}
+	});
+
+	await getByRole('button', { name: 'Generate PDF' }).click();
+	await expect.element(getByRole('alert')).toHaveTextContent('The PDF could not be generated.');
+	await expect.element(getByRole('button', { name: 'Generate PDF' })).toBeEnabled();
 });

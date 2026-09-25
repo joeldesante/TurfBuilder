@@ -264,7 +264,6 @@ Runtime configuration is stored in the `system_setting` table and managed at `/i
 |-----|-------------|
 | `base_url` | Public URL of the instance. Used for auth callbacks. |
 | `application_name` | Display name shown in the UI and page title. |
-| `logo_src` | Path to the logo image. |
 | `html.header_content` | Raw HTML injected into `<head>` on every page (e.g. analytics scripts). |
 
 **Important:** `base_url` is read at auth instance startup. After saving a new value, restart the pods for it to take effect:
