@@ -11,7 +11,14 @@
 		argTypes: {
 			position: {
 				control: { type: 'select' },
-				options: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right']
+				options: [
+					'top-left',
+					'top-center',
+					'top-right',
+					'bottom-left',
+					'bottom-center',
+					'bottom-right'
+				]
 			}
 		}
 	});

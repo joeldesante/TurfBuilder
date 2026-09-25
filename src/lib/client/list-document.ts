@@ -28,7 +28,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 		throw new Error('Could not reach the server. Check your connection and try again.');
 	}
 	if (!res.ok) {
-		if (res.status >= 500) throw new Error('Something went wrong on the server. Try again shortly.');
+		if (res.status >= 500)
+			throw new Error('Something went wrong on the server. Try again shortly.');
 		const body = await res.json().catch(() => null);
 		throw new Error(body?.message ?? 'The request could not be completed.');
 	}

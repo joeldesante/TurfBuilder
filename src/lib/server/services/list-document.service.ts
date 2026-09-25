@@ -213,7 +213,9 @@ async function loadList(client: PoolClient, orgId: string, listId: string) {
 		[listId, orgId]
 	);
 
-	// Current versions only, matching what the turf page shows.
+	// Current versions only, matching the turf page. This breaks the rule that
+	// turfs stay locked to the versions they were cut with; #188 changes it to
+	// read the referenced version as-is.
 	const turfLocationsResult = await client.query<LocationRow & { turf_id: string }>(
 		`SELECT
 			tl.turf_id,

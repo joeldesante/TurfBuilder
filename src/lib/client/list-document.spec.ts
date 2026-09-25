@@ -187,7 +187,7 @@ describe('regenerateListDocument', () => {
 		expect(assign).toHaveBeenCalledWith('https://spaces/new');
 	});
 
-	it('sends the browser\'s timezone so times print as the requester reads them', async () => {
+	it("sends the browser's timezone so times print as the requester reads them", async () => {
 		respond({
 			[`POST ${BASE}`]: { id: 'new', status: 'pending', created_at: now() },
 			[`GET ${BASE}/new`]: { id: 'new', status: 'ready', download_url: 'https://spaces/new' }

@@ -42,11 +42,7 @@ function call(p: Record<string, string>, locals: object, body?: unknown) {
 	return POST({ params: p, locals, request } as never);
 }
 
-async function status(
-	p: Record<string, string>,
-	locals: object,
-	body?: unknown
-): Promise<number> {
+async function status(p: Record<string, string>, locals: object, body?: unknown): Promise<number> {
 	try {
 		const res = await call(p, locals, body);
 		return res.status;
@@ -131,7 +127,7 @@ describe('POST list documents', () => {
 		});
 	});
 
-	it('soft-deletes the list\'s earlier documents, marking them replaced by the new one', async () => {
+	it("soft-deletes the list's earlier documents, marking them replaced by the new one", async () => {
 		const res = await call(params, staff);
 		const { id } = await res.json();
 
@@ -148,7 +144,7 @@ describe('POST list documents', () => {
 		expect(mockClient.query.mock.calls[supersede][1]).toEqual([LIST, ORG, id]);
 	});
 
-	it('passes the requester\'s timezone to the generation', async () => {
+	it("passes the requester's timezone to the generation", async () => {
 		await call(params, staff, { timeZone: 'America/Chicago' });
 
 		expect(generateListDocument).toHaveBeenCalledWith(

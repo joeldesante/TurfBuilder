@@ -60,7 +60,7 @@ async function renderOn(
 		...points.flatMap((p) => [p.longitude, p.latitude])
 	];
 	if (flat.length === 0)
-		throw new Error('renderMap needs a boundary or at least one point to frame');
+		throw new Error('A map needs a boundary or at least one point to frame');
 
 	const lngs = flat.filter((_, i) => i % 2 === 0);
 	const lats = flat.filter((_, i) => i % 2 === 1);
