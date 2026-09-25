@@ -4,9 +4,11 @@ import { page } from '@vitest/browser/context';
 import Signup from './Signup.svelte';
 
 describe('Signup', () => {
-	it('renders the Sign Up heading', async () => {
+	it('shows the logo', async () => {
 		render(Signup);
-		await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Sign Up');
+		// The page shows the logo rather than a heading (AuthLayout renders a title
+		// only when the logo is hidden).
+		await expect.element(page.getByRole('img', { name: 'Logo' })).toBeVisible();
 	});
 
 	it('renders the username, password, and confirm password fields', async () => {

@@ -3,21 +3,27 @@ import { expect, test, vi } from 'vitest';
 import OvertureImportPage from './OvertureImportPage.svelte';
 import type { ImportProgress } from './OvertureImportPage.svelte';
 
-vi.mock('maplibre-gl', () => ({
-	default: {
-		Map: vi.fn().mockImplementation(() => ({
+// Constructor mocks use function expressions: the component calls them with
+// `new`, which an arrow function cannot handle. Exported both as named exports
+// and as the default, like the other map specs, so the default import
+// resolves whichever way Vite interops maplibre-gl.
+vi.mock('maplibre-gl', () => {
+	const Map = vi.fn(function () {
+		return {
 			remove: vi.fn(),
 			on: vi.fn(),
 			setStyle: vi.fn(),
 			getCanvas: vi.fn().mockReturnValue({ addEventListener: vi.fn() })
-		}))
-	}
-}));
+		};
+	});
+	const namespace = { Map };
+	return { ...namespace, default: namespace };
+});
 
 vi.mock('@geoman-io/maplibre-geoman-free', () => ({
-	Geoman: vi.fn().mockImplementation(() => ({
-		features: { getAll: vi.fn().mockReturnValue({ features: [] }) }
-	}))
+	Geoman: vi.fn(function () {
+		return { features: { getAll: vi.fn().mockReturnValue({ features: [] }) } };
+	})
 }));
 
 vi.mock('$lib/map-style', () => ({

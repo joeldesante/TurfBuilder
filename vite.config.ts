@@ -13,6 +13,35 @@ import { resolve } from 'node:path';
 const require = createRequire(import.meta.url);
 const mainRepoRoot = resolve(require.resolve('vite/package.json'), '../../..');
 
+// A fresh object per project: Vitest names each browser instance after its
+// project by writing to this config, so a shared object would give both
+// client projects the same name.
+const browserTest = () => ({
+	enabled: true,
+	provider: playwright(),
+	instances: [{ browser: 'chromium' as const, headless: true }],
+	// Off: a PNG per failing test piles up in __screenshots__ folders across
+	// src/ and fills the disk. The failure message is enough.
+	screenshotFailures: false
+});
+
+/**
+ * Component specs that call vi.mock(). Vitest's browser mocker registers
+ * mocks as Playwright routes on the shared browser context, so two files
+ * mocking the same module in one run can both answer a request and crash it
+ * ("route.fulfill: Route is already handled!"), even one file at a time.
+ * scripts/test-mocking-specs.mjs runs each of these in its own Vitest process.
+ * Add any new component spec that uses vi.mock() here.
+ */
+const mockingSpecs = [
+	'src/stories/components/data-display/locations-map/LocationsMap.svelte.spec.ts',
+	'src/stories/pages/o/map/TurfMapPage.svelte.spec.ts',
+	'src/stories/pages/o/s/universe/data/locations/UniverseDataLocationsPage.svelte.spec.ts',
+	'src/stories/pages/o/s/universe/data/locations/import/OvertureImportPage.svelte.spec.ts',
+	'src/stories/pages/o/s/universe/metrics/UniverseMetricsPage.svelte.spec.ts',
+	'src/stories/pages/orgs/OrgPicker.svelte.spec.ts'
+];
+
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), svelteTesting()],
 	ssr: {
@@ -49,13 +78,17 @@ export default defineConfig({
 				extends: './vite.config.ts',
 				test: {
 					name: 'client',
-					browser: {
-						enabled: true,
-						provider: playwright(),
-						instances: [{ browser: 'chromium', headless: true }]
-					},
+					browser: browserTest(),
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-					exclude: ['src/lib/server/**']
+					exclude: ['src/lib/server/**', ...mockingSpecs]
+				}
+			},
+			{
+				extends: './vite.config.ts',
+				test: {
+					name: 'client-mocks',
+					browser: browserTest(),
+					include: mockingSpecs
 				}
 			},
 			{

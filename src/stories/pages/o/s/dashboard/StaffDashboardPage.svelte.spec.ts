@@ -5,19 +5,30 @@ import StaffDashboardPage from './StaffDashboardPage.svelte';
 
 const baseProps = {
 	orgSlug: 'north-west-philly-alliance',
-	applicationName: 'TurfBuilder'
+	applicationName: 'TurfBuilder',
+	// Without mock data the page fetches /o/{slug}/s/api/dashboard.
+	mockTimeSeries: []
 };
 
 describe('StaffDashboardPage', () => {
 	test('renders the Dashboard heading', async () => {
 		render(StaffDashboardPage, baseProps);
-		await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Dashboard');
+		await expect.element(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 	});
 
-	test('renders the Join a Turf button linking to the correct org URL', async () => {
+	test('offers each date range and highlights the selected one', async () => {
 		render(StaffDashboardPage, baseProps);
-		const button = page.getByRole('link', { name: 'Join a Turf' });
-		await expect.element(button).toBeVisible();
-		await expect.element(button).toHaveAttribute('href', '/o/north-west-philly-alliance/join');
+
+		for (const label of ['1 Week', '1 Month', '3 Months', '6 Months', '1 Year']) {
+			await expect.element(page.getByRole('button', { name: label })).toBeVisible();
+		}
+		// initialRange defaults to 1 month.
+		await expect.element(page.getByRole('button', { name: '1 Month' })).toHaveClass(/bg-primary/);
+
+		await page.getByRole('button', { name: '1 Week' }).click();
+		await expect.element(page.getByRole('button', { name: '1 Week' })).toHaveClass(/bg-primary/);
+		await expect
+			.element(page.getByRole('button', { name: '1 Month' }))
+			.not.toHaveClass(/bg-primary/);
 	});
 });

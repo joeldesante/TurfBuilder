@@ -7,14 +7,18 @@ test('renders Terms of Service heading', async () => {
 	await expect.element(getByRole('heading', { name: 'Terms of Service' })).toBeVisible();
 });
 
-test('renders key sections', async () => {
-	const { getByRole } = render(Terms);
-	await expect.element(getByRole('heading', { name: 'Acceptance of Terms' })).toBeVisible();
-	await expect.element(getByRole('heading', { name: 'Acceptable Use' })).toBeVisible();
-	await expect.element(getByRole('heading', { name: 'Data and Privacy' })).toBeVisible();
+// The page body is a placeholder until the terms text is written.
+test('shows the placeholder text and when it was last updated', async () => {
+	const { getByText } = render(Terms);
+	await expect.element(getByText('Coming soon')).toBeVisible();
+	await expect.element(getByText('June 18, 2026')).toBeVisible();
 });
 
-test('links to privacy policy', async () => {
+// The layout links to it from both the header and the footer.
+test('links to the privacy policy from the header and footer', async () => {
 	const { getByRole } = render(Terms);
-	await expect.element(getByRole('link', { name: 'Privacy Policy' })).toBeVisible();
+	const links = getByRole('link', { name: 'Privacy Policy' });
+	await expect.element(links.first()).toBeVisible();
+	expect(links.elements()).toHaveLength(2);
+	for (const link of links.elements()) expect(link.getAttribute('href')).toBe('/privacy');
 });

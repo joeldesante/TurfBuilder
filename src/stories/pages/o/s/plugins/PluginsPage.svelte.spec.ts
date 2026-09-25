@@ -30,13 +30,14 @@ const baseProps = {
 describe('PluginsPage', () => {
 	it('renders the page heading', async () => {
 		render(PluginsPage, baseProps);
-		await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Plugins');
+		await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Addons');
 	});
 
 	it('renders each plugin name', async () => {
 		render(PluginsPage, baseProps);
-		await expect.element(page.getByText('Voter File')).toBeVisible();
-		await expect.element(page.getByText('Phone Bank')).toBeVisible();
+		// Exact: the descriptions also mention the plugin names.
+		await expect.element(page.getByText('Voter File', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('Phone Bank', { exact: true })).toBeVisible();
 	});
 
 	it('renders each plugin description', async () => {

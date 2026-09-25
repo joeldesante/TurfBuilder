@@ -146,6 +146,7 @@
 				<tr class="border-b border-outline bg-surface-container">
 					{#each headerGroup.headers as header}
 						<th
+							scope="col"
 							class="px-4 py-3 text-left font-medium text-on-surface-variant whitespace-nowrap"
 							style={header.column.getSize() !== 150
 								? `width: ${header.column.getSize()}px`

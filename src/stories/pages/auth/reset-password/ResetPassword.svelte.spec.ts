@@ -6,7 +6,8 @@ import ResetPassword from './ResetPassword.svelte';
 describe('ResetPassword', () => {
 	it('renders the invalid link message when no token is provided', async () => {
 		render(ResetPassword, { props: { token: '' } });
-		await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Invalid reset link');
+		// By name: the layout's "Reset password" title is also a level-1 heading.
+		await expect.element(page.getByRole('heading', { name: 'Invalid reset link' })).toBeVisible();
 	});
 
 	it('renders the Reset password heading when a token is provided', async () => {
@@ -16,7 +17,8 @@ describe('ResetPassword', () => {
 
 	it('renders the new password and confirm password fields', async () => {
 		render(ResetPassword, { props: { token: 'valid-token' } });
-		await expect.element(page.getByLabelText('New password')).toBeVisible();
+		// Exact: "Confirm new password" also contains "New password".
+		await expect.element(page.getByLabelText('New password', { exact: true })).toBeVisible();
 		await expect.element(page.getByLabelText('Confirm new password')).toBeVisible();
 	});
 

@@ -25,7 +25,10 @@ describe('TwoFactorSetup', () => {
 
 		it('renders the password field', async () => {
 			render(TwoFactorSetup, { data });
-			await expect.element(page.getByLabelText(/password/i)).toBeVisible();
+			// The full label: /password/i also matches the "Show password" toggle.
+			await expect
+				.element(page.getByLabelText('Please enter your password.', { exact: true }))
+				.toBeVisible();
 		});
 
 		it('renders the Authorize button', async () => {
