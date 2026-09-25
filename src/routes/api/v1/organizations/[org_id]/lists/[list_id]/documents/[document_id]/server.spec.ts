@@ -88,6 +88,19 @@ describe('GET list document', () => {
 		);
 	});
 
+	it('returns the failure reason and no download link when generation failed', async () => {
+		stubDocument({ ...pending, status: 'failed', error: 'Object storage is not configured.' });
+
+		const body = await (await get()).json();
+
+		expect(body).toMatchObject({
+			status: 'failed',
+			error: 'Object storage is not configured.',
+			download_url: null
+		});
+		expect(presignDocumentDownload).not.toHaveBeenCalled();
+	});
+
 	it('does not expose the storage key', async () => {
 		const body = await (await get()).json();
 

@@ -42,10 +42,11 @@ vi.mock('@aws-sdk/client-s3', () => ({
 	})
 }));
 
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import {
 	presignPhotoUpload,
 	presignPhotoDownload,
+	presignDocumentDownload,
 	locationPhotoKey,
 	listDocumentKey,
 	uploadObject,
@@ -193,5 +194,47 @@ describe('uploadObject', () => {
 			StorageNotConfiguredError
 		);
 		expect(send).not.toHaveBeenCalled();
+	});
+});
+
+describe('presignDocumentDownload', () => {
+	it('signs a short-lived get that saves the file under the given name', async () => {
+		const key = `orgs/${ORG}/lists/l/documents/d.pdf`;
+
+		await presignDocumentDownload(key, 'Main St.pdf');
+
+		expect(GetObjectCommand).toHaveBeenCalledWith({
+			Bucket: 'deice-photos',
+			Key: key,
+			ResponseContentDisposition: 'attachment; filename="Main St.pdf"'
+		});
+		expect(getSignedUrl).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.anything(),
+			expect.objectContaining({ expiresIn: 300 })
+		);
+	});
+
+	it('throws when storage is not configured', async () => {
+		stubSettings([]);
+
+		await expect(presignDocumentDownload('k', 'f.pdf')).rejects.toThrow(StorageNotConfiguredError);
+	});
+});
+
+describe('region', () => {
+	// The seeded spaces.region row is an empty string until someone sets it.
+	it('falls back to us-east-1 when the setting is empty', async () => {
+		stubSettings(configured.map((s) => (s.key === 'spaces.region' ? { ...s, value: '' } : s)));
+
+		await uploadObject('k', new Uint8Array(), 'application/pdf');
+
+		expect(S3Client).toHaveBeenCalledWith(expect.objectContaining({ region: 'us-east-1' }));
+	});
+
+	it('uses the configured region when set', async () => {
+		await uploadObject('k', new Uint8Array(), 'application/pdf');
+
+		expect(S3Client).toHaveBeenCalledWith(expect.objectContaining({ region: 'nyc3' }));
 	});
 });

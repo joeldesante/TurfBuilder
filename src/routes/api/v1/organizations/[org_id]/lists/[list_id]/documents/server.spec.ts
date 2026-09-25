@@ -76,6 +76,10 @@ function stubQueries(listExists: boolean) {
 	});
 }
 
+function sqlRun(): string[] {
+	return mockClient.query.mock.calls.map((c) => String(c[0]));
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	canOrg.mockResolvedValue(true);
@@ -153,18 +157,27 @@ describe('POST list documents', () => {
 		expect(await status({ org_id: 'nope', list_id: LIST }, staff)).toBe(400);
 	});
 
-	it('returns 403 without staff access', async () => {
+	it('checks the caller has staff access to the org', async () => {
+		await call(params, staff);
+
+		expect(canOrg).toHaveBeenCalledWith(mockClient, 'u1', ORG, 'system.access');
+	});
+
+	// Otherwise anyone could wipe another org's current document.
+	it('returns 403 without staff access and deletes nothing', async () => {
 		canOrg.mockResolvedValue(false);
 
 		expect(await status(params, staff)).toBe(403);
 		expect(generateListDocument).not.toHaveBeenCalled();
+		expect(sqlRun()).not.toContainEqual(expect.stringContaining('SET deleted_at'));
 	});
 
-	it('returns 404 when the list is not in the org', async () => {
+	it('returns 404 when the list is not in the org and deletes nothing', async () => {
 		stubQueries(false);
 
 		expect(await status(params, staff)).toBe(404);
 		expect(generateListDocument).not.toHaveBeenCalled();
+		expect(sqlRun()).not.toContainEqual(expect.stringContaining('SET deleted_at'));
 	});
 });
 

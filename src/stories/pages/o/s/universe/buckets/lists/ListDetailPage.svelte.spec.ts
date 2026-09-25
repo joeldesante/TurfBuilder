@@ -312,6 +312,34 @@ test('regenerates from the pdf options menu', async () => {
 	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeVisible();
 });
 
+test('shows the reason when regenerating fails and keeps offering the download', async () => {
+	const { getByRole } = render(ListDetailPage, {
+		props: {
+			...locationProps,
+			hasPdf: true,
+			onDownloadPdf: () => Promise.resolve(),
+			onRegeneratePdf: () => Promise.reject(new Error('render failed'))
+		}
+	});
+
+	await getByRole('button', { name: 'More PDF options' }).click();
+	await getByRole('menuitem', { name: 'Regenerate PDF' }).click();
+
+	await expect.element(getByRole('alert')).toHaveTextContent('render failed');
+	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+});
+
+test('has no options menu when regenerating is not wired up', async () => {
+	const { getByRole } = render(ListDetailPage, {
+		props: { ...locationProps, hasPdf: true, onDownloadPdf: () => Promise.resolve() }
+	});
+
+	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeVisible();
+	await expect
+		.element(getByRole('button', { name: 'More PDF options' }))
+		.not.toBeInTheDocument();
+});
+
 test('shows the reason when the download fails', async () => {
 	const { getByRole } = render(ListDetailPage, {
 		props: {
