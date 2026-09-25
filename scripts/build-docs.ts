@@ -91,6 +91,8 @@ function routeToUrl(filePath: string): string {
 
 /** Map a URL pattern to a documentation section key. */
 function routeSection(url: string): string {
+  // Versioned staff API; checked before the unauthenticated /api/ catch-all.
+  if (url.startsWith('/api/v1/organizations/') && url.includes('/documents')) return 'documents';
   if (url.startsWith('/api/')) return 'public';
   if (url.includes('/s/api/surveys')) return 'surveys';
   if (url.includes('/s/api/turf')) return 'turfs';
@@ -412,6 +414,11 @@ const SECTION_META: Record<string, { title: string; description: string }> = {
     title: 'Turfs',
     description: 'Staff endpoints for creating canvassing territories from GeoJSON polygons.',
   },
+  documents: {
+    title: 'List Documents',
+    description:
+      'Staff endpoints for generating, polling, downloading, and deleting the printable PDF of a location list.',
+  },
   members: {
     title: 'Members',
     description: 'Staff endpoints for managing organization membership and role assignments.',
@@ -440,6 +447,23 @@ const SECTION_META: Record<string, { title: string; description: string }> = {
   },
 };
 
+/**
+ * Escapes characters VitePress would misread in prose, outside inline code:
+ * `<` (each page compiles as a Vue template, so `Array<{...}>` reads as a
+ * tag) and `{` `}` (markdown-it-attrs turns `{ id: string }` into HTML
+ * attributes, and `{{ }}` is Vue interpolation). They still display as-is.
+ */
+function escapeProse(text: string): string {
+  return text
+    .split(/(`[^`]*`)/)
+    .map((part, i) =>
+      i % 2 === 1
+        ? part
+        : part.replace(/</g, '&lt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;')
+    )
+    .join('');
+}
+
 function renderEndpoint(ep: Endpoint): string {
   const lines: string[] = [];
   const badge = METHOD_BADGE[ep.method] ?? ep.method;
@@ -448,7 +472,7 @@ function renderEndpoint(ep: Endpoint): string {
   lines.push('');
 
   if (ep.description) {
-    lines.push(ep.description);
+    lines.push(escapeProse(ep.description));
     lines.push('');
   }
 
@@ -464,7 +488,7 @@ function renderEndpoint(ep: Endpoint): string {
     lines.push('');
     lines.push('| Name | Type | Description |');
     lines.push('|------|------|-------------|');
-    for (const p of ep.query) lines.push(`| \`${p.name}\` | \`${p.type}\` | ${p.desc} |`);
+    for (const p of ep.query) lines.push(`| \`${p.name}\` | \`${p.type}\` | ${escapeProse(p.desc)} |`);
     lines.push('');
   }
 
@@ -474,14 +498,14 @@ function renderEndpoint(ep: Endpoint): string {
     lines.push('| Field | Type | Required | Description |');
     lines.push('|-------|------|:--------:|-------------|');
     for (const p of ep.body)
-      lines.push(`| \`${p.name}\` | \`${p.type}\` | ${p.required ? '✓' : ''} | ${p.desc} |`);
+      lines.push(`| \`${p.name}\` | \`${p.type}\` | ${p.required ? '✓' : ''} | ${escapeProse(p.desc)} |`);
     lines.push('');
   }
 
   if (ep.returns) {
     lines.push('**Response**');
     lines.push('');
-    lines.push(ep.returns);
+    lines.push(escapeProse(ep.returns));
     lines.push('');
   }
 
@@ -872,7 +896,7 @@ async function main() {
   // ── VitePress sidebar.ts ──────────────────────────────────────────────────
   console.log('\n📑 Writing sidebar.ts…');
 
-  const sectionOrder = ['public', 'volunteer', 'surveys', 'turfs', 'members', 'roles', 'invites', 'plugins', 'joining', 'other'];
+  const sectionOrder = ['public', 'volunteer', 'surveys', 'turfs', 'documents', 'members', 'roles', 'invites', 'plugins', 'joining', 'other'];
 
   const sidebarObj = [
     {
@@ -880,6 +904,13 @@ async function main() {
       collapsed: false,
       items: [
         { text: 'Setup', link: '/getting-started' },
+      ],
+    },
+    {
+      text: 'Guides',
+      collapsed: false,
+      items: [
+        { text: 'List PDFs', link: '/guides/list-documents' },
       ],
     },
     {

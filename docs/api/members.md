@@ -13,7 +13,7 @@ Returns all members of the organization with their assigned role info.
 
 **Response**
 
-{ members: Array<{ id, name, email, role_id, role_name }> }
+&#123; members: Array&lt;&#123; id, name, email, role_id, role_name &#125;> &#125;
 
 ---
 

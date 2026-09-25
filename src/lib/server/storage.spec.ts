@@ -28,9 +28,11 @@ const { getSignedUrl } = vi.hoisted(() => ({
 
 vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl }));
 
+const { send } = vi.hoisted(() => ({ send: vi.fn().mockResolvedValue({}) }));
+
 vi.mock('@aws-sdk/client-s3', () => ({
 	S3Client: vi.fn(function (config: unknown) {
-		return { config };
+		return { config, send };
 	}),
 	PutObjectCommand: vi.fn(function (input: unknown) {
 		return { input };
@@ -40,11 +42,14 @@ vi.mock('@aws-sdk/client-s3', () => ({
 	})
 }));
 
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import {
 	presignPhotoUpload,
 	presignPhotoDownload,
+	presignDocumentDownload,
 	locationPhotoKey,
+	listDocumentKey,
+	uploadObject,
 	keyBelongsToOrg,
 	StorageNotConfiguredError
 } from './storage';
@@ -81,6 +86,16 @@ describe('locationPhotoKey', () => {
 	// Nothing the client sends contributes to the key, so it cannot be guessed.
 	it('produces a distinct key each call', () => {
 		expect(locationPhotoKey(ORG, 'image/jpeg')).not.toBe(locationPhotoKey(ORG, 'image/jpeg'));
+	});
+});
+
+describe('listDocumentKey', () => {
+	// keyBelongsToOrg guards reads by this prefix, so documents must share it.
+	it('places the document under the org and list', () => {
+		const key = listDocumentKey(ORG, 'list-1', 'doc-1');
+
+		expect(key).toBe(`orgs/${ORG}/lists/list-1/documents/doc-1.pdf`);
+		expect(keyBelongsToOrg(key, ORG)).toBe(true);
 	});
 });
 
@@ -154,5 +169,72 @@ describe('presignPhotoDownload', () => {
 		await expect(presignPhotoDownload(`orgs/${ORG}/locations/abc.jpg`)).resolves.toBe(
 			'https://signed.example/get'
 		);
+	});
+});
+
+describe('uploadObject', () => {
+	it('puts the body at the key with its content type', async () => {
+		const body = new Uint8Array([1, 2, 3]);
+
+		await uploadObject(`orgs/${ORG}/lists/l/documents/d.pdf`, body, 'application/pdf');
+
+		expect(PutObjectCommand).toHaveBeenCalledWith({
+			Bucket: 'deice-photos',
+			Key: `orgs/${ORG}/lists/l/documents/d.pdf`,
+			Body: body,
+			ContentType: 'application/pdf'
+		});
+		expect(send).toHaveBeenCalledOnce();
+	});
+
+	it('throws when storage is not configured', async () => {
+		stubSettings([]);
+
+		await expect(uploadObject('k', new Uint8Array(), 'application/pdf')).rejects.toThrow(
+			StorageNotConfiguredError
+		);
+		expect(send).not.toHaveBeenCalled();
+	});
+});
+
+describe('presignDocumentDownload', () => {
+	it('signs a short-lived get that saves the file under the given name', async () => {
+		const key = `orgs/${ORG}/lists/l/documents/d.pdf`;
+
+		await presignDocumentDownload(key, 'Main St.pdf');
+
+		expect(GetObjectCommand).toHaveBeenCalledWith({
+			Bucket: 'deice-photos',
+			Key: key,
+			ResponseContentDisposition: 'attachment; filename="Main St.pdf"'
+		});
+		expect(getSignedUrl).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.anything(),
+			expect.objectContaining({ expiresIn: 300 })
+		);
+	});
+
+	it('throws when storage is not configured', async () => {
+		stubSettings([]);
+
+		await expect(presignDocumentDownload('k', 'f.pdf')).rejects.toThrow(StorageNotConfiguredError);
+	});
+});
+
+describe('region', () => {
+	// The seeded spaces.region row is an empty string until someone sets it.
+	it('falls back to us-east-1 when the setting is empty', async () => {
+		stubSettings(configured.map((s) => (s.key === 'spaces.region' ? { ...s, value: '' } : s)));
+
+		await uploadObject('k', new Uint8Array(), 'application/pdf');
+
+		expect(S3Client).toHaveBeenCalledWith(expect.objectContaining({ region: 'us-east-1' }));
+	});
+
+	it('uses the configured region when set', async () => {
+		await uploadObject('k', new Uint8Array(), 'application/pdf');
+
+		expect(S3Client).toHaveBeenCalledWith(expect.objectContaining({ region: 'nyc3' }));
 	});
 });

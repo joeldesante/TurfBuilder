@@ -54,6 +54,8 @@ services:
       - BETTER_AUTH_URL=http://localhost:5173
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - SPACES_ACCESS_KEY_ID=${SPACES_ACCESS_KEY_ID}
+      - SPACES_SECRET_ACCESS_KEY=${SPACES_SECRET_ACCESS_KEY}
     volumes:
       - .:/app
       - /app/node_modules

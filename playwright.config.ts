@@ -12,7 +12,8 @@ export default defineConfig({
 	projects: [
 		{ name: 'setup', testMatch: /setup\.spec\.ts/ },
 		{ name: 'schema', testMatch: /schema\.spec\.ts/, dependencies: ['setup'] },
-		{ name: 'auth', testMatch: /auth\.spec\.ts/, dependencies: ['setup'] }
+		{ name: 'auth', testMatch: /auth\.spec\.ts/, dependencies: ['setup'] },
+		{ name: 'list-documents', testMatch: /list-documents\.spec\.ts/, dependencies: ['setup'] }
 	],
 	webServer: {
 		command: 'docker compose -f docker-compose.test.yml down -v && docker volume prune -f --filter "label=com.docker.compose.project=turfbuilder-e2e" && docker compose -f docker-compose.test.yml up --build --remove-orphans',

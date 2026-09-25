@@ -511,7 +511,10 @@ export const SETUP_STEPS: SetupStep[] = [
 				('errors.cat_gifs', 'true', 'Show a cat gif on error pages.'),
 				('mail.transport', 'direct', 'The mail transport used to send outgoing emails (direct or ses).'),
 				('mail.domain', '', 'The domain from which outgoing emails are sent (e.g. mail.example.com).'),
-				('mail.ses.region', '', 'AWS region for SES (e.g. us-east-1).')
+				('mail.ses.region', '', 'AWS region for SES (e.g. us-east-1).'),
+				('spaces.endpoint', '', 'DigitalOcean Spaces endpoint for photos and generated documents (e.g. https://nyc3.digitaloceanspaces.com). Access keys come from SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY in the environment.'),
+				('spaces.region', '', 'DigitalOcean Spaces region (e.g. nyc3). Defaults to us-east-1 when empty.'),
+				('spaces.bucket', '', 'DigitalOcean Spaces bucket name.')
 			ON CONFLICT (key) DO NOTHING`
 		]
 	},
@@ -1634,6 +1637,51 @@ export const SETUP_STEPS: SetupStep[] = [
 					USING (org_id = ${safe})
 					WITH CHECK (org_id = ${safe})`
 			])
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 38. List documents
+	//
+	// A generated file (e.g. a printable turf list) for a list. The storage key
+	// is assigned when the row is created, before the file exists, so status
+	// says whether there is anything at that key yet. Generating a new one
+	// soft-deletes the list's earlier documents (superseded_by points at the
+	// new one), so a list has one current document; the files stay in storage.
+	// If the new one fails, the documents it superseded are restored.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating list documents',
+		statements: [
+			`CREATE TABLE IF NOT EXISTS universe.list_document (
+				id            UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id        UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				list_id       UUID NOT NULL REFERENCES universe.list(id) ON DELETE CASCADE,
+				storage_key   TEXT NOT NULL UNIQUE,
+				status        TEXT NOT NULL DEFAULT 'pending'
+				                CHECK (status IN ('pending', 'ready', 'failed')),
+				error         TEXT,
+				requested_by  UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+				completed_at  TIMESTAMPTZ,
+				deleted_at    TIMESTAMPTZ,
+				superseded_by UUID REFERENCES universe.list_document(id) ON DELETE SET NULL
+			)`,
+			`ALTER TABLE universe.list_document ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+			`ALTER TABLE universe.list_document ADD COLUMN IF NOT EXISTS superseded_by UUID
+				REFERENCES universe.list_document(id) ON DELETE SET NULL`,
+			`CREATE INDEX IF NOT EXISTS list_document_superseded_by_idx
+				ON universe.list_document (superseded_by) WHERE superseded_by IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS list_document_org_id_idx ON universe.list_document (org_id)`,
+			`CREATE INDEX IF NOT EXISTS list_document_list_id_idx
+				ON universe.list_document (list_id, created_at DESC)`,
+
+			`ALTER TABLE universe.list_document ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.list_document FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.list_document`,
+			`CREATE POLICY org_isolation ON universe.list_document
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
 		]
 	}
 ];
