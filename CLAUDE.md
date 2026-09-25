@@ -183,6 +183,18 @@ toast.error('The PDF could not be generated.');
 - Messages must be safe to show a user: never pass a raw exception or server error through. Write the message, or use one the server wrote for users (such as a list document's `error`)
 - In component tests the root layout is absent: `render(Toaster)` alongside the component and assert with `page.getByText(...)` (toasts use `aria-live`, not `role="alert"`); call `toast.dismiss()` in `afterEach`
 
+### Toasts
+
+Show transient messages (errors, confirmations) with `toast` from `svelte-sonner`; the `Toaster` in `src/routes/+layout.svelte` displays them, so pages never mount their own.
+
+```ts
+import { toast } from 'svelte-sonner';
+toast.error('The PDF could not be generated.');
+```
+
+- Messages must be safe to show a user: never pass a raw exception or server error through. Write the message, or use one the server wrote for users (such as a list document's `error`)
+- In component tests the root layout is absent: `render(Toaster)` alongside the component and assert with `page.getByText(...)` (toasts use `aria-live`, not `role="alert"`); call `toast.dismiss()` in `afterEach`
+
 ---
 
 ## Route Architecture
@@ -192,6 +204,7 @@ toast.error('The PDF could not be generated.');
 - **Plugin pages (staff):** `/o/[org_slug]/s/plugins/[plugin_slug]/[...path]`
 - **Plugin pages (volunteer):** `/o/[org_slug]/plugins/[plugin_slug]/[...path]`
 - **Internal API:** `/o/[org_slug]/s/api/` — JSON endpoints consumed by fetch in route files
+- **Versioned API:** `/api/v1/organizations/[org_id]/...` — addressed by org id, outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`). Currently: list documents
 - **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Currently: list documents
 - **Global utilities:** `/join` (turf code entry), `/orgs` (org picker), `/orgs/create`, `/invite/[token]`
 - **Infrastructure:** `/infra/` — system dashboard, users, settings, migrations (requires infra permissions)
@@ -265,6 +278,7 @@ if (!can(locals.organization, 'survey', 'create')) throw error(403, 'Forbidden')
 - Owners (`org.role.is_owner === true`) bypass all permission checks
 - Staff guard (any role = staff access): check `locals.organization?.role` exists
 - Permission keys use dot notation: `resource.action`
+- Outside `/o/[org_slug]` (the `/api/v1/organizations/[org_id]` routes) `locals.organization` is not set, so `can()` has nothing to read. Use `canOrg(client, userId, orgId, key)` from `$lib/server/permissions` inside `withOrgTransaction`, as `requireListAccess()` does
 - Outside `/o/[org_slug]` (the `/api/v1` routes) `locals.organization` is not set, so `can()` has nothing to read. Use `canOrg(client, userId, orgId, key)` from `$lib/server/permissions` inside `withOrgTransaction`, as `requireListAccess()` does
 
 ### Organization permission keys
@@ -314,11 +328,27 @@ Runtime configuration is stored in the `system_setting` table and managed at `/i
 | `spaces.endpoint` | Object storage endpoint, e.g. `https://nyc3.digitaloceanspaces.com`. |
 | `spaces.region` | Object storage region, e.g. `nyc3`. Empty means `us-east-1`. |
 | `spaces.bucket` | Bucket for location photos and generated PDFs. |
+| `spaces.endpoint` | Object storage endpoint, e.g. `https://nyc3.digitaloceanspaces.com`. |
+| `spaces.region` | Object storage region, e.g. `nyc3`. Empty means `us-east-1`. |
+| `spaces.bucket` | Bucket for location photos and generated PDFs. |
 
 **Important:** `base_url` is read at auth instance startup. After saving a new value, restart the pods for it to take effect:
 ```bash
 kubectl rollout restart deployment/turfbuilder-production -n turfbuilder
 ```
+
+---
+
+## List Documents (PDFs)
+
+Staff generate a printable PDF of a location list (master list, turf checkout sheet, one page per turf with numbered maps) from the list page. Full guide: `docs/guides/list-documents.md`; API: `docs/api/documents.md`.
+
+- **Flow:** `POST /api/v1/organizations/[org_id]/lists/[list_id]/documents` inserts a `pending` row in `universe.list_document`, soft-deletes the list's earlier documents (`deleted_at`, `superseded_by`), and starts `generateListDocument()` in the background (not awaited). The client (`$lib/client/list-document.ts`) polls `GET .../documents/[id]` and follows the presigned download link. `DELETE .../documents/[id]` soft-deletes.
+- **Rendering:** `list-document.service.ts` loads data (every query filtered by `org_id`), draws all maps with one `openMapRenderer()` browser, fills the Handlebars template, prints with `generatePDF()`, uploads with `uploadObject()`. At most two Chromes per document.
+- **Failure:** generation fails after `GENERATION_TIMEOUT_MS` (90s, under the client's 2 minute wait). On failure the documents it superseded are restored. Only `ListDocumentError` messages (and a storage-not-configured message) are stored in `error` and shown; everything else becomes a generic message and the real error is logged.
+- **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.
+- **Storage key:** `orgs/{org_id}/lists/{list_id}/documents/{document_id}.pdf` (from `listDocumentKey()`). Files are never hard-deleted by the app (retention: #174).
+- **Chromium:** Docker images install Alpine `chromium` + `mesa-egl` + fonts. Containers run as root, so Chrome runs with `--no-sandbox` (moving to a worker: #181). Map tiles come from `tiles.openfreemap.org` at render time.
 
 ---
 
@@ -405,6 +435,16 @@ test('renders label', async () => {
 - For context testing use `{ props, context }` form of `render()`
 - `expect.requireAssertions: true` is enforced globally — every test must call `expect()`
 - Test utilities and fixture components live in `src/stories/components/__tests__/`
+
+### E2E tests
+
+- `npm run test:e2e` rebuilds the stack from `docker-compose.test.yml` from scratch (Postgres, the dev frontend, NATS, and an `adobe/s3mock` stand-in for Spaces), so stop the dev stack first: both use ports 5173 and 5432
+- Projects in `playwright.config.ts`: `setup` runs first; `schema`, `auth`, and `list-documents` depend on it
+- `e2e/helpers.ts`: `gotoHydrated()` waits for `document.body.dataset.hydrated`; `signInAsAdmin()` signs in as the account setup creates (`test@example.com` / `Password123`)
+- Staff pages require a verified email and tests cannot receive mail, so specs that visit `/o/[slug]/s/...` set `email_verified = true` for the user in the database first
+- Tests talk to the database directly (`E2E_DATABASE_URL` in `.env.test`) to seed data and check results
+- The schema spec fails any org-scoped table (`organization_id` or `org_id`) without forced row-level security and a policy, unless it is in the reviewed `RLS_EXEMPT` list
+- `auth.spec.ts` › "signing in again is bypassed once a session exists" is a known failure (#179)
 - A component spec that calls `vi.mock()` must be added to `mockingSpecs` in `vite.config.ts`. Those specs run in the `client-mocks` project, one Vitest process per file (`scripts/test-mocking-specs.mjs`): browser-mode mocks are shared Playwright routes, and two files mocking the same module in one run crash it ("Route is already handled!")
 - Mock constructors (anything called with `new`) with `vi.fn(function () { ... })`, never an arrow function
 - Failure screenshots are off (`screenshotFailures: false`); don't turn them back on, they fill the disk

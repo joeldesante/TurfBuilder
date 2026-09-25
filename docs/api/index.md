@@ -14,7 +14,6 @@ All org-scoped routes are prefixed with `/o/{org_slug}/`.
 
 ## Sections
 
-- [Public API](./public.md) — Unauthenticated endpoints for geographic location data. Used by the volunteer map to populate visible addresses.
 - [Volunteer API](./volunteer.md) — Endpoints used by canvassers in the field. Require org membership but not staff access.
 - [Surveys](./surveys.md) — Staff endpoints for creating and managing survey templates and questions.
 - [Turfs](./turfs.md) — Staff endpoints for creating canvassing territories from GeoJSON polygons.
