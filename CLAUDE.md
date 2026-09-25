@@ -87,6 +87,14 @@ This is a multi-tenant canvassing platform. All data is scoped to an `organizati
 - `public.*` — app tables: `turf`, `survey`, `response`, `location`, `plugin_installation`, `permission_role`, `permission_role_entry`
 - `universe.*` — entities, locations, buckets, lists, turfs, and `list_document` (generated list PDFs). Universe tables name the org column `org_id`, not `organization_id`
 
+### Entity versioning
+
+Universe entities (locations, people, organizations) are versioned: every update closes the current version (`valid_to = now()`) and inserts a new row. Never edit a version row in place.
+
+Lists snapshot the entity versions that exist when they are created (`list_entry.record_id`), and turfs are cut from lists with those same versions (`turf_location.*_location_id`). After creation, nothing about a list or its turfs changes when an entity is edited, re-imported, or deleted. List- and turf-scoped queries must read the referenced version, never swap in the current one or filter on `valid_to`. Current-version reads (`valid_to IS NULL`) belong to entity pages, the data browser, and building new lists.
+
+Known violations to fix: `repointToVersion()` in `src/lib/server/locations.ts` and the `valid_to` filters in turf and canvasser-map queries (#188).
+
 ### RBAC model
 
 Permissions are resolved at request time by `resolveOrgPermissions()` and stored in `locals.organization.permissions`. A user can have permissions granted directly or via named roles. Owners (`org.role.is_owner === true`) bypass all checks. Always use `can()` — never raw table checks.
