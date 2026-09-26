@@ -30,7 +30,8 @@ describe('AuthLayout', () => {
 	it('does not render footer container when footer is omitted', async () => {
 		const children = createRawSnippet(() => ({ render: () => `<p>content</p>` }));
 		const screen = render(AuthLayout, { children });
-		const link = screen.container.querySelector('a');
-		expect(link).toBeNull();
+		// Only the Privacy and Terms links that every auth page shows.
+		const links = [...screen.container.querySelectorAll('a')].map((a) => a.textContent?.trim());
+		expect(links).toEqual(['Privacy Policy', 'Terms of Service']);
 	});
 });

@@ -22,7 +22,8 @@ describe('PieChart', () => {
 
 	it('renders legend when enabled', async () => {
 		const screen = render(PieChart, { data, legend: true });
-		await expect.element(screen.getByText('Supportive')).toBeVisible();
+		// Exact: "Unsupportive" also contains "Supportive".
+		await expect.element(screen.getByText('Supportive', { exact: true })).toBeVisible();
 		await expect.element(screen.getByText('Unsupportive')).toBeVisible();
 	});
 

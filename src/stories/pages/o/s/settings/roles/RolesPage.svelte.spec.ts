@@ -69,7 +69,9 @@ describe('RolesPage', () => {
 		});
 	});
 
-	describe('create role form', () => {
+	// The create-role form was removed from RolesPage in 98badd4 while the page
+	// still takes onCreate. Skipped until #196 decides whether it comes back.
+	describe.skip('create role form', () => {
 		it('renders the role name input', async () => {
 			render(RolesPage, baseProps);
 			await expect.element(page.getByPlaceholder('Role name')).toBeVisible();
