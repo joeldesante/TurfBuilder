@@ -6,6 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Do not use emojis anywhere in documentation, markdown files, or code comments.
 
+## Commits and Pull Requests
+
+Every commit message and PR title starts with `TB-<ticket number>: ` (TB = TurfBuilder, the number is the GitHub issue), followed by one sentence:
+
+```
+TB-194: Fix CI and run tests on pull requests before merging
+```
+
+- Open an issue first if there isn't one. Branches are named `<number>-<slug>`, e.g. `194-fix-ci-tests-on-prs`
+- No other prefixes (`feat:`, `fix:`, ...)
+- Enforced locally by `.githooks/commit-msg` (`npm install` sets `core.hooksPath` to `.githooks`) and on pull requests by the required "Commit Format" check (`.github/workflows/commit-format.yml`). Merge commits are exempt
+
 ## Commands
 
 ```bash

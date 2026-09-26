@@ -1,0 +1,17 @@
+#!/bin/sh
+# Rejects commit messages that don't start with "TB-<ticket>: " (#200).
+# Enabled by `npm install` (the prepare script sets core.hooksPath to .githooks).
+
+subject=$(sed -n '/^[^#]/{p;q;}' "$1")
+
+# Merge commits keep git's own message.
+case "$subject" in
+	Merge\ *) exit 0 ;;
+esac
+
+if ! printf '%s\n' "$subject" | grep -Eq '^TB-[0-9]+: [^[:space:]]'; then
+	echo "Commit message must start with \"TB-<ticket number>: \" followed by one sentence." >&2
+	echo "  Example: TB-194: Fix CI and run tests on pull requests before merging" >&2
+	echo "  Got:     $subject" >&2
+	exit 1
+fi
