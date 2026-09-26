@@ -1,0 +1,47 @@
+name: Commit Format
+
+# Every PR title and commit message must start with "TB-<ticket>: " (#200).
+on:
+  pull_request:
+    branches: [main, staging]
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  commit-format:
+    name: Commit Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR title and commit messages
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          pattern='^TB-[0-9]+: [^[:space:]]'
+          failed=0
+
+          if ! printf '%s\n' "$PR_TITLE" | grep -Eq "$pattern"; then
+            echo "::error::PR title must start with \"TB-<ticket number>: \". Got: $PR_TITLE"
+            failed=1
+          fi
+
+          # Merge commits GitHub adds when updating a branch are skipped.
+          while IFS= read -r line; do
+            sha=${line%% *}
+            subject=${line#* }
+            if ! printf '%s\n' "$subject" | grep -Eq "$pattern"; then
+              echo "::error::Commit ${sha} must start with \"TB-<ticket number>: \". Got: $subject"
+              failed=1
+            fi
+          done < <(git log --no-merges --format='%h %s' "$BASE_SHA..$HEAD_SHA")
+
+          if [ "$failed" -eq 1 ]; then
+            echo "Example: TB-194: Fix CI and run tests on pull requests before merging"
+            exit 1
+          fi
+          echo "PR title and all commit messages are correctly prefixed."
