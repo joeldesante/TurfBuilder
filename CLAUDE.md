@@ -16,7 +16,8 @@ npm run preview          # Preview production build
 
 # Testing
 npm run test             # All tests (unit + e2e)
-npm run test:unit        # Vitest (unit + component tests)
+npm run test:unit        # Vitest (unit + component tests, incl. test:unit:mocks)
+npm run test:unit:mocks  # Component specs that use vi.mock(), one process each
 npm run test:watch       # Vitest interactive watch mode
 npm run test:ui          # Vitest browser UI
 npm run test:e2e         # Playwright e2e tests
@@ -392,6 +393,10 @@ test('renders label', async () => {
 - For context testing use `{ props, context }` form of `render()`
 - `expect.requireAssertions: true` is enforced globally — every test must call `expect()`
 - Test utilities and fixture components live in `src/stories/components/__tests__/`
+- A component spec that calls `vi.mock()` must be added to `mockingSpecs` in `vite.config.ts`. Those specs run in the `client-mocks` project, one Vitest process per file (`scripts/test-mocking-specs.mjs`): browser-mode mocks are shared Playwright routes, and two files mocking the same module in one run crash it ("Route is already handled!")
+- Mock constructors (anything called with `new`) with `vi.fn(function () { ... })`, never an arrow function
+- Failure screenshots are off (`screenshotFailures: false`); don't turn them back on, they fill the disk
+- Absent elements: use `.not.toBeInTheDocument()`; `.not.toBeVisible()` fails when the element doesn't exist
 
 ### E2E tests
 
@@ -401,7 +406,8 @@ test('renders label', async () => {
 - Staff pages require a verified email and tests cannot receive mail, so specs that visit `/o/[slug]/s/...` set `email_verified = true` for the user in the database first
 - Tests talk to the database directly (`E2E_DATABASE_URL` in `.env.test`) to seed data and check results
 - The schema spec fails any org-scoped table (`organization_id` or `org_id`) without forced row-level security and a policy, unless it is in the reviewed `RLS_EXEMPT` list
-- `auth.spec.ts` › "signing in again is bypassed once a session exists" is a known failure (#179)
+- `auth.spec.ts` › "signing in again is bypassed once a session exists" is parked with `test.fixme` until #179 decides the behavior
+- CI (`.github/workflows/test.yml`) runs type check, server tests, component tests, and e2e on every pull request into `staging` or `main`, before the merge
 
 ---
 

@@ -100,7 +100,8 @@ test('renders a number input for number value type', async () => {
 	});
 	const numberInput = getByRole('spinbutton', { name: 'Filter value' });
 	await expect.element(numberInput).toBeVisible();
-	await expect.element(numberInput).toHaveValue('10');
+	// A number input's value reads back as a number.
+	await expect.element(numberInput).toHaveValue(10);
 });
 
 test('renders a select input for select value type', async () => {

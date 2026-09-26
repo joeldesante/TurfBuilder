@@ -37,7 +37,10 @@
 
 	let fieldId = $derived(id ?? `field-${Math.random().toString(36).slice(2, 10)}`);
 	let invalid = $derived(dirty && errors.length > 0);
-	let helperId = $derived(helperText || helperContent ? `${fieldId}-helper` : undefined);
+	// The helper is hidden while there is an error, so only reference it when shown.
+	let helperId = $derived(
+		!invalid && (helperText || helperContent) ? `${fieldId}-helper` : undefined
+	);
 	let errorId = $derived(invalid ? `${fieldId}-error` : undefined);
 	let describedBy = $derived([errorId, helperId].filter(Boolean).join(' ') || undefined);
 

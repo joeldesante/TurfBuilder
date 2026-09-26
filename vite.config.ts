@@ -49,7 +49,7 @@ export default defineConfig({
 			'@opentelemetry/sdk-node',
 			'@opentelemetry/auto-instrumentations-node',
 			'@opentelemetry/exporter-trace-otlp-proto',
-			'import-in-the-middle',
+			'import-in-the-middle'
 		]
 	},
 	// Use browser entry points when running Vitest (recommended by Svelte docs)

@@ -37,7 +37,8 @@ test('width takes precedence over height', async () => {
 test('applies custom color via css color property', async () => {
   const { getByRole } = render(Logo, { props: { color: '#ff0000' } });
   const svg = getByRole('img', { name: 'Logo' });
-  await expect.element(svg).toHaveAttribute('style', expect.stringContaining('color: #ff0000'));
+  // The browser normalizes the colour, so compare the computed style.
+  await expect.element(svg).toHaveStyle({ color: 'rgb(255, 0, 0)' });
 });
 
 test('defaults color to var(--primary)', async () => {

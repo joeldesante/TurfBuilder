@@ -77,7 +77,7 @@ describe('FormField', () => {
 			await expect.element(alert).toHaveTextContent('Email is required');
 		});
 
-		it('renders multiple error messages', async () => {
+		it('shows only the first of several errors', async () => {
 			const screen = render(FormFieldTextInput, {
 				label: 'Email',
 				dirty: true,
@@ -86,7 +86,7 @@ describe('FormField', () => {
 
 			const alert = screen.getByRole('alert');
 			await expect.element(alert).toHaveTextContent('Email is required');
-			await expect.element(alert).toHaveTextContent('Must be a valid email');
+			await expect.element(alert).not.toHaveTextContent('Must be a valid email');
 		});
 	});
 
@@ -112,7 +112,7 @@ describe('FormField', () => {
 			await expect.element(input).toHaveAttribute('aria-invalid', 'true');
 		});
 
-		it('child TextInput gets aria-describedby linking to error and helper', async () => {
+		it('child TextInput is described by the error, which replaces the helper', async () => {
 			const screen = render(FormFieldTextInput, {
 				label: 'Email',
 				dirty: true,
@@ -123,10 +123,11 @@ describe('FormField', () => {
 			const input = screen.getByRole('textbox');
 			const describedBy = input.element().getAttribute('aria-describedby');
 			expect(describedBy).toBeTruthy();
-			// Should reference both error and helper ids
+			// The helper is hidden while there is an error, so only the error is referenced.
 			const ids = describedBy!.split(' ');
-			expect(ids.length).toBeGreaterThanOrEqual(2);
-			// Verify each referenced ID actually exists in the DOM
+			expect(ids).toHaveLength(1);
+			expect(screen.container.querySelector(`#${ids[0]}`)?.getAttribute('role')).toBe('alert');
+			// Every referenced id must exist, or screen readers get a dangling reference
 			for (const id of ids) {
 				expect(screen.container.querySelector(`#${id}`)).not.toBeNull();
 			}
