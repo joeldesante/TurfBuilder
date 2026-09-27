@@ -4,37 +4,44 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const mockClient = { query: vi.fn(), release: vi.fn() };
+// Hoisted so the mock factory, which vitest lifts above this file's consts,
+// can still reach it.
+const { mockClient } = vi.hoisted(() => ({
+	mockClient: { query: vi.fn(), release: vi.fn() }
+}));
 
+// A function expression, not an arrow: the Pool mock is called with `new`.
 vi.mock('pg', () => ({
-	Pool: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(mockClient),
-		on: vi.fn(),
-		end: vi.fn()
-	}))
+	Pool: vi.fn(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(mockClient),
+			on: vi.fn(),
+			end: vi.fn()
+		};
+	})
 }));
 
 import { POST } from './+server';
 
+// withOrgTransaction rejects anything that is not a UUID.
+const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const BUCKET = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
+// The route requires a staff role, then checks can(), which reads the
+// permissions hooks.server.ts resolved onto locals.organization.
 const authorizedLocals = {
 	user: { id: 'u1' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r1', is_owner: false, is_default: false, permissions: ['survey:create'] }
-	}
+	organization: { id: ORG, role: { id: 'r1', name: 'Organizer' }, permissions: ['survey.create'] }
 };
 
 const noPermissionLocals = {
 	user: { id: 'u2' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r2', is_owner: false, is_default: false, permissions: [] }
-	}
+	organization: { id: ORG, role: { id: 'r2', name: 'Analyst' }, permissions: [] }
 };
 
 const unauthenticatedLocals = {
 	user: null,
-	organization: { id: 'org-1', role: null }
+	organization: { id: ORG, permissions: [] }
 };
 
 function makeRequest(body: unknown) {
@@ -54,7 +61,7 @@ describe('POST /api/surveys', () => {
 		expect(response.status).toBe(401);
 	});
 
-	it('returns 403 when caller lacks survey:create permission', async () => {
+	it('returns 403 when caller lacks survey.create permission', async () => {
 		const response = await POST({ request: makeRequest({ name: 'Test' }), locals: noPermissionLocals } as any);
 		const body = await response.json();
 		expect(response.status).toBe(403);
@@ -81,8 +88,16 @@ describe('POST /api/surveys', () => {
 		expect(response.status).toBe(400);
 	});
 
-	it('returns 201 with the new survey id on success', async () => {
+	it('returns 400 when bucketId is missing', async () => {
 		const response = await POST({ request: makeRequest({ name: 'My Survey' }), locals: authorizedLocals } as any);
+		expect(response.status).toBe(400);
+	});
+
+	it('returns 201 with the new survey id on success', async () => {
+		const response = await POST({
+			request: makeRequest({ name: 'My Survey', bucketId: BUCKET }),
+			locals: authorizedLocals
+		} as any);
 		const body = await response.json();
 		expect(response.status).toBe(201);
 		expect(body.id).toBe('survey-new');

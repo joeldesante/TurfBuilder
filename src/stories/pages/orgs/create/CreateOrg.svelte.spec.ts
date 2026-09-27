@@ -42,7 +42,7 @@ describe('CreateOrg', () => {
 
 	it('does not show error message initially', async () => {
 		render(CreateOrg, { onCreate: vi.fn() });
-		const alert = page.getByRole('alert');
-		await expect.element(alert).not.toBeVisible();
+		// The alert is only rendered once there is an error.
+		await expect.element(page.getByRole('alert')).not.toBeInTheDocument();
 	});
 });

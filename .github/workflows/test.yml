@@ -1,10 +1,12 @@
 name: Test
 
+# Runs on every pull request into staging or main, so problems are caught
+# before merging. Make these checks required in branch protection so a red
+# PR cannot be merged.
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
+  workflow_dispatch:
 
 # Cancel in-progress runs for the same branch/PR when new commits land.
 concurrency:
@@ -31,7 +33,7 @@ jobs:
         run: npm run check
 
   unit:
-    name: Unit Tests (${{ matrix.project }})
+    name: Unit Tests (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -39,10 +41,14 @@ jobs:
       matrix:
         include:
           # Node-environment tests: no browser needed, so skip the install.
-          - project: server
+          - name: server
+            command: npx vitest run --project server
             browser: false
           # Component tests run in real Chromium via vitest browser mode.
-          - project: client
+          # Specs that call vi.mock() run one per process (see vite.config.ts
+          # and scripts/test-mocking-specs.mjs).
+          - name: client
+            command: npx vitest run --project client && npm run test:unit:mocks
             browser: true
 
     steps:
@@ -60,8 +66,8 @@ jobs:
         if: matrix.browser
         run: npx playwright install chromium --with-deps
 
-      - name: Run ${{ matrix.project }} tests
-        run: npx vitest run --project ${{ matrix.project }}
+      - name: Run ${{ matrix.name }} tests
+        run: ${{ matrix.command }}
         env:
           CI: true
 

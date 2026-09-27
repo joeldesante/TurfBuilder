@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ListDetailPage from '$pages/o/s/universe/buckets/lists/ListDetailPage.svelte';
 	import { page } from '$app/state';
+	import { downloadListDocument, regenerateListDocument } from '$lib/client/list-document';
 	import type {
 		PersonEntry,
 		LocationEntry,
@@ -24,4 +25,9 @@
 	entries={data.entries as unknown as PersonEntry[] | LocationEntry[]}
 	turfs={data.turfs as TurfEntry[]}
 	{selectedTab}
+	hasPdf={data.hasPdf}
+	onDownloadPdf={(onGenerating) =>
+		downloadListDocument(data.organization.id, data.list.id, onGenerating)}
+	onRegeneratePdf={(onGenerating) =>
+		regenerateListDocument(data.organization.id, data.list.id, onGenerating)}
 />

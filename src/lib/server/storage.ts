@@ -4,14 +4,15 @@ import { env } from '$env/dynamic/private';
 import { POOL } from '$lib/server/database';
 
 /**
- * Object storage for location photos, backed by DigitalOcean Spaces.
+ * Object storage for location photos and generated documents, backed by
+ * DigitalOcean Spaces.
  *
  * Endpoint, region, and bucket are runtime settings so an instance can be
  * pointed at a different bucket without a redeploy; credentials come from the
  * environment and are never stored in the database. This mirrors how
  * $lib/server/mail.ts splits its configuration.
  *
- * Uploads never pass through this server: the browser is handed a presigned
+ * Photo uploads never pass through this server: the browser is handed a presigned
  * PUT and writes straight to the bucket, which keeps multi-megabyte phone
  * photos off the app server and survives flaky field connections better.
  */
@@ -49,7 +50,8 @@ async function loadSpacesSettings(): Promise<SpacesSettings> {
 	const map = Object.fromEntries(result.rows.map((r) => [r.key, r.value]));
 	return {
 		endpoint: map['spaces.endpoint'] ?? '',
-		region: map['spaces.region'] ?? 'us-east-1',
+		// || not ??: the seeded row holds an empty string until someone sets it.
+		region: map['spaces.region'] || 'us-east-1',
 		bucket: map['spaces.bucket'] ?? ''
 	};
 }
@@ -86,6 +88,11 @@ export function locationPhotoKey(orgId: string, contentType: string): string {
 	return `orgs/${orgId}/locations/${crypto.randomUUID()}.${extension}`;
 }
 
+/** Builds the object key for a generated list document, under the same org prefix. */
+export function listDocumentKey(orgId: string, listId: string, documentId: string): string {
+	return `orgs/${orgId}/lists/${listId}/documents/${documentId}.pdf`;
+}
+
 /** True when a key belongs to the given org. Guards the read endpoint. */
 export function keyBelongsToOrg(key: string, orgId: string): boolean {
 	return key.startsWith(`orgs/${orgId}/`);
@@ -117,6 +124,39 @@ export async function presignPhotoUpload(
 	);
 
 	return { url, key };
+}
+
+/**
+ * Writes a file this server generated, such as a list document. Unlike
+ * photos these start on the server, so there is no browser to presign for.
+ */
+export async function uploadObject(
+	key: string,
+	body: Uint8Array,
+	contentType: string
+): Promise<void> {
+	const { client, bucket } = await getClient();
+	await client.send(
+		new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType })
+	);
+}
+
+/**
+ * Issues a short-lived presigned GET that makes the browser save the file
+ * under `filename` rather than open it.
+ */
+export async function presignDocumentDownload(key: string, filename: string): Promise<string> {
+	const { client, bucket } = await getClient();
+
+	return getSignedUrl(
+		client,
+		new GetObjectCommand({
+			Bucket: bucket,
+			Key: key,
+			ResponseContentDisposition: `attachment; filename="${filename}"`
+		}),
+		{ expiresIn: SIGNED_URL_TTL_SECONDS }
+	);
 }
 
 /** Issues a short-lived presigned GET so a private object can be displayed. */

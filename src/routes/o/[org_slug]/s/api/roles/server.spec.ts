@@ -4,37 +4,42 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const mockClient = { query: vi.fn(), release: vi.fn() };
+// Hoisted so the mock factory, which vitest lifts above this file's consts,
+// can still reach it.
+const { mockClient } = vi.hoisted(() => ({
+	mockClient: { query: vi.fn(), release: vi.fn() }
+}));
 
+// A function expression, not an arrow: the Pool mock is called with `new`.
 vi.mock('pg', () => ({
-	Pool: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(mockClient),
-		on: vi.fn(),
-		end: vi.fn()
-	}))
+	Pool: vi.fn(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(mockClient),
+			on: vi.fn(),
+			end: vi.fn()
+		};
+	})
 }));
 
 import { GET, POST } from './+server';
 
+// withOrgTransaction rejects anything that is not a UUID.
+const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
+// can() reads the permissions hooks.server.ts resolved onto locals.organization.
 const ownerLocals = {
 	user: { id: 'u1' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r1', is_owner: true, is_default: false, permissions: null }
-	}
+	organization: { id: ORG, permissions: ['role.read', 'role.create'] }
 };
 
 const memberLocals = {
 	user: { id: 'u2' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r2', is_owner: false, is_default: true, permissions: [] }
-	}
+	organization: { id: ORG, permissions: ['role.read'] }
 };
 
 const noRoleLocals = {
 	user: { id: 'u3' },
-	organization: { id: 'org-1', role: null }
+	organization: { id: ORG, permissions: [] }
 };
 
 function makeRequest(body: unknown) {
@@ -46,14 +51,14 @@ beforeEach(() => {
 });
 
 describe('GET /api/roles', () => {
-	it('returns 401 when no role is present', async () => {
+	it('returns 403 without role.read', async () => {
 		const response = await GET({ locals: noRoleLocals } as any);
 		const body = await response.json();
-		expect(response.status).toBe(401);
+		expect(response.status).toBe(403);
 		expect(body.error).toBeTruthy();
 	});
 
-	it('returns 200 with roles list for staff member', async () => {
+	it('returns 200 with roles list for a member with role.read', async () => {
 		const rows = [
 			{ id: 'r1', name: 'Owner', is_owner: true, is_default: false, permissions: null }
 		];
@@ -74,7 +79,7 @@ describe('GET /api/roles', () => {
 });
 
 describe('POST /api/roles', () => {
-	it('returns 403 when caller is not owner', async () => {
+	it('returns 403 without role.create', async () => {
 		const response = await POST({ request: makeRequest({ name: 'Editor' }), locals: memberLocals } as any);
 		const body = await response.json();
 		expect(response.status).toBe(403);

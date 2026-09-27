@@ -58,6 +58,10 @@ services:
       - BETTER_AUTH_URL=http://localhost:5173
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Object storage for generated documents, served by the s3 service below.
+      # s3mock accepts any credentials; these are test-only placeholders.
+      - SPACES_ACCESS_KEY_ID=e2e-access-key
+      - SPACES_SECRET_ACCESS_KEY=e2e-secret-key
     command: sh -c "npm install && npm run dev:nohmr -- --host 0.0.0.0"
     volumes:
       - .:/app
@@ -65,9 +69,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      s3:
+        condition: service_started
     networks:
       - turfbuilder
     restart: unless-stopped
+
+  # S3-compatible stand-in for DigitalOcean Spaces, so e2e tests can generate
+  # and download list documents. The app reaches it as http://s3:9090; the
+  # browser reaches the same name through a host-resolver rule in the test.
+  s3:
+    image: adobe/s3mock:4.7.0
+    ports:
+      - '9090:9090'
+    networks:
+      - turfbuilder
 
   nats:
     image: nats:2.10

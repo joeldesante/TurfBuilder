@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
 	import TagInput from '$components/data-inputs/tag-input/TagInput.svelte';
@@ -20,9 +21,18 @@
 	let saving = $state<string | null>(null);
 	let error = $state<string | null>(null);
 	let textValues = $state<Record<string, string>>({});
+	// The server value each box last showed. Saving any one setting reloads
+	// them all, so a box is only refreshed if it still shows that value;
+	// otherwise it holds unsaved typing that a refresh would wipe.
+	const syncedValues: Record<string, string> = {};
 	$effect(() => {
 		for (const s of settings) {
-			textValues[s.key] = s.value;
+			untrack(() => {
+				if (textValues[s.key] === undefined || textValues[s.key] === syncedValues[s.key]) {
+					textValues[s.key] = s.value;
+				}
+			});
+			syncedValues[s.key] = s.value;
 		}
 	});
 
@@ -48,7 +58,10 @@
 		const labels: Record<string, string> = {
 			'organizations.allow_creation': 'Allow Organization Creation',
 			'html.header_content': 'Additional Header Content',
-			'errors.cat_gifs': 'Show Cat Gifs on Error Pages'
+			'errors.cat_gifs': 'Show Cat Gifs on Error Pages',
+			'spaces.endpoint': 'Spaces Endpoint',
+			'spaces.region': 'Spaces Region',
+			'spaces.bucket': 'Spaces Bucket'
 		};
 		return labels[key] ?? key;
 	}

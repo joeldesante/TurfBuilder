@@ -123,6 +123,13 @@ export async function load({ params, locals }) {
 			[list.id, locals.organization!.id]
 		);
 
-		return { list, entries, turfs: turfsResult.rows };
+		const pdfResult = await client.query(
+			`SELECT 1 FROM universe.list_document
+			 WHERE list_id = $1 AND org_id = $2 AND status = 'ready' AND deleted_at IS NULL
+			 LIMIT 1`,
+			[list.id, locals.organization!.id]
+		);
+
+		return { list, entries, turfs: turfsResult.rows, hasPdf: (pdfResult.rowCount ?? 0) > 0 };
 	});
 }

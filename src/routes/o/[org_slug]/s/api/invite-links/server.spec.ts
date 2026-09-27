@@ -4,34 +4,38 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const mockClient = { query: vi.fn(), release: vi.fn() };
+// Hoisted so the mock factory, which vitest lifts above this file's consts,
+// can still reach it.
+const { mockClient } = vi.hoisted(() => ({
+	mockClient: { query: vi.fn(), release: vi.fn() }
+}));
 
+// A function expression, not an arrow: the Pool mock is called with `new`.
 vi.mock('pg', () => ({
-	Pool: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(mockClient),
-		on: vi.fn(),
-		end: vi.fn()
-	}))
+	Pool: vi.fn(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(mockClient),
+			on: vi.fn(),
+			end: vi.fn()
+		};
+	})
 }));
 
 vi.mock('nanoid', () => ({ nanoid: vi.fn(() => 'mock-token-21chars-xxx') }));
 
 import { GET, POST } from './+server';
 
+const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
+// can() reads the permissions hooks.server.ts resolved onto locals.organization.
 const ownerLocals = {
 	user: { id: 'u1' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r1', is_owner: true, is_default: false, permissions: null }
-	}
+	organization: { id: ORG, permissions: ['member.invite'] }
 };
 
 const memberLocals = {
 	user: { id: 'u2' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r2', is_owner: false, is_default: true, permissions: [] }
-	}
+	organization: { id: ORG, permissions: [] }
 };
 
 function makeRequest(body: unknown) {
@@ -43,13 +47,13 @@ beforeEach(() => {
 });
 
 describe('GET /api/invite-links', () => {
-	it('returns 403 when caller is not owner', async () => {
+	it('returns 403 without member.invite', async () => {
 		const response = await GET({ locals: memberLocals } as any);
 		const body = await response.json();
 		expect(response.status).toBe(403);
 	});
 
-	it('returns links and slugInviteEnabled for owner', async () => {
+	it('returns links and slugInviteEnabled with member.invite', async () => {
 		const links = [{ id: 'abc', created_at: '2025-01-01', expires_at: null }];
 		mockClient.query
 			.mockResolvedValueOnce({ rows: links })
@@ -82,7 +86,7 @@ describe('GET /api/invite-links', () => {
 });
 
 describe('POST /api/invite-links', () => {
-	it('returns 403 when caller is not owner', async () => {
+	it('returns 403 without member.invite', async () => {
 		const response = await POST({ request: makeRequest({}), locals: memberLocals } as any);
 		const body = await response.json();
 		expect(response.status).toBe(403);

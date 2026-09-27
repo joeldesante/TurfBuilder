@@ -89,7 +89,7 @@
 	const panelTitle = $derived(activeBucket ? activeBucket.name : undefined);
 
 	function handlePanelBack() {
-		goto(`/o/${data.organization.slug}/s/universe/search`);
+		goto(`/o/${data.organization.slug}/s`);
 	}
 </script>
 

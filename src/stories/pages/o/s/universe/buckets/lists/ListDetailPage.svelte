@@ -10,6 +10,11 @@
 	import EyeIcon from 'phosphor-svelte/lib/Eye';
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOut';
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
+	import FilePdfIcon from 'phosphor-svelte/lib/FilePdf';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwise';
+	import DropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
+	import { toast } from 'svelte-sonner';
 	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
 	import { untrack } from 'svelte';
 
@@ -61,10 +66,68 @@
 		entries: PersonEntry[] | LocationEntry[];
 		turfs: TurfEntry[];
 		selectedTab: string | null;
+		/** Whether the list already has a generated PDF to download. */
+		hasPdf?: boolean;
+		/**
+		 * Fetches the list's PDF, generating one first if there is none. Should
+		 * call `onGenerating` if it has to wait for one to be generated, and
+		 * reject with a readable message on failure.
+		 */
+		onDownloadPdf?: (onGenerating: () => void) => Promise<void>;
+		/**
+		 * Replaces the list's PDF with a freshly generated one and downloads it,
+		 * e.g. after turfs were cut. Same contract as `onDownloadPdf`.
+		 */
+		onRegeneratePdf?: (onGenerating: () => void) => Promise<void>;
 	}
 
-	const { orgSlug, bucketName, bucketSlug, listHref, list, entries, turfs, selectedTab }: Props =
-		$props();
+	const {
+		orgSlug,
+		bucketName,
+		bucketSlug,
+		listHref,
+		list,
+		entries,
+		turfs,
+		selectedTab,
+		hasPdf = false,
+		onDownloadPdf,
+		onRegeneratePdf
+	}: Props = $props();
+
+	// 'preparing' covers the lookup before we know whether generation is needed.
+	let pdfState = $state<'idle' | 'preparing' | 'generating'>('idle');
+	// Starts from the server and flips once a PDF is generated on this page.
+	// svelte-ignore state_referenced_locally
+	let pdfExists = $state(hasPdf);
+
+	const pdfLabel = $derived(
+		pdfState === 'generating' ? 'Generating' : pdfExists ? 'Download PDF' : 'Generate PDF'
+	);
+
+	async function runPdf(action: (onGenerating: () => void) => Promise<void>) {
+		if (pdfState !== 'idle') return;
+		pdfState = 'preparing';
+		try {
+			await action(() => (pdfState = 'generating'));
+			pdfExists = true;
+		} catch (e) {
+			// Covers failed generation and giving up after waiting too long. The
+			// toaster lives in the root layout.
+			toast.error(e instanceof Error ? e.message : 'The PDF could not be downloaded.');
+		} finally {
+			pdfState = 'idle';
+		}
+	}
+
+	const pdfMenuItems = $derived([
+		{
+			label: 'Regenerate PDF',
+			icon: ArrowClockwiseIcon,
+			disabled: pdfState !== 'idle',
+			onclick: () => onRegeneratePdf && runPdf(onRegeneratePdf)
+		}
+	]);
 
 	const isPeople = $derived(list.entity_type === 'people');
 	const isExpired = $derived(new Date(list.expires_at) < new Date());
@@ -115,10 +178,44 @@
 <PageHeader title={list.name} subheading={bucketName}>
 	{#snippet actions()}
 		{#if !isPeople}
-			<Button variant="outline" href={`/o/${orgSlug}/s/universe/buckets/${bucketSlug}/lists/${list.id}/map`}>
+			<Button
+				variant="outline"
+				href={`/o/${orgSlug}/s/universe/buckets/${bucketSlug}/lists/${list.id}/map`}
+			>
 				<MapTrifoldIcon class="size-4" />
 				View Map
 			</Button>
+			{#if onDownloadPdf}
+				{@const canRegenerate = pdfExists && !!onRegeneratePdf}
+				<div class="flex">
+					<Button
+						variant="outline"
+						loading={pdfState !== 'idle'}
+						onclick={() => runPdf(onDownloadPdf)}
+						class={['whitespace-nowrap', canRegenerate ? 'rounded-r-none' : ''].join(' ')}
+					>
+						{#if pdfState === 'idle'}
+							<FilePdfIcon class="size-4" />
+						{/if}
+						{pdfLabel}
+					</Button>
+					{#if canRegenerate}
+						<!-- Wrapped because DropdownMenu's trigger is w-full, which would otherwise
+						     resolve against this row and squeeze the main button. A span, not a
+						     Button, inside: the menu trigger is already a button. -->
+						<div class="shrink-0">
+							<DropdownMenu items={pdfMenuItems}>
+								<span
+									class="flex h-12 min-w-12 items-center justify-center rounded-sm rounded-l-none border border-l-0 border-outline p-2 text-on-surface transition-colors hover:bg-surface-container md:h-10 md:min-w-10"
+								>
+									<CaretDownIcon class="size-4" />
+									<span class="sr-only">More PDF options</span>
+								</span>
+							</DropdownMenu>
+						</div>
+					{/if}
+				</div>
+			{/if}
 			<Button onclick={() => (showSurveySelectionModal = true)}>
 				<ScissorsIcon class="size-4" />
 				Cut Turfs

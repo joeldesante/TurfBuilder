@@ -4,37 +4,37 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const mockClient = { query: vi.fn(), release: vi.fn() };
+// Hoisted so the mock factory, which vitest lifts above this file's consts,
+// can still reach it.
+const { mockClient } = vi.hoisted(() => ({
+	mockClient: { query: vi.fn(), release: vi.fn() }
+}));
 
+// A function expression, not an arrow: the Pool mock is called with `new`.
 vi.mock('pg', () => ({
-	Pool: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(mockClient),
-		on: vi.fn(),
-		end: vi.fn()
-	}))
+	Pool: vi.fn(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(mockClient),
+			on: vi.fn(),
+			end: vi.fn()
+		};
+	})
 }));
 
 import { GET } from './+server';
 
+// withOrgTransaction rejects anything that is not a UUID.
+const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
+// can() reads the permissions hooks.server.ts resolved onto locals.organization.
 const ownerLocals = {
 	user: { id: 'u1' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r1', is_owner: true, is_default: false, permissions: null }
-	}
+	organization: { id: ORG, permissions: ['member.read'] }
 };
 
 const memberLocals = {
 	user: { id: 'u2' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r2', is_owner: false, is_default: true, permissions: ['member:read'] }
-	}
-};
-
-const noRoleLocals = {
-	user: { id: 'u3' },
-	organization: { id: 'org-1', role: null }
+	organization: { id: ORG, permissions: ['member.read'] }
 };
 
 beforeEach(() => {
@@ -42,13 +42,10 @@ beforeEach(() => {
 });
 
 describe('GET /api/members', () => {
-	it('returns 403 when caller lacks member:read permission', async () => {
+	it('returns 403 when caller lacks member.read permission', async () => {
 		const localsWithNoPermission = {
 			user: { id: 'u4' },
-			organization: {
-				id: 'org-1',
-				role: { id: 'r3', is_owner: false, is_default: false, permissions: [] }
-			}
+			organization: { id: ORG, permissions: [] }
 		};
 
 		const response = await GET({ locals: localsWithNoPermission } as any);

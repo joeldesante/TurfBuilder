@@ -40,7 +40,7 @@ If the plugin defines a `configSchema` (Zod), the body is validated before savin
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -54,7 +54,7 @@ the plugin_installation record. The plugin appears in the staff nav immediately.
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -68,6 +68,6 @@ Config and any plugin-stored data are retained for potential re-installation.
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---

@@ -90,4 +90,54 @@ describe('InfraSettingsPage', () => {
 			await expect.element(page.getByText('Network error')).toBeVisible();
 		});
 	});
+
+	describe('text settings', () => {
+		const textSettings = [
+			{ key: 'spaces.bucket', value: '', description: null },
+			{ key: 'spaces.endpoint', value: '', description: null }
+		];
+
+		// Saving reloads every setting from the server; that must not wipe what
+		// has been typed into the other boxes but not saved yet.
+		it('keeps unsaved text in other fields after one is saved', async () => {
+			const { rerender } = render(InfraSettingsPage, {
+				settings: textSettings,
+				onToggle: async () => {},
+				onSave: async (key: string, value: string) => {
+					rerender({
+						settings: textSettings.map((s) => (s.key === key ? { ...s, value } : s))
+					});
+				}
+			});
+
+			const [bucket, endpoint] = [
+				page.getByRole('textbox').nth(0),
+				page.getByRole('textbox').nth(1)
+			];
+			await bucket.fill('turfbuilder');
+			await endpoint.fill('https://nyc3.digitaloceanspaces.com');
+			await page.getByRole('button', { name: 'Save' }).nth(0).click();
+
+			await expect.element(bucket).toHaveValue('turfbuilder');
+			await expect.element(endpoint).toHaveValue('https://nyc3.digitaloceanspaces.com');
+		});
+
+		it('shows a new server value in a field that was not edited', async () => {
+			const { rerender } = render(InfraSettingsPage, {
+				settings: textSettings,
+				onToggle: async () => {},
+				onSave: async () => {}
+			});
+
+			rerender({
+				settings: textSettings.map((s) =>
+					s.key === 'spaces.endpoint' ? { ...s, value: 'https://sfo3.digitaloceanspaces.com' } : s
+				)
+			});
+
+			await expect
+				.element(page.getByRole('textbox').nth(1))
+				.toHaveValue('https://sfo3.digitaloceanspaces.com');
+		});
+	});
 });

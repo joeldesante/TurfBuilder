@@ -19,8 +19,11 @@ test('shows location rows when results are present', async () => {
 	const { getByText } = render(BucketLocationsPage, {
 		props: { bucketName: 'Downtown District', enabled: true, locations: sampleLocations }
 	});
+	// A named location shows its name over the city line; an unnamed one shows
+	// its street address instead.
 	await expect.element(getByText('City Hall')).toBeVisible();
-	await expect.element(getByText('100 Main St')).toBeVisible();
+	await expect.element(getByText('Springfield, IL, 62701')).toBeVisible();
+	await expect.element(getByText('42 Oak Ave, Apt 3')).toBeVisible();
 });
 
 test('shows match count', async () => {

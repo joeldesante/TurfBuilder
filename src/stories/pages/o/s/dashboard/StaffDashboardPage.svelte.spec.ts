@@ -3,21 +3,16 @@ import { render } from 'vitest-browser-svelte';
 import { page } from '@vitest/browser/context';
 import StaffDashboardPage from './StaffDashboardPage.svelte';
 
-const baseProps = {
-	orgSlug: 'north-west-philly-alliance',
-	applicationName: 'TurfBuilder'
-};
-
 describe('StaffDashboardPage', () => {
-	test('renders the Dashboard heading', async () => {
-		render(StaffDashboardPage, baseProps);
-		await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Dashboard');
-	});
-
-	test('renders the Join a Turf button linking to the correct org URL', async () => {
-		render(StaffDashboardPage, baseProps);
-		const button = page.getByRole('link', { name: 'Join a Turf' });
-		await expect.element(button).toBeVisible();
-		await expect.element(button).toHaveAttribute('href', '/o/north-west-philly-alliance/join');
+	test('renders the dashboard sections', async () => {
+		render(StaffDashboardPage, {
+			orgSlug: 'north-west-philly-alliance',
+			buckets: [],
+			mapPoints: [],
+			progress: { total: 0, visited: 0, conversations: 0, visits: 0, answeredVisits: 0, recentConversations: 0 }
+		});
+		await expect.element(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+		await expect.element(page.getByText('Locations visited')).toBeVisible();
+		await expect.element(page.getByRole('heading', { name: 'Where canvassers have been' })).toBeVisible();
 	});
 });

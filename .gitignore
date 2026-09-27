@@ -43,3 +43,8 @@ docs/.vitepress/sidebar.ts
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Vitest browser mode's failure screenshots (turned off in vite.config.ts;
+# ignored in case they are ever turned back on).
+__screenshots__/
+.vitest-attachments/

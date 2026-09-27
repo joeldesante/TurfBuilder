@@ -10,6 +10,9 @@ features:
   - title: Component Library
     details: Reusable Svelte 5 UI primitives with props, defaults, and usage. All components use runes syntax.
     link: /components/
+  - title: Guides
+    details: How features work end to end, starting with printable list PDFs — generating, storage, the template, and operations.
+    link: /guides/list-documents
   - title: Plugin System
     details: Available plugins and how to build new ones. Plugins can add pages, API handlers, and event hooks.
     link: /plugins/

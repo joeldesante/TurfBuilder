@@ -1,24 +1,5 @@
 # All Endpoints
 
-# Public API
-
-Unauthenticated endpoints for geographic location data. Used by the volunteer map to populate visible addresses.
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/turf/{id}/locations`
-
-Returns all locations assigned to a turf along with a geographic center point.
-Verifies the turf belongs to the caller's organization before returning data.
-
-**Auth:** Org member  
-
-**Response**
-
-{ locations: Location[], center: { lat: number, lng: number } }
-
----
-
 # Volunteer API
 
 Endpoints used by canvassers in the field. Require org membership but not staff access.
@@ -40,7 +21,7 @@ If the user is already in the turf the insert is silently ignored.
 
 **Response**
 
-{ id: string } UUID of the turf that was joined
+&#123; id: string &#125; UUID of the turf that was joined
 
 ---
 
@@ -58,11 +39,100 @@ Caller must be an assigned turf member.
 |-------|------|:--------:|-------------|
 | `contactStatus` | `'no_contact'|'contacted'` | ✓ | Outcome of the canvassing visit |
 | `attemptNote` | `string` |  | Optional free-text note about the visit |
-| `questions` | `any` |  | {Array<{db_id: uuid, response: string}>} required - Survey question responses (only saved when contacted) |
+| `questions` | `any` |  | &#123;Array&lt;&#123;db_id: uuid, response: string&#125;>&#125; required - Survey question responses (only saved when contacted) |
 
 **Response**
 
-{ success: true }
+&#123; success: true &#125;
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/map/{id}/locations`
+
+Records a business a volunteer found in the field that was not in the turf.
+
+Colocated under map/[id]/ rather than /s/api/ because the staff layout
+requires an organization role, which volunteers do not have.
+
+The location is created tentative and attached to the turf immediately, so
+the volunteer can knock it and submit a response right away even though it
+never matched the bucket criteria the turf was cut from. It stays invisible
+to search, buckets, lists, and future turf cuts until an organizer approves
+it, which universe.v_locations enforces.
+
+**Auth:** org, plus turf membership and an unexpired turf  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `Location` | `any` |  | fields; latitude and longitude must fall inside the turf |
+
+**Response**
+
+&#123; turf_location_id, entity_id &#125;
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/map/{id}/locations/{entity_id}`
+
+Corrects a location the volunteer added during this canvassing session.
+
+Editable only while they authored it, it is still tentative, and the turf is
+still open — see findEditableSuggestion. Once an organizer approves it or
+the turf expires, the volunteer loses the handle.
+
+The correction is a new version, so the original text the volunteer typed is
+still recoverable.
+
+**Auth:** org, plus authorship of a tentative suggestion on an unexpired turf  
+
+**Response**
+
+&#123; entity_id, id &#125;
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/map/{id}/locations/{entity_id}`
+
+Withdraws a location the volunteer added by mistake.
+
+A hard delete, unlike the admin soft delete: an unreviewed suggestion has no
+history worth keeping, and leaving it would put a phantom door on the turf.
+The cascade takes the location, its turf assignment, and any attempt or
+survey responses recorded against it.
+
+**Auth:** org, plus authorship of a tentative suggestion on an unexpired turf  
+
+**Response**
+
+&#123; success: true &#125;
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/map/{id}/locations/{location_id}/edits`
+
+Proposes a correction to a door whose record is wrong.
+
+The proposal is parked for review rather than applied: the location is
+already part of the official dataset, so a canvasser cannot change it
+directly. Photos travel with the proposal as the evidence an organizer
+checks before accepting it.
+
+Note the path parameter is the turf_location id, matching the rest of the
+canvassing routes, rather than a location entity id.
+
+**Auth:** org, plus turf membership and an unexpired turf  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `Any` | `any` |  | subset of the location fields, plus an optional note |
+
+**Response**
+
+&#123; id &#125;
 
 ---
 
@@ -75,7 +145,7 @@ Used by the volunteer map page to show which addresses have been visited.
 
 **Response**
 
-Array of { id, visited: boolean, contact_made: boolean | null }
+Array of &#123; id, visited: boolean, contact_made: boolean | null &#125;
 
 ---
 
@@ -87,14 +157,21 @@ Staff endpoints for creating and managing survey templates and questions.
 
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/surveys`
 
-Lists surveys for the organization.
+Lists surveys for the organization, optionally filtered by bucket.
 
 **Auth:** Staff  
 **Permission:** `survey:read`
 
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `bucketId` | `string` | optional - bucket UUID to filter by |
+| `bucketSlug` | `string` | optional - bucket slug to filter by (alternative to bucketId) |
+
 **Response**
 
-Array of { id: string, name: string, description: string | null }
+Array of &#123; id: string, name: string, description: string | null &#125;
 
 ---
 
@@ -114,7 +191,7 @@ Questions are added separately via the /questions endpoint.
 
 **Response**
 
-{ id: string } UUID of the created survey
+&#123; id: string &#125; UUID of the created survey
 
 ---
 
@@ -134,7 +211,7 @@ Updates the name and optional description of an existing survey.
 
 **Response**
 
-{ success: true }
+&#123; success: true &#125;
 
 ---
 
@@ -155,7 +232,7 @@ fully replace the question set.
 
 **Response**
 
-{ success: true }
+&#123; success: true &#125;
 
 ---
 
@@ -176,7 +253,7 @@ editor dropped. Pass all retained question IDs in `exclude`.
 
 **Response**
 
-{ success: true }
+&#123; success: true &#125;
 
 ---
 
@@ -190,13 +267,10 @@ Staff endpoints for creating canvassing territories from GeoJSON polygons.
 
 Creates one or more turfs from GeoJSON polygon geometries.
 
-When called from the universe list-based cut flow, supply `list_id` and `bucket_id`.
-Locations are then sourced from `universe.list_entry` for that list using ST_Contains.
-
-When called without a list context, locations are sourced from `location_unified`
-(the traditional two-tier location pool) using ST_Contains.
-
-Each turf receives a unique 6-character join code. Defaults to a 7-day expiry.
+Turfs are always cut from a universe list: locations are sourced from
+`universe.list_entry` for that list using ST_Contains, and the created
+turfs belong to the list. Each turf receives a unique 6-character join
+code. Defaults to a 7-day expiry.
 
 **Auth:** Staff  
 **Permission:** `turf:create`
@@ -205,15 +279,15 @@ Each turf receives a unique 6-character join code. Defaults to a 7-day expiry.
 
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
-| `polygons` | `any` |  | {Array<{geometry: GeoJSON}>} required - GeoJSON polygon geometries |
+| `polygons` | `any` |  | &#123;Array&lt;&#123;geometry: GeoJSON&#125;>&#125; required - GeoJSON polygon geometries |
 | `survey_id` | `string` | ✓ | UUID of the survey to attach to all created turfs |
+| `script_id` | `string` |  | UUID of the script to attach to all created turfs |
 | `expires_at` | `string` |  | ISO 8601 expiration date; defaults to 7 days from now |
-| `list_id` | `string` |  | UUID of the universe list this cut derives from |
-| `bucket_id` | `string` |  | UUID of the universe bucket this cut derives from |
+| `list_id` | `string` | ✓ | UUID of the universe list this cut derives from |
 
 **Response**
 
-{ turfs: Turf[] } Array of created turf records
+&#123; turfs: Turf[] &#125; Array of created turf records
 
 ---
 
@@ -226,7 +300,87 @@ Returns the polygon bounds and all assigned locations for a turf, for map previe
 
 **Response**
 
-{ bounds: string, locations: LocationPreview[] }
+&#123; bounds: string, locations: LocationPreview[] &#125;
+
+---
+
+# List Documents
+
+Staff endpoints for generating, polling, downloading, and deleting the printable PDF of a location list.
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{org_id}/lists/{list_id}/documents`
+
+The list's current documents (generated PDFs), newest first. Replaced and
+deleted documents are not included, so this is normally at most one, plus a
+failed attempt when a regeneration failed and the previous PDF was restored.
+No download links here; fetch a document by id for that.
+
+**Auth:** Staff  
+**Permission:** `system.access`
+
+**Response**
+
+`Array<{ id, list_id, status: 'pending' | 'ready' | 'failed', error: string | null, created_at, completed_at }>`, at most 20
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{org_id}/lists/{list_id}/documents`
+
+Starts generating a printable PDF of the list: a master list of every
+location, the turf checkout list, and one page per cut turf, with numbered
+maps. The new document replaces the list's earlier ones (they are
+soft-deleted) and they are restored if generation fails. Responds 202 as
+soon as the row exists; poll the `Location` URL until the status is `ready`
+or `failed`. Generation fails after 90 seconds. Only location lists can be
+generated; a people list fails with a message saying so.
+
+**Auth:** Staff  
+**Permission:** `system.access`
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `timeZone` | `string` |  | IANA timezone to print times in, e.g. `America/New_York`. Defaults to the server's zone. Temporary until organizations have a timezone setting (#183) |
+
+**Response**
+
+202 `{ id, list_id, status: 'pending', created_at }` with a `Location` header pointing at the document. 400 for an unknown timezone
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{org_id}/lists/{list_id}/documents/{document_id}`
+
+A document's status, plus a download link once it is ready. This is the URL
+POST .../documents hands back in Location; poll it until the status is no
+longer `pending`. The link is a presigned object-storage URL that expires
+after 5 minutes and downloads the file as an attachment named after the
+list. Soft-deleted documents return 404.
+
+**Auth:** Staff  
+**Permission:** `system.access`
+
+**Response**
+
+`{ id, list_id, status: 'pending' | 'ready' | 'failed', error: string | null, created_at, completed_at, download_url: string | null }`. `error` is a message safe to show users; `download_url` is set only when `status` is `ready`
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/organizations/{org_id}/lists/{list_id}/documents/{document_id}`
+
+Soft-deletes a document, so the list has no current PDF until one is
+generated again. The file stays in object storage; retention cleans it up
+later (#174). Deleting a document that is still generating lets the render
+finish but keeps its result hidden.
+
+**Auth:** Staff  
+**Permission:** `system.access`
+
+**Response**
+
+204 No Content. 404 if the document is not on this list or is already deleted
 
 ---
 
@@ -245,7 +399,7 @@ Returns all members of the organization with their assigned role info.
 
 **Response**
 
-{ members: Array<{ id, name, email, role_id, role_name }> }
+&#123; members: Array&lt;&#123; id, name, email, role_id, role_name &#125;> &#125;
 
 ---
 
@@ -275,7 +429,7 @@ Returns all roles for the organization, each with their permission set.
 
 **Response**
 
-Array of { id, name, is_default, permissions: string[] }
+Array of &#123; id, name, is_default, permissions: string[] &#125;
 
 ---
 
@@ -294,7 +448,7 @@ Creates a new role for the organization.
 
 **Response**
 
-{ id, name, is_default }
+&#123; id, name, is_default &#125;
 
 ---
 
@@ -312,7 +466,7 @@ Renames a role. The default (Everyone) role cannot be renamed.
 
 **Response**
 
-{ id, name, is_default }
+&#123; id, name, is_default &#125;
 
 ---
 
@@ -342,7 +496,7 @@ Replaces the full permission set for a role.
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -360,7 +514,7 @@ Returns all token-based invite links for the org plus the slug invite toggle sta
 
 **Response**
 
-{ links: Array<{ id, created_at, expires_at }>, slugInviteEnabled: boolean }
+&#123; links: Array&lt;&#123; id, created_at, expires_at &#125;>, slugInviteEnabled: boolean &#125;
 
 ---
 
@@ -379,7 +533,7 @@ Accessible at `/invite/{token}` once created.
 
 **Response**
 
-{ id, created_at, expires_at }
+&#123; id, created_at, expires_at &#125;
 
 ---
 
@@ -391,7 +545,7 @@ Permanently revokes an invite link. The link can no longer be used to join the o
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -410,7 +564,7 @@ When enabled, anyone with the link can join at `/invite/{org_slug}`.
 
 **Response**
 
-{ ok: true, enabled: boolean }
+&#123; ok: true, enabled: boolean &#125;
 
 ---
 
@@ -456,7 +610,7 @@ If the plugin defines a `configSchema` (Zod), the body is validated before savin
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -470,7 +624,7 @@ the plugin_installation record. The plugin appears in the staff nav immediately.
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -484,7 +638,7 @@ Config and any plugin-stored data are retained for potential re-installation.
 
 **Response**
 
-{ ok: true }
+&#123; ok: true &#125;
 
 ---
 
@@ -518,11 +672,25 @@ Miscellaneous endpoints.
 
 ---
 
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/locations`
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/dashboard`
+
+Returns dashboard analytics for the organization.
+
+**Auth:** Staff  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `range` | `string` | One of: 1w, 1m, 3m, 6m, 1y (default: 1m) |
+
+**Response**
+
+&#123; timeSeries: &#123; date: string, count: number &#125;[], outcomes: &#123; contact_made: boolean | null, count: number &#125;[] &#125;
 
 ---
 
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/locations/import`
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/data`
 
 ---
 
@@ -544,7 +712,7 @@ Lists scripts for the organization, optionally filtered by bucket slug.
 
 **Response**
 
-Array of { id: string, name: string }
+Array of &#123; id: string, name: string &#125;
 
 ---
 
@@ -588,11 +756,198 @@ Array of turfs with GeoJSON bounds and metadata
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/locations`
+
+Locations drawn on the admin map, for the viewport the map is showing.
+
+The map queries by viewport rather than reusing the list page's rows because
+that page is a paginated alphabetical window: a location outside the first
+page is a location the map would never draw, including the one the organizer
+just placed.
+
+**Auth:** location.read  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `west,south,east,north {number} required - Viewport corners in degrees` | `any` |  |
+
+**Response**
+
+&#123; locations, truncated &#125;
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations`
+
+Creates a single location in the organization's universe, as authored from
+the admin map. Bulk paths live under ./import.
+
+The location is live immediately: no location_suggestion row is written, so
+nothing filters it out of universe.v_locations.
+
+**Auth:** location.create  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | optional - Business name |
+| `address_line_1` | `string` |  | optional - Street address |
+| `city` | `string` |  | optional |
+| `state_or_region` | `string` |  | optional |
+| `postal_code` | `string` |  | optional |
+| `country_code` | `string` |  | optional - Two-letter code |
+| `latitude` | `number` |  | required |
+| `longitude` | `number` |  | required |
+| `photo_keys` | `string[]` |  | optional - Spaces object keys, max 3 |
+
+**Response**
+
+&#123; entity_id, id &#125;
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/api/universe/locations/{entity_id}`
+
+Updates a location by superseding its current version.
+
+Nothing is overwritten: the live row is closed and a successor inserted, and
+everything pointing at the old version row is repointed by
+createLocationVersion.
+
+**Auth:** location.update  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `Any` | `any` |  | subset of the location fields; omitted keys keep their current |
+
+**Response**
+
+&#123; entity_id, id &#125;
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/universe/locations/{entity_id}`
+
+Soft-deletes a location by closing its current version without a successor.
+
+Version history, turf assignments, and past canvassing responses are all
+retained; the location simply stops appearing in universe.v_locations and in
+the operational queries, which filter on valid_to.
+
+**Auth:** location.delete  
+
+**Response**
+
+&#123; success: true &#125;
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/edits/{id}/approve`
+
+Accepts a canvasser's correction into the official dataset.
+
+The correction becomes a new version of the location, so the values it
+replaces stay recoverable. Where the door came from the shared public pool,
+which no organization may write to, this forks an org-private copy instead
+and repoints the turf assignments onto it.
+
+**Auth:** location.update  
+
+**Response**
+
+&#123; entity_id, forked &#125;
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/edits/{id}/reject`
+
+Declines a canvasser's correction.
+
+The proposal is kept and marked rejected rather than deleted: unlike a
+rejected new location, nothing bogus entered the dataset, and the record of
+what was reported and turned down is worth having.
+
+**Auth:** location.update  
+
+**Response**
+
+&#123; success: true &#125;
+
+---
+
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/import`
 
 ---
 
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/import/overture`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/suggestions/{id}/approve`
+
+Accepts a volunteer's field addition into the organization's universe.
+
+Flipping the status is the whole operation: the turf assignment already
+exists, and universe.v_locations stops excluding the location the moment it
+is no longer tentative, so it becomes visible to search, buckets, and future
+turf cuts at once.
+
+It is deliberately not backfilled into already-cut lists — those are frozen
+snapshots — so it joins the next cut instead.
+
+**Auth:** location.create  
+
+**Response**
+
+&#123; entity_id &#125;
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/suggestions/{id}/reject`
+
+Rejects a volunteer's field addition and removes it entirely.
+
+Unlike the admin delete, which is soft, this is a hard delete: a rejected
+addition is bad data, and so is anything recorded against it. Deleting the
+entity cascades through the location versions, the turf assignment, the
+canvassing attempt, and its survey responses.
+
+The status guard means an already-approved location cannot be destroyed
+through this path; use the delete endpoint, which preserves history.
+
+**Auth:** location.delete  
+
+**Response**
+
+&#123; success: true &#125;
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/metrics/results`
+
+Returns survey responses recorded against a bucket + survey combination,
+grouped by location and question, for display on the metrics results map.
+
+**Auth:** Staff  
+**Permission:** `response:read`
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `bucketId` | `string` | bucket UUID |
+| `surveyId` | `string` | survey UUID |
+| `startDate` | `string` | optional - YYYY-MM-DD, inclusive lower bound |
+| `endDate` | `string` | optional - YYYY-MM-DD, inclusive upper bound |
+
+**Response**
+
+Array of locations, each with a nested array of questions and their responses
 
 ---
 
@@ -605,6 +960,49 @@ Array of turfs with GeoJSON bounds and metadata
 ---
 
 ### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/universe/data/integrations/api`
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/uploads/{...key}`
+
+Redirects to a short-lived presigned GET for a stored photo.
+
+Objects are private, so this is the only way to display one. The key prefix
+check is what stops a member of one org reading another org's photos by
+pasting a key; without it the bucket would have to be public.
+
+**Auth:** Org member  
+
+**Response**
+
+302 to a presigned URL
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/uploads/presign`
+
+Issues a presigned PUT so the browser can upload a location photo straight
+to Spaces.
+
+Lives outside /s/ because volunteers attach photos to their suggestions and
+do not have a staff role.
+
+Org membership is the only check needed: the key is server-generated and
+unguessable, and attaching it to a location still has to pass that
+endpoint's own authorization.
+
+**Auth:** Org member  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `contentType` | `string` | ✓ | image/jpeg, image/webp, or image/png |
+| `contentLength` | `number` | ✓ | Byte size, max 5,000,000 |
+
+**Response**
+
+&#123; url, key &#125;
 
 ---
 

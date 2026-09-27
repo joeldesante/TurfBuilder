@@ -5,6 +5,7 @@
 	import { themeStore } from '$lib/theme.svelte';
 	import DropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import type { DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
+	import Toaster from '$components/feedback/toaster/Toaster.svelte';
 	let { children, data } = $props();
 
 	onMount(() => {
@@ -67,3 +68,5 @@
 -->
 
 {@render children()}
+
+<Toaster />

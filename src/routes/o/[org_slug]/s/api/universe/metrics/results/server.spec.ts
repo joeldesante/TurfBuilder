@@ -4,41 +4,49 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const mockClient = { query: vi.fn(), release: vi.fn() };
+// Hoisted so the mock factory, which vitest lifts above this file's consts,
+// can still reach it.
+const { mockClient } = vi.hoisted(() => ({
+	mockClient: { query: vi.fn(), release: vi.fn() }
+}));
 
+// A function expression, not an arrow: the Pool mock is called with `new`.
 vi.mock('pg', () => ({
-	Pool: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(mockClient),
-		on: vi.fn(),
-		end: vi.fn()
-	}))
+	Pool: vi.fn(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(mockClient),
+			on: vi.fn(),
+			end: vi.fn()
+		};
+	})
 }));
 
 import { GET } from './+server';
 
+// withOrgTransaction rejects anything that is not a UUID.
+const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
+// The route requires a staff role, then checks can(), which reads the
+// permissions hooks.server.ts resolved onto locals.organization.
 const authorizedLocals = {
 	user: { id: 'u1' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r1', is_owner: false, is_default: false, permissions: ['response:read'] }
-	}
+	organization: { id: ORG, role: { id: 'r1', name: 'Analyst' }, permissions: ['response.read'] }
 };
 
 const noPermissionLocals = {
 	user: { id: 'u2' },
-	organization: {
-		id: 'org-1',
-		role: { id: 'r2', is_owner: false, is_default: false, permissions: [] }
-	}
+	organization: { id: ORG, role: { id: 'r2', name: 'Everyone' }, permissions: [] }
 };
 
 const noRoleLocals = {
 	user: { id: 'u3' },
-	organization: { id: 'org-1', role: null }
+	organization: { id: ORG, permissions: [] }
 };
 
-const BUCKET_ID = '11111111-1111-1111-1111-111111111111';
-const SURVEY_ID = '22222222-2222-2222-2222-222222222222';
+// Valid RFC 4122 ids: the route's Zod schema rejects ones like 1111...-1111
+// whose variant digit is out of range.
+const BUCKET_ID = 'b1b2c3d4-e5f6-4890-abcd-ef1234567890';
+const SURVEY_ID = 'c1b2c3d4-e5f6-4890-abcd-ef1234567890';
 
 function makeUrl(params: Record<string, string>) {
 	const url = new URL('http://localhost/o/test/s/api/universe/metrics/results');
@@ -46,8 +54,23 @@ function makeUrl(params: Record<string, string>) {
 	return url;
 }
 
+/**
+ * Returns the given results for the route's queries, in order. The route runs
+ * inside withOrgTransaction, whose BEGIN / SET LOCAL / COMMIT / RESET get an
+ * empty result without using up the queue.
+ */
+function queueResults(...results: { rows: unknown[] }[]) {
+	const queue = [...results];
+	mockClient.query.mockImplementation(async (sql: string) =>
+		/^\s*(BEGIN|COMMIT|ROLLBACK|SET LOCAL|RESET)\b/i.test(sql)
+			? { rows: [] }
+			: (queue.shift() ?? { rows: [] })
+	);
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
+	queueResults();
 });
 
 describe('GET /api/universe/metrics/results', () => {
@@ -84,7 +107,7 @@ describe('GET /api/universe/metrics/results', () => {
 	});
 
 	it('returns 404 when the bucket does not belong to the organization', async () => {
-		mockClient.query.mockResolvedValueOnce({ rows: [] });
+		queueResults({ rows: [] });
 
 		const response = await GET({
 			locals: authorizedLocals,
@@ -94,9 +117,7 @@ describe('GET /api/universe/metrics/results', () => {
 	});
 
 	it('returns 404 when the survey does not belong to the organization', async () => {
-		mockClient.query
-			.mockResolvedValueOnce({ rows: [{ id: BUCKET_ID }] })
-			.mockResolvedValueOnce({ rows: [] });
+		queueResults({ rows: [{ id: BUCKET_ID }] }, { rows: [] });
 
 		const response = await GET({
 			locals: authorizedLocals,
@@ -106,10 +127,10 @@ describe('GET /api/universe/metrics/results', () => {
 	});
 
 	it('groups responses by location and question', async () => {
-		mockClient.query
-			.mockResolvedValueOnce({ rows: [{ id: BUCKET_ID }] })
-			.mockResolvedValueOnce({ rows: [{ id: SURVEY_ID }] })
-			.mockResolvedValueOnce({
+		queueResults(
+			{ rows: [{ id: BUCKET_ID }] },
+			{ rows: [{ id: SURVEY_ID }] },
+			{
 				rows: [
 					{
 						location_key: 'public:loc-1',
@@ -144,7 +165,8 @@ describe('GET /api/universe/metrics/results', () => {
 						responded_by: 'alice'
 					}
 				]
-			});
+			}
+		);
 
 		const response = await GET({
 			locals: authorizedLocals,
@@ -163,10 +185,10 @@ describe('GET /api/universe/metrics/results', () => {
 	});
 
 	it('skips rows with no coordinates', async () => {
-		mockClient.query
-			.mockResolvedValueOnce({ rows: [{ id: BUCKET_ID }] })
-			.mockResolvedValueOnce({ rows: [{ id: SURVEY_ID }] })
-			.mockResolvedValueOnce({
+		queueResults(
+			{ rows: [{ id: BUCKET_ID }] },
+			{ rows: [{ id: SURVEY_ID }] },
+			{
 				rows: [
 					{
 						location_key: 'public:loc-2',
@@ -185,7 +207,8 @@ describe('GET /api/universe/metrics/results', () => {
 						responded_by: 'alice'
 					}
 				]
-			});
+			}
+		);
 
 		const response = await GET({
 			locals: authorizedLocals,

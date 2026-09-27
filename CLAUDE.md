@@ -6,6 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Do not use emojis anywhere in documentation, markdown files, or code comments.
 
+## Commits and Pull Requests
+
+Every commit message and PR title starts with `TB-<ticket number>: ` (TB = TurfBuilder, the number is the GitHub issue), followed by one sentence:
+
+```
+TB-194: Fix CI and run tests on pull requests before merging
+```
+
+- Open an issue first if there isn't one. Branches are named `<number>-<slug>`, e.g. `194-fix-ci-tests-on-prs`
+- No other prefixes (`feat:`, `fix:`, ...)
+- Enforced locally by `.githooks/commit-msg` (`npm install` sets `core.hooksPath` to `.githooks`) and on pull requests by the required "Commit Format" check (`.github/workflows/commit-format.yml`). Merge commits are exempt
+
 ## Commands
 
 ```bash
@@ -16,7 +28,8 @@ npm run preview          # Preview production build
 
 # Testing
 npm run test             # All tests (unit + e2e)
-npm run test:unit        # Vitest (unit + component tests)
+npm run test:unit        # Vitest (unit + component tests, incl. test:unit:mocks)
+npm run test:unit:mocks  # Component specs that use vi.mock(), one process each
 npm run test:watch       # Vitest interactive watch mode
 npm run test:ui          # Vitest browser UI
 npm run test:e2e         # Playwright e2e tests
@@ -44,6 +57,9 @@ npm run storybook        # Storybook dev server
 - **UI primitives:** Bits UI + Phosphor Svelte icons
 - **Tables:** @tanstack/table-core
 - **Validation:** Zod + zod-empty
+- **Toasts:** svelte-sonner, through the `Toaster` component in the root layout
+- **Object storage:** DigitalOcean Spaces (S3 API) via `@aws-sdk/client-s3`, for location photos and generated PDFs
+- **PDF generation:** Puppeteer (headless Chromium) + Handlebars templates; MapLibre renders static maps in the same browser
 - **Observability:** OpenTelemetry → Jaeger
 
 ## Environment Variables
@@ -54,6 +70,13 @@ Required in `.env`:
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string. Default points to the Docker Compose container. |
 | `BETTER_AUTH_SECRET` | Secret key for encrypting session cookies and sensitive auth data. Changing it invalidates all active sessions. Generate a new value for any non-local environment. |
+
+Optional:
+
+| Variable | Description |
+|----------|-------------|
+| `SPACES_ACCESS_KEY_ID` / `SPACES_SECRET_ACCESS_KEY` | Object storage credentials. Endpoint, region, and bucket are system settings (`spaces.*`), never env vars. Without them, photo uploads and PDF generation report that storage is not set up. |
+| `PUPPETEER_EXECUTABLE_PATH` | Chromium binary for Puppeteer. The Docker images set it to Alpine's `/usr/bin/chromium-browser` (Puppeteer's bundled Chrome is glibc-only); outside Docker, leave it unset and Puppeteer uses its own download. |
 
 ## Architecture Overview
 
@@ -75,6 +98,15 @@ This is a multi-tenant canvassing platform. All data is scoped to an `organizati
 
 - `auth.*` — managed by better-auth: `user`, `session`, `account`, `organization`, `member`, `invitation`
 - `public.*` — app tables: `turf`, `survey`, `response`, `location`, `plugin_installation`, `permission_role`, `permission_role_entry`
+- `universe.*` — entities, locations, buckets, lists, turfs, and `list_document` (generated list PDFs). Universe tables name the org column `org_id`, not `organization_id`
+
+### Entity versioning
+
+Universe entities (locations, people, organizations) are versioned: every update closes the current version (`valid_to = now()`) and inserts a new row. Never edit a version row in place.
+
+Lists snapshot the entity versions that exist when they are created (`list_entry.record_id`), and turfs are cut from lists with those same versions (`turf_location.*_location_id`). After creation, nothing about a list or its turfs changes when an entity is edited, re-imported, or deleted. List- and turf-scoped queries must read the referenced version, never swap in the current one or filter on `valid_to`. Current-version reads (`valid_to IS NULL`) belong to entity pages, the data browser, and building new lists.
+
+Known violations to fix: `repointToVersion()` in `src/lib/server/locations.ts` and the `valid_to` filters in turf and canvasser-map queries (#188).
 
 ### RBAC model
 
@@ -139,6 +171,18 @@ Route files may define async event handlers (e.g. fetch calls + `invalidateAll()
 
 Use `+page@.svelte` to break out of a parent layout (e.g. full-screen map pages that should not render the staff sidebar).
 
+### Toasts
+
+Show transient messages (errors, confirmations) with `toast` from `svelte-sonner`; the `Toaster` in `src/routes/+layout.svelte` displays them, so pages never mount their own.
+
+```ts
+import { toast } from 'svelte-sonner';
+toast.error('The PDF could not be generated.');
+```
+
+- Messages must be safe to show a user: never pass a raw exception or server error through. Write the message, or use one the server wrote for users (such as a list document's `error`)
+- In component tests the root layout is absent: `render(Toaster)` alongside the component and assert with `page.getByText(...)` (toasts use `aria-live`, not `role="alert"`); call `toast.dismiss()` in `afterEach`
+
 ---
 
 ## Route Architecture
@@ -148,6 +192,7 @@ Use `+page@.svelte` to break out of a parent layout (e.g. full-screen map pages 
 - **Plugin pages (staff):** `/o/[org_slug]/s/plugins/[plugin_slug]/[...path]`
 - **Plugin pages (volunteer):** `/o/[org_slug]/plugins/[plugin_slug]/[...path]`
 - **Internal API:** `/o/[org_slug]/s/api/` — JSON endpoints consumed by fetch in route files
+- **Versioned API:** `/api/v1/organizations/[org_id]/...` — addressed by org id, outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`). Currently: list documents
 - **Global utilities:** `/join` (turf code entry), `/orgs` (org picker), `/orgs/create`, `/invite/[token]`
 - **Infrastructure:** `/infra/` — system dashboard, users, settings, migrations (requires infra permissions)
 - `/auth/**` — managed by better-auth; do not modify
@@ -220,6 +265,7 @@ if (!can(locals.organization, 'survey', 'create')) throw error(403, 'Forbidden')
 - Owners (`org.role.is_owner === true`) bypass all permission checks
 - Staff guard (any role = staff access): check `locals.organization?.role` exists
 - Permission keys use dot notation: `resource.action`
+- Outside `/o/[org_slug]` (the `/api/v1/organizations/[org_id]` routes) `locals.organization` is not set, so `can()` has nothing to read. Use `canOrg(client, userId, orgId, key)` from `$lib/server/permissions` inside `withOrgTransaction`, as `requireListAccess()` does
 
 ### Organization permission keys
 
@@ -264,13 +310,28 @@ Runtime configuration is stored in the `system_setting` table and managed at `/i
 |-----|-------------|
 | `base_url` | Public URL of the instance. Used for auth callbacks. |
 | `application_name` | Display name shown in the UI and page title. |
-| `logo_src` | Path to the logo image. |
 | `html.header_content` | Raw HTML injected into `<head>` on every page (e.g. analytics scripts). |
+| `spaces.endpoint` | Object storage endpoint, e.g. `https://nyc3.digitaloceanspaces.com`. |
+| `spaces.region` | Object storage region, e.g. `nyc3`. Empty means `us-east-1`. |
+| `spaces.bucket` | Bucket for location photos and generated PDFs. |
 
 **Important:** `base_url` is read at auth instance startup. After saving a new value, restart the pods for it to take effect:
 ```bash
 kubectl rollout restart deployment/turfbuilder-production -n turfbuilder
 ```
+
+---
+
+## List Documents (PDFs)
+
+Staff generate a printable PDF of a location list (master list, turf checkout sheet, one page per turf with numbered maps) from the list page. Full guide: `docs/guides/list-documents.md`; API: `docs/api/documents.md`.
+
+- **Flow:** `POST /api/v1/organizations/[org_id]/lists/[list_id]/documents` inserts a `pending` row in `universe.list_document`, soft-deletes the list's earlier documents (`deleted_at`, `superseded_by`), and starts `generateListDocument()` in the background (not awaited). The client (`$lib/client/list-document.ts`) polls `GET .../documents/[id]` and follows the presigned download link. `DELETE .../documents/[id]` soft-deletes.
+- **Rendering:** `list-document.service.ts` loads data (every query filtered by `org_id`), draws all maps with one `openMapRenderer()` browser, fills the Handlebars template, prints with `generatePDF()`, uploads with `uploadObject()`. At most two Chromes per document.
+- **Failure:** generation fails after `GENERATION_TIMEOUT_MS` (90s, under the client's 2 minute wait). On failure the documents it superseded are restored. Only `ListDocumentError` messages (and a storage-not-configured message) are stored in `error` and shown; everything else becomes a generic message and the real error is logged.
+- **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.
+- **Storage key:** `orgs/{org_id}/lists/{list_id}/documents/{document_id}.pdf` (from `listDocumentKey()`). Files are never hard-deleted by the app (retention: #174).
+- **Chromium:** Docker images install Alpine `chromium` + `mesa-egl` + fonts. Containers run as root, so Chrome runs with `--no-sandbox` (moving to a worker: #181). Map tiles come from `tiles.openfreemap.org` at render time.
 
 ---
 
@@ -344,6 +405,21 @@ test('renders label', async () => {
 - For context testing use `{ props, context }` form of `render()`
 - `expect.requireAssertions: true` is enforced globally — every test must call `expect()`
 - Test utilities and fixture components live in `src/stories/components/__tests__/`
+- A component spec that calls `vi.mock()` must be added to `mockingSpecs` in `vite.config.ts`. Those specs run in the `client-mocks` project, one Vitest process per file (`scripts/test-mocking-specs.mjs`): browser-mode mocks are shared Playwright routes, and two files mocking the same module in one run crash it ("Route is already handled!")
+- Mock constructors (anything called with `new`) with `vi.fn(function () { ... })`, never an arrow function
+- Failure screenshots are off (`screenshotFailures: false`); don't turn them back on, they fill the disk
+- Absent elements: use `.not.toBeInTheDocument()`; `.not.toBeVisible()` fails when the element doesn't exist
+
+### E2E tests
+
+- `npm run test:e2e` rebuilds the stack from `docker-compose.test.yml` from scratch (Postgres, the dev frontend, NATS, and an `adobe/s3mock` stand-in for Spaces), so stop the dev stack first: both use ports 5173 and 5432
+- Projects in `playwright.config.ts`: `setup` runs first; `schema`, `auth`, and `list-documents` depend on it
+- `e2e/helpers.ts`: `gotoHydrated()` waits for `document.body.dataset.hydrated`; `signInAsAdmin()` signs in as the account setup creates (`test@example.com` / `Password123`)
+- Staff pages require a verified email and tests cannot receive mail, so specs that visit `/o/[slug]/s/...` set `email_verified = true` for the user in the database first
+- Tests talk to the database directly (`E2E_DATABASE_URL` in `.env.test`) to seed data and check results
+- The schema spec fails any org-scoped table (`organization_id` or `org_id`) without forced row-level security and a policy, unless it is in the reviewed `RLS_EXEMPT` list
+- `auth.spec.ts` › "signing in again is bypassed once a session exists" is parked with `test.fixme` until #179 decides the behavior
+- CI (`.github/workflows/test.yml`) runs type check, server tests, component tests, and e2e on every pull request into `staging` or `main`, before the merge
 
 ---
 

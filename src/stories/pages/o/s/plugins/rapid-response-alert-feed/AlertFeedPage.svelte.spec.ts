@@ -58,9 +58,10 @@ describe('AlertFeedPage', () => {
 
 	it('renders category badges', async () => {
 		render(AlertFeedPage, { alerts: sampleAlerts });
-		await expect.element(page.getByText('Urgent')).toBeVisible();
-		await expect.element(page.getByText('Update')).toBeVisible();
-		await expect.element(page.getByText('Info')).toBeVisible();
+		// Exact: the badge words also appear inside alert text.
+		await expect.element(page.getByText('Urgent', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('Update', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('Info', { exact: true })).toBeVisible();
 	});
 
 	it('shows empty state when no alerts', async () => {
