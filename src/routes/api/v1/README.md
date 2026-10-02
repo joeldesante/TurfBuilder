@@ -10,3 +10,7 @@
 - GET /api/vi/buckets/[bucket_id]
 - PATCH /api/vi/buckets/[bucket_id]
 - PUT /api/vi/buckets/[bucket_id]
+
+### Endpoints use services!
+
+Every endpoint in the API should use a service to manage its resources. There should never be raw SQL directly on an endpoint.

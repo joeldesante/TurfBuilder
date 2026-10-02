@@ -101,3 +101,38 @@ export async function requireListAccess(
 
 	return list.rows[0];
 }
+
+/** The org a bucket belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireBucketOrg(userId: string, bucketId: string): Promise<string> {
+	const found = await findInMemberOrgs(userId, async (client, orgId) => {
+		const result = await client.query(
+			`SELECT 1 FROM universe.bucket WHERE id = $1 AND org_id = $2`,
+			[bucketId, orgId]
+		);
+		return result.rowCount ? true : undefined;
+	});
+	if (!found) throw error(404, 'Bucket not found');
+
+	return found.orgId;
+}
+
+/**
+ * Throws 404 unless the user is a member of the org, so another org's id looks
+ * the same as one that does not exist, then 403 without the permission.
+ */
+export async function requireOrgPermission(
+	userId: string,
+	orgId: string,
+	permission: string
+): Promise<void> {
+	const member = await POOL.query(
+		`SELECT 1 FROM auth.member WHERE user_id = $1 AND organization_id = $2`,
+		[userId, orgId]
+	);
+	if (member.rowCount === 0) throw error(404, 'Organization not found');
+
+	const allowed = await withOrgTransaction(orgId, (client) =>
+		canOrg(client, userId, orgId, permission)
+	);
+	if (!allowed) throw error(403, 'Forbidden');
+}

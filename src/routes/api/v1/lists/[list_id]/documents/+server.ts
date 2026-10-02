@@ -1,10 +1,8 @@
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
-import { withOrgTransaction } from '$lib/server/database';
-import { parseId, requireListAccess, requireListOrg, requireUser } from '$lib/server/list-access';
-import { listDocumentKey } from '$lib/server/storage';
-import { generateListDocument } from '$lib/server/services/list-document.service';
+import { parseId, requireUser } from '$lib/server/list-access';
+import { createDocument, listDocuments } from '$lib/server/services/documents.service';
 
 /**
  * The caller's IANA timezone, used to print times on the document. Temporary:
@@ -37,21 +35,7 @@ const postSchema = z.object({
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const userId = requireUser(locals);
 	const listId = parseId(params.list_id, 'list');
-	const orgId = await requireListOrg(userId, listId);
-
-	const documents = await withOrgTransaction(orgId, async (client) => {
-		await requireListAccess(client, userId, orgId, listId);
-
-		const result = await client.query(
-			`SELECT id, list_id, status, error, created_at, completed_at
-			 FROM universe.list_document
-			 WHERE list_id = $1 AND org_id = $2 AND deleted_at IS NULL
-			 ORDER BY created_at DESC
-			 LIMIT 20`,
-			[listId, orgId]
-		);
-		return result.rows;
-	});
+	const documents = await listDocuments(userId, listId);
 
 	return json(documents);
 };
@@ -77,48 +61,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	// The body is optional, so an empty one is fine.
 	const body = postSchema.safeParse(await request.json().catch(() => ({})));
 	if (!body.success) throw error(400, body.error.issues[0].message);
-	const orgId = await requireListOrg(userId, listId);
-
-	const document = await withOrgTransaction(orgId, async (client) => {
-		await requireListAccess(client, userId, orgId, listId);
-
-		// The key is reserved up front so the row always says where the file
-		// will land, even while it is still being generated.
-		const id = crypto.randomUUID();
-		const result = await client.query<{
-			id: string;
-			list_id: string;
-			storage_key: string;
-			status: string;
-			created_at: string;
-		}>(
-			`INSERT INTO universe.list_document (id, org_id, list_id, storage_key, requested_by)
-			 VALUES ($1, $2, $3, $4, $5)
-			 RETURNING id, list_id, storage_key, status, created_at`,
-			[id, orgId, listId, listDocumentKey(orgId, listId, id), userId]
-		);
-
-		// Same transaction as the insert, so a failed insert supersedes nothing.
-		// superseded_by lets a failed generation restore exactly these. Their
-		// files stay in storage.
-		await client.query(
-			`UPDATE universe.list_document
-			 SET deleted_at = now(), superseded_by = $3
-			 WHERE list_id = $1 AND org_id = $2 AND deleted_at IS NULL AND id <> $3`,
-			[listId, orgId, id]
-		);
-
-		return result.rows[0];
-	});
-
-	// Not awaited: generation outlives the request and reports through the row.
-	void generateListDocument({
-		orgId,
-		documentId: document.id,
-		listId,
-		storageKey: document.storage_key,
-		timeZone: body.data.timeZone
-	});
+	const document = await createDocument(userId, listId, body.data);
 
 	return json(
 		{
