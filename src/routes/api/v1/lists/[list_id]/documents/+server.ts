@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { withOrgTransaction } from '$lib/server/database';
-import { parseListRequest, requireListAccess } from '$lib/server/list-access';
+import { parseId, requireListAccess, requireListOrg, requireUser } from '$lib/server/list-access';
 import { listDocumentKey } from '$lib/server/storage';
 import { generateListDocument } from '$lib/server/services/list-document.service';
 
@@ -35,7 +35,9 @@ const postSchema = z.object({
  * @returns `Array<{ id, list_id, status: 'pending' | 'ready' | 'failed', error: string | null, created_at, completed_at }>`, at most 20
  */
 export const GET: RequestHandler = async ({ params, locals }) => {
-	const { userId, orgId, listId } = parseListRequest(params, locals);
+	const userId = requireUser(locals);
+	const listId = parseId(params.list_id, 'list');
+	const orgId = await requireListOrg(userId, listId);
 
 	const documents = await withOrgTransaction(orgId, async (client) => {
 		await requireListAccess(client, userId, orgId, listId);
@@ -69,11 +71,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
  * @returns 202 `{ id, list_id, status: 'pending', created_at }` with a `Location` header pointing at the document. 400 for an unknown timezone
  */
 export const POST: RequestHandler = async ({ params, locals, request }) => {
-	const { userId, orgId, listId } = parseListRequest(params, locals);
+	const userId = requireUser(locals);
+	const listId = parseId(params.list_id, 'list');
 
 	// The body is optional, so an empty one is fine.
 	const body = postSchema.safeParse(await request.json().catch(() => ({})));
 	if (!body.success) throw error(400, body.error.issues[0].message);
+	const orgId = await requireListOrg(userId, listId);
 
 	const document = await withOrgTransaction(orgId, async (client) => {
 		await requireListAccess(client, userId, orgId, listId);
@@ -126,7 +130,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		{
 			status: 202,
 			headers: {
-				Location: `/api/v1/organizations/${orgId}/lists/${listId}/documents/${document.id}`
+				Location: `/api/v1/documents/${document.id}`
 			}
 		}
 	);

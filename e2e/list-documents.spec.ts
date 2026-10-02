@@ -33,7 +33,7 @@ test.afterAll(async () => {
 // These routes live outside /o/[org_slug], so no layout guard protects them;
 // the endpoints must turn signed-out callers away themselves.
 test.describe('signed out', () => {
-	const base = `/api/v1/organizations/${randomUUID()}/lists/${randomUUID()}/documents`;
+	const base = `/api/v1/lists/${randomUUID()}/documents`;
 
 	test('listing documents requires signing in', async ({ request }) => {
 		const res = await request.get(base);
@@ -54,7 +54,7 @@ test.describe('signed out', () => {
 	});
 
 	test('fetching a document requires signing in', async ({ request }) => {
-		const res = await request.get(`${base}/${randomUUID()}`);
+		const res = await request.get(`/api/v1/documents/${randomUUID()}`);
 
 		expect(res.status()).toBe(401);
 	});
@@ -262,7 +262,7 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 		const current = (await documents()).find((d) => d.deleted_at === null)!;
 
 		const res = await page.request.delete(
-			`/api/v1/organizations/${orgId}/lists/${listId}/documents/${current.id}`,
+			`/api/v1/documents/${current.id}`,
 			{ headers: { origin: 'http://localhost:5173' } }
 		);
 		expect(res.status()).toBe(204);

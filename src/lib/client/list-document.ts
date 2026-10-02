@@ -41,8 +41,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
  * requester reads them, until organizations have their own timezone setting
  * (#183).
  */
-function create(base: string): Promise<ListDocument> {
-	return request<ListDocument>(base, {
+function create(listId: string): Promise<ListDocument> {
+	return request<ListDocument>(`/api/v1/lists/${listId}/documents`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone })
@@ -55,21 +55,18 @@ function create(base: string): Promise<ListDocument> {
  * wait for generation, so the caller can say so.
  */
 export async function downloadListDocument(
-	orgId: string,
 	listId: string,
 	onGenerating: () => void
 ): Promise<void> {
-	const base = `/api/v1/organizations/${orgId}/lists/${listId}/documents`;
-
-	const documents = await request<ListDocument[]>(base);
+	const documents = await request<ListDocument[]>(`/api/v1/lists/${listId}/documents`);
 	const existing =
 		documents.find((d) => d.status === 'ready') ??
 		documents.find(
 			(d) => d.status === 'pending' && Date.now() - Date.parse(d.created_at) < STALE_PENDING_MS
 		);
-	const { id } = existing ?? (await create(base));
+	const { id } = existing ?? (await create(listId));
 
-	await waitAndDownload(base, id, onGenerating);
+	await waitAndDownload(id, onGenerating);
 }
 
 /**
@@ -78,24 +75,23 @@ export async function downloadListDocument(
  * restores them if the new one fails.
  */
 export async function regenerateListDocument(
-	orgId: string,
 	listId: string,
 	onGenerating: () => void
 ): Promise<void> {
-	const base = `/api/v1/organizations/${orgId}/lists/${listId}/documents`;
-	const { id } = await create(base);
-	await waitAndDownload(base, id, onGenerating);
+	const { id } = await create(listId);
+	await waitAndDownload(id, onGenerating);
 }
 
-async function waitAndDownload(base: string, id: string, onGenerating: () => void): Promise<void> {
-	let document = await request<ListDocument>(`${base}/${id}`);
+async function waitAndDownload(id: string, onGenerating: () => void): Promise<void> {
+	const url = `/api/v1/documents/${id}`;
+	let document = await request<ListDocument>(url);
 	if (document.status === 'pending') onGenerating();
 
 	const deadline = Date.now() + POLL_TIMEOUT_MS;
 	while (document.status === 'pending') {
 		if (Date.now() > deadline) throw new Error('The PDF is taking too long. Try again shortly.');
 		await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-		document = await request<ListDocument>(`${base}/${id}`);
+		document = await request<ListDocument>(url);
 	}
 
 	if (document.status === 'failed' || !document.download_url) {

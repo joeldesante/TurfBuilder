@@ -16,6 +16,8 @@ const { mockClient, canOrg, generateListDocument } = vi.hoisted(() => ({
 vi.mock('pg', () => ({
 	Pool: vi.fn(function () {
 		return {
+			// POOL.query and the transaction client share one stub.
+			query: mockClient.query,
 			connect: vi.fn().mockResolvedValue(mockClient),
 			on: vi.fn(),
 			end: vi.fn()
@@ -31,7 +33,7 @@ import { GET, POST } from './+server';
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const LIST = 'f1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
-const params = { org_id: ORG, list_id: LIST };
+const params = { list_id: LIST };
 const staff = { user: { id: 'u1' } };
 
 function call(p: Record<string, string>, locals: object, body?: unknown) {
@@ -52,8 +54,11 @@ async function status(p: Record<string, string>, locals: object, body?: unknown)
 }
 
 /** Answers each query by the first matching SQL fragment. */
-function stubQueries(listExists: boolean) {
+function stubQueries(listExists: boolean, memberOrgs: string[] = [ORG]) {
 	mockClient.query.mockImplementation((sql: string, values?: unknown[]) => {
+		if (sql.includes('FROM auth.member')) {
+			return Promise.resolve({ rows: memberOrgs.map((organization_id) => ({ organization_id })) });
+		}
 		if (sql.includes('FROM universe.list WHERE')) {
 			return Promise.resolve({
 				rowCount: listExists ? 1 : 0,
@@ -97,9 +102,7 @@ describe('POST list documents', () => {
 
 		expect(res.status).toBe(202);
 		expect(body).toMatchObject({ list_id: LIST, status: 'pending' });
-		expect(res.headers.get('Location')).toBe(
-			`/api/v1/organizations/${ORG}/lists/${LIST}/documents/${body.id}`
-		);
+		expect(res.headers.get('Location')).toBe(`/api/v1/documents/${body.id}`);
 	});
 
 	it('reserves a storage key under the org and list', async () => {
@@ -181,11 +184,25 @@ describe('POST list documents', () => {
 	});
 
 	it('returns 400 for a malformed list id', async () => {
-		expect(await status({ org_id: ORG, list_id: 'nope' }, staff)).toBe(400);
+		expect(await status({ list_id: 'nope' }, staff)).toBe(400);
 	});
 
-	it('returns 400 for a malformed org id', async () => {
-		expect(await status({ org_id: 'nope', list_id: LIST }, staff)).toBe(400);
+	it("looks for the list only in the caller's orgs", async () => {
+		await call(params, staff);
+
+		const members = mockClient.query.mock.calls.find((c) =>
+			String(c[0]).includes('FROM auth.member')
+		)!;
+		expect(members[1]).toEqual(['u1']);
+	});
+
+	// Another org's list looks the same as one that does not exist.
+	it("returns 404 when the list is in none of the caller's orgs and creates nothing", async () => {
+		stubQueries(true, []);
+
+		expect(await status(params, staff)).toBe(404);
+		expect(generateListDocument).not.toHaveBeenCalled();
+		expect(sqlRun()).not.toContainEqual(expect.stringContaining('INSERT INTO'));
 	});
 
 	it('checks the caller has staff access to the org', async () => {
