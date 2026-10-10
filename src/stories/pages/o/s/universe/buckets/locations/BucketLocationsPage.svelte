@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 
@@ -16,12 +17,28 @@
 		bucketName: string;
 		/** Whether the locations filter is enabled for this bucket. */
 		enabled: boolean;
+		/** One page of the matches, already ordered and sliced by the server. */
 		locations: LocationRow[];
+		/** Every match across all pages. Defaults to the rows given. */
+		totalCount?: number;
+		/** 1-based index of the page in `locations`. */
+		page?: number;
+		pageSize?: number;
 		/** Base path for location detail links, e.g. /o/myorg/s/universe/buckets/my-bucket/locations */
 		basePath?: string;
 	}
 
-	const { bucketName, enabled, locations, basePath = '' }: Props = $props();
+	const {
+		bucketName,
+		enabled,
+		locations,
+		totalCount: totalCountProp,
+		page = 1,
+		pageSize = 100,
+		basePath = ''
+	}: Props = $props();
+
+	const totalCount = $derived(totalCountProp ?? locations.length);
 
 	function formatPrimary(row: LocationRow): string {
 		if (row.name) return row.name;
@@ -48,7 +65,7 @@
 		</p>
 	{:else}
 		<p class="text-sm text-on-surface-subtle my-4">
-			{locations.length} {locations.length === 1 ? 'location' : 'locations'} matched
+			{totalCount.toLocaleString()} {totalCount === 1 ? 'location' : 'locations'} matched
 		</p>
 
 		<div class="border-t border-outline-subtle">
@@ -78,5 +95,7 @@
 				</a>
 			{/each}
 		</div>
+
+		<Pagination {page} {totalCount} {pageSize} noun="locations" />
 	{/if}
 </div>

@@ -116,6 +116,20 @@ export async function requireBucketOrg(userId: string, bucketId: string): Promis
 	return found.orgId;
 }
 
+/** The org a survey belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireSurveyOrg(userId: string, surveyId: string): Promise<string> {
+	const found = await findInMemberOrgs(userId, async (client, orgId) => {
+		const result = await client.query(
+			`SELECT 1 FROM universe.survey WHERE id = $1 AND org_id = $2`,
+			[surveyId, orgId]
+		);
+		return result.rowCount ? true : undefined;
+	});
+	if (!found) throw error(404, 'Survey not found');
+
+	return found.orgId;
+}
+
 /**
  * Throws 404 unless the user is a member of the org, so another org's id looks
  * the same as one that does not exist, then 403 without the permission.

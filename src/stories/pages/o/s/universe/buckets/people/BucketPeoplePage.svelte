@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import UserIcon from 'phosphor-svelte/lib/User';
 
@@ -15,12 +16,28 @@
 		bucketName: string;
 		/** Whether the people filter is enabled for this bucket. */
 		enabled: boolean;
+		/** One page of the matches, already ordered and sliced by the server. */
 		people: PersonRow[];
+		/** Every match across all pages. Defaults to the rows given. */
+		totalCount?: number;
+		/** 1-based index of the page in `people`. */
+		page?: number;
+		pageSize?: number;
 		/** Base path for person detail links, e.g. /o/myorg/s/universe/buckets/my-bucket/people */
 		basePath?: string;
 	}
 
-	const { bucketName, enabled, people, basePath = '' }: Props = $props();
+	const {
+		bucketName,
+		enabled,
+		people,
+		totalCount: totalCountProp,
+		page = 1,
+		pageSize = 100,
+		basePath = ''
+	}: Props = $props();
+
+	const totalCount = $derived(totalCountProp ?? people.length);
 
 	function formatName(row: PersonRow): string {
 		const parts = [row.first_name, row.last_name].filter(Boolean);
@@ -52,7 +69,7 @@
 		</p>
 	{:else}
 		<p class="text-sm text-on-surface-subtle my-4">
-			{people.length} {people.length === 1 ? 'person' : 'people'} matched
+			{totalCount.toLocaleString()} {totalCount === 1 ? 'person' : 'people'} matched
 		</p>
 
 		<div class="border-t border-outline-subtle">
@@ -84,5 +101,7 @@
 				</a>
 			{/each}
 		</div>
+
+		<Pagination {page} {totalCount} {pageSize} noun="people" />
 	{/if}
 </div>

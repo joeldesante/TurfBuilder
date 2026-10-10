@@ -18,6 +18,15 @@ export interface RadiusValue {
 	radius: number;
 }
 
+/** Value of a survey response filter: the question picked through its bucket and survey, and the response sought. */
+export interface SurveyResponseValue {
+	bucketId: string;
+	surveyId: string;
+	questionId: string;
+	/** The choice or text to match; empty until one is chosen. */
+	response: string;
+}
+
 export interface Filter {
 	/** How the selected item is compared against the value. */
 	operation: FilterOperation;

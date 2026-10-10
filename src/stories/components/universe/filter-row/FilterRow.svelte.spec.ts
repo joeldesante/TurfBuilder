@@ -2,6 +2,7 @@ import { render } from 'vitest-browser-svelte';
 import { expect, test, vi } from 'vitest';
 import FilterRow from './FilterRow.svelte';
 import { getFilter } from '$lib/shared/utils/filter-registry';
+import { SURVEY_SOURCE_KEY } from '$components/universe/filter-group/filter-source.svelte';
 import type { Filter } from '$lib/shared/types/filters';
 
 function setup(item: string, filter: Partial<Filter> = {}) {
@@ -26,7 +27,7 @@ test('shows the filter name', async () => {
 });
 
 test('offers only the operations the filter supports', async () => {
-	const { screen } = setup('distance_from_address');
+	const { screen } = setup('age');
 
 	await screen.getByRole('button', { name: 'Operation' }).click();
 
@@ -52,9 +53,9 @@ test('reports typed text', async () => {
 });
 
 test('reports a number as a number and shows its unit', async () => {
-	const { screen, onchange, full } = setup('distance_from_address');
+	const { screen, onchange, full } = setup('age');
 
-	await expect.element(screen.getByText('miles')).toBeVisible();
+	await expect.element(screen.getByText('years')).toBeVisible();
 	await screen.getByRole('spinbutton', { name: 'Value' }).fill('5');
 
 	expect(onchange).toHaveBeenLastCalledWith({ ...full, value: 5 });
@@ -141,4 +142,41 @@ test('only text filters offer case sensitivity', async () => {
 	const { screen } = setup('age');
 
 	await expect.element(screen.getByRole('checkbox', { name: 'Case sensitive' })).not.toBeInTheDocument();
+});
+
+test('shows the survey picker once a source is provided', async () => {
+	const screen = render(FilterRow, {
+		props: {
+			definition: getFilter('survey_question_response')!,
+			filter: { item: 'survey_question_response', operation: 'equals', value: '' },
+			onchange: () => {},
+			onremove: () => {}
+		},
+		context: new Map([
+			[
+				SURVEY_SOURCE_KEY,
+				{
+					listBuckets: async () => [{ id: 'b1', name: 'Voters' }],
+					listSurveys: async () => [],
+					listQuestions: async () => []
+				}
+			]
+		])
+	});
+
+	await expect.element(screen.getByRole('button', { name: 'Bucket' })).toBeVisible();
+});
+
+test('says the survey choices are unavailable without a source', async () => {
+	const { screen } = setup('survey_question_response');
+
+	await expect.element(screen.getByText('Survey choices are unavailable here.')).toBeVisible();
+});
+
+test('offers contains alongside equals for survey responses', async () => {
+	const { screen } = setup('survey_question_response');
+
+	await screen.getByRole('button', { name: 'Operation' }).click();
+
+	await expect.element(screen.getByRole('option', { name: 'contains' })).toBeInTheDocument();
 });

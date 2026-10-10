@@ -39,3 +39,15 @@
 		people: []
 	}}
 />
+
+<Story
+	name="Second Page Of Many"
+	args={{
+		bucketName: 'Registered Voters',
+		enabled: true,
+		people: [{ id: '1', first_name: 'Alice', last_name: 'Johnson', email: 'alice@example.com', phone: '555-0101', dob: '1985-04-12' }],
+		totalCount: 1240,
+		page: 2,
+		pageSize: 100
+	}}
+/>

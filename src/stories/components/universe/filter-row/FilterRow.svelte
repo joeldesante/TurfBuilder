@@ -11,7 +11,9 @@
 	import XIcon from 'phosphor-svelte/lib/X';
 	import PolygonPickerModal from '$components/universe/polygon-picker-modal/PolygonPickerModal.svelte';
 	import RadiusPickerModal from '$components/universe/radius-picker-modal/RadiusPickerModal.svelte';
-	import type { Filter, RadiusValue } from '$lib/shared/types/filters';
+	import SurveyResponsePicker from '$components/universe/survey-response-picker/SurveyResponsePicker.svelte';
+	import { useSurveyFilterSource } from '$components/universe/filter-group/filter-source.svelte';
+	import type { Filter, RadiusValue, SurveyResponseValue } from '$lib/shared/types/filters';
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
 	import { FILTER_OPERATION_LABELS } from '$lib/shared/utils/filters';
 
@@ -41,6 +43,8 @@
 		onchange({ ...filter, value });
 	}
 
+	const surveySource = useSurveyFilterSource();
+
 	let radiusOpen = $state(false);
 	let polygonOpen = $state(false);
 
@@ -53,6 +57,13 @@
 		const v = value as Partial<RadiusValue> | null;
 		return v && typeof v === 'object' && typeof v.latitude === 'number' && typeof v.longitude === 'number' && typeof v.radius === 'number'
 			? (v as RadiusValue)
+			: null;
+	}
+
+	function toSurveyResponse(value: unknown): SurveyResponseValue | null {
+		const v = value as Partial<SurveyResponseValue> | null;
+		return v && typeof v === 'object' && typeof v.bucketId === 'string' && v.bucketId
+			? { bucketId: v.bucketId, surveyId: v.surveyId ?? '', questionId: v.questionId ?? '', response: v.response ?? '' }
 			: null;
 	}
 
@@ -167,6 +178,16 @@
 				polygonOpen = false;
 			}}
 		/>
+	{:else if definition.valueType === 'survey_response'}
+		{#if surveySource}
+			<SurveyResponsePicker
+				source={surveySource}
+				value={toSurveyResponse(filter.value)}
+				onchange={(next) => setValue(next)}
+			/>
+		{:else}
+			<span class="text-sm text-on-surface-subtle">Survey choices are unavailable here.</span>
+		{/if}
 	{/if}
 
 	{#if definition.unit && definition.valueType !== 'radius'}

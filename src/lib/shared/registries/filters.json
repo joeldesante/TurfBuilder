@@ -24,15 +24,6 @@
 		"operations": ["equals", "not_equals", "starts_with"]
 	},
 	{
-		"id": "distance_from_address",
-		"name": "Distance From Address",
-		"description": "Within or beyond a distance of an address.",
-		"category": "geographical",
-		"valueType": "number",
-		"operations": ["less_than", "greater_than"],
-		"unit": "miles"
-	},
-	{
 		"id": "radius_from_point",
 		"name": "Radius From Point",
 		"description": "Include or exclude entities within a distance of a point you choose on the map.",
@@ -48,6 +39,14 @@
 		"category": "geographical",
 		"valueType": "polygon",
 		"operations": ["within", "not_within"]
+	},
+	{
+		"id": "survey_question_response",
+		"name": "Survey Response",
+		"description": "How people answered a question on a survey from any bucket.",
+		"category": "survey",
+		"valueType": "survey_response",
+		"operations": ["equals", "not_equals", "contains"]
 	},
 	{
 		"id": "door_open_response",
