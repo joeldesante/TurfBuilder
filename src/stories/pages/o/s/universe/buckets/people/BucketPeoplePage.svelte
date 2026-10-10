@@ -73,6 +73,7 @@
 		</p>
 
 		<div class="border-t border-outline-subtle">
+			<Pagination {page} {totalCount} {pageSize} noun="people" />
 			<div class="flex items-center gap-4 px-4 py-2">
 				<div class="w-8 shrink-0"></div>
 				<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Name</span>

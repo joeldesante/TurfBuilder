@@ -2,6 +2,7 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		/** 1-based number of the page being shown. */
@@ -11,9 +12,11 @@
 		pageSize: number;
 		/** What the rows are, plural, for the summary: "Showing 1-100 of 250 locations." */
 		noun?: string;
+		/** Extra text after the summary, such as a pointer to search. */
+		children?: Snippet;
 	}
 
-	const { page, totalCount, pageSize, noun = 'records' }: Props = $props();
+	const { page, totalCount, pageSize, noun = 'records', children }: Props = $props();
 
 	const totalPages = $derived(Math.max(1, Math.ceil(totalCount / pageSize)));
 	const firstShown = $derived(totalCount === 0 ? 0 : (page - 1) * pageSize + 1);
@@ -44,8 +47,8 @@
 		aria-label="Pagination"
 	>
 		<p class="text-xs text-on-surface-subtle">
-			Showing {firstShown.toLocaleString()}–{lastShown.toLocaleString()} of {totalCount.toLocaleString()}
-			{noun}.
+			{`Showing ${firstShown.toLocaleString()}–${lastShown.toLocaleString()} of ${totalCount.toLocaleString()} ${noun}.`}
+			{@render children?.()}
 		</p>
 
 		{#if totalPages > 1}

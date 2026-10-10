@@ -294,8 +294,8 @@ test('offers page controls when the records do not fit on one page', async () =>
 		props: { ...base, totalCount: 6, page: 1, pageSize: 2 }
 	});
 
-	await expect.element(getByRole('link', { name: 'Page 2' })).toHaveAttribute('href', '?page=2');
-	await expect.element(getByRole('link', { name: 'Next page' })).toHaveAttribute('href', '?page=2');
+	await expect.element(getByRole('link', { name: 'Page 2' }).first()).toHaveAttribute('href', '?page=2');
+	await expect.element(getByRole('link', { name: 'Next page' }).first()).toHaveAttribute('href', '?page=2');
 });
 
 test('offers no page controls when everything fits on one page', async () => {
@@ -303,7 +303,7 @@ test('offers no page controls when everything fits on one page', async () => {
 		props: { ...base, totalCount: 2, pageSize: 100 }
 	});
 
-	await expect.element(getByRole('link', { name: 'Next page' })).not.toBeInTheDocument();
+	await expect.element(getByRole('link', { name: 'Next page' }).first()).not.toBeInTheDocument();
 });
 
 test('marks the current page and disables the edges it sits on', async () => {
@@ -312,9 +312,9 @@ test('marks the current page and disables the edges it sits on', async () => {
 	});
 
 	await expect
-		.element(getByRole('link', { name: 'Page 1' }))
+		.element(getByRole('link', { name: 'Page 1' }).first())
 		.toHaveAttribute('aria-current', 'page');
-	await expect.element(getByRole('button', { name: 'Previous page' })).toBeDisabled();
+	await expect.element(getByRole('button', { name: 'Previous page' }).first()).toBeDisabled();
 });
 
 test('links back a page from the last one', async () => {
@@ -323,9 +323,9 @@ test('links back a page from the last one', async () => {
 	});
 
 	await expect
-		.element(getByRole('link', { name: 'Previous page' }))
+		.element(getByRole('link', { name: 'Previous page' }).first())
 		.toHaveAttribute('href', '?page=2');
-	await expect.element(getByRole('button', { name: 'Next page' })).toBeDisabled();
+	await expect.element(getByRole('button', { name: 'Next page' }).first()).toBeDisabled();
 });
 
 /** Switches to the map view and fires the map's load event. */

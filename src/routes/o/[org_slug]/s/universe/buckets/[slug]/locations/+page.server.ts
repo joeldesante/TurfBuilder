@@ -1,5 +1,6 @@
 import { withOrgTransaction } from '$lib/server/database';
-import { BUCKET_PAGE_SIZE, fetchBucketEntityPage } from '$lib/server/bucket-query';
+import { BUCKET_LOCATION_ORDER, fetchBucketEntityPage } from '$lib/server/bucket-query';
+import { PAGE_SIZE, requestedPage } from '$lib/server/pagination';
 
 export interface LocationRow {
 	id: string;
@@ -15,16 +16,16 @@ export async function load({ parent, locals, url }) {
 	const { bucket } = await parent();
 
 	if (!bucket.filter.locations.enabled || !bucket.filter.locations.query) {
-		return { locations: [] as LocationRow[], enabled: false, totalCount: 0, page: 1, pageSize: BUCKET_PAGE_SIZE };
+		return { locations: [] as LocationRow[], enabled: false, totalCount: 0, page: 1, pageSize: PAGE_SIZE };
 	}
 
 	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await fetchBucketEntityPage(client, bucket.filter.locations.query!, {
-			requestedPage: Number(url.searchParams.get('page')),
-			orderBy: 'name NULLS LAST, address_line_1 NULLS LAST, id'
+			requestedPage: requestedPage(url),
+			orderBy: BUCKET_LOCATION_ORDER
 		});
 		return {
-			locations: result.rows as unknown as LocationRow[],
+			locations: result.items as unknown as LocationRow[],
 			enabled: true,
 			totalCount: result.totalCount,
 			page: result.page,

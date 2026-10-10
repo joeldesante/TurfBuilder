@@ -49,7 +49,7 @@ const run = (requestedPage: number, extra = {}) =>
 
 describe('fetchBucketEntityPage', () => {
 	it('returns the rows with the total, page, and page size', async () => {
-		expect(await run(2)).toEqual({ rows, totalCount: 250, page: 2, pageSize: 100 });
+		expect(await run(2)).toEqual({ items: rows, totalCount: 250, page: 2, pageSize: 100 });
 	});
 
 	it('counts the whole query and reuses its parameters', async () => {

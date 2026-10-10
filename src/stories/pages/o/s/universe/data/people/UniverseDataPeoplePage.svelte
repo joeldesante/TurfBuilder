@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import UserIcon from 'phosphor-svelte/lib/User';
 
@@ -13,11 +14,16 @@
 
 	interface Props {
 		orgSlug: string;
+		/** Every person across all pages. */
 		totalCount: number;
+		/** One page of people, already ordered and sliced by the server. */
 		people: PersonRow[];
+		/** 1-based index of the page in `people`. */
+		page?: number;
+		pageSize?: number;
 	}
 
-	const { orgSlug, totalCount, people }: Props = $props();
+	const { orgSlug, totalCount, people, page = 1, pageSize = 100 }: Props = $props();
 
 	function formatName(row: PersonRow): string {
 		const parts = [row.first_name, row.last_name].filter(Boolean);
@@ -42,6 +48,7 @@
 />
 
 <div class="border-t border-outline-subtle">
+	<Pagination {page} {totalCount} {pageSize} noun="records" />
 	<div class="flex items-center gap-4 px-4 py-2">
 		<div class="w-8 shrink-0"></div>
 		<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Name</span>
@@ -72,10 +79,5 @@
 		<p class="px-4 py-8 text-sm text-on-surface-subtle text-center">No people records found.</p>
 	{/each}
 
-	{#if people.length < totalCount}
-		<p class="px-4 py-3 text-xs text-on-surface-subtle text-center">
-			Showing {people.length.toLocaleString()} of {totalCount.toLocaleString()} records.
-			Use <a href="/o/{orgSlug}/s/universe/search" class="underline hover:text-on-surface">Quick Search</a> to filter.
-		</p>
-	{/if}
+	<Pagination {page} {totalCount} {pageSize} noun="records" />
 </div>

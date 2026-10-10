@@ -3,7 +3,7 @@
 	import LocationsMap from './LocationsMap.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/DataDisplay/LocationsMap',
+		title: 'Components/Data Display/LocationsMap',
 		component: LocationsMap,
 		tags: ['autodocs']
 	});

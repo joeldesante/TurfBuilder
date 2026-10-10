@@ -3,7 +3,7 @@
 	import LocationForm from './LocationForm.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/DataInputs/LocationForm',
+		title: 'Components/Data Inputs/LocationForm',
 		component: LocationForm,
 		args: {
 			coordinates: { latitude: 39.9526, longitude: -75.1652 },

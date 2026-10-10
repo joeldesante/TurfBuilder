@@ -32,7 +32,9 @@ import {
 	createBucket,
 	getBucket,
 	replaceBucket,
-	updateBucket
+	updateBucket,
+	listBucketLocations,
+	listBucketPeople
 } from './buckets.service';
 
 const input = { name: 'Voters', slug: 'voters', filter: { type: 'person' } };
@@ -169,5 +171,77 @@ describe('replaceBucket and updateBucket', () => {
 			status: 403
 		});
 		expect(sqlRun('UPDATE universe.bucket')).toBeUndefined();
+	});
+});
+
+describe('listBucketLocations and listBucketPeople', () => {
+	const query = { select: ['vl.id'], from: 'universe.v_locations vl' };
+	const filter = {
+		v: 1,
+		locations: { enabled: true, query },
+		people: { enabled: false, query: null }
+	};
+
+	function stubFilter(total: number) {
+		stub((sql) => {
+			if (sql.includes('SELECT filter FROM universe.bucket')) return { rowCount: 1, rows: [{ filter }] };
+			if (sql.includes('COUNT(*)')) return { rows: [{ count: String(total) }] };
+			return { rowCount: 1, rows: [{ id: 'l1' }] };
+		});
+	}
+
+	it("returns a page of the bucket's matches with the total", async () => {
+		stubFilter(250);
+
+		expect(await listBucketLocations('u1', BUCKET, 2)).toEqual({
+			items: [{ id: 'l1' }],
+			totalCount: 250,
+			page: 2,
+			pageSize: 100
+		});
+	});
+
+	it("reads the bucket's filter within its org", async () => {
+		stubFilter(1);
+
+		await listBucketLocations('u1', BUCKET, 1);
+
+		expect(sqlRun('SELECT filter FROM universe.bucket')![1]).toEqual([BUCKET, ORG]);
+	});
+
+	it('orders locations by name with an id tiebreak', async () => {
+		stubFilter(1);
+
+		await listBucketLocations('u1', BUCKET, 1);
+
+		expect(sqlRun('LIMIT $1 OFFSET $2')![0]).toContain(
+			'ORDER BY name NULLS LAST, address_line_1 NULLS LAST, id'
+		);
+	});
+
+	it('returns an empty page when the bucket does not include that entity', async () => {
+		stubFilter(1);
+
+		expect(await listBucketPeople('u1', BUCKET, 4)).toEqual({
+			items: [],
+			totalCount: 0,
+			page: 1,
+			pageSize: 100
+		});
+		expect(sqlRun('COUNT(*)')).toBeUndefined();
+	});
+
+	it('answers 403 without staff access', async () => {
+		stubFilter(1);
+		canOrg.mockResolvedValue(false);
+
+		await expect(listBucketLocations('u1', BUCKET, 1)).rejects.toMatchObject({ status: 403 });
+		expect(sqlRun('SELECT filter FROM universe.bucket')).toBeUndefined();
+	});
+
+	it("answers 404 when the bucket is in none of the caller's orgs", async () => {
+		stub(undefined, false);
+
+		await expect(listBucketLocations('u1', BUCKET, 1)).rejects.toMatchObject({ status: 404 });
 	});
 });

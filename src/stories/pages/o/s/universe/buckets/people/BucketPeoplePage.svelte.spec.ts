@@ -49,12 +49,12 @@ test('shows the total across pages, not just the rows on this one', async () => 
 		props: { bucketName: 'Registered Voters', enabled: true, people: samplePeople, totalCount: 5400, page: 2, pageSize: 2 }
 	});
 	await expect.element(getByText('5,400 people matched')).toBeVisible();
-	await expect.element(getByText('Showing 3–4 of 5,400 people.')).toBeVisible();
+	await expect.element(getByText('Showing 3–4 of 5,400 people.').first()).toBeVisible();
 });
 
 test('links to the next page', async () => {
 	const { getByRole } = render(BucketPeoplePage, {
 		props: { bucketName: 'Registered Voters', enabled: true, people: samplePeople, totalCount: 5400, page: 2, pageSize: 2 }
 	});
-	await expect.element(getByRole('link', { name: 'Next page' })).toHaveAttribute('href', '?page=3');
+	await expect.element(getByRole('link', { name: 'Next page' }).first()).toHaveAttribute('href', '?page=3');
 });

@@ -1,5 +1,6 @@
 import { render } from 'vitest-browser-svelte';
 import { expect, test } from 'vitest';
+import { createRawSnippet } from 'svelte';
 import Pagination from './Pagination.svelte';
 
 const base = { page: 1, totalCount: 250, pageSize: 100, noun: 'locations' };
@@ -67,4 +68,11 @@ test('windows a long list around the current page and keeps both ends', async ()
 		await expect.element(getByRole('link', { name: `Page ${n}`, exact: true })).toBeVisible();
 	}
 	await expect.element(getByRole('link', { name: 'Page 5', exact: true })).not.toBeInTheDocument();
+});
+
+test('renders extra text after the summary', async () => {
+	const children = createRawSnippet(() => ({ render: () => '<span>Use search to filter.</span>' }));
+	const { getByText } = render(Pagination, { props: { ...base, children } });
+
+	await expect.element(getByText('Use search to filter.')).toBeVisible();
 });

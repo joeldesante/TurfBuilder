@@ -1,9 +1,8 @@
 import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
 import { can } from '$lib/auth-helpers';
-import { LOCATION_ROW_COLUMNS } from '$lib/server/locations';
-
-const PAGE_SIZE = 100;
+import { requestedPage } from '$lib/server/pagination';
+import { queryOrgLocationsPage } from '$lib/server/services/locations.service';
 
 export async function load({ locals, url }) {
 	if (!can(locals.organization, 'location', 'read')) {
@@ -11,18 +10,12 @@ export async function load({ locals, url }) {
 	}
 
 	const orgId = locals.organization!.id;
-	const requestedPage = Number(url.searchParams.get('page'));
 
 	return withOrgTransaction(orgId, async (client) => {
 		// valid_to IS NULL keeps superseded versions and soft-deleted locations
-		// out of the count, the list, and the map's opening viewport.
-		const [countResult, extentResult] = await Promise.all([
-			client.query<{ count: string }>(
-				`SELECT COUNT(*)::text AS count
-				   FROM universe.org_location
-				  WHERE org_id = $1 AND valid_to IS NULL`,
-				[orgId]
-			),
+		// out of the map's opening viewport, as it does for the page.
+		const [result, extentResult] = await Promise.all([
+			queryOrgLocationsPage(client, orgId, requestedPage(url)),
 			client.query<{
 				west: number | null;
 				south: number | null;
@@ -40,32 +33,13 @@ export async function load({ locals, url }) {
 			)
 		]);
 
-		const totalCount = parseInt(countResult.rows[0].count, 10);
-		const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-
-		// Clamped rather than 404'd: a stale ?page= from a bookmark or a deletion
-		// that shortened the list should land on real rows, not an error.
-		const page = Number.isFinite(requestedPage)
-			? Math.min(Math.max(Math.trunc(requestedPage), 1), totalPages)
-			: 1;
-
-		const rowsResult = await client.query(
-			`SELECT ${LOCATION_ROW_COLUMNS}
-			   FROM universe.org_location ol
-			   LEFT JOIN universe.location_suggestion ls ON ls.entity_id = ol.entity_id
-			  WHERE ol.org_id = $1 AND ol.valid_to IS NULL
-			  ORDER BY ol.name NULLS LAST, ol.address_line_1 NULLS LAST, ol.id
-			  LIMIT $2 OFFSET $3`,
-			[orgId, PAGE_SIZE, (page - 1) * PAGE_SIZE]
-		);
-
 		const extent = extentResult.rows[0];
 
 		return {
-			totalCount,
-			page,
-			pageSize: PAGE_SIZE,
-			locations: rowsResult.rows,
+			totalCount: result.totalCount,
+			page: result.page,
+			pageSize: result.pageSize,
+			locations: result.items,
 			// Null when the org has no located records, which leaves the map on its
 			// own default view rather than fitting to nothing.
 			initialBounds:

@@ -23,6 +23,9 @@
 	{listHref}
 	list={data.list}
 	entries={data.entries as unknown as PersonEntry[] | LocationEntry[]}
+	entryCount={data.entryCount}
+	page={data.page}
+	pageSize={data.pageSize}
 	turfs={data.turfs as TurfEntry[]}
 	{selectedTab}
 	hasPdf={data.hasPdf}

@@ -3,6 +3,14 @@ import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { requireBucketOrg, requireOrgPermission } from '$lib/server/list-access';
 import { canOrg } from '$lib/server/permissions';
+import {
+	BUCKET_LOCATION_ORDER,
+	BUCKET_PEOPLE_ORDER,
+	fetchBucketEntityPage
+} from '$lib/server/bucket-query';
+import { parseBucketFilter } from '$lib/server/filter-converter';
+import { PAGE_SIZE } from '$lib/server/pagination';
+import type { Page } from '$lib/server/pagination';
 
 export interface BucketInput {
 	name: string;
@@ -132,4 +140,47 @@ export async function updateBucket(
 		if (isSlugTaken(e)) throw error(409, 'A bucket with that slug already exists');
 		throw e;
 	}
+}
+
+/**
+ * One page of the entities a bucket's filter matches. An empty page when the
+ * bucket does not include that entity type.
+ */
+async function listBucketEntities(
+	userId: string,
+	bucketId: string,
+	kind: 'locations' | 'people',
+	requested: number
+): Promise<Page<Record<string, unknown>>> {
+	const orgId = await requireBucketOrg(userId, bucketId);
+
+	return withOrgTransaction(orgId, async (client) => {
+		await requireStaff(client, userId, orgId);
+
+		const result = await client.query<{ filter: unknown }>(
+			`SELECT filter FROM universe.bucket WHERE id = $1 AND org_id = $2`,
+			[bucketId, orgId]
+		);
+		if (result.rowCount === 0) throw error(404, 'Bucket not found');
+
+		const entity = parseBucketFilter(result.rows[0].filter)[kind];
+		if (!entity.enabled || !entity.query) {
+			return { items: [], totalCount: 0, page: 1, pageSize: PAGE_SIZE };
+		}
+
+		return fetchBucketEntityPage(client, entity.query, {
+			requestedPage: requested,
+			orderBy: kind === 'locations' ? BUCKET_LOCATION_ORDER : BUCKET_PEOPLE_ORDER
+		});
+	});
+}
+
+/** One page of the locations a bucket matches. 404 when it is in none of the caller's orgs. */
+export function listBucketLocations(userId: string, bucketId: string, requested: number) {
+	return listBucketEntities(userId, bucketId, 'locations', requested);
+}
+
+/** One page of the people a bucket matches. 404 when it is in none of the caller's orgs. */
+export function listBucketPeople(userId: string, bucketId: string, requested: number) {
+	return listBucketEntities(userId, bucketId, 'people', requested);
 }
