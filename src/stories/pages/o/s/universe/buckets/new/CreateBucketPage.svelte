@@ -2,9 +2,9 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
-	import BucketEntityFilterEditor from '$components/universe/bucket-entity-filter-editor/BucketEntityFilterEditor.svelte';
-	import type { FilterDefinition } from '$components/universe/bucket-entity-filter/BucketEntityFilter.svelte';
-	import type { FilterEntry } from '$components/universe/bucket-entity-filter-editor/BucketEntityFilterEditor.svelte';
+	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
+	import type { FilterDefinition } from '$components/universe/entity-filter/EntityFilter.svelte';
+	import type { FilterEntry } from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
 	import type { BucketFilterInput, MatchType } from '$lib/server/filter-converter';
 
 	interface Props {
@@ -219,7 +219,7 @@
 		<!-- Filter editors -->
 		<div class="flex flex-col gap-4">
 			{#if includePeople}
-				<BucketEntityFilterEditor
+				<EntityFilterEditor
 					entity="People"
 					filters={peopleFilters}
 					bind:matchType={peopleMatchType}
@@ -228,7 +228,7 @@
 			{/if}
 
 			{#if includeLocations}
-				<BucketEntityFilterEditor
+				<EntityFilterEditor
 					entity="Locations"
 					filters={locationFilters}
 					bind:matchType={locationsMatchType}

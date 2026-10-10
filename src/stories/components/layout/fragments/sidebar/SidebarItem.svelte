@@ -2,7 +2,9 @@
 	import type { SidebarNavItem } from './types';
 
 	interface Props {
-		item: SidebarNavItem;
+		/** Pass an `onclick` instead of an `href` to render a button with the same look. */
+		item: Omit<SidebarNavItem, 'href'> & { href?: string };
+		onclick?: (event: MouseEvent) => void;
 		active?: boolean;
 		collapsed?: boolean;
 		class?: string;
@@ -11,6 +13,7 @@
 
 	let {
 		item,
+		onclick,
 		active = false,
 		collapsed = false,
 		class: className = '',
@@ -21,8 +24,9 @@
 		[
 			'flex items-center px-3 h-10 md:h-9 rounded-lg text-sm no-underline',
 			'transition-colors duration-150 [&>svg]:size-5',
+			onclick ? 'w-full cursor-pointer text-left' : '',
 			active
-				? 'bg-primary-container dark:bg-primary-container/50 text-on-primary-container font-medium'
+				? 'bg-primary text-on-primary font-medium'
 				: 'text-on-surface-subtle hover:bg-surface-container hover:text-on-surface',
 			collapsed ? 'justify-center px-0' : 'gap-3',
 			className
@@ -32,13 +36,7 @@
 	);
 </script>
 
-<a
-	href={item.href}
-	class={computedClass}
-	aria-current={active ? 'page' : undefined}
-	title={collapsed ? item.label : undefined}
-	{...restProps}
->
+{#snippet content()}
 	{#if item.icon}
 		{@const Icon = item.icon}
 		<Icon />
@@ -48,4 +46,27 @@
 			? 'max-w-0'
 			: 'max-w-[200px]'}">{item.label}</span
 	>
-</a>
+{/snippet}
+
+{#if onclick}
+	<button
+		type="button"
+		class={computedClass}
+		aria-current={active ? 'true' : undefined}
+		title={collapsed ? item.label : undefined}
+		{onclick}
+		{...restProps}
+	>
+		{@render content()}
+	</button>
+{:else}
+	<a
+		href={item.href}
+		class={computedClass}
+		aria-current={active ? 'page' : undefined}
+		title={collapsed ? item.label : undefined}
+		{...restProps}
+	>
+		{@render content()}
+	</a>
+{/if}

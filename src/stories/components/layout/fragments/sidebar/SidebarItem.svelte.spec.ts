@@ -1,10 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import SidebarItem from './SidebarItem.svelte';
 
 const testItem = { label: 'Dashboard', href: '/system' };
 
 describe('SidebarItem', () => {
+	describe('button mode', () => {
+		it('renders a button and calls onclick when given an onclick', async () => {
+			const onclick = vi.fn();
+			const screen = render(SidebarItem, { item: { label: 'Survey' }, onclick });
+			await screen.getByRole('button', { name: 'Survey' }).click();
+			expect(onclick).toHaveBeenCalledTimes(1);
+		});
+	});
+
 	describe('rendering', () => {
 		it('renders as a link with the correct href', async () => {
 			const screen = render(SidebarItem, { item: testItem });
@@ -35,7 +44,7 @@ describe('SidebarItem', () => {
 		it('applies active styling classes when active', async () => {
 			const screen = render(SidebarItem, { item: testItem, active: true });
 			const link = screen.getByRole('link').element();
-			expect(link.classList.contains('bg-primary-container')).toBe(true);
+			expect(link.classList.contains('bg-primary')).toBe(true);
 		});
 
 		it('applies inactive styling classes when not active', async () => {

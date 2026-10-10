@@ -1,0 +1,122 @@
+[
+	{
+		"id": "city",
+		"name": "City",
+		"description": "The city of the location.",
+		"category": "geographical",
+		"valueType": "text",
+		"operations": ["equals", "not_equals", "contains"]
+	},
+	{
+		"id": "state",
+		"name": "State",
+		"description": "The state of the location, e.g. CA.",
+		"category": "geographical",
+		"valueType": "text",
+		"operations": ["equals", "not_equals"]
+	},
+	{
+		"id": "zip_code",
+		"name": "ZIP Code",
+		"description": "The ZIP code of the location.",
+		"category": "geographical",
+		"valueType": "text",
+		"operations": ["equals", "not_equals", "starts_with"]
+	},
+	{
+		"id": "distance_from_address",
+		"name": "Distance From Address",
+		"description": "Within or beyond a distance of an address.",
+		"category": "geographical",
+		"valueType": "number",
+		"operations": ["less_than", "greater_than"],
+		"unit": "miles"
+	},
+	{
+		"id": "radius_from_point",
+		"name": "Radius From Point",
+		"description": "Include or exclude entities within a distance of a point you choose on the map.",
+		"category": "geographical",
+		"valueType": "radius",
+		"operations": ["within", "not_within"],
+		"unit": "miles"
+	},
+	{
+		"id": "inside_drawn_region",
+		"name": "Drawn Region",
+		"description": "Include or exclude entities inside a closed shape you draw on the map.",
+		"category": "geographical",
+		"valueType": "polygon",
+		"operations": ["within", "not_within"]
+	},
+	{
+		"id": "door_open_response",
+		"name": "Door Open",
+		"description": "How the person answered the door question.",
+		"category": "survey",
+		"valueType": "select",
+		"operations": ["equals", "not_equals"],
+		"options": [
+			{ "value": "yes", "label": "Yes" },
+			{ "value": "no", "label": "No" },
+			{ "value": "not_home", "label": "Not home" }
+		]
+	},
+	{
+		"id": "first_name",
+		"name": "First Name",
+		"description": "The person's first name.",
+		"category": "meta",
+		"valueType": "text",
+		"operations": ["equals", "not_equals", "contains", "starts_with"]
+	},
+	{
+		"id": "last_name",
+		"name": "Last Name",
+		"description": "The person's last name.",
+		"category": "meta",
+		"valueType": "text",
+		"operations": ["equals", "not_equals", "contains", "starts_with"]
+	},
+	{
+		"id": "age",
+		"name": "Age",
+		"description": "The person's age in years.",
+		"category": "meta",
+		"valueType": "number",
+		"operations": ["equals", "greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"],
+		"unit": "years"
+	},
+	{
+		"id": "date_of_birth",
+		"name": "Date of Birth",
+		"description": "The person's date of birth.",
+		"category": "meta",
+		"valueType": "date",
+		"operations": ["greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"]
+	},
+	{
+		"id": "has_email",
+		"name": "Has Email on File",
+		"description": "Whether we have an email address for the person.",
+		"category": "meta",
+		"valueType": "boolean",
+		"operations": ["equals"]
+	},
+	{
+		"id": "has_phone",
+		"name": "Has Phone on File",
+		"description": "Whether we have a phone number for the person.",
+		"category": "meta",
+		"valueType": "boolean",
+		"operations": ["equals"]
+	},
+	{
+		"id": "last_canvassed",
+		"name": "Last Time Canvassed",
+		"description": "When someone last knocked on this door.",
+		"category": "meta",
+		"valueType": "date",
+		"operations": ["greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"]
+	}
+]

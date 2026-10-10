@@ -1,8 +1,8 @@
 # Universe Components
 
-## BucketEntityFilter
+## EntityFilter
 
-**Import:** `$components/universe/bucket-entity-filter/BucketEntityFilter.svelte`
+**Import:** `$components/universe/entity-filter/EntityFilter.svelte`
 
 **Props**
 
@@ -16,9 +16,9 @@
 
 ---
 
-## BucketEntityFilterEditor
+## EntityFilterEditor
 
-**Import:** `$components/universe/bucket-entity-filter-editor/BucketEntityFilterEditor.svelte`
+**Import:** `$components/universe/entity-filter-editor/EntityFilterEditor.svelte`
 
 **Props**
 

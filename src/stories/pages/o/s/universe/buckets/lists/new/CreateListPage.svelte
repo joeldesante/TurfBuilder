@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Button from '$components/actions/button/Button.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
-	import BucketEntityFilterEditor from '$components/universe/bucket-entity-filter-editor/BucketEntityFilterEditor.svelte';
-	import type { FilterDefinition } from '$components/universe/bucket-entity-filter/BucketEntityFilter.svelte';
-	import type { FilterEntry } from '$components/universe/bucket-entity-filter-editor/BucketEntityFilterEditor.svelte';
+	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
+	import type { FilterDefinition } from '$components/universe/entity-filter/EntityFilter.svelte';
+	import type { FilterEntry } from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
 	import type { StoredBucketFilter, MatchType, FilterCondition } from '$lib/server/filter-converter';
 	import { untrack } from 'svelte';
 
@@ -262,7 +262,7 @@
 
 		<!-- Filter editor — only shown once an entity type is selected -->
 		{#if selectedType}
-			<BucketEntityFilterEditor
+			<EntityFilterEditor
 				entity={selectedType === 'people' ? 'People' : 'Locations'}
 				filters={activeFilters}
 				bind:matchType
