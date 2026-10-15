@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
-import { requestedPage } from '$lib/server/pagination';
+import { requestedPage } from '$lib/shared/utils/pagination';
 import { listListEntries } from '$lib/server/services/lists.service';
 
 /**

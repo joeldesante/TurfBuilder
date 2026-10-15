@@ -1691,8 +1691,10 @@ export const SETUP_STEPS: SetupStep[] = [
 	// The filter editor produces a FilterGroup document (see
 	// $lib/shared/schemas/filters) that is compiled to SQL when needed, rather
 	// than a stored query. It lives in a new column beside the old one so the
-	// old filter keeps working while data moves across; the old column is
-	// dropped in a later step once nothing reads it.
+	// old filter keeps working while data moves across. Buckets that only have
+	// the old filter are converted when first read (see $lib/server/services/buckets.service)
+	// and by the migration; the old column is dropped in a later step once every
+	// bucket has been converted and nothing reads it.
 	//
 	// A bucket's filter is live, so its document can be edited. A list is a
 	// snapshot taken once, so its document only records how it was made: it can
@@ -1703,6 +1705,8 @@ export const SETUP_STEPS: SetupStep[] = [
 		label: 'Adding filter editor documents to buckets and lists',
 		statements: [
 			`ALTER TABLE universe.bucket ADD COLUMN IF NOT EXISTS filters JSONB`,
+			// New buckets are written to filters only, so the old column can no longer be required.
+			`ALTER TABLE universe.bucket ALTER COLUMN filter DROP NOT NULL`,
 			`COMMENT ON COLUMN universe.bucket.filters IS
 				'The filter editor document (a FilterGroup) for this bucket. Replaces the compiled query in filter.'`,
 

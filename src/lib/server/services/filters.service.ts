@@ -2,19 +2,23 @@ import { error } from '@sveltejs/kit';
 import { filterGroupSchema } from '$lib/shared/schemas/filters';
 import { getFilter } from '$lib/shared/utils/filter-registry';
 import { isFilterGroup } from '$lib/shared/utils/filters';
+import type { ConditionNode, GroupNode, WhereNode } from '$lib/server/query-builder';
+import type { StoredBucketFilter, StoredEntityFilter } from '$lib/server/filter-converter';
 import type {
 	AttemptScope,
+	BucketFilters,
 	FilterEntity,
 	ContactMadeValue,
 	Filter,
 	FilterGroup,
+	FilterOperation,
 	RadiusValue
 } from '$lib/shared/types/filters';
 
 export type { FilterEntity };
 
 export interface FilterQuery {
-	/** Selects the id and source of every record that matches. Parameterized with `$n`. */
+	/** Selects the requested columns of every record that matches. Parameterized with `$n`. */
 	sql: string;
 	params: unknown[];
 }
@@ -37,8 +41,6 @@ interface Context {
 }
 
 interface Handler {
-	/** The entity types this filter can be applied to. */
-	entities: FilterEntity[];
 	/** SQL for the filter, with every value passed through `ctx.param`. */
 	build: (filter: Filter, ctx: Context) => string;
 }
@@ -169,19 +171,15 @@ function contactMade(value: ContactMadeValue, ctx: Context): string {
 
 const HANDLERS: Record<string, Handler> = {
 	city: {
-		entities: ['locations'],
 		build: (f, ctx) => textCondition(`${ctx.alias}.city`, f, ctx)
 	},
 	state: {
-		entities: ['locations'],
 		build: (f, ctx) => textCondition(`${ctx.alias}.state_or_region`, f, ctx)
 	},
 	zip_code: {
-		entities: ['locations'],
 		build: (f, ctx) => textCondition(`${ctx.alias}.postal_code`, f, ctx)
 	},
 	radius_from_point: {
-		entities: ['locations'],
 		build: (f, ctx) => {
 			const area = f.value as RadiusValue;
 			const point = `ST_SetSRID(ST_MakePoint(${ctx.param(area.longitude)}::float8, ${ctx.param(area.latitude)}::float8), 4326)::geography`;
@@ -190,48 +188,39 @@ const HANDLERS: Record<string, Handler> = {
 		}
 	},
 	inside_drawn_region: {
-		entities: ['locations'],
 		build: (f, ctx) => {
 			const region = `ST_SetSRID(ST_GeomFromGeoJSON(${ctx.param(JSON.stringify(f.value))}), 4326)`;
 			return withinOrNot(f, `ST_Intersects(${ctx.alias}.coordinates, ${region})`);
 		}
 	},
 	contact_made: {
-		entities: ['locations'],
 		build: (f, ctx) => {
 			if (f.operation !== 'equals') throw unsupported(f);
 			return contactMade(f.value as ContactMadeValue, ctx);
 		}
 	},
 	last_canvassed: {
-		entities: ['locations'],
 		build: (f, ctx) =>
 			// A location never canvassed has no date, so every comparison leaves it out.
 			comparison(`(${attemptsAt('max(tla.created_at)', ctx)})::date`, f, ctx, '::date')
 	},
 	first_name: {
-		entities: ['people'],
 		build: (f, ctx) => textCondition(`${ctx.alias}.first_name`, f, ctx)
 	},
 	last_name: {
-		entities: ['people'],
 		build: (f, ctx) => textCondition(`${ctx.alias}.last_name`, f, ctx)
 	},
 	age: {
-		entities: ['people'],
 		build: (f, ctx) =>
 			comparison(`EXTRACT(YEAR FROM AGE(CURRENT_DATE, ${ctx.alias}.dob))`, f, ctx)
 	},
 	date_of_birth: {
-		entities: ['people'],
 		build: (f, ctx) => comparison(`${ctx.alias}.dob`, f, ctx, '::date')
 	},
 	has_email: {
-		entities: ['people'],
 		build: (f, ctx) => presence(`${ctx.alias}.email`, f)
 	},
 	has_phone: {
-		entities: ['people'],
 		build: (f, ctx) => presence(`${ctx.alias}.phone`, f)
 	}
 	// Not compiled yet, so they fail loudly instead of matching everything:
@@ -242,42 +231,101 @@ const HANDLERS: Record<string, Handler> = {
 // Compiler
 // ---------------------------------------------------------------------------
 
-function compileFilter(filter: Filter, entity: FilterEntity, ctx: Context): string {
-	const handler = HANDLERS[filter.item];
-	if (!handler) {
-		const name = getFilter(filter.item)?.name ?? filter.item;
-		throw error(501, `${name} filters are not supported yet`);
-	}
-	if (!handler.entities.includes(entity)) {
-		const name = getFilter(filter.item)?.name ?? filter.item;
+/** What a filter or group compiles to: SQL, or a constant when it settles the question by itself. */
+type Compiled = string | boolean;
+
+/**
+ * SQL for one filter. Inside a NOT group, a condition that cannot be decided
+ * (the value it reads is empty) counts as not matching, so that inverting the
+ * group includes those records, as "is not" does, instead of dropping them.
+ */
+function compileFilter(
+	filter: Filter,
+	entity: FilterEntity,
+	ctx: Context,
+	negated: boolean
+): string {
+	// The registry says which kinds of record a filter applies to; the schema has already checked it exists.
+	const entry = getFilter(filter.item);
+	const name = entry?.name ?? filter.item;
+	if (entry && !entry.entities.includes(entity)) {
 		throw error(400, `${name} cannot be used to filter ${entity}`);
 	}
-	return handler.build(filter, ctx);
+	const handler = HANDLERS[filter.item];
+	if (!handler) throw error(501, `${name} filters are not supported yet`);
+	const sql = handler.build(filter, ctx);
+	return negated ? `COALESCE((${sql}), false)` : sql;
 }
 
 /**
- * SQL for a group, or null when the group places no restriction. An empty
- * group matches everything, so inside an OR it makes the whole OR match
- * everything, while inside an AND it simply drops out.
+ * Compiles a group. An empty group places no restriction, so it is `true`
+ * whether or not it is inverted. Beyond that the usual logic holds: a
+ * restriction that always matches drops out of an AND and settles an OR, one
+ * that never matches settles an AND and drops out of an OR, and inverting
+ * flips a constant.
  */
-function compileGroup(group: FilterGroup, entity: FilterEntity, ctx: Context): string | null {
+function compileGroup(
+	group: FilterGroup,
+	entity: FilterEntity,
+	ctx: Context,
+	negated: boolean
+): Compiled {
+	if (group.filters.length === 0) return true;
+
 	const firstParam = ctx.params.length;
+	const inverted = negated !== (group.not === true);
 	const parts = group.filters.map((entry) =>
-		isFilterGroup(entry) ? compileGroup(entry, entity, ctx) : compileFilter(entry, entity, ctx)
+		isFilterGroup(entry)
+			? compileGroup(entry, entity, ctx, inverted)
+			: compileFilter(entry, entity, ctx, inverted)
 	);
 
-	if (group.operator === 'OR') {
-		if (parts.length === 0 || parts.includes(null)) {
-			// The branches are discarded, so their parameters must go too: the
-			// database rejects a parameter that no placeholder uses.
+	// What the group alone decides, before it is inverted. `settles` is the
+	// constant that ends it early: false for an AND, true for an OR.
+	const settles = group.operator === 'OR';
+	let result: Compiled;
+	if (parts.includes(settles)) {
+		// The branches are discarded, so their parameters must go too: the
+		// database rejects a parameter that no placeholder uses.
+		ctx.params.length = firstParam;
+		result = settles;
+	} else {
+		const sql = parts.filter((p): p is string => typeof p === 'string');
+		if (sql.length === 0) {
 			ctx.params.length = firstParam;
-			return null;
+			result = !settles;
+		} else {
+			result = `(${sql.join(group.operator === 'OR' ? ' OR ' : ' AND ')})`;
 		}
-		return `(${parts.join(' OR ')})`;
 	}
 
-	const restrictions = parts.filter((p): p is string => p !== null);
-	return restrictions.length === 0 ? null : `(${restrictions.join(' AND ')})`;
+	if (group.not !== true) return result;
+	return typeof result === 'boolean' ? !result : `NOT ${result}`;
+}
+
+/** The columns a query may select for each entity type. */
+export const FILTER_COLUMNS = {
+	locations: [
+		'id',
+		'source',
+		'entity_id',
+		'name',
+		'address_line_1',
+		'address_line_2',
+		'address_line_3',
+		'city',
+		'state_or_region',
+		'postal_code',
+		'country_code',
+		'coordinates',
+		'photo_keys'
+	],
+	people: ['id', 'source', 'first_name', 'last_name', 'email', 'phone', 'dob']
+} as const satisfies Record<FilterEntity, readonly string[]>;
+
+export interface BuildFilterOptions {
+	/** Columns of the entity view to select. Defaults to `id` and `source`. */
+	columns?: readonly string[];
 }
 
 /**
@@ -293,19 +341,191 @@ function compileGroup(group: FilterGroup, entity: FilterEntity, ctx: Context): s
  * TODO: Add a step to check permissions to determine the user making the
  * request has the rights to access the data they are requesting.
  */
-export function buildFilterQuery(entity: FilterEntity, document: unknown): FilterQuery {
+export function buildFilterQuery(
+	entity: FilterEntity,
+	document: unknown,
+	{ columns = ['id', 'source'] }: BuildFilterOptions = {}
+): FilterQuery {
 	const parsed = filterGroupSchema.safeParse(document);
 	if (!parsed.success) {
 		const issue = parsed.error.issues[0];
 		throw error(400, issue?.message ?? 'The filter is not valid');
 	}
 
+	// Columns are written in code, never taken from a request; this guards against a typo.
+	const allowed: readonly string[] = FILTER_COLUMNS[entity];
+	const unknown = columns.filter((c) => !allowed.includes(c));
+	if (unknown.length > 0) throw new Error(`Unknown ${entity} columns: ${unknown.join(', ')}`);
+
 	const params: unknown[] = [];
 	const { from, alias } = ENTITY_VIEWS[entity];
 	const ctx: Context = { alias, params, param: (value) => `$${params.push(value)}` };
 
-	const where = compileGroup(parsed.data, entity, ctx);
-	const sql = `SELECT ${alias}.id, ${alias}.source FROM ${from} ${alias}${where ? ` WHERE ${where}` : ''}`;
+	const where = compileGroup(parsed.data, entity, ctx, false);
+	const select = columns.map((c) => `${alias}.${c}`).join(', ');
+	const clause = where === true ? '' : ` WHERE ${where === false ? 'false' : where}`;
 
-	return { sql, params };
+	return { sql: `SELECT ${select} FROM ${from} ${alias}${clause}`, params };
+}
+
+// ===========================================================================
+// Legacy filters
+//
+// TEMPORARY: removed with the old filter column (see issue #221).
+// ===========================================================================
+
+/**
+ * Converts the filters buckets were stored with before the filter editor (a
+ * compiled query per kind of record, see `StoredBucketFilter`) into the
+ * editor's document (`BucketFilters`).
+ *
+ * Only filters that `convertBucketFilter` could have written are understood,
+ * and anything else is refused rather than guessed, since a wrong guess would
+ * quietly change which records a bucket holds.
+ */
+
+/** A stored filter that has no faithful equivalent in the editor's model. */
+export class LegacyFilterError extends Error {}
+
+/** The expression `convertBucketFilter` writes for a person's age. */
+const AGE_COLUMN = 'EXTRACT(YEAR FROM AGE(CURRENT_DATE, vp.dob))';
+
+const TEXT_COLUMNS: Record<FilterEntity, Record<string, string>> = {
+	locations: {
+		'vl.city': 'city',
+		'vl.state_or_region': 'state',
+		'vl.postal_code': 'zip_code'
+	},
+	people: {
+		'vp.first_name': 'first_name',
+		'vp.last_name': 'last_name'
+	}
+};
+
+const NUMBER_OPERATIONS: Record<string, FilterOperation> = {
+	'=': 'equals',
+	'>': 'greater_than',
+	'<': 'less_than',
+	'>=': 'greater_than_or_equal',
+	'<=': 'less_than_or_equal'
+};
+
+// "after" and "before" are strict; "not after" and "not before" include the date.
+const DATE_OPERATIONS: Record<string, FilterOperation> = {
+	'>': 'greater_than',
+	'<': 'less_than',
+	'<=': 'less_than_or_equal',
+	'>=': 'greater_than_or_equal'
+};
+
+const refuse = (condition: ConditionNode, why?: string) =>
+	new LegacyFilterError(
+		`Cannot convert "${condition.column} ${condition.op}"${why ? `: ${why}` : ''}`
+	);
+
+/**
+ * The text a LIKE pattern matches literally, or null when it contains
+ * wildcards or escapes of its own, which the editor's operations cannot say.
+ */
+function literal(text: string): string | null {
+	return /[%_\\]/.test(text) ? null : text;
+}
+
+function textFilter(item: string, condition: ConditionNode): Filter {
+	const value = typeof condition.value === 'string' ? condition.value : '';
+
+	// The old "is" and "is not" compared exactly, so the new ones must too.
+	if (condition.op === '=') return { item, operation: 'equals', value, caseSensitive: true };
+	if (condition.op === '!=') return { item, operation: 'not_equals', value, caseSensitive: true };
+
+	if (condition.op === 'ILIKE') {
+		const leading = value.startsWith('%');
+		const trailing = value.endsWith('%');
+		const inner = literal(value.slice(leading ? 1 : 0, value.length - (trailing ? 1 : 0)));
+
+		if (inner === null) throw refuse(condition, 'the text contains % or _');
+		if (leading && trailing) return { item, operation: 'contains', value: inner };
+		if (trailing) return { item, operation: 'starts_with', value: inner };
+	}
+
+	throw refuse(condition);
+}
+
+function presenceFilter(item: string, condition: ConditionNode): Filter {
+	if (condition.op !== 'IS NOT NULL') throw refuse(condition);
+	return { item, operation: 'equals', value: true };
+}
+
+function convertCondition(kind: FilterEntity, condition: ConditionNode): Filter {
+	if (condition.negate) throw refuse(condition, 'the condition is inverted on its own');
+
+	const text = TEXT_COLUMNS[kind][condition.column];
+	if (text) return textFilter(text, condition);
+
+	if (kind === 'people') {
+		if (condition.column === AGE_COLUMN) {
+			const operation = NUMBER_OPERATIONS[condition.op];
+			if (!operation) throw refuse(condition);
+			return { item: 'age', operation, value: condition.value };
+		}
+		if (condition.column === 'vp.dob') {
+			const operation = DATE_OPERATIONS[condition.op];
+			if (!operation) throw refuse(condition);
+			return { item: 'date_of_birth', operation, value: condition.value };
+		}
+		if (condition.column === 'vp.email') return presenceFilter('has_email', condition);
+		if (condition.column === 'vp.phone') return presenceFilter('has_phone', condition);
+	}
+
+	throw refuse(condition, `${kind} have no such filter`);
+}
+
+function convertNode(kind: FilterEntity, node: WhereNode): Filter | FilterGroup {
+	if (node.type === 'condition') return convertCondition(kind, node);
+	return convertGroup(kind, node);
+}
+
+function convertGroup(kind: FilterEntity, group: GroupNode): FilterGroup {
+	return {
+		operator: group.connector,
+		// "None of these" was stored negated, so it converts to an inverted group.
+		// Its connector is AND (the old converter only used OR for "one or more"),
+		// so it reads "not all of", which is what those buckets actually select.
+		...(group.negate ? { not: true } : {}),
+		filters: group.children.map((child) => convertNode(kind, child))
+	};
+}
+
+/** One kind of record's stored filter as an editor group, or null when the bucket does not include it. */
+function convertEntity(kind: FilterEntity, entity: StoredEntityFilter): FilterGroup | null {
+	if (!entity.enabled) return null;
+
+	const where = entity.query?.where;
+	const group: FilterGroup = where
+		? convertGroup(kind, where)
+		: // Included with no conditions: every record of the kind.
+			{ operator: 'AND', filters: [] };
+
+	const checked = filterGroupSchema.safeParse(group);
+	if (!checked.success) {
+		throw new LegacyFilterError(checked.error.issues[0]?.message ?? 'The converted filter is not valid');
+	}
+	return checked.data;
+}
+
+/**
+ * Converts a bucket's stored filter. Throws `LegacyFilterError`, naming the
+ * kind of record, when some part cannot be converted faithfully.
+ */
+export function convertLegacyBucketFilter(legacy: StoredBucketFilter): BucketFilters {
+	const convert = (kind: FilterEntity) => {
+		try {
+			return convertEntity(kind, legacy[kind]);
+		} catch (e) {
+			if (e instanceof LegacyFilterError) throw new LegacyFilterError(`${kind}: ${e.message}`);
+			throw e;
+		}
+	};
+
+	return { v: 2, people: convert('people'), locations: convert('locations') };
 }

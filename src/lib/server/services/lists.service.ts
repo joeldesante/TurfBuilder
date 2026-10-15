@@ -2,9 +2,12 @@ import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { requireBucketOrg, requireListAccess, requireListOrg } from '$lib/server/list-access';
-import { clampPage, pageOffset, PAGE_SIZE } from '$lib/server/pagination';
-import type { Page } from '$lib/server/pagination';
+import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
+import type { Page } from '$lib/shared/utils/pagination';
 import { canOrg } from '$lib/server/permissions';
+import type { FilterEntity, FilterGroup } from '$lib/shared/types/filters';
+import { findBucketById } from './buckets.service';
+import { buildFilterQuery } from './filters.service';
 
 export interface List {
 	id: string;
@@ -155,5 +158,75 @@ export async function listListEntries(
 			{ id: listId, entity_type: list.rows[0].entity_type },
 			requested
 		);
+	});
+}
+
+export interface CreateListInput {
+	name: string;
+	entity_type: FilterEntity;
+	expires_at: string;
+	/** What the list narrows its bucket down to, as the filter editor writes it. None takes the whole bucket. */
+	filters?: FilterGroup;
+}
+
+/**
+ * Creates a list from the records a bucket's filters match, narrowed by the
+ * list's own filter, and snapshots them: from then on the list does not change
+ * when the bucket's filters or the records themselves do. The list also keeps
+ * the combined filter document, as a record of how it was made.
+ *
+ * 404 when the bucket is not in the organization, 400 when it does not include
+ * that kind of record or a filter cannot run, 422 when the bucket's old filter
+ * cannot be converted. Must run inside withOrgTransaction.
+ */
+export async function createList(
+	client: PoolClient,
+	orgId: string,
+	bucketId: string,
+	input: CreateListInput
+): Promise<{ id: string }> {
+	const bucket = await findBucketById(client, orgId, bucketId);
+	if (!bucket) throw error(404, 'Bucket not found');
+
+	const bucketGroup = bucket.filters[input.entity_type];
+	if (!bucketGroup) throw error(400, `This bucket does not include ${input.entity_type}`);
+
+	// The records are the bucket's, narrowed by the list's own filter.
+	const own = input.filters;
+	const effective: FilterGroup =
+		own && own.filters.length > 0 ? { operator: 'AND', filters: [bucketGroup, own] } : bucketGroup;
+
+	// Compiled before anything is written, so a filter that cannot run fails the request cleanly.
+	const matches = buildFilterQuery(input.entity_type, effective);
+
+	const created = await client.query<{ id: string }>(
+		`INSERT INTO universe.list (name, bucket, org_id, entity_type, expires_at, filters)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING id`,
+		[input.name, bucket.id, orgId, input.entity_type, input.expires_at, JSON.stringify(effective)]
+	);
+	const listId = created.rows[0].id;
+
+	await client.query(
+		`INSERT INTO universe.list_entry (id, list_id, record_id, record_source)
+		 SELECT gen_random_uuid(), $${matches.params.length + 1}::uuid, matched.id, matched.source
+		 FROM (${matches.sql}) matched`,
+		[...matches.params, listId]
+	);
+
+	return { id: listId };
+}
+
+/** Creates a list in a bucket. 404 when the bucket is in none of the caller's orgs, 403 without staff access. */
+export async function createBucketList(
+	userId: string,
+	bucketId: string,
+	input: CreateListInput
+): Promise<{ id: string }> {
+	const orgId = await requireBucketOrg(userId, bucketId);
+
+	return withOrgTransaction(orgId, async (client) => {
+		if (!(await canOrg(client, userId, orgId, 'system.access'))) throw error(403, 'Forbidden');
+		return createList(client, orgId, bucketId, input);
 	});
 }

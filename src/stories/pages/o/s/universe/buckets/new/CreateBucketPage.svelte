@@ -3,25 +3,26 @@
 	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
-	import type { FilterDefinition } from '$components/universe/entity-filter/EntityFilter.svelte';
-	import type { FilterEntry } from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
-	import type { BucketFilterInput, MatchType } from '$lib/server/filter-converter';
+	import type { FilterSource } from '$lib/client/filter-source';
+	import { bucketFiltersSchema } from '$lib/shared/schemas/filters';
+	import type { BucketFilters, FilterGroup } from '$lib/shared/types/filters';
+	import { filtersFor } from '$lib/shared/utils/filter-registry';
 
 	interface Props {
-		onCreate: (name: string, slug: string, filter: BucketFilterInput) => Promise<void>;
+		/** The organization whose buckets, lists, and surveys the filters offer. */
+		orgId?: string;
+		/** Overrides where those choices come from; for stories and tests. */
+		source?: FilterSource;
+		onCreate: (name: string, slug: string, filters: BucketFilters) => Promise<void>;
 	}
 
-	const { onCreate }: Props = $props();
-
-	// ---------------------------------------------------------------------------
-	// Name + slug
-	// ---------------------------------------------------------------------------
+	const { orgId, source, onCreate }: Props = $props();
 
 	let name = $state('');
 	let submitting = $state(false);
 	let errorMessage = $state('');
 
-	let slug = $derived(
+	const slug = $derived(
 		name
 			.trim()
 			.toLowerCase()
@@ -29,154 +30,33 @@
 			.replace(/^-+|-+$/g, '')
 	);
 
-	// ---------------------------------------------------------------------------
-	// Entity toggles
-	// ---------------------------------------------------------------------------
-
 	let includePeople = $state(false);
 	let includeLocations = $state(false);
 
-	// ---------------------------------------------------------------------------
-	// People filter state
-	// ---------------------------------------------------------------------------
+	// Kept while a kind is unticked, so ticking it again brings its filters back.
+	let peopleGroup = $state<FilterGroup>({ operator: 'AND', filters: [] });
+	let locationsGroup = $state<FilterGroup>({ operator: 'AND', filters: [] });
 
-	let peopleMatchType = $state<MatchType>('ONE_OR_MORE');
-	let peopleFilterEntries = $state<FilterEntry[]>([]);
-
-	const peopleFilters: FilterDefinition[] = [
-		{
-			id: 'first_name',
-			label: 'First Name',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'contains', label: 'contains' },
-				{ value: 'starts_with', label: 'starts with' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'Enter a name...'
-		},
-		{
-			id: 'last_name',
-			label: 'Last Name',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'contains', label: 'contains' },
-				{ value: 'starts_with', label: 'starts with' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'Enter a name...'
-		},
-		{
-			id: 'age',
-			label: 'Age',
-			qualifiers: [
-				{ value: 'eq', label: 'is exactly' },
-				{ value: 'gt', label: 'is greater than' },
-				{ value: 'lt', label: 'is less than' },
-				{ value: 'gte', label: 'is at least' },
-				{ value: 'lte', label: 'is at most' }
-			],
-			valueType: 'number',
-			valuePlaceholder: '0',
-			valueUnit: 'years'
-		},
-		{
-			id: 'dob',
-			label: 'Date of Birth',
-			qualifiers: [
-				{ value: 'after', label: 'is after' },
-				{ value: 'before', label: 'is before' },
-				{ value: 'not_after', label: 'is on or before' },
-				{ value: 'not_before', label: 'is on or after' }
-			],
-			valueType: 'date'
-		},
-		{
-			id: 'has_email',
-			label: 'Has Email on File',
-			valueType: 'none'
-		},
-		{
-			id: 'has_phone',
-			label: 'Has Phone on File',
-			valueType: 'none'
-		}
-	];
-
-	// ---------------------------------------------------------------------------
-	// Location filter state
-	// ---------------------------------------------------------------------------
-
-	let locationsMatchType = $state<MatchType>('ONE_OR_MORE');
-	let locationsFilterEntries = $state<FilterEntry[]>([]);
-
-	const locationFilters: FilterDefinition[] = [
-		{
-			id: 'city',
-			label: 'City',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'contains', label: 'contains' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'Enter a city...'
-		},
-		{
-			id: 'state',
-			label: 'State',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'e.g. CA'
-		},
-		{
-			id: 'zip_code',
-			label: 'ZIP Code',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'starts_with', label: 'starts with' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'e.g. 90210'
-		}
-	];
-
-	// ---------------------------------------------------------------------------
-	// Submit
-	// ---------------------------------------------------------------------------
+	const canSubmit = $derived(!!slug && (includePeople || includeLocations) && !submitting);
 
 	async function handleSubmit() {
-		if (!slug || submitting) return;
-		submitting = true;
+		if (!canSubmit) return;
 		errorMessage = '';
+
+		const filters: BucketFilters = {
+			v: 2,
+			people: includePeople ? $state.snapshot(peopleGroup) : null,
+			locations: includeLocations ? $state.snapshot(locationsGroup) : null
+		};
+		const checked = bucketFiltersSchema.safeParse(filters);
+		if (!checked.success) {
+			errorMessage = checked.error.issues[0]?.message ?? 'Finish the filters before creating the bucket.';
+			return;
+		}
+
+		submitting = true;
 		try {
-			const filter: BucketFilterInput = {
-				people: {
-					enabled: includePeople,
-					matchType: peopleMatchType,
-					conditions: peopleFilterEntries.map((e) => ({
-						filterId: e.filterId,
-						qualifierId: e.qualifierId,
-						value: e.value
-					}))
-				},
-				locations: {
-					enabled: includeLocations,
-					matchType: locationsMatchType,
-					conditions: locationsFilterEntries.map((e) => ({
-						filterId: e.filterId,
-						qualifierId: e.qualifierId,
-						value: e.value
-					}))
-				}
-			};
-			await onCreate(name.trim(), slug, filter);
+			await onCreate(name.trim(), slug, checked.data);
 		} catch (err) {
 			errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
 		} finally {
@@ -191,7 +71,6 @@
 	<div class="flex flex-col gap-6">
 		<p>Filter down your data set for this bucket.</p>
 
-		<!-- Name field -->
 		<div class="flex flex-col gap-1">
 			<label for="bucket-name" class="text-sm font-medium">Name</label>
 			<input
@@ -207,7 +86,6 @@
 			{/if}
 		</div>
 
-		<!-- Entity selection -->
 		<div class="border rounded p-4">
 			<h2>What entities would you like to include in this bucket?</h2>
 			<div class="flex flex-row gap-6 my-2">
@@ -216,35 +94,38 @@
 			</div>
 		</div>
 
-		<!-- Filter editors -->
-		<div class="flex flex-col gap-4">
-			{#if includePeople}
+		{#if includePeople}
+			<section class="flex flex-col gap-2" aria-label="People filters">
+				<h2 class="text-sm font-medium">People</h2>
 				<EntityFilterEditor
-					entity="People"
-					filters={peopleFilters}
-					bind:matchType={peopleMatchType}
-					bind:filterEntries={peopleFilterEntries}
+					entity="people"
+					catalog={filtersFor('people')}
+					{orgId}
+					{source}
+					bind:group={peopleGroup}
 				/>
-			{/if}
+			</section>
+		{/if}
 
-			{#if includeLocations}
+		{#if includeLocations}
+			<section class="flex flex-col gap-2" aria-label="Locations filters">
+				<h2 class="text-sm font-medium">Locations</h2>
 				<EntityFilterEditor
-					entity="Locations"
-					filters={locationFilters}
-					bind:matchType={locationsMatchType}
-					bind:filterEntries={locationsFilterEntries}
+					entity="locations"
+					catalog={filtersFor('locations')}
+					{orgId}
+					{source}
+					bind:group={locationsGroup}
 				/>
-			{/if}
-		</div>
+			</section>
+		{/if}
 
-		<!-- Error message -->
 		{#if errorMessage}
 			<p class="text-sm text-error">{errorMessage}</p>
 		{/if}
 
-		<!-- Submit -->
 		<div>
-			<Button onclick={handleSubmit} disabled={!slug || submitting}>
+			<Button onclick={handleSubmit} disabled={!canSubmit}>
 				{submitting ? 'Creating...' : 'Create Bucket'}
 			</Button>
 		</div>

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import { parseDate } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
 	import Button from '$components/actions/button/Button.svelte';
 	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
@@ -19,14 +18,15 @@
 	import XIcon from 'phosphor-svelte/lib/X';
 	import { filterSchema } from '$lib/shared/schemas/filters';
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
-	import type {
-		ContactMadeValue,
-		Filter,
-		RadiusValue,
-		SurveyResponseValue
-	} from '$lib/shared/types/filters';
+	import type { Filter } from '$lib/shared/types/filters';
 	import { describeFilter } from '$lib/shared/utils/filter-sentence';
-	import { defaultContactMade } from '$lib/shared/utils/filter-registry';
+	import {
+		asCalendarDate,
+		asContactMade,
+		asPolygon,
+		asRadius,
+		asSurveyResponse
+	} from '$lib/shared/utils/filter-values';
 	import { FILTER_OPERATION_LABELS } from '$lib/shared/utils/filters';
 
 	interface Props {
@@ -74,50 +74,10 @@
 		draft = { ...draft, value };
 	}
 
-	function toRadius(value: unknown): RadiusValue | null {
-		const v = value as Partial<RadiusValue> | null;
-		return v &&
-			typeof v === 'object' &&
-			typeof v.latitude === 'number' &&
-			typeof v.longitude === 'number' &&
-			typeof v.radius === 'number'
-			? (v as RadiusValue)
-			: null;
-	}
 
-	function toPolygon(value: unknown): GeoJSON.Polygon | null {
-		const v = value as GeoJSON.Polygon | null;
-		return v && typeof v === 'object' && v.type === 'Polygon' ? v : null;
-	}
 
-	function toSurveyResponse(value: unknown): SurveyResponseValue | null {
-		const v = value as Partial<SurveyResponseValue> | null;
-		return v && typeof v === 'object' && typeof v.bucketId === 'string' && v.bucketId
-			? {
-					bucketId: v.bucketId,
-					surveyId: v.surveyId ?? '',
-					questionId: v.questionId ?? '',
-					response: v.response ?? ''
-				}
-			: null;
-	}
 
-	/** The value as a full contact made filter; anything else starts from the defaults. */
-	function toContactMade(value: unknown): ContactMadeValue {
-		const v = value as Partial<ContactMadeValue> | null;
-		return v && typeof v === 'object' && typeof v.contacted === 'boolean'
-			? { ...defaultContactMade(), ...v }
-			: defaultContactMade();
-	}
 
-	function toDate(value: unknown): DateValue | undefined {
-		if (typeof value !== 'string' || !value) return undefined;
-		try {
-			return parseDate(value);
-		} catch {
-			return undefined;
-		}
-	}
 
 	function save() {
 		if (problem) return;
@@ -197,7 +157,7 @@
 						<span class="text-sm font-medium text-on-surface">Date</span>
 						<DatePicker
 							aria-label="Value"
-							value={toDate(draft.value)}
+							value={asCalendarDate(draft.value)}
 							onValueChange={(next: DateValue | undefined) => setValue(next?.toString() ?? '')}
 						/>
 					{:else if definition.valueType === 'boolean'}
@@ -231,11 +191,11 @@
 							aria-label="Value"
 							onclick={() => (radiusOpen = true)}
 						>
-							{toRadius(draft.value) ? 'Edit area' : 'Choose area'}
+							{asRadius(draft.value) ? 'Edit area' : 'Choose area'}
 						</Button>
 						<RadiusPickerModal
 							open={radiusOpen}
-							value={toRadius(draft.value)}
+							value={asRadius(draft.value)}
 							onOpenChange={(next) => (radiusOpen = next)}
 							onapply={(area) => {
 								setValue(area);
@@ -251,11 +211,11 @@
 							aria-label="Value"
 							onclick={() => (polygonOpen = true)}
 						>
-							{toPolygon(draft.value) ? 'Edit region' : 'Draw region'}
+							{asPolygon(draft.value) ? 'Edit region' : 'Draw region'}
 						</Button>
 						<PolygonPickerModal
 							open={polygonOpen}
-							value={toPolygon(draft.value)}
+							value={asPolygon(draft.value)}
 							onOpenChange={(next) => (polygonOpen = next)}
 							onapply={(region) => {
 								setValue(region);
@@ -267,7 +227,7 @@
 						{#if filterSource}
 							<SurveyResponsePicker
 								source={filterSource}
-								value={toSurveyResponse(draft.value)}
+								value={asSurveyResponse(draft.value)}
 								onchange={(next) => setValue(next)}
 							/>
 						{:else}
@@ -277,7 +237,7 @@
 						<span class="text-sm font-medium text-on-surface">Attempts</span>
 						<ContactMadePicker
 							source={filterSource}
-							value={toContactMade(draft.value)}
+							value={asContactMade(draft.value)}
 							onchange={(next) => setValue(next)}
 						/>
 					{/if}

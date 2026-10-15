@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
+import { bucketFiltersSchema } from '$lib/shared/schemas/filters';
 import { getBucket, replaceBucket, updateBucket } from '$lib/server/services/buckets.service';
 
 const slugSchema = z
@@ -12,7 +13,7 @@ const slugSchema = z
 const putSchema = z.object({
 	name: z.string().trim().min(1),
 	slug: slugSchema,
-	filter: z.record(z.string(), z.unknown())
+	filters: bucketFiltersSchema
 });
 
 const patchSchema = putSchema.partial();
@@ -21,7 +22,7 @@ const patchSchema = putSchema.partial();
  * One bucket.
  *
  * @auth staff
- * @returns The bucket. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+ * @returns The bucket, with `filters` null if it was made before the filter editor and its old filter could not be converted. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
  */
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const userId = requireUser(locals);
@@ -31,12 +32,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 };
 
 /**
- * Replaces a bucket's name, slug, and filter. All three are required.
+ * Replaces a bucket's name, slug, and filters. All three are required.
  *
  * @auth staff
  * @body name {string} - Display name of the bucket
  * @body slug {string} - URL slug, unique within the organization
- * @body filter {object} - The bucket's filter definition
+ * @body filters {object} - What the bucket selects: `{ v: 2, people, locations }`
  * @returns The bucket. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations, 409 for a taken slug
  */
 export const PUT: RequestHandler = async ({ params, locals, request }) => {
@@ -55,7 +56,7 @@ export const PUT: RequestHandler = async ({ params, locals, request }) => {
  * @auth staff
  * @body name {string} - Optional. Display name of the bucket
  * @body slug {string} - Optional. URL slug, unique within the organization
- * @body filter {object} - Optional. The bucket's filter definition
+ * @body filters {object} - Optional. What the bucket selects: `{ v: 2, people, locations }`
  * @returns The bucket. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations, 409 for a taken slug
  */
 export const PATCH: RequestHandler = async ({ params, locals, request }) => {

@@ -5,9 +5,9 @@ import { redirect } from '@sveltejs/kit';
 export async function load({ parent, params }) {
 	const { bucket } = await parent();
 	const base = `/o/${params.org_slug}/s/universe/buckets/${bucket.slug}`;
-	const section = bucket.filter.locations.enabled
+	const section = bucket.filters.locations
 		? 'locations'
-		: bucket.filter.people.enabled
+		: bucket.filters.people
 			? 'people'
 			: 'scripts';
 	throw redirect(307, `${base}/${section}`);

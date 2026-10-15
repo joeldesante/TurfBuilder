@@ -1,6 +1,6 @@
 import registry from '../registries/filters.json';
 import type { FilterCategory, FilterRegistryEntry } from '../types/filter-registry';
-import type { ContactMadeValue } from '../types/filters';
+import type { ContactMadeValue, FilterEntity } from '../types/filters';
 
 /** Categories in display order. */
 export const FILTER_CATEGORIES: FilterCategory[] = ['geographical', 'survey', 'canvassing', 'meta'];
@@ -23,6 +23,11 @@ export function sortFilters(filters: FilterRegistryEntry[]): FilterRegistryEntry
 export function getFilters(category?: FilterCategory): FilterRegistryEntry[] {
 	if (category) return entries.filter((entry) => entry.category === category);
 	return sortFilters(entries);
+}
+
+/** The filters that can select a kind of record, ordered by category and then name. */
+export function filtersFor(entity: FilterEntity): FilterRegistryEntry[] {
+	return sortFilters(entries.filter((entry) => entry.entities.includes(entity)));
 }
 
 export function getFilter(id: string): FilterRegistryEntry | undefined {

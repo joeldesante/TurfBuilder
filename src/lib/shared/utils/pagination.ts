@@ -30,3 +30,21 @@ export function clampPage(requested: number, totalCount: number, pageSize = PAGE
 export function pageOffset(page: number, pageSize = PAGE_SIZE): number {
 	return (page - 1) * pageSize;
 }
+
+/**
+ * Page numbers to offer, with nulls standing in for gaps. Always includes the
+ * first and last page so the ends of a long list stay one click away.
+ */
+export function pageLinks(page: number, totalPages: number): (number | null)[] {
+	if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+	const window = [page - 1, page, page + 1].filter((p) => p > 1 && p < totalPages);
+	const shown = [1, ...window, totalPages];
+
+	const out: (number | null)[] = [];
+	for (const [i, p] of shown.entries()) {
+		if (i > 0 && p - shown[i - 1] > 1) out.push(null);
+		out.push(p);
+	}
+	return out;
+}

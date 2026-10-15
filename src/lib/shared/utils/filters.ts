@@ -14,7 +14,6 @@ export const FILTER_OPERATION_LABELS: Record<FilterOperation, string> = {
 	less_than_or_equal: 'is at most',
 	contains: 'contains',
 	starts_with: 'starts with',
-	in: 'is one of',
 	within: 'is within',
 	not_within: 'is not within'
 };

@@ -4,7 +4,7 @@ const { launch } = vi.hoisted(() => ({ launch: vi.fn() }));
 
 vi.mock('puppeteer', () => ({ default: { launch } }));
 
-import { launchBrowser } from './browser';
+import { launchBrowser } from './browser.service';
 
 beforeEach(() => {
 	vi.clearAllMocks();

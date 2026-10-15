@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { POOL } from '$lib/server/database.js';
-import { requestedPage } from '$lib/server/pagination';
+import { requestedPage } from '$lib/shared/utils/pagination';
 import { queryMembersPage } from '$lib/server/services/members.service';
 
 export async function load({ locals, url }) {

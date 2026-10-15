@@ -37,9 +37,59 @@ test('reports a changed operator', async () => {
 	const { screen, onchange } = setup({ operator: 'AND', filters: [city] });
 
 	await screen.getByRole('button', { name: 'Group operator' }).click();
-	await screen.getByRole('option', { name: 'At least one of the following' }).click();
+	await screen.getByRole('option', { name: 'At least one of the following', exact: true }).click();
 
 	expect(onchange).toHaveBeenCalledWith({ operator: 'OR', filters: [city] });
+});
+
+test('offers to invert the group', async () => {
+	const { screen } = setup({ operator: 'AND', filters: [city] });
+
+	await screen.getByRole('button', { name: 'Group operator' }).click();
+
+	for (const name of [
+		'All of the following',
+		'At least one of the following',
+		'None of the following',
+		'Not all of the following'
+	]) {
+		await expect.element(screen.getByRole('option', { name, exact: true })).toBeInTheDocument();
+	}
+});
+
+test('"None of the following" is an inverted OR', async () => {
+	const { screen, onchange } = setup({ operator: 'AND', filters: [city] });
+
+	await screen.getByRole('button', { name: 'Group operator' }).click();
+	await screen.getByRole('option', { name: 'None of the following' }).click();
+
+	expect(onchange).toHaveBeenCalledWith({ operator: 'OR', not: true, filters: [city] });
+});
+
+test('"Not all of the following" is an inverted AND', async () => {
+	const { screen, onchange } = setup({ operator: 'OR', filters: [city] });
+
+	await screen.getByRole('button', { name: 'Group operator' }).click();
+	await screen.getByRole('option', { name: 'Not all of the following' }).click();
+
+	expect(onchange).toHaveBeenCalledWith({ operator: 'AND', not: true, filters: [city] });
+});
+
+test('shows an inverted group as such', async () => {
+	const { screen } = setup({ operator: 'OR', not: true, filters: [city] });
+
+	await expect.element(screen.getByRole('button', { name: 'Group operator' })).toHaveTextContent('None of the following');
+});
+
+test('switching back to a plain mode drops the inversion', async () => {
+	const { screen, onchange } = setup({ operator: 'OR', not: true, filters: [city] });
+
+	await screen.getByRole('button', { name: 'Group operator' }).click();
+	await screen.getByRole('option', { name: 'At least one of the following', exact: true }).click();
+
+	const [group] = onchange.mock.calls[0];
+	expect(group).toEqual({ operator: 'OR', filters: [city] });
+	expect('not' in group).toBe(false);
 });
 
 test('adds the chosen filter to the group', async () => {
@@ -82,7 +132,7 @@ test('reports a change made inside a nested group to the parent', async () => {
 	const { screen, onchange } = setup({ operator: 'AND', filters: [inner] });
 
 	await screen.getByRole('button', { name: 'Group operator' }).nth(1).click();
-	await screen.getByRole('option', { name: 'All of the following' }).click();
+	await screen.getByRole('option', { name: 'All of the following', exact: true }).click();
 
 	expect(onchange).toHaveBeenCalledWith({
 		operator: 'AND',

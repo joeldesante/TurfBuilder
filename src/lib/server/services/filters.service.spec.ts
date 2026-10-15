@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildFilterQuery } from './filters.service';
+import { buildFilterQuery, convertLegacyBucketFilter, LegacyFilterError } from './filters.service';
+import { convertBucketFilter } from '$lib/server/filter-converter';
+import type { BucketFilterInput, MatchType, StoredBucketFilter } from '$lib/server/filter-converter';
 
 const group = (operator: 'AND' | 'OR', ...filters: unknown[]) => ({ operator, filters });
 const f = (item: string, operation: string, value: unknown, extra = {}) => ({
@@ -250,6 +252,104 @@ describe('groups', () => {
 	});
 });
 
+describe('inverted groups', () => {
+	const not = (operator: 'AND' | 'OR', ...filters: unknown[]) => ({ operator, not: true, filters });
+	const flat = (sql: string) => sql.replace(/\s+/g, ' ');
+
+	it('inverts an OR so that none of its filters match', () => {
+		const query = loc(not('OR', f('city', 'equals', 'Austin'), f('state', 'equals', 'TX')));
+
+		expect(flat(query.sql)).toBe(
+			`${LOC} WHERE NOT (COALESCE((lower(vl.city) = lower($1)), false)` +
+				` OR COALESCE((lower(vl.state_or_region) = lower($2)), false))`
+		);
+		expect(query.params).toEqual(['Austin', 'TX']);
+	});
+
+	it('inverts an AND so that not all of its filters match', () => {
+		expect(loc(not('AND', f('city', 'equals', 'Austin'), f('state', 'equals', 'TX'))).sql).toContain(
+			'NOT (COALESCE((lower(vl.city) = lower($1)), false) AND '
+		);
+	});
+
+	it('counts a condition that cannot be decided as not matching, so inverting includes it', () => {
+		// age is unknown without a date of birth: "none of: age over 65" must still include those people
+		expect(people(not('OR', f('age', 'greater_than', 65))).sql).toContain(
+			'NOT (COALESCE((EXTRACT(YEAR FROM AGE(CURRENT_DATE, vp.dob)) > $1), false))'
+		);
+	});
+
+	it('leaves conditions outside an inverted group as they were', () => {
+		const query = loc(group('AND', f('city', 'equals', 'Austin'), not('OR', f('state', 'equals', 'TX'))));
+
+		expect(flat(query.sql)).toContain('(lower(vl.city) = lower($1) AND NOT (COALESCE(');
+	});
+
+	it('inverts twice back to the original meaning', () => {
+		const query = loc(not('OR', not('OR', f('city', 'equals', 'Austin'))));
+
+		// Two inversions cancel, so the condition needs no guard: an unknown value is excluded either way.
+		expect(flat(query.sql)).toBe(`${LOC} WHERE NOT (NOT (lower(vl.city) = lower($1)))`);
+	});
+
+	it('places no restriction when the inverted group is empty', () => {
+		expect(loc(not('OR'))).toEqual({ sql: LOC, params: [] });
+		expect(loc(group('AND', f('city', 'equals', 'Austin'), not('AND'))).sql).toBe(
+			`${LOC} WHERE (lower(vl.city) = lower($1))`
+		);
+	});
+
+	it('matches nothing when everything is excluded', () => {
+		// "none of: (an empty group)": the empty group matches everything, so none of it can match
+		expect(loc(not('OR', group('AND')))).toEqual({ sql: `${LOC} WHERE false`, params: [] });
+	});
+
+	it('lets an always-true branch settle an OR and drop out of an AND, under inversion too', () => {
+		expect(loc(not('AND', f('city', 'equals', 'Austin'), group('AND'))).sql).toContain('WHERE NOT (');
+		expect(loc(group('OR', f('city', 'equals', 'Austin'), not('OR', group('AND'))))).toMatchObject({
+			params: ['Austin']
+		});
+	});
+
+	it('numbers the parameters of filters on either side of an inverted group in order', () => {
+		const query = loc(
+			group('AND', f('city', 'equals', 'A'), not('OR', f('state', 'equals', 'B')), f('zip_code', 'equals', '1'))
+		);
+
+		expect(query.params).toEqual(['A', 'B', '1']);
+		expect(query.sql).toContain('lower(vl.postal_code) = lower($3)');
+	});
+
+	it('matches nothing when an always-true branch sits in an inverted OR, and clears its parameters', () => {
+		// "none of: (state is B, anything)" can never match, which settles the AND around it
+		const query = loc(group('AND', f('city', 'equals', 'A'), not('OR', f('state', 'equals', 'B'), group('AND'))));
+
+		expect(query).toEqual({ sql: `${LOC} WHERE false`, params: [] });
+	});
+
+	it('is refused when `not` is not a boolean', () => {
+		expect(() => loc({ operator: 'OR', not: 'yes', filters: [] })).toThrow();
+	});
+});
+
+describe('selected columns', () => {
+	it('selects only what is asked for, from the entity view', () => {
+		expect(buildFilterQuery('locations', group('AND'), { columns: ['id', 'name', 'city'] }).sql).toBe(
+			'SELECT vl.id, vl.name, vl.city FROM universe.v_locations vl'
+		);
+		expect(buildFilterQuery('people', group('AND'), { columns: ['id', 'last_name'] }).sql).toBe(
+			'SELECT vp.id, vp.last_name FROM universe.v_people vp'
+		);
+	});
+
+	it('refuses a column the entity does not have', () => {
+		expect(() => buildFilterQuery('people', group('AND'), { columns: ['city'] })).toThrow(/Unknown people columns: city/);
+		expect(() =>
+			buildFilterQuery('locations', group('AND'), { columns: ['id; DROP TABLE x'] })
+		).toThrow();
+	});
+});
+
 describe('refusals', () => {
 	const rejects = (run: () => unknown, status: number) => {
 		try {
@@ -299,5 +399,234 @@ describe('refusals', () => {
 				),
 			501
 		);
+	});
+});
+
+
+// TEMPORARY: removed with the old filter column (see issue #221).
+describe('legacy bucket filters', () => {
+	const off = { enabled: false, matchType: 'ONE_OR_MORE' as MatchType, conditions: [] };
+
+	/** Runs the old pipeline end to end: form input to stored query to editor document. */
+	function convertInput(input: Partial<BucketFilterInput>) {
+		return convertLegacyBucketFilter(convertBucketFilter({ people: off, locations: off, ...input }));
+	}
+
+	const locations = (matchType: MatchType, ...conditions: [string, string, string][]) => ({
+		locations: {
+			enabled: true,
+			matchType,
+			conditions: conditions.map(([filterId, qualifierId, value]) => ({ filterId, qualifierId, value }))
+		}
+	});
+	const people = (matchType: MatchType, ...conditions: [string, string, string][]) => ({
+		people: {
+			enabled: true,
+			matchType,
+			conditions: conditions.map(([filterId, qualifierId, value]) => ({ filterId, qualifierId, value }))
+		}
+	});
+
+	describe('which kinds of record are included', () => {
+		it('is null for a kind the bucket did not include', () => {
+			expect(convertInput({})).toEqual({ v: 2, people: null, locations: null });
+		});
+
+		it('is an empty group for a kind included with no conditions', () => {
+			expect(convertInput(locations('ALL'))).toEqual({
+				v: 2,
+				people: null,
+				locations: { operator: 'AND', filters: [] }
+			});
+		});
+
+		it('converts both kinds side by side', () => {
+			const doc = convertInput({
+				...locations('ALL', ['city', 'is', 'Austin']),
+				...people('ALL', ['first_name', 'is', 'Al'])
+			});
+
+			expect(doc.locations?.filters).toHaveLength(1);
+			expect(doc.people?.filters).toHaveLength(1);
+		});
+
+		it('treats an empty stored filter as including nothing', () => {
+			const empty: StoredBucketFilter = {
+				v: 1,
+				people: { enabled: false, query: null },
+				locations: { enabled: false, query: null }
+			};
+
+			expect(convertLegacyBucketFilter(empty)).toEqual({ v: 2, people: null, locations: null });
+		});
+	});
+
+	describe('how conditions combine', () => {
+		const two: [string, string, string][] = [
+			['city', 'is', 'Austin'],
+			['state', 'is', 'TX']
+		];
+
+		it('"all" is an AND', () => {
+			expect(convertInput(locations('ALL', ...two)).locations).toMatchObject({ operator: 'AND' });
+			expect(convertInput(locations('ALL', ...two)).locations).not.toHaveProperty('not');
+		});
+
+		it('"one or more" is an OR', () => {
+			expect(convertInput(locations('ONE_OR_MORE', ...two)).locations).toMatchObject({ operator: 'OR' });
+		});
+
+		it('"none" is inverted, and keeps the AND it was stored with', () => {
+			// The old converter documented "none" as NOT (a OR b) but stored NOT (a AND b),
+			// so those buckets select what is not all of the conditions. The conversion
+			// keeps what they select; the editor shows it as "Not all of the following".
+			expect(convertInput(locations('NONE', ...two)).locations).toMatchObject({ operator: 'AND', not: true });
+		});
+
+		it('agrees with a single "none" condition however it is read', () => {
+			expect(convertInput(locations('NONE', ['city', 'is', 'Austin'])).locations).toMatchObject({ not: true });
+		});
+
+		it('keeps the conditions in order', () => {
+			const filters = convertInput(locations('ALL', ...two)).locations!.filters;
+
+			expect(filters.map((f) => ('item' in f ? f.item : null))).toEqual(['city', 'state']);
+		});
+	});
+
+	describe('text conditions', () => {
+		const one = (qualifier: string, value: string, filterId = 'city') =>
+			convertInput(locations('ALL', [filterId, qualifier, value])).locations!.filters[0];
+
+		it('keeps "is" and "is not" exact, as they always were', () => {
+			expect(one('is', 'Austin')).toEqual({ item: 'city', operation: 'equals', value: 'Austin', caseSensitive: true });
+			expect(one('is_not', 'Austin')).toEqual({ item: 'city', operation: 'not_equals', value: 'Austin', caseSensitive: true });
+		});
+
+		it('keeps "contains" and "starts with" ignoring case, as they always did', () => {
+			expect(one('contains', 'phil')).toEqual({ item: 'city', operation: 'contains', value: 'phil' });
+			expect(one('starts_with', '191', 'zip_code')).toEqual({ item: 'zip_code', operation: 'starts_with', value: '191' });
+		});
+
+		it('maps each location column to its filter', () => {
+			expect(one('is', 'TX', 'state')).toMatchObject({ item: 'state' });
+			expect(one('is', '19104', 'zip_code')).toMatchObject({ item: 'zip_code' });
+		});
+
+		it('maps each person column to its filter', () => {
+			const doc = convertInput(people('ALL', ['first_name', 'contains', 'al'], ['last_name', 'is', 'Smith']));
+
+			expect(doc.people!.filters).toEqual([
+				{ item: 'first_name', operation: 'contains', value: 'al' },
+				{ item: 'last_name', operation: 'equals', value: 'Smith', caseSensitive: true }
+			]);
+		});
+
+		it.each([['50%'], ['a_b'], ['back\\slash']])('refuses text with wildcards or escapes of its own (%s)', (text) => {
+			expect(() => convertInput(locations('ALL', ['city', 'contains', text]))).toThrow(LegacyFilterError);
+		});
+
+		it('refuses a blank value, which the editor does not allow', () => {
+			expect(() => convertInput(locations('ALL', ['city', 'is', '']))).toThrow(LegacyFilterError);
+		});
+	});
+
+	describe('person conditions', () => {
+		const one = (...condition: [string, string, string]) =>
+			convertInput(people('ALL', condition)).people!.filters[0];
+
+		it.each([
+			['eq', 'equals'],
+			['gt', 'greater_than'],
+			['lt', 'less_than'],
+			['gte', 'greater_than_or_equal'],
+			['lte', 'less_than_or_equal']
+		])('converts the age qualifier %s', (qualifier, operation) => {
+			expect(one('age', qualifier, '65')).toEqual({ item: 'age', operation, value: 65 });
+		});
+
+		it.each([
+			['after', 'greater_than'],
+			['before', 'less_than'],
+			['not_after', 'less_than_or_equal'],
+			['not_before', 'greater_than_or_equal']
+		])('converts the date of birth qualifier %s', (qualifier, operation) => {
+			expect(one('dob', qualifier, '1990-01-01')).toEqual({ item: 'date_of_birth', operation, value: '1990-01-01' });
+		});
+
+		it('converts having an email or phone', () => {
+			expect(one('has_email', '', '')).toEqual({ item: 'has_email', operation: 'equals', value: true });
+			expect(one('has_phone', '', '')).toEqual({ item: 'has_phone', operation: 'equals', value: true });
+		});
+
+		it('refuses a date that is not a date', () => {
+			expect(() => convertInput(people('ALL', ['dob', 'after', 'last week']))).toThrow(LegacyFilterError);
+		});
+	});
+
+	describe('what cannot be converted', () => {
+		const stored = (where: unknown): StoredBucketFilter => ({
+			v: 1,
+			people: { enabled: false, query: null },
+			locations: {
+				enabled: true,
+				query: { select: ['vl.id'], from: 'universe.v_locations vl', where: where as never }
+			}
+		});
+		const group = (children: unknown[], negate = false) => ({ type: 'group', connector: 'AND', negate, children });
+		const cond = (column: string, op: string, value?: unknown, negate = false) => ({
+			type: 'condition',
+			column,
+			op,
+			negate,
+			value
+		});
+
+		it('refuses a column no filter reads', () => {
+			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.name', '=', 'x')])))).toThrow(/vl\.name/);
+		});
+
+		it('refuses a person column in a location filter', () => {
+			expect(() => convertLegacyBucketFilter(stored(group([cond('vp.first_name', '=', 'x')])))).toThrow(LegacyFilterError);
+		});
+
+		it('refuses an operator it does not know', () => {
+			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.city', 'SIMILAR TO', 'x')])))).toThrow(LegacyFilterError);
+		});
+
+		it('refuses a condition that is inverted on its own', () => {
+			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.city', '=', 'x', true)])))).toThrow(/inverted/);
+		});
+
+		it('names the kind of record in the message', () => {
+			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.name', '=', 'x')])))).toThrow(/^locations: /);
+		});
+
+		it('converts nested groups', () => {
+			const doc = convertLegacyBucketFilter(
+				stored(group([cond('vl.city', '=', 'A'), group([cond('vl.state_or_region', '=', 'B')], true)]))
+			);
+
+			expect(doc.locations?.filters[1]).toMatchObject({ operator: 'AND', not: true });
+		});
+	});
+
+	describe('the converted document', () => {
+		it('compiles to the query of a bucket that was converted', () => {
+			const doc = convertInput(
+				locations('NONE', ['city', 'is', 'Austin'], ['zip_code', 'starts_with', '787'])
+			);
+
+			const query = buildFilterQuery('locations', doc.locations);
+
+			expect(query.sql).toContain('NOT (');
+			expect(query.params).toEqual(['Austin', '787%']);
+		});
+
+		it('compiles a converted person filter', () => {
+			const doc = convertInput(people('ALL', ['age', 'gte', '18'], ['has_email', '', '']));
+
+			expect(() => buildFilterQuery('people', doc.people)).not.toThrow();
+		});
 	});
 });

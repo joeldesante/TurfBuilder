@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Dropdown from '$components/data-inputs/dropdown/Dropdown.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
+	import { loadOptions } from '$lib/client/filter-source';
 	import type { SourceBucket, SourceQuestion, SourceSurvey, FilterSource } from '$lib/client/filter-source';
 	import type { SurveyResponseValue } from '$lib/shared/types/filters';
 
@@ -26,38 +27,16 @@
 	const question = $derived(questions.find((q) => q.id === questionId));
 	const hasChoices = $derived(!!question && question.choices.length > 0);
 
-	/** Loads a list, ignoring the answer once the inputs it was asked for have changed. */
-	function load<T>(fetcher: (() => Promise<T[]>) | null, set: (rows: T[]) => void): () => void {
-		let stale = false;
-		if (!fetcher) {
-			set([]);
-			return () => {};
-		}
-		fetcher().then(
-			(rows) => {
-				if (stale) return;
-				failed = false;
-				set(rows);
-			},
-			() => {
-				if (stale) return;
-				failed = true;
-				set([]);
-			}
-		);
-		return () => {
-			stale = true;
-		};
-	}
+	const setFailed = (value: boolean) => (failed = value);
 
-	$effect(() => load(() => source.listBuckets(), (rows) => (buckets = rows)));
+	$effect(() => loadOptions(() => source.listBuckets(), (rows) => (buckets = rows), setFailed));
 	$effect(() => {
 		const id = bucketId;
-		return load(id ? () => source.listSurveys(id) : null, (rows) => (surveys = rows));
+		return loadOptions(id ? () => source.listSurveys(id) : null, (rows) => (surveys = rows), setFailed);
 	});
 	$effect(() => {
 		const id = surveyId;
-		return load(id ? () => source.listQuestions(id) : null, (rows) => (questions = rows));
+		return loadOptions(id ? () => source.listQuestions(id) : null, (rows) => (questions = rows), setFailed);
 	});
 
 	function choose(next: Partial<SurveyResponseValue>) {

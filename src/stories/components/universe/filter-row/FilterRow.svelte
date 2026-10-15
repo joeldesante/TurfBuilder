@@ -11,10 +11,11 @@
 	} from '$components/universe/filter-group/filter-source.svelte';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
 	import XIcon from 'phosphor-svelte/lib/X';
-	import { resolveSentenceNames } from '$lib/client/filter-names';
+	import { resolveSentenceNames } from '$lib/client/filter-source';
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
-	import type { Filter, RadiusValue } from '$lib/shared/types/filters';
+	import type { Filter } from '$lib/shared/types/filters';
 	import { describeFilter } from '$lib/shared/utils/filter-sentence';
+	import { asPolygon, asRadius } from '$lib/shared/utils/filter-values';
 	import type { SentenceNames } from '$lib/shared/utils/filter-sentence';
 
 	interface Props {
@@ -82,21 +83,7 @@
 		if (unsaved) onremove();
 	}
 
-	function toRadius(value: unknown): RadiusValue | null {
-		const v = value as Partial<RadiusValue> | null;
-		return v &&
-			typeof v === 'object' &&
-			typeof v.latitude === 'number' &&
-			typeof v.longitude === 'number' &&
-			typeof v.radius === 'number'
-			? (v as RadiusValue)
-			: null;
-	}
 
-	function toPolygon(value: unknown): GeoJSON.Polygon | null {
-		const v = value as GeoJSON.Polygon | null;
-		return v && typeof v === 'object' && v.type === 'Polygon' ? v : null;
-	}
 </script>
 
 <div class="rounded-lg border border-outline-subtle bg-surface shadow-sm select-none">
@@ -162,7 +149,7 @@
 {#if definition.valueType === 'radius'}
 	<RadiusPickerModal
 		open={viewing === 'radius'}
-		value={toRadius(filter.value)}
+		value={asRadius(filter.value)}
 		onOpenChange={(next) => !next && (viewing = null)}
 		onapply={(area) => {
 			onchange({ ...filter, value: area });
@@ -172,7 +159,7 @@
 {:else if definition.valueType === 'polygon'}
 	<PolygonPickerModal
 		open={viewing === 'polygon'}
-		value={toPolygon(filter.value)}
+		value={asPolygon(filter.value)}
 		onOpenChange={(next) => !next && (viewing = null)}
 		onapply={(region) => {
 			onchange({ ...filter, value: region });

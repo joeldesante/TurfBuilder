@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
 import { can } from '$lib/auth-helpers';
-import { requestedPage } from '$lib/server/pagination';
+import { requestedPage } from '$lib/shared/utils/pagination';
 import { queryOrgLocationsPage } from '$lib/server/services/locations.service';
 
 export async function load({ locals, url }) {

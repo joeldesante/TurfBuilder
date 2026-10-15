@@ -6,7 +6,7 @@
 	import FilterRow from '$components/universe/filter-row/FilterRow.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/Plus';
 	import XIcon from 'phosphor-svelte/lib/X';
-	import type { Filter, FilterGroup as FilterGroupValue, FilterGroupOperator } from '$lib/shared/types/filters';
+	import type { Filter, FilterGroup as FilterGroupValue } from '$lib/shared/types/filters';
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
 	import { defaultFilterValue, getFilter } from '$lib/shared/utils/filter-registry';
 	import { isFilterGroup } from '$lib/shared/utils/filters';
@@ -32,10 +32,32 @@
 
 	const { group, onchange, onremove, catalog, path = [], ondragstart, ondragend }: Props = $props();
 
-	const operatorItems: { value: FilterGroupOperator; label: string }[] = [
-		{ value: 'AND', label: 'All of the following' },
-		{ value: 'OR', label: 'At least one of the following' }
-	];
+	/** How a group reads and what it is stored as: the operator, and whether it is inverted. */
+	const MODES = {
+		AND: { operator: 'AND', not: false, label: 'All of the following' },
+		OR: { operator: 'OR', not: false, label: 'At least one of the following' },
+		NOT_OR: { operator: 'OR', not: true, label: 'None of the following' },
+		NOT_AND: { operator: 'AND', not: true, label: 'Not all of the following' }
+	} as const;
+	type Mode = keyof typeof MODES;
+
+	const operatorItems = (Object.keys(MODES) as Mode[]).map((mode) => ({
+		value: mode,
+		label: MODES[mode].label
+	}));
+
+	const mode = $derived<Mode>(
+		group.not ? (group.operator === 'OR' ? 'NOT_OR' : 'NOT_AND') : group.operator
+	);
+
+	function setMode(mode: Mode) {
+		const { operator, not } = MODES[mode];
+		// Leave `not` out rather than false, so a plain group stays as it was.
+		const next: FilterGroupValue = { ...group, operator };
+		if (not) next.not = true;
+		else delete next.not;
+		onchange(next);
+	}
 
 	let catalogOpen = $state(false);
 
@@ -161,8 +183,8 @@
 				aria-label="Group operator"
 				class="min-w-0 max-sm:text-sm [&>span]:truncate"
 				items={operatorItems}
-				value={group.operator}
-				onValueChange={(next) => onchange({ ...group, operator: next as FilterGroupOperator })}
+				value={mode}
+				onValueChange={(next) => setMode(next as Mode)}
 			/>
 		</div>
 		<div class="ml-auto shrink-0 border-l p-2">

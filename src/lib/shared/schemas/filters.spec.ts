@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { filterGroupSchema, filterSchema, isValidFilterGroup, valueSchemaFor } from './filters';
+import { bucketFiltersSchema, filterGroupSchema, filterSchema, valueSchemaFor } from './filters';
+
+/** Whether the document is a complete, valid filter tree. */
+const isValidFilterGroup = (doc: unknown) => filterGroupSchema.safeParse(doc).success;
 import { defaultContactMade } from '../utils/filter-registry';
 import type { FilterRegistryEntry } from '../types/filter-registry';
 
@@ -105,6 +108,7 @@ describe('select values', () => {
 		name: 'X',
 		description: '',
 		category: 'meta',
+		entities: ['people'],
 		sentence: 'Select only {entity} whose x {operation} {value}',
 		valueType: 'select',
 		operations: ['equals'],
@@ -184,6 +188,15 @@ describe('a group', () => {
 		expect(paths(nested)).toEqual(['filters.0.filters.0.value']);
 	});
 
+	it('accepts a group that is inverted', () => {
+		expect(isValidFilterGroup({ operator: 'OR', not: true, filters: [f('city', 'equals', 'A')] })).toBe(true);
+		expect(isValidFilterGroup({ operator: 'AND', not: false, filters: [] })).toBe(true);
+	});
+
+	it('rejects an inversion that is not a boolean', () => {
+		expect(isValidFilterGroup({ operator: 'OR', not: 'yes', filters: [] })).toBe(false);
+	});
+
 	it('rejects an unknown operator', () => {
 		expect(isValidFilterGroup({ operator: 'XOR', filters: [] })).toBe(false);
 	});
@@ -194,4 +207,24 @@ describe('a group', () => {
 			expect(isValidFilterGroup(doc)).toBe(false);
 		}
 	);
+});
+
+describe('a bucket\'s filters', () => {
+	const or = (...filters: unknown[]) => ({ operator: 'OR', filters });
+	const doc = (change = {}) => ({ v: 2, people: null, locations: group(), ...change });
+
+	it('accepts a document for either or both kinds of record', () => {
+		expect(bucketFiltersSchema.safeParse(doc()).success).toBe(true);
+		expect(bucketFiltersSchema.safeParse(doc({ people: or(f('age', 'less_than', 30)) })).success).toBe(true);
+		expect(bucketFiltersSchema.safeParse(doc({ locations: null })).success).toBe(true);
+	});
+
+	it('requires the version and both kinds to be said', () => {
+		expect(bucketFiltersSchema.safeParse(doc({ v: 1 })).success).toBe(false);
+		expect(bucketFiltersSchema.safeParse({ v: 2, locations: group() }).success).toBe(false);
+	});
+
+	it('rejects an invalid filter inside', () => {
+		expect(bucketFiltersSchema.safeParse(doc({ people: group('AND', f('age', 'less_than', 'old')) })).success).toBe(false);
+	});
 });

@@ -3,21 +3,18 @@ import { expect, test, vi } from 'vitest';
 import CreateListPage from './CreateListPage.svelte';
 
 const peopleOnlyFilter = {
-	v: 1 as const,
-	people: { enabled: true, query: null },
-	locations: { enabled: false, query: null }
+	people: { enabled: true },
+	locations: { enabled: false }
 };
 
 const locationsOnlyFilter = {
-	v: 1 as const,
-	people: { enabled: false, query: null },
-	locations: { enabled: true, query: null }
+	people: { enabled: false },
+	locations: { enabled: true }
 };
 
 const bothFilter = {
-	v: 1 as const,
-	people: { enabled: true, query: null },
-	locations: { enabled: true, query: null }
+	people: { enabled: true },
+	locations: { enabled: true }
 };
 
 test('renders New List heading', async () => {
@@ -100,4 +97,60 @@ test('calls onCreate with correct payload', async () => {
 	expect(payload.name).toBe('My Test List');
 	expect(payload.entity_type).toBe('people');
 	expect(payload.expires_at).toContain('2027-01-01');
+	expect(payload.filters).toEqual({ operator: 'AND', filters: [] });
+});
+
+test('shows the filter editor for the kind of record chosen, with only its filters', async () => {
+	const { getByRole } = render(CreateListPage, {
+		props: { bucketName: 'Test', bucketFilter: peopleOnlyFilter, onCreate: async () => {} }
+	});
+
+	await getByRole('button', { name: 'Add Filter' }).click();
+
+	await expect.element(getByRole('button', { name: /^Age/ })).toBeVisible();
+	await expect.element(getByRole('button', { name: /^City/ })).not.toBeInTheDocument();
+});
+
+test('shows no filter editor until a kind of record is chosen', async () => {
+	const { getByRole } = render(CreateListPage, {
+		props: { bucketName: 'Test', bucketFilter: bothFilter, onCreate: async () => {} }
+	});
+
+	await expect.element(getByRole('button', { name: 'Add Filter' })).not.toBeInTheDocument();
+	await getByRole('radio', { name: 'Locations' }).click();
+	await expect.element(getByRole('button', { name: 'Add Filter' })).toBeVisible();
+});
+
+test('sends the filters added in the editor', async () => {
+	const onCreate = vi.fn().mockResolvedValue(undefined);
+	const { getByLabelText, getByRole } = render(CreateListPage, {
+		props: { bucketName: 'Test', bucketFilter: locationsOnlyFilter, onCreate }
+	});
+
+	await getByLabelText('Name').fill('Austin');
+	await getByLabelText('Expiration Date').fill('2027-01-01');
+	await getByRole('button', { name: 'Add Filter' }).click();
+	await getByRole('button', { name: /^City/ }).click();
+	await getByRole('textbox', { name: 'Value' }).fill('Austin');
+	await getByRole('button', { name: 'Add filter', exact: true }).click();
+	await getByRole('button', { name: 'Create List' }).click();
+
+	await vi.waitFor(() => expect(onCreate).toHaveBeenCalledOnce());
+	expect(onCreate.mock.calls[0][0].filters).toEqual({
+		operator: 'AND',
+		filters: [{ item: 'city', operation: 'equals', value: 'Austin' }]
+	});
+});
+
+test('shows the error when creating fails', async () => {
+	const onCreate = vi.fn().mockRejectedValue(new Error('This bucket does not include people'));
+	const { getByLabelText, getByRole, getByText } = render(CreateListPage, {
+		props: { bucketName: 'Test', bucketFilter: peopleOnlyFilter, onCreate }
+	});
+
+	await getByLabelText('Name').fill('List');
+	await getByLabelText('Expiration Date').fill('2027-01-01');
+	await getByRole('button', { name: 'Create List' }).click();
+
+	await expect.element(getByText('This bucket does not include people')).toBeVisible();
 });

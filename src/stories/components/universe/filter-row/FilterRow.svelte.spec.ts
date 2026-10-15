@@ -201,7 +201,7 @@ test('edits a contact made filter in the dialog', async () => {
 	const { screen, onchange, full } = setup('contact_made', { value: defaultContactMade() });
 
 	await screen.getByRole('button', { name: 'Edit filter' }).click();
-	await screen.getByRole('button', { name: 'Attempt' }).click();
+	await screen.getByRole('button', { name: 'Attempt', exact: true }).click();
 	await screen.getByRole('option', { name: 'the latest attempt' }).click();
 	await screen.getByRole('button', { name: 'Save' }).click();
 

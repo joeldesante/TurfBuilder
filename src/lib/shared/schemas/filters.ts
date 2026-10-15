@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Filter, FilterGroup } from '../types/filters';
+import type { BucketFilters, Filter, FilterGroup } from '../types/filters';
 import type { FilterRegistryEntry, FilterValueType } from '../types/filter-registry';
 import { getFilter } from '../utils/filter-registry';
 
@@ -130,11 +130,14 @@ export const filterSchema: z.ZodType<Filter> = z
 export const filterGroupSchema: z.ZodType<FilterGroup> = z.lazy(() =>
 	z.object({
 		operator: z.enum(['AND', 'OR']),
+		not: z.boolean().optional(),
 		filters: z.array(z.union([filterGroupSchema, filterSchema]))
 	})
 );
 
-/** Whether the document is a complete, valid filter tree. */
-export function isValidFilterGroup(value: unknown): value is FilterGroup {
-	return filterGroupSchema.safeParse(value).success;
-}
+/** A bucket's stored filters. */
+export const bucketFiltersSchema: z.ZodType<BucketFilters> = z.object({
+	v: z.literal(2),
+	people: filterGroupSchema.nullable(),
+	locations: filterGroupSchema.nullable()
+});

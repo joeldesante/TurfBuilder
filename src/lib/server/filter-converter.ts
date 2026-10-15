@@ -1,33 +1,29 @@
-import { z } from 'zod';
 import type { ConditionNode, GroupNode, SingleQuery } from './query-builder';
 
 // ---------------------------------------------------------------------------
-// Schema — the raw UI filter state the API receives
+// The form the old bucket and list pages sent. Nothing sends it any more; the
+// tests use `convertBucketFilter` to build filters stored in the old format,
+// which the migration still has to read (see issue #221).
 // ---------------------------------------------------------------------------
 
-export const FilterConditionSchema = z.object({
-	filterId: z.string().min(1),
-	qualifierId: z.string().default(''),
-	value: z.coerce.string().default(''),
-});
+export interface FilterCondition {
+	filterId: string;
+	qualifierId: string;
+	value: string;
+}
 
-export type FilterCondition = z.infer<typeof FilterConditionSchema>;
+export type MatchType = 'ONE_OR_MORE' | 'ALL' | 'NONE';
 
-const MatchTypeSchema = z.enum(['ONE_OR_MORE', 'ALL', 'NONE']);
-export type MatchType = z.infer<typeof MatchTypeSchema>;
+interface EntityFilterInput {
+	enabled: boolean;
+	matchType: MatchType;
+	conditions: FilterCondition[];
+}
 
-const EntityFilterInputSchema = z.object({
-	enabled: z.boolean(),
-	matchType: MatchTypeSchema,
-	conditions: z.array(FilterConditionSchema),
-});
-
-export const BucketFilterInputSchema = z.object({
-	people: EntityFilterInputSchema,
-	locations: EntityFilterInputSchema,
-});
-
-export type BucketFilterInput = z.infer<typeof BucketFilterInputSchema>;
+export interface BucketFilterInput {
+	people: EntityFilterInput;
+	locations: EntityFilterInput;
+}
 
 // ---------------------------------------------------------------------------
 // Stored format — what is persisted in universe.bucket.filter (JSONB)

@@ -1,52 +1,44 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
-	import type { FilterDefinition } from '$components/universe/entity-filter/EntityFilter.svelte';
-	import type { FilterEntry } from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
-	import type { StoredBucketFilter, MatchType, FilterCondition } from '$lib/server/filter-converter';
-	import { untrack } from 'svelte';
+	import type { FilterSource } from '$lib/client/filter-source';
+	import { filterGroupSchema } from '$lib/shared/schemas/filters';
+	import type { FilterEntity, FilterGroup } from '$lib/shared/types/filters';
+	import { filtersFor } from '$lib/shared/utils/filter-registry';
 
-	interface CreateListPayload {
+	export interface CreateListPayload {
 		name: string;
-		entity_type: 'people' | 'locations';
+		entity_type: FilterEntity;
 		expires_at: string;
-		filter: {
-			matchType: MatchType;
-			conditions: FilterCondition[];
-		};
+		/** What the list narrows the bucket down to. Empty takes the whole bucket. */
+		filters: FilterGroup;
 	}
 
 	interface Props {
 		bucketName: string;
-		bucketFilter: StoredBucketFilter;
+		/** Which kinds of record the bucket includes. */
+		bucketFilter: { people: { enabled: boolean }; locations: { enabled: boolean } };
+		/** The organization whose buckets, lists, and surveys the filters offer. */
+		orgId?: string;
+		/** Overrides where those choices come from; for stories and tests. */
+		source?: FilterSource;
 		onCreate: (payload: CreateListPayload) => Promise<void>;
 	}
 
-	const { bucketName, bucketFilter, onCreate }: Props = $props();
-
-	// ---------------------------------------------------------------------------
-	// Available entity types (derived from what the bucket includes)
-	// ---------------------------------------------------------------------------
+	const { bucketName, bucketFilter, orgId, source, onCreate }: Props = $props();
 
 	const availableTypes = $derived(
-		[
-			bucketFilter.people.enabled ? ('people' as const) : null,
-			bucketFilter.locations.enabled ? ('locations' as const) : null
-		].filter((t): t is 'people' | 'locations' => t !== null)
+		(['people', 'locations'] as const).filter((type) => bucketFilter[type].enabled)
 	);
-
-	// ---------------------------------------------------------------------------
-	// Form state
-	// ---------------------------------------------------------------------------
 
 	let name = $state('');
 	let expiresAt = $state('');
 
-	// Pre-select the only available type when there is exactly one.
-	// untrack is used intentionally: we only want the initial prop value to set
-	// the default — this should not re-run if bucketFilter changes after mount.
-	const defaultType = untrack((): 'people' | 'locations' | null =>
+	// Pre-select the only available type when there is exactly one. Read once:
+	// it sets the starting choice and should not follow later prop changes.
+	const defaultType = untrack((): FilterEntity | null =>
 		bucketFilter.people.enabled && !bucketFilter.locations.enabled
 			? 'people'
 			: !bucketFilter.people.enabled && bucketFilter.locations.enabled
@@ -54,127 +46,15 @@
 				: null
 	);
 
-	let selectedType = $state<'people' | 'locations' | null>(defaultType);
+	let selectedType = $state<FilterEntity | null>(defaultType);
+	let group = $state<FilterGroup>({ operator: 'AND', filters: [] });
 	let submitting = $state(false);
 	let errorMessage = $state('');
 
-	// ---------------------------------------------------------------------------
-	// Filter state
-	// ---------------------------------------------------------------------------
-
-	let matchType = $state<MatchType>('ONE_OR_MORE');
-	let filterEntries = $state<FilterEntry[]>([]);
-
-	const peopleFilters: FilterDefinition[] = [
-		{
-			id: 'first_name',
-			label: 'First Name',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'contains', label: 'contains' },
-				{ value: 'starts_with', label: 'starts with' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'Enter a name...'
-		},
-		{
-			id: 'last_name',
-			label: 'Last Name',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'contains', label: 'contains' },
-				{ value: 'starts_with', label: 'starts with' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'Enter a name...'
-		},
-		{
-			id: 'age',
-			label: 'Age',
-			qualifiers: [
-				{ value: 'eq', label: 'is exactly' },
-				{ value: 'gt', label: 'is greater than' },
-				{ value: 'lt', label: 'is less than' },
-				{ value: 'gte', label: 'is at least' },
-				{ value: 'lte', label: 'is at most' }
-			],
-			valueType: 'number',
-			valuePlaceholder: '0',
-			valueUnit: 'years'
-		},
-		{
-			id: 'dob',
-			label: 'Date of Birth',
-			qualifiers: [
-				{ value: 'after', label: 'is after' },
-				{ value: 'before', label: 'is before' },
-				{ value: 'not_after', label: 'is on or before' },
-				{ value: 'not_before', label: 'is on or after' }
-			],
-			valueType: 'date'
-		},
-		{
-			id: 'has_email',
-			label: 'Has Email on File',
-			valueType: 'none'
-		},
-		{
-			id: 'has_phone',
-			label: 'Has Phone on File',
-			valueType: 'none'
-		}
-	];
-
-	const locationFilters: FilterDefinition[] = [
-		{
-			id: 'city',
-			label: 'City',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'contains', label: 'contains' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'Enter a city...'
-		},
-		{
-			id: 'state',
-			label: 'State',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'e.g. CA'
-		},
-		{
-			id: 'zip_code',
-			label: 'ZIP Code',
-			qualifiers: [
-				{ value: 'is', label: 'is' },
-				{ value: 'is_not', label: 'is not' },
-				{ value: 'starts_with', label: 'starts with' }
-			],
-			valueType: 'text',
-			valuePlaceholder: 'e.g. 90210'
-		}
-	];
-
-	const activeFilters = $derived(selectedType === 'people' ? peopleFilters : locationFilters);
-
-	// Reset filter entries when entity type changes.
+	// Filters for one kind of record do not apply to the other, so start over when the kind changes.
 	$effect(() => {
-		if (selectedType) {
-			filterEntries = [];
-			matchType = 'ONE_OR_MORE';
-		}
+		if (selectedType) untrack(() => (group = { operator: 'AND', filters: [] }));
 	});
-
-	// ---------------------------------------------------------------------------
-	// Submit
-	// ---------------------------------------------------------------------------
 
 	const canSubmit = $derived(
 		name.trim().length > 0 && expiresAt.length > 0 && selectedType !== null && !submitting
@@ -182,21 +62,21 @@
 
 	async function handleSubmit() {
 		if (!canSubmit || !selectedType) return;
-		submitting = true;
 		errorMessage = '';
+
+		const checked = filterGroupSchema.safeParse($state.snapshot(group));
+		if (!checked.success) {
+			errorMessage = checked.error.issues[0]?.message ?? 'Finish the filters before creating the list.';
+			return;
+		}
+
+		submitting = true;
 		try {
 			await onCreate({
 				name: name.trim(),
 				entity_type: selectedType,
 				expires_at: new Date(expiresAt).toISOString(),
-				filter: {
-					matchType,
-					conditions: filterEntries.map((e) => ({
-						filterId: e.filterId,
-						qualifierId: e.qualifierId,
-						value: e.value
-					}))
-				}
+				filters: checked.data
 			});
 		} catch (err) {
 			errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -245,7 +125,7 @@
 		<div class="flex flex-col gap-2">
 			<span class="text-sm font-medium">Entity Type</span>
 			<div class="flex flex-row gap-6">
-				{#each availableTypes as type}
+				{#each availableTypes as type (type)}
 					<label class="flex items-center gap-2 cursor-pointer">
 						<input
 							type="radio"
@@ -262,12 +142,16 @@
 
 		<!-- Filter editor — only shown once an entity type is selected -->
 		{#if selectedType}
-			<EntityFilterEditor
-				entity={selectedType === 'people' ? 'People' : 'Locations'}
-				filters={activeFilters}
-				bind:matchType
-				bind:filterEntries
-			/>
+			<!-- Keyed, because the editor takes its kind of record when it is created. -->
+			{#key selectedType}
+				<EntityFilterEditor
+					entity={selectedType}
+					catalog={filtersFor(selectedType)}
+					{orgId}
+					{source}
+					bind:group
+				/>
+			{/key}
 		{/if}
 
 		<!-- Error -->

@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { parseDate } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
 	import Button from '$components/actions/button/Button.svelte';
 	import DatePicker from '$components/data-inputs/date-picker/DatePicker.svelte';
 	import Dropdown from '$components/data-inputs/dropdown/Dropdown.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
+	import { loadOptions } from '$lib/client/filter-source';
 	import type { FilterSource, SourceBucket, SourceList } from '$lib/client/filter-source';
 	import type { ContactMadeValue } from '$lib/shared/types/filters';
+	import { asCalendarDate } from '$lib/shared/utils/filter-values';
 
 	interface Props {
 		/** Where the buckets and lists to choose from come from. Without one, the attempts cannot be limited to a bucket or list. */
@@ -24,34 +25,14 @@
 	let lists = $state<SourceList[]>([]);
 	let failed = $state(false);
 
-	/** Loads a list, ignoring the answer once the inputs it was asked for have changed. */
-	function load<T>(fetcher: (() => Promise<T[]>) | null, set: (rows: T[]) => void): () => void {
-		let stale = false;
-		if (!fetcher) {
-			set([]);
-			return () => {};
-		}
-		fetcher().then(
-			(rows) => {
-				if (stale) return;
-				failed = false;
-				set(rows);
-			},
-			() => {
-				if (stale) return;
-				failed = true;
-				set([]);
-			}
-		);
-		return () => {
-			stale = true;
-		};
-	}
+	const setFailed = (value: boolean) => (failed = value);
 
-	$effect(() => load(source ? () => source.listBuckets() : null, (rows) => (buckets = rows)));
+	$effect(() =>
+		loadOptions(source ? () => source.listBuckets() : null, (rows) => (buckets = rows), setFailed)
+	);
 	$effect(() => {
 		const id = value.bucketId;
-		return load(source && id ? () => source.listLists(id) : null, (rows) => (lists = rows));
+		return loadOptions(source && id ? () => source.listLists(id) : null, (rows) => (lists = rows), setFailed);
 	});
 
 	function change(next: Partial<ContactMadeValue>) {
@@ -62,14 +43,6 @@
 		change({ position, n: position === 'nth_from_last' ? (value.n ?? 2) : null });
 	}
 
-	function toDate(text: string | null): DateValue | undefined {
-		if (!text) return undefined;
-		try {
-			return parseDate(text);
-		} catch {
-			return undefined;
-		}
-	}
 </script>
 
 <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -145,15 +118,15 @@
 	<span class="text-sm text-on-surface-subtle">between</span>
 	<DatePicker
 		aria-label="From"
-		value={toDate(value.from)}
-		maxValue={toDate(value.to)}
+		value={asCalendarDate(value.from)}
+		maxValue={asCalendarDate(value.to)}
 		onValueChange={(next: DateValue | undefined) => change({ from: next?.toString() ?? null })}
 	/>
 	<span class="text-sm text-on-surface-subtle">and</span>
 	<DatePicker
 		aria-label="To"
-		value={toDate(value.to)}
-		minValue={toDate(value.from)}
+		value={asCalendarDate(value.to)}
+		minValue={asCalendarDate(value.from)}
 		onValueChange={(next: DateValue | undefined) => change({ to: next?.toString() ?? null })}
 	/>
 	{#if value.from || value.to}

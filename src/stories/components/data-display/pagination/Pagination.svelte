@@ -3,6 +3,7 @@
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
 	import type { Snippet } from 'svelte';
+	import { pageLinks } from '$lib/shared/utils/pagination';
 
 	interface Props {
 		/** 1-based number of the page being shown. */
@@ -22,23 +23,7 @@
 	const firstShown = $derived(totalCount === 0 ? 0 : (page - 1) * pageSize + 1);
 	const lastShown = $derived(Math.min(page * pageSize, totalCount));
 
-	/**
-	 * Page numbers to offer, with nulls standing in for gaps. Always includes the
-	 * first and last page so the ends of a long list stay one click away.
-	 */
-	const pageLinks = $derived.by<(number | null)[]>(() => {
-		if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-		const window = [page - 1, page, page + 1].filter((p) => p > 1 && p < totalPages);
-		const shown = [1, ...window, totalPages];
-
-		const out: (number | null)[] = [];
-		for (const [i, p] of shown.entries()) {
-			if (i > 0 && p - shown[i - 1] > 1) out.push(null);
-			out.push(p);
-		}
-		return out;
-	});
+	const links = $derived(pageLinks(page, totalPages));
 </script>
 
 {#if totalCount > 0}
@@ -64,7 +49,7 @@
 					<CaretLeftIcon />
 				</Button>
 
-				{#each pageLinks as target, i (i)}
+				{#each links as target, i (i)}
 					{#if target === null}
 						<span class="px-1 text-xs text-on-surface-subtle" aria-hidden="true">…</span>
 					{:else}

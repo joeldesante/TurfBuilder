@@ -1,5 +1,5 @@
 import Handlebars from 'handlebars';
-import { launchBrowser } from './browser';
+import { launchBrowser } from './browser.service';
 
 /**
  * Fills a Handlebars template with the data and prints it as a Letter PDF.

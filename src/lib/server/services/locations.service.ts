@@ -2,8 +2,8 @@ import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { requireOrgPermission } from '$lib/server/list-access';
 import { LOCATION_ROW_COLUMNS } from '$lib/server/locations';
-import { clampPage, pageOffset, PAGE_SIZE } from '$lib/server/pagination';
-import type { Page } from '$lib/server/pagination';
+import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
+import type { Page } from '$lib/shared/utils/pagination';
 
 export interface OrgLocationRow {
 	id: string;

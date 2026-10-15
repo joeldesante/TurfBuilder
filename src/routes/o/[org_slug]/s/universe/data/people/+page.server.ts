@@ -1,5 +1,5 @@
 import { withOrgTransaction } from '$lib/server/database';
-import { requestedPage } from '$lib/server/pagination';
+import { requestedPage } from '$lib/shared/utils/pagination';
 import { queryOrgPeoplePage } from '$lib/server/services/people.service';
 
 export async function load({ locals, url }) {

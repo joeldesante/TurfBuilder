@@ -20,14 +20,6 @@ Miscellaneous endpoints.
 
 ---
 
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/buckets`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/buckets/{slug}/lists`
-
----
-
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/dashboard`
 
 Returns dashboard analytics for the organization.

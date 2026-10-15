@@ -3,6 +3,7 @@ import {
 	defaultContactMade,
 	defaultFilterValue,
 	FILTER_CATEGORIES,
+	filtersFor,
 	getFilter,
 	getFilters
 } from './filter-registry';
@@ -53,5 +54,29 @@ describe('filter registry', () => {
 	it('looks a filter up by id', () => {
 		expect(getFilter('age')?.name).toBe('Age');
 		expect(getFilter('nope')).toBeUndefined();
+	});
+
+	it('says which kinds of record every filter can select', () => {
+		for (const filter of getFilters()) {
+			expect(filter.entities.length, filter.id).toBeGreaterThan(0);
+			expect(filter.entities.every((e) => e === 'people' || e === 'locations'), filter.id).toBe(true);
+		}
+	});
+
+	it('offers each kind of record only the filters that can select it', () => {
+		const people = filtersFor('people').map((f) => f.id);
+		const locations = filtersFor('locations').map((f) => f.id);
+
+		expect(people).toContain('age');
+		expect(people).not.toContain('city');
+		expect(locations).toContain('city');
+		expect(locations).not.toContain('first_name');
+	});
+
+	it('orders the filters for a kind of record by category, then name', () => {
+		const filters = filtersFor('locations');
+		const order = filters.map((f) => FILTER_CATEGORIES.indexOf(f.category));
+
+		expect(order).toEqual([...order].sort((a, b) => a - b));
 	});
 });

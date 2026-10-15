@@ -23,7 +23,11 @@ import { GET, POST } from './+server';
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const params = { organization_id: ORG };
 const signedIn = { user: { id: 'u1' } };
-const valid = { name: 'Voters', slug: 'voters', filter: { type: 'person' } };
+const valid = {
+	name: 'Voters',
+	slug: 'voters',
+	filters: { v: 2, people: null, locations: { operator: 'AND', filters: [] } }
+};
 
 function post(body: unknown, p = params, locals: unknown = signedIn) {
 	return POST({
@@ -70,10 +74,16 @@ describe('POST /api/v1/organizations/[organization_id]/buckets', () => {
 		});
 	});
 
-	it('answers 400 when the filter is missing', async () => {
+	it('answers 400 when the filters are missing', async () => {
 		await expect(post({ name: 'Voters', slug: 'voters' })).rejects.toMatchObject({
 			status: 400
 		});
+	});
+
+	it('answers 400 for filters that are not valid', async () => {
+		await expect(
+			post({ ...valid, filters: { v: 1, people: null, locations: null } })
+		).rejects.toMatchObject({ status: 400 });
 	});
 
 	it('creates the bucket and answers 201', async () => {

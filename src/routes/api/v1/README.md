@@ -25,7 +25,7 @@ Collections whose size is unbounded (entities, bucket matches, list entries, mem
 
 - `page` is 1-based. A missing, nonsense, or out-of-range value is clamped to the nearest real page rather than rejected.
 - Every page has a total order (ending in an id), so pages never repeat or skip a row.
-- Helpers live in `$lib/server/pagination`. Each service exposes a `query...Page(client, orgId, page)` function for page loads that already hold an org transaction, and an access-checked `list...(userId, id, page)` for the endpoint.
+- Helpers live in `$lib/shared/utils/pagination`. Each service exposes a `query...Page(client, orgId, page)` function for page loads that already hold an org transaction, and an access-checked `list...(userId, id, page)` for the endpoint.
 
 Paginated today:
 

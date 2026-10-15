@@ -10,7 +10,6 @@ export type FilterOperation =
 	| 'less_than_or_equal'
 	| 'contains'
 	| 'starts_with'
-	| 'in'
 	| 'within'
 	| 'not_within';
 
@@ -68,7 +67,23 @@ export type FilterGroupOperator = 'AND' | 'OR';
 export interface FilterGroup {
 	/** How the results of the entries are combined. */
 	operator: FilterGroupOperator;
+	/**
+	 * Inverts the group: with OR, none of the entries match; with AND, not all
+	 * of them do. Absent means not inverted. An empty group places no
+	 * restriction either way.
+	 */
+	not?: boolean;
 	/** Filters or nested groups, so conditions can be arbitrarily nested. */
 	filters: (Filter | FilterGroup)[];
 }
 
+
+/**
+ * A bucket's filters: one document per kind of record, or null when the bucket
+ * does not include that kind. An empty group includes every record of the kind.
+ */
+export interface BucketFilters {
+	v: 2;
+	people: FilterGroup | null;
+	locations: FilterGroup | null;
+}

@@ -10,6 +10,7 @@ const entry = (id: string, name: string, category: FilterRegistryEntry['category
 		name,
 		description: `${name} description`,
 		category,
+		entities: ['locations'],
 		valueType: 'text',
 		operations: ['equals']
 	}) as FilterRegistryEntry;

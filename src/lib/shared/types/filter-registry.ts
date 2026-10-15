@@ -1,4 +1,4 @@
-import type { FilterOperation } from './filters';
+import type { FilterEntity, FilterOperation } from './filters';
 
 export type FilterCategory = 'geographical' | 'survey' | 'canvassing' | 'meta';
 
@@ -11,6 +11,8 @@ export interface FilterRegistryEntry {
 	name: string;
 	description: string;
 	category: FilterCategory;
+	/** The kinds of record this filter can select. */
+	entities: FilterEntity[];
 	valueType: FilterValueType;
 	/**
 	 * How the filter reads as a sentence once configured. `{entity}` is the kind

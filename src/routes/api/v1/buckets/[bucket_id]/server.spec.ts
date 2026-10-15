@@ -24,7 +24,11 @@ import { GET, PUT, PATCH } from './+server';
 const BUCKET = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const params = { bucket_id: BUCKET };
 const signedIn = { user: { id: 'u1' } };
-const valid = { name: 'Voters', slug: 'voters', filter: { type: 'person' } };
+const valid = {
+	name: 'Voters',
+	slug: 'voters',
+	filters: { v: 2, people: null, locations: { operator: 'AND', filters: [] } }
+};
 
 function withBody(handler: typeof PUT, body: unknown, p = params, locals: unknown = signedIn) {
 	return handler({
@@ -73,10 +77,16 @@ describe('PUT /api/v1/buckets/[bucket_id]', () => {
 		await expect(withBody(PUT, valid, params, {})).rejects.toMatchObject({ status: 401 });
 	});
 
-	it('answers 400 when the filter is missing', async () => {
+	it('answers 400 when the filters are missing', async () => {
 		await expect(withBody(PUT, { name: 'Voters', slug: 'voters' })).rejects.toMatchObject({
 			status: 400
 		});
+	});
+
+	it('answers 400 for filters that are not valid', async () => {
+		await expect(
+			withBody(PUT, { ...valid, filters: { v: 2, people: null, locations: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: '' }] } } })
+		).rejects.toMatchObject({ status: 400 });
 	});
 
 	it('replaces the bucket with the full body', async () => {

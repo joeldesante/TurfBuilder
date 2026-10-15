@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
-import { requestedPage } from '$lib/server/pagination';
+import { requestedPage } from '$lib/shared/utils/pagination';
 import { queryListEntriesPage } from '$lib/server/services/lists.service';
 
 export async function load({ params, locals, url }) {
