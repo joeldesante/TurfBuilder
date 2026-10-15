@@ -1683,5 +1683,45 @@ export const SETUP_STEPS: SetupStep[] = [
 				USING (org_id = ${safe})
 				WITH CHECK (org_id = ${safe})`
 		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 39. Filter editor documents (expand step)
+	//
+	// The filter editor produces a FilterGroup document (see
+	// $lib/shared/schemas/filters) that is compiled to SQL when needed, rather
+	// than a stored query. It lives in a new column beside the old one so the
+	// old filter keeps working while data moves across; the old column is
+	// dropped in a later step once nothing reads it.
+	//
+	// A bucket's filter is live, so its document can be edited. A list is a
+	// snapshot taken once, so its document only records how it was made: it can
+	// be set once (to fill in lists created before this column existed) and
+	// never changed after that.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Adding filter editor documents to buckets and lists',
+		statements: [
+			`ALTER TABLE universe.bucket ADD COLUMN IF NOT EXISTS filters JSONB`,
+			`COMMENT ON COLUMN universe.bucket.filters IS
+				'The filter editor document (a FilterGroup) for this bucket. Replaces the compiled query in filter.'`,
+
+			`ALTER TABLE universe.list ADD COLUMN IF NOT EXISTS filters JSONB`,
+			`COMMENT ON COLUMN universe.list.filters IS
+				'The filter editor document the list was created with. A reference only, since the list is a snapshot; immutable once set.'`,
+
+			`CREATE OR REPLACE FUNCTION universe.lock_list_filters() RETURNS trigger AS $$
+			BEGIN
+				IF OLD.filters IS NOT NULL AND NEW.filters IS DISTINCT FROM OLD.filters THEN
+					RAISE EXCEPTION 'universe.list.filters cannot be changed once set';
+				END IF;
+				RETURN NEW;
+			END;
+			$$ LANGUAGE plpgsql`,
+			`DROP TRIGGER IF EXISTS list_filters_immutable ON universe.list`,
+			`CREATE TRIGGER list_filters_immutable
+				BEFORE UPDATE OF filters ON universe.list
+				FOR EACH ROW EXECUTE FUNCTION universe.lock_list_filters()`
+		]
 	}
 ];
