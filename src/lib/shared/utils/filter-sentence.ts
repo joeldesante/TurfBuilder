@@ -49,6 +49,11 @@ const missing = (label: string): SentencePart => badge(label, { incomplete: true
 
 const ENTITY_NAMES: Record<FilterEntity, string> = { people: 'People', locations: 'Locations' };
 
+/** The kind of record as the editor names it: "People", "Locations", or "Records" when not known. */
+export function entityName(entity?: FilterEntity): string {
+	return entity ? ENTITY_NAMES[entity] : 'Records';
+}
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null;
 
@@ -243,7 +248,7 @@ export function describeFilter(
 
 	const named: Parts = {
 		...parts,
-		entity: [badge(entity ? ENTITY_NAMES[entity] : 'Records')],
+		entity: [badge(entityName(entity))],
 		operation: [badge(operation)],
 		// All of the value's parts together, for templates that do not need them apart.
 		value: parts.value ?? Object.values(parts).flat()

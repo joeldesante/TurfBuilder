@@ -10,6 +10,8 @@
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
 	import { defaultFilterValue, getFilter } from '$lib/shared/utils/filter-registry';
 	import { isFilterGroup } from '$lib/shared/utils/filters';
+	import { entityName } from '$lib/shared/utils/filter-sentence';
+	import { useFilterEntity } from './filter-source.svelte';
 	import { isSameOrDescendant, moveNode } from '$lib/shared/utils/filter-tree';
 	import type { FilterPath } from '$lib/shared/utils/filter-tree';
 	import { FilterDnd, provideFilterDnd, useFilterDnd } from './filter-dnd.svelte';
@@ -23,6 +25,8 @@
 		onremove?: () => void;
 		/** Filters offered in the catalog. Defaults to the full shared registry. */
 		catalog?: FilterRegistryEntry[];
+		/** Small text above the mode, saying what the query is for, such as "This bucket will contain". */
+		label?: string;
 		/** Where this group sits in the query. Empty for the root; set by the parent group. */
 		path?: FilterPath;
 		/** When given, a grip is shown in the header that starts a drag to reorder this group. */
@@ -30,21 +34,26 @@
 		ondragend?: (event: DragEvent) => void;
 	}
 
-	const { group, onchange, onremove, catalog, path = [], ondragstart, ondragend }: Props = $props();
+	const { group, onchange, onremove, catalog, label, path = [], ondragstart, ondragend }: Props = $props();
 
 	/** How a group reads and what it is stored as: the operator, and whether it is inverted. */
 	const MODES = {
-		AND: { operator: 'AND', not: false, label: 'All of the following' },
-		OR: { operator: 'OR', not: false, label: 'At least one of the following' },
-		NOT_OR: { operator: 'OR', not: true, label: 'None of the following' },
-		NOT_AND: { operator: 'AND', not: true, label: 'Not all of the following' }
+		AND: { operator: 'AND', not: false, label: 'matching every filter in this group' },
+		OR: { operator: 'OR', not: false, label: 'matching at least one filter in this group' },
+		NOT_OR: { operator: 'OR', not: true, label: 'matching no filter in this group' },
+		NOT_AND: { operator: 'AND', not: true, label: 'failing at least one filter in this group' }
 	} as const;
 	type Mode = keyof typeof MODES;
 
-	const operatorItems = (Object.keys(MODES) as Mode[]).map((mode) => ({
-		value: mode,
-		label: MODES[mode].label
-	}));
+	const entity = useFilterEntity();
+
+	// Each mode says who is selected and by which filters, e.g. "Locations matching no filter in this group".
+	const operatorItems = $derived(
+		(Object.keys(MODES) as Mode[]).map((mode) => ({
+			value: mode,
+			label: `${entityName(entity())} ${MODES[mode].label}`
+		}))
+	);
 
 	const mode = $derived<Mode>(
 		group.not ? (group.operator === 'OR' ? 'NOT_OR' : 'NOT_AND') : group.operator
@@ -177,15 +186,18 @@
 			{#if ondragstart}
 				<DragHandle {ondragstart} ondragend={(e) => { endDrag(); ondragend?.(e); }} />
 			{/if}
-			<!-- On a phone the operator reads on its own ("All of the following"), so the label goes. -->
-			<span class="shrink-0 text-sm text-on-surface max-sm:hidden">Match</span>
-			<Dropdown
-				aria-label="Group operator"
-				class="min-w-0 max-sm:text-sm [&>span]:truncate"
-				items={operatorItems}
-				value={mode}
-				onValueChange={(next) => setMode(next as Mode)}
-			/>
+			<div class="flex min-w-0 flex-col gap-1">
+				{#if label}
+					<span class="text-xs text-on-surface-subtle">{label}</span>
+				{/if}
+				<Dropdown
+					aria-label="Group operator"
+					class="min-w-0 max-sm:text-sm [&>span]:truncate"
+					items={operatorItems}
+					value={mode}
+					onValueChange={(next) => setMode(next as Mode)}
+				/>
+			</div>
 		</div>
 		<div class="ml-auto shrink-0 border-l p-2">
 			<Button

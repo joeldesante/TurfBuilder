@@ -145,6 +145,7 @@
 			<!-- Keyed, because the editor takes its kind of record when it is created. -->
 			{#key selectedType}
 				<EntityFilterEditor
+					label="This list will contain"
 					entity={selectedType}
 					catalog={filtersFor(selectedType)}
 					{orgId}

@@ -5,8 +5,7 @@
 	import { buildFilterQuery } from '$lib/server/services/filters.service';
 	import type { FilterEntity, FilterQuery } from '$lib/server/services/filters.service';
 	import type { FilterGroup } from '$lib/shared/types/filters';
-	import { formatSql } from './format-sql';
-	import { highlightSql, type SqlTokenKind } from './highlight-sql';
+	import SqlPreview from '$components/data-display/sql-preview/SqlPreview.svelte';
 
 	interface Props {
 		/** Which records the query is built for; decides which filters apply. */
@@ -53,23 +52,6 @@
 		}
 	});
 
-	const sqlTokens = $derived('query' in result ? highlightSql(formatSql(result.query.sql)) : []);
-
-	/** IDE-style colors, from theme roles so they follow light and dark mode. */
-	const TOKEN_CLASS: Record<SqlTokenKind, string> = {
-		keyword: 'font-bold text-info',
-		function: 'text-tertiary',
-		type: 'italic text-warning',
-		string: 'text-success',
-		number: 'text-warning',
-		param: 'font-semibold text-primary',
-		punctuation: 'text-on-surface-subtle',
-		plain: ''
-	};
-
-	function show(value: unknown): string {
-		return typeof value === 'string' ? `'${value}'` : String(value);
-	}
 </script>
 
 <div class="grid gap-6 p-4 lg:grid-cols-2">
@@ -107,22 +89,7 @@
 				<p class="text-sm text-on-surface-subtle">
 					What the server runs for {entity}. Values are sent as parameters, never in the text.
 				</p>
-				<pre
-					aria-label="Generated SQL"
-					class="max-h-[32rem] overflow-auto whitespace-pre rounded-lg border border-outline-subtle bg-surface-container p-3 font-mono text-xs text-on-surface [tab-size:2]">{#each sqlTokens as token, i (i)}{#if token.kind === 'plain'}{token.text}{:else}<span
-								class={TOKEN_CLASS[token.kind]}>{token.text}</span
-							>{/if}{/each}</pre>
-
-				{#if result.query.params.length > 0}
-					<ul aria-label="Query parameters" class="space-y-1 font-mono text-xs text-on-surface">
-						{#each result.query.params as value, i (i)}
-							<li class="break-all">
-								<span class="text-on-surface-subtle">${i + 1} =</span>
-								{show(value)}
-							</li>
-						{/each}
-					</ul>
-				{/if}
+				<SqlPreview sql={result.query.sql} params={result.query.params} />
 			{:else}
 				<p role="alert" class="rounded-lg border border-error p-3 text-sm text-error">
 					{result.problem}

@@ -98,6 +98,7 @@
 			<section class="flex flex-col gap-2" aria-label="People filters">
 				<h2 class="text-sm font-medium">People</h2>
 				<EntityFilterEditor
+					label="This bucket will contain"
 					entity="people"
 					catalog={filtersFor('people')}
 					{orgId}
@@ -111,6 +112,7 @@
 			<section class="flex flex-col gap-2" aria-label="Locations filters">
 				<h2 class="text-sm font-medium">Locations</h2>
 				<EntityFilterEditor
+					label="This bucket will contain"
 					entity="locations"
 					catalog={filtersFor('locations')}
 					{orgId}

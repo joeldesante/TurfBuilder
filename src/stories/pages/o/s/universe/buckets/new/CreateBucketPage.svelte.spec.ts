@@ -96,3 +96,11 @@ test('shows error message when onCreate rejects', async () => {
 
 	await expect.element(screen.getByText('A bucket with that slug already exists')).toBeVisible();
 });
+
+test('says what the bucket will contain above each editor', async () => {
+	const { screen } = setup();
+
+	await screen.getByRole('checkbox', { name: 'People' }).click();
+
+	await expect.element(screen.getByText('This bucket will contain')).toBeVisible();
+});

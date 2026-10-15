@@ -154,3 +154,11 @@ test('shows the error when creating fails', async () => {
 
 	await expect.element(getByText('This bucket does not include people')).toBeVisible();
 });
+
+test('says what the list will contain above the editor', async () => {
+	const { getByText } = render(CreateListPage, {
+		props: { bucketName: 'Test', bucketFilter: peopleOnlyFilter, onCreate: async () => {} }
+	});
+
+	await expect.element(getByText('This list will contain')).toBeVisible();
+});

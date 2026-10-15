@@ -105,3 +105,15 @@ test('names the kind of record in the sentences', async () => {
 
 	await expect.element(getByText(/Select only People whose age is greater than 65 years/)).toBeVisible();
 });
+
+test('names the kind of record in the group mode', async () => {
+	const { getByRole } = render(EntityFilterEditor, { props: { entity: 'locations' } });
+
+	await expect
+		.element(getByRole('button', { name: 'Group operator' }))
+		.toHaveTextContent('Locations matching every filter in this group');
+	await getByRole('button', { name: 'Group operator' }).click();
+	await expect
+		.element(getByRole('option', { name: 'Locations matching no filter in this group' }))
+		.toBeInTheDocument();
+});
