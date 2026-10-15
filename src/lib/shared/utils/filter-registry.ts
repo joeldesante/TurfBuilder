@@ -1,8 +1,9 @@
 import registry from '../registries/filters.json';
 import type { FilterCategory, FilterRegistryEntry } from '../types/filter-registry';
+import type { ContactMadeValue } from '../types/filters';
 
 /** Categories in display order. */
-export const FILTER_CATEGORIES: FilterCategory[] = ['geographical', 'survey', 'meta'];
+export const FILTER_CATEGORIES: FilterCategory[] = ['geographical', 'survey', 'canvassing', 'meta'];
 
 const entries = registry as FilterRegistryEntry[];
 
@@ -26,4 +27,28 @@ export function getFilters(category?: FilterCategory): FilterRegistryEntry[] {
 
 export function getFilter(id: string): FilterRegistryEntry | undefined {
 	return entries.find((entry) => entry.id === id);
+}
+
+/** A contact made filter that is valid as it stands: contact made, on any attempt, anywhere, at any time. */
+export function defaultContactMade(): ContactMadeValue {
+	return {
+		contacted: true,
+		position: 'any',
+		n: null,
+		bucketId: null,
+		listId: null,
+		from: null,
+		to: null
+	};
+}
+
+/**
+ * The value a filter starts with when it is added. Most start empty, which the
+ * validator rejects until the user fills them in; those with a sensible
+ * default start complete.
+ */
+export function defaultFilterValue(entry: FilterRegistryEntry): unknown {
+	if (entry.valueType === 'boolean') return true;
+	if (entry.valueType === 'contact_made') return defaultContactMade();
+	return '';
 }

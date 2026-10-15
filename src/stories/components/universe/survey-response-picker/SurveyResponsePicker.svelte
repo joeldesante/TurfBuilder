@@ -1,12 +1,12 @@
 <script lang="ts">
 	import Dropdown from '$components/data-inputs/dropdown/Dropdown.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
-	import type { SourceBucket, SourceQuestion, SourceSurvey, SurveyFilterSource } from '$lib/client/survey-filter-source';
+	import type { SourceBucket, SourceQuestion, SourceSurvey, FilterSource } from '$lib/client/filter-source';
 	import type { SurveyResponseValue } from '$lib/shared/types/filters';
 
 	interface Props {
 		/** Where the buckets, surveys, and questions come from. */
-		source: SurveyFilterSource;
+		source: FilterSource;
 		/** The current choice; null until a bucket is picked. */
 		value: SurveyResponseValue | null;
 		onchange: (value: SurveyResponseValue) => void;

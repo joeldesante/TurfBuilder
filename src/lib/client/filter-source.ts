@@ -3,6 +3,12 @@ export interface SourceBucket {
 	name: string;
 }
 
+export interface SourceList {
+	id: string;
+	name: string;
+	entity_type: 'people' | 'locations';
+}
+
 export interface SourceSurvey {
 	id: string;
 	name: string;
@@ -16,9 +22,10 @@ export interface SourceQuestion {
 	choices: string[];
 }
 
-/** Where the survey response filter finds the buckets, surveys, and questions to choose from. */
-export interface SurveyFilterSource {
+/** Where the filters that name a bucket, list, survey, or question find the choices to offer. */
+export interface FilterSource {
 	listBuckets(): Promise<SourceBucket[]>;
+	listLists(bucketId: string): Promise<SourceList[]>;
 	listSurveys(bucketId: string): Promise<SourceSurvey[]>;
 	listQuestions(surveyId: string): Promise<SourceQuestion[]>;
 }
@@ -31,14 +38,15 @@ async function getJson<T>(url: string): Promise<T> {
 	} catch {
 		throw new Error('Could not reach the server. Check your connection and try again.');
 	}
-	if (!res.ok) throw new Error('The survey choices could not be loaded.');
+	if (!res.ok) throw new Error('The choices could not be loaded.');
 	return res.json();
 }
 
 /** The source backed by the /api/v1 routes, for one organization. */
-export function createSurveyFilterSource(orgId: string): SurveyFilterSource {
+export function createFilterSource(orgId: string): FilterSource {
 	return {
 		listBuckets: () => getJson(`/api/v1/organizations/${orgId}/buckets`),
+		listLists: (bucketId) => getJson(`/api/v1/buckets/${bucketId}/lists`),
 		listSurveys: (bucketId) => getJson(`/api/v1/buckets/${bucketId}/surveys`),
 		listQuestions: (surveyId) => getJson(`/api/v1/surveys/${surveyId}/questions`)
 	};

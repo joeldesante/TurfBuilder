@@ -21,9 +21,41 @@ test('adds the chosen filter to the root group and closes the catalog', async ()
 	await getByRole('button', { name: 'Add Filter' }).click();
 	await getByRole('button', { name: 'City' }).click();
 
-	await expect.element(getByText('No filters added yet.')).not.toBeInTheDocument();
-	await expect.element(getByRole('textbox', { name: 'Value' })).toBeVisible();
 	await expect.element(getByRole('heading', { name: 'Add a Filter' })).not.toBeInTheDocument();
+	await expect.element(getByText('No filters added yet.')).not.toBeInTheDocument();
+});
+
+test('opens the new filter to be configured as soon as it is added', async () => {
+	const { getByRole } = render(EntityFilterEditor);
+
+	await getByRole('button', { name: 'Add Filter' }).click();
+	await getByRole('button', { name: 'City' }).click();
+
+	await expect.element(getByRole('dialog')).toBeVisible();
+	await expect.element(getByRole('heading', { name: 'City' })).toBeVisible();
+	await expect.element(getByRole('textbox', { name: 'Value' })).toBeVisible();
+});
+
+test('adding a filter and saving it shows it as a sentence', async () => {
+	const { getByRole, getByText } = render(EntityFilterEditor, { props: { entity: 'locations' } });
+
+	await getByRole('button', { name: 'Add Filter' }).click();
+	await getByRole('button', { name: 'City' }).click();
+	await getByRole('textbox', { name: 'Value' }).fill('Austin');
+	await getByRole('button', { name: 'Add filter', exact: true }).click();
+
+	await expect.element(getByRole('dialog')).not.toBeInTheDocument();
+	await expect.element(getByText(/Select only Locations whose city is Austin/)).toBeVisible();
+});
+
+test('cancelling a filter that was just added takes it back out', async () => {
+	const { getByRole, getByText } = render(EntityFilterEditor);
+
+	await getByRole('button', { name: 'Add Filter' }).click();
+	await getByRole('button', { name: 'City' }).click();
+	await getByRole('button', { name: 'Cancel' }).click();
+
+	await expect.element(getByText('No filters added yet.')).toBeVisible();
 });
 
 test('nests a group that can be removed', async () => {
@@ -39,12 +71,37 @@ test('nests a group that can be removed', async () => {
 	await expect.element(getByText('No filters added yet.')).toBeVisible();
 });
 
-test('reflects edits in the bound group', async () => {
-	const { getByRole } = render(EntityFilterEditor, {
-		props: { group: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: '' }] } }
+test('reflects saved edits in the bound group', async () => {
+	const { getByRole, getByText } = render(EntityFilterEditor, {
+		props: { group: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: 'Dallas' }] } }
 	});
 
+	await getByRole('button', { name: 'Edit filter' }).click();
 	await getByRole('textbox', { name: 'Value' }).fill('Austin');
+	await getByRole('button', { name: 'Save' }).click();
 
-	await expect.element(getByRole('textbox', { name: 'Value' })).toHaveValue('Austin');
+	await expect.element(getByText(/city is Austin/)).toBeVisible();
+});
+
+test('discards edits that are cancelled', async () => {
+	const { getByRole, getByText } = render(EntityFilterEditor, {
+		props: { group: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: 'Dallas' }] } }
+	});
+
+	await getByRole('button', { name: 'Edit filter' }).click();
+	await getByRole('textbox', { name: 'Value' }).fill('Austin');
+	await getByRole('button', { name: 'Cancel' }).click();
+
+	await expect.element(getByText(/city is Dallas/)).toBeVisible();
+});
+
+test('names the kind of record in the sentences', async () => {
+	const { getByText } = render(EntityFilterEditor, {
+		props: {
+			entity: 'people',
+			group: { operator: 'AND', filters: [{ item: 'age', operation: 'greater_than', value: 65 }] }
+		}
+	});
+
+	await expect.element(getByText(/Select only People whose age is greater than 65 years/)).toBeVisible();
 });

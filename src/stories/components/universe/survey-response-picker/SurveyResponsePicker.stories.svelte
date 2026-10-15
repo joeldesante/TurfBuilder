@@ -1,10 +1,11 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import SurveyResponsePicker from './SurveyResponsePicker.svelte';
-	import type { SurveyFilterSource } from '$lib/client/survey-filter-source';
+	import type { FilterSource } from '$lib/client/filter-source';
 
-	const source: SurveyFilterSource = {
+	const source: FilterSource = {
 		listBuckets: async () => [{ id: 'b1', name: 'Philadelphia voters' }],
+		listLists: async () => [],
 		listSurveys: async () => [{ id: 's1', name: 'Spring canvass' }],
 		listQuestions: async () => [
 			{

@@ -20,6 +20,7 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import SidebarItem from '$components/layout/fragments/sidebar/SidebarItem.svelte';
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardText';
+	import DoorOpenIcon from 'phosphor-svelte/lib/DoorOpen';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 	import TagIcon from 'phosphor-svelte/lib/Tag';
@@ -42,6 +43,7 @@
 		{ id: EVERYTHING, label: 'Everything', icon: SquaresFourIcon },
 		{ id: 'geographical', label: 'Geographical', icon: MapPinIcon },
 		{ id: 'survey', label: 'Survey', icon: ClipboardTextIcon },
+		{ id: 'canvassing', label: 'Canvassing', icon: DoorOpenIcon },
 		{ id: 'meta', label: 'Meta', icon: TagIcon },
 		{ id: GROUPS, label: 'Groups', icon: TreeStructureIcon }
 	];
@@ -72,9 +74,11 @@
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-50 bg-black/40" />
 		<Dialog.Content
-			class="fixed left-1/2 top-1/2 z-50 flex h-[28rem] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-surface shadow-lg"
+			class="fixed left-1/2 top-1/2 z-50 flex h-[28rem] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-3xl max-sm:h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-surface shadow-lg"
 		>
-			<div class="flex items-center justify-between border-b border-outline px-6 py-4">
+			<div
+				class="flex items-center justify-between border-b border-outline px-4 py-3 sm:px-6 sm:py-4"
+			>
 				<Dialog.Title class="text-lg font-semibold text-on-surface">Add a Filter</Dialog.Title>
 				<Dialog.Close>
 					{#snippet child({ props })}
@@ -85,11 +89,15 @@
 				</Dialog.Close>
 			</div>
 
-			<div class="flex min-h-0 flex-1">
-				<nav aria-label="Filter categories" class="w-48 shrink-0 border-r border-outline p-2">
-					<ul class="flex flex-col gap-1">
+			<!-- On a phone the categories become a strip above the list instead of a sidebar. -->
+			<div class="flex min-h-0 flex-1 max-sm:flex-col">
+				<nav
+					aria-label="Filter categories"
+					class="w-48 shrink-0 border-r border-outline p-2 max-sm:w-full max-sm:overflow-x-auto max-sm:border-r-0 max-sm:border-b"
+				>
+					<ul class="flex flex-col gap-1 max-sm:flex-row">
 						{#each visibleCategories as category (category.id)}
-							<li>
+							<li class="max-sm:shrink-0">
 								<SidebarItem
 									item={{ label: category.label, icon: category.icon }}
 									active={selected === category.id}

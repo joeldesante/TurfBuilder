@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { FILTER_CATEGORIES, getFilter, getFilters } from './filter-registry';
+import {
+	defaultContactMade,
+	defaultFilterValue,
+	FILTER_CATEGORIES,
+	getFilter,
+	getFilters
+} from './filter-registry';
 
 describe('filter registry', () => {
 	it('has unique ids', () => {
@@ -15,9 +21,19 @@ describe('filter registry', () => {
 	});
 
 	it('gives every select filter options', () => {
-		for (const filter of getFilters().filter((f) => f.valueType === 'select')) {
-			expect(filter.options?.length).toBeGreaterThan(0);
-		}
+		const selects = getFilters().filter((f) => f.valueType === 'select');
+		expect(selects.every((f) => (f.options?.length ?? 0) > 0)).toBe(true);
+	});
+
+	it('groups what comes from field attempts under canvassing', () => {
+		const ids = getFilters('canvassing').map((f) => f.id);
+		expect(ids).toEqual(['contact_made', 'last_canvassed']);
+	});
+
+	it('starts a filter with a value that is complete only when it has a sensible default', () => {
+		expect(defaultFilterValue(getFilter('city')!)).toBe('');
+		expect(defaultFilterValue(getFilter('has_email')!)).toBe(true);
+		expect(defaultFilterValue(getFilter('contact_made')!)).toEqual(defaultContactMade());
 	});
 
 	it('returns only the requested category', () => {

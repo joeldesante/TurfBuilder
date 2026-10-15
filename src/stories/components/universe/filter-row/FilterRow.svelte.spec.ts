@@ -1,11 +1,16 @@
 import { render } from 'vitest-browser-svelte';
 import { expect, test, vi } from 'vitest';
 import FilterRow from './FilterRow.svelte';
-import { getFilter } from '$lib/shared/utils/filter-registry';
-import { SURVEY_SOURCE_KEY } from '$components/universe/filter-group/filter-source.svelte';
+import {
+	FILTER_SOURCE_KEY
+} from '$components/universe/filter-group/filter-source.svelte';
+import { defaultContactMade, getFilter } from '$lib/shared/utils/filter-registry';
+import type { FilterSource } from '$lib/client/filter-source';
 import type { Filter } from '$lib/shared/types/filters';
 
-function setup(item: string, filter: Partial<Filter> = {}) {
+const BUCKET = '11111111-1111-4111-8111-111111111111';
+
+function setup(item: string, filter: Partial<Filter> = {}, extra: Record<string, unknown> = {}) {
 	const onchange = vi.fn();
 	const onremove = vi.fn();
 	const full: Filter = {
@@ -15,168 +20,213 @@ function setup(item: string, filter: Partial<Filter> = {}) {
 		...filter
 	};
 	const screen = render(FilterRow, {
-		props: { definition: getFilter(item)!, filter: full, onchange, onremove }
+		props: { definition: getFilter(item)!, filter: full, onchange, onremove, ...extra }
 	});
 	return { screen, onchange, onremove, full };
 }
 
-test('shows the filter name', async () => {
-	const { screen } = setup('city');
+const city = { value: 'Austin' };
 
-	await expect.element(screen.getByText('City')).toBeVisible();
+test('describes the filter as a sentence', async () => {
+	const { screen } = setup('city', city);
+
+	await expect.element(screen.getByText(/Select only Records whose city is Austin/)).toBeVisible();
 });
 
-test('offers only the operations the filter supports', async () => {
-	const { screen } = setup('age');
+test('names the filter above the sentence, or beside the grip on a phone', async () => {
+	const { screen } = setup('zip_code', { value: '191' });
 
-	await screen.getByRole('button', { name: 'Operation' }).click();
-
-	await expect.element(screen.getByRole('option', { name: 'is less than' })).toBeInTheDocument();
-	await expect.element(screen.getByRole('option', { name: 'contains' })).not.toBeInTheDocument();
+	const [header, bar] = screen.getByText('ZIP Code', { exact: true }).elements();
+	expect(header).toHaveClass('text-xs', 'font-semibold', 'max-sm:hidden');
+	expect(bar).toHaveClass('text-sm', 'font-semibold', 'sm:hidden');
 });
 
-test('reports a changed operation', async () => {
-	const { screen, onchange, full } = setup('city');
+test('opens the editor from a setting in the sentence', async () => {
+	const { screen } = setup('city', city);
 
-	await screen.getByRole('button', { name: 'Operation' }).click();
-	await screen.getByRole('option', { name: 'contains' }).click();
+	await screen.getByRole('button', { name: 'Austin' }).click();
 
-	expect(onchange).toHaveBeenCalledWith({ ...full, operation: 'contains' });
+	await expect.element(screen.getByRole('textbox', { name: 'Value' })).toHaveValue('Austin');
 });
 
-test('reports typed text', async () => {
-	const { screen, onchange, full } = setup('city');
+test('shows no editing controls until Edit is pressed', async () => {
+	const { screen } = setup('city', city);
+
+	await expect.element(screen.getByRole('textbox', { name: 'Value' })).not.toBeInTheDocument();
+	await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('Edit opens the filter in a dialog', async () => {
+	const { screen } = setup('city', city);
+
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
+
+	await expect.element(screen.getByRole('dialog')).toBeVisible();
+	await expect.element(screen.getByRole('heading', { name: 'City' })).toBeVisible();
+	await expect.element(screen.getByRole('textbox', { name: 'Value' })).toHaveValue('Austin');
+});
+
+test('changes nothing until Save, then reports the edited filter', async () => {
+	const { screen, onchange, full } = setup('city', city);
+
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
+	await screen.getByRole('textbox', { name: 'Value' }).fill('Dallas');
+	expect(onchange).not.toHaveBeenCalled();
+	await screen.getByRole('button', { name: 'Save' }).click();
+
+	expect(onchange).toHaveBeenCalledWith({ ...full, value: 'Dallas' });
+	await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('Cancel discards the edits and keeps the filter', async () => {
+	const { screen, onchange, onremove } = setup('city', city);
+
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
+	await screen.getByRole('textbox', { name: 'Value' }).fill('Dallas');
+	await screen.getByRole('button', { name: 'Cancel' }).click();
+
+	expect(onchange).not.toHaveBeenCalled();
+	expect(onremove).not.toHaveBeenCalled();
+	await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('reopens from the saved filter, not from discarded edits', async () => {
+	const { screen } = setup('city', city);
+
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
+	await screen.getByRole('textbox', { name: 'Value' }).fill('Dallas');
+	await screen.getByRole('button', { name: 'Cancel' }).click();
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
+
+	await expect.element(screen.getByRole('textbox', { name: 'Value' })).toHaveValue('Austin');
+});
+
+test('cannot save a filter that is not complete, and says what is missing', async () => {
+	const { screen, onchange } = setup('city', { value: '' });
+
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
+
+	await expect.element(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+	await expect.element(screen.getByRole('status')).toHaveTextContent('City needs a valid value');
+	expect(onchange).not.toHaveBeenCalled();
+});
+
+test('a filter that was just added opens straight away and says Add filter', async () => {
+	const { screen } = setup('city', { value: '' }, { startOpen: true });
+
+	await expect.element(screen.getByRole('dialog')).toBeVisible();
+	await expect.element(screen.getByRole('button', { name: 'Add filter', exact: true })).toBeVisible();
+});
+
+test('cancelling a filter that was just added removes it', async () => {
+	const { screen, onremove } = setup('city', { value: '' }, { startOpen: true });
+
+	await screen.getByRole('button', { name: 'Cancel' }).click();
+
+	expect(onremove).toHaveBeenCalledTimes(1);
+});
+
+test('saving a filter that was just added keeps it', async () => {
+	const { screen, onchange, onremove, full } = setup('city', { value: '' }, { startOpen: true });
 
 	await screen.getByRole('textbox', { name: 'Value' }).fill('Austin');
+	await screen.getByRole('button', { name: 'Add filter', exact: true }).click();
 
-	expect(onchange).toHaveBeenLastCalledWith({ ...full, value: 'Austin' });
-});
-
-test('reports a number as a number and shows its unit', async () => {
-	const { screen, onchange, full } = setup('age');
-
-	await expect.element(screen.getByText('years')).toBeVisible();
-	await screen.getByRole('spinbutton', { name: 'Value' }).fill('5');
-
-	expect(onchange).toHaveBeenLastCalledWith({ ...full, value: 5 });
-});
-
-test('reports a chosen select option', async () => {
-	const { screen, onchange, full } = setup('door_open_response');
-
-	await screen.getByRole('button', { name: 'Value' }).click();
-	await screen.getByRole('option', { name: 'Not home' }).click();
-
-	expect(onchange).toHaveBeenLastCalledWith({ ...full, value: 'not_home' });
+	expect(onchange).toHaveBeenCalledWith({ ...full, value: 'Austin' });
+	expect(onremove).not.toHaveBeenCalled();
 });
 
 test('calls onremove', async () => {
-	const { screen, onremove } = setup('city');
+	const { screen, onremove } = setup('city', city);
 
 	await screen.getByRole('button', { name: 'Remove filter' }).click();
 
 	expect(onremove).toHaveBeenCalledTimes(1);
 });
 
-test('shows a set radius filter as a View / Edit button that opens the map picker', async () => {
+test('shows a grip only when it can be dragged', async () => {
+	const withoutGrip = setup('city', city);
+	await expect.element(withoutGrip.screen.getByRole('button', { name: 'Drag to reorder' })).not.toBeInTheDocument();
+	withoutGrip.screen.unmount();
+
+	const { screen } = setup('city', city, { ondragstart: () => {} });
+	await expect.element(screen.getByRole('button', { name: 'Drag to reorder' })).toBeVisible();
+});
+
+test('keeps a long sentence on one line that scrolls', async () => {
+	const { screen } = setup('contact_made', { value: defaultContactMade() });
+
+	const line = screen.container.querySelector('p')!;
+	expect(line.className).toContain('overflow-x-auto');
+	expect(line.className).toContain('whitespace-nowrap');
+});
+
+test('the operation choices use the wording of the sentence', async () => {
 	const { screen } = setup('radius_from_point', {
+		operation: 'within',
 		value: { latitude: 40.0259, longitude: -75.2238, radius: 2 }
 	});
 
-	await expect.element(screen.getByRole('button', { name: 'Value' })).toHaveTextContent('View / Edit area');
-	await screen.getByRole('button', { name: 'Value' }).click();
-
-	await expect.element(screen.getByRole('heading', { name: 'Radius From Point' })).toBeVisible();
-});
-
-test('labels the radius operations', async () => {
-	const { screen } = setup('radius_from_point');
-
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
 	await screen.getByRole('button', { name: 'Operation' }).click();
 
-	await expect.element(screen.getByRole('option', { name: 'is within' })).toBeInTheDocument();
-	await expect.element(screen.getByRole('option', { name: 'is not within' })).toBeInTheDocument();
+	await expect.element(screen.getByRole('option', { name: 'within' })).toBeInTheDocument();
+	await expect.element(screen.getByRole('option', { name: 'outside of' })).toBeInTheDocument();
 });
 
-test('shows a polygon filter as a button that opens the drawing modal', async () => {
-	const { screen } = setup('inside_drawn_region');
+test('a radius filter has a map button on the sentence that opens the picker', async () => {
+	const { screen } = setup('radius_from_point', {
+		operation: 'within',
+		value: { latitude: 40.0259, longitude: -75.2238, radius: 2 }
+	});
 
-	await expect.element(screen.getByRole('button', { name: 'Value' })).toHaveTextContent('Draw area');
-	await screen.getByRole('button', { name: 'Value' }).click();
+	await expect.element(screen.getByText(/who reside within 2 miles of 40.0259, -75.2238/)).toBeVisible();
+	await screen.getByRole('button', { name: 'View on map' }).click();
+
+	await expect.element(screen.getByText(/Click the map to choose a point/)).toBeVisible();
+});
+
+test('a drawn region has a map button too', async () => {
+	const { screen } = setup('inside_drawn_region', {
+		operation: 'within',
+		value: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [0, 0]]] }
+	});
+
+	await screen.getByRole('button', { name: 'View on map' }).click();
 
 	await expect.element(screen.getByRole('heading', { name: 'Drawn Region' })).toBeVisible();
 });
 
-test('shows a grip only when it can be dragged', async () => {
-	const withoutGrip = setup('city');
-	await expect.element(withoutGrip.screen.getByRole('button', { name: 'Drag to reorder' })).not.toBeInTheDocument();
-	withoutGrip.screen.unmount();
+test('edits a contact made filter in the dialog', async () => {
+	const { screen, onchange, full } = setup('contact_made', { value: defaultContactMade() });
 
-	const screen = render(FilterRow, {
-		props: {
-			definition: getFilter('city')!,
-			filter: { item: 'city', operation: 'equals', value: '' },
-			onchange: () => {},
-			onremove: () => {},
-			ondragstart: () => {}
-		}
+	await screen.getByRole('button', { name: 'Edit filter' }).click();
+	await screen.getByRole('button', { name: 'Attempt' }).click();
+	await screen.getByRole('option', { name: 'the latest attempt' }).click();
+	await screen.getByRole('button', { name: 'Save' }).click();
+
+	expect(onchange).toHaveBeenCalledWith({
+		...full,
+		value: { ...defaultContactMade(), position: 'latest' }
 	});
-	await expect.element(screen.getByRole('button', { name: 'Drag to reorder' })).toBeVisible();
 });
 
-test('text filters can be made case sensitive', async () => {
-	const { screen, onchange, full } = setup('city');
-
-	await screen.getByRole('checkbox', { name: 'Case sensitive' }).click();
-
-	expect(onchange).toHaveBeenCalledWith({ ...full, caseSensitive: true });
-});
-
-test('shows the saved case sensitivity', async () => {
-	const { screen } = setup('city', { caseSensitive: true });
-
-	await expect.element(screen.getByRole('checkbox', { name: 'Case sensitive' })).toBeChecked();
-});
-
-test('only text filters offer case sensitivity', async () => {
-	const { screen } = setup('age');
-
-	await expect.element(screen.getByRole('checkbox', { name: 'Case sensitive' })).not.toBeInTheDocument();
-});
-
-test('shows the survey picker once a source is provided', async () => {
+test('shows the bucket name from the source instead of its id', async () => {
+	const source: FilterSource = {
+		listBuckets: async () => [{ id: BUCKET, name: 'Philadelphia voters' }],
+		listLists: async () => [],
+		listSurveys: async () => [],
+		listQuestions: async () => []
+	};
+	const filter: Filter = {
+		item: 'contact_made',
+		operation: 'equals',
+		value: { ...defaultContactMade(), bucketId: BUCKET }
+	};
 	const screen = render(FilterRow, {
-		props: {
-			definition: getFilter('survey_question_response')!,
-			filter: { item: 'survey_question_response', operation: 'equals', value: '' },
-			onchange: () => {},
-			onremove: () => {}
-		},
-		context: new Map([
-			[
-				SURVEY_SOURCE_KEY,
-				{
-					listBuckets: async () => [{ id: 'b1', name: 'Voters' }],
-					listSurveys: async () => [],
-					listQuestions: async () => []
-				}
-			]
-		])
+		props: { definition: getFilter('contact_made')!, filter, onchange: () => {}, onremove: () => {} },
+		context: new Map([[FILTER_SOURCE_KEY, source]])
 	});
 
-	await expect.element(screen.getByRole('button', { name: 'Bucket' })).toBeVisible();
-});
-
-test('says the survey choices are unavailable without a source', async () => {
-	const { screen } = setup('survey_question_response');
-
-	await expect.element(screen.getByText('Survey choices are unavailable here.')).toBeVisible();
-});
-
-test('offers contains alongside equals for survey responses', async () => {
-	const { screen } = setup('survey_question_response');
-
-	await screen.getByRole('button', { name: 'Operation' }).click();
-
-	await expect.element(screen.getByRole('option', { name: 'contains' })).toBeInTheDocument();
+	await expect.element(screen.getByText(/in Philadelphia voters/)).toBeVisible();
 });

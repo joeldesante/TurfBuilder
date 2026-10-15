@@ -1,207 +1,182 @@
 <script lang="ts">
-	import { parseDate } from '@internationalized/date';
-	import type { DateValue } from '@internationalized/date';
 	import Button from '$components/actions/button/Button.svelte';
-	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
-	import DatePicker from '$components/data-inputs/date-picker/DatePicker.svelte';
-	import Dropdown from '$components/data-inputs/dropdown/Dropdown.svelte';
-	import Switch from '$components/data-inputs/switch/Switch.svelte';
-	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import DragHandle from '$components/universe/drag-handle/DragHandle.svelte';
-	import XIcon from 'phosphor-svelte/lib/X';
+	import FilterEditModal from '$components/universe/filter-edit-modal/FilterEditModal.svelte';
+	import FilterSentence from '$components/universe/filter-sentence/FilterSentence.svelte';
 	import PolygonPickerModal from '$components/universe/polygon-picker-modal/PolygonPickerModal.svelte';
 	import RadiusPickerModal from '$components/universe/radius-picker-modal/RadiusPickerModal.svelte';
-	import SurveyResponsePicker from '$components/universe/survey-response-picker/SurveyResponsePicker.svelte';
-	import { useSurveyFilterSource } from '$components/universe/filter-group/filter-source.svelte';
-	import type { Filter, RadiusValue, SurveyResponseValue } from '$lib/shared/types/filters';
+	import {
+		useFilterEntity,
+		useFilterSource
+	} from '$components/universe/filter-group/filter-source.svelte';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import XIcon from 'phosphor-svelte/lib/X';
+	import { resolveSentenceNames } from '$lib/client/filter-names';
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
-	import { FILTER_OPERATION_LABELS } from '$lib/shared/utils/filters';
+	import type { Filter, RadiusValue } from '$lib/shared/types/filters';
+	import { describeFilter } from '$lib/shared/utils/filter-sentence';
+	import type { SentenceNames } from '$lib/shared/utils/filter-sentence';
 
 	interface Props {
-		/** The registry entry this row edits; decides the operations and the value input. */
+		/** The registry entry this row shows; decides its wording and the settings in the editor. */
 		definition: FilterRegistryEntry;
 		filter: Filter;
 		onchange: (filter: Filter) => void;
 		onremove: () => void;
+		/**
+		 * Opens the editor as soon as the row appears, for a filter that has just
+		 * been added. Cancelling the editor then removes the filter again, since
+		 * it was never configured. Read once, when the row is created.
+		 */
+		startOpen?: boolean;
 		/** When given, a grip is shown on the left that starts a drag to reorder the filter. */
 		ondragstart?: (event: DragEvent) => void;
 		ondragend?: (event: DragEvent) => void;
 	}
 
-	const { definition, filter, onchange, onremove, ondragstart, ondragend }: Props = $props();
+	const {
+		definition,
+		filter,
+		onchange,
+		onremove,
+		startOpen = false,
+		ondragstart,
+		ondragend
+	}: Props = $props();
 
-	const uid = $props.id();
+	const filterSource = useFilterSource();
+	const entity = useFilterEntity();
 
-	const operationItems = $derived(
-		definition.operations.map((operation) => ({
-			value: operation,
-			label: FILTER_OPERATION_LABELS[operation]
-		}))
-	);
+	// svelte-ignore state_referenced_locally
+	let editing = $state(startOpen);
+	// Still waiting for its first save, so cancelling throws it away.
+	// svelte-ignore state_referenced_locally
+	let unsaved = $state(startOpen);
+	let viewing = $state<'radius' | 'polygon' | null>(null);
 
-	function setValue(value: unknown) {
-		onchange({ ...filter, value });
+	/** The names behind the ids in the value, which the sentence shows instead of the ids. */
+	let names = $state<SentenceNames>({});
+	$effect(() => {
+		const source = filterSource;
+		const current = $state.snapshot(filter);
+		if (!source) return;
+		let stale = false;
+		resolveSentenceNames(source, current).then((resolved) => {
+			if (!stale) names = resolved;
+		});
+		return () => {
+			stale = true;
+		};
+	});
+
+	const parts = $derived(describeFilter(definition, filter, { entity: entity(), names }));
+
+	function save(next: Filter) {
+		onchange(next);
+		unsaved = false;
+		editing = false;
 	}
 
-	const surveySource = useSurveyFilterSource();
+	function cancel() {
+		editing = false;
+		if (unsaved) onremove();
+	}
 
-	let radiusOpen = $state(false);
-	let polygonOpen = $state(false);
+	function toRadius(value: unknown): RadiusValue | null {
+		const v = value as Partial<RadiusValue> | null;
+		return v &&
+			typeof v === 'object' &&
+			typeof v.latitude === 'number' &&
+			typeof v.longitude === 'number' &&
+			typeof v.radius === 'number'
+			? (v as RadiusValue)
+			: null;
+	}
 
 	function toPolygon(value: unknown): GeoJSON.Polygon | null {
 		const v = value as GeoJSON.Polygon | null;
 		return v && typeof v === 'object' && v.type === 'Polygon' ? v : null;
 	}
-
-	function toRadius(value: unknown): RadiusValue | null {
-		const v = value as Partial<RadiusValue> | null;
-		return v && typeof v === 'object' && typeof v.latitude === 'number' && typeof v.longitude === 'number' && typeof v.radius === 'number'
-			? (v as RadiusValue)
-			: null;
-	}
-
-	function toSurveyResponse(value: unknown): SurveyResponseValue | null {
-		const v = value as Partial<SurveyResponseValue> | null;
-		return v && typeof v === 'object' && typeof v.bucketId === 'string' && v.bucketId
-			? { bucketId: v.bucketId, surveyId: v.surveyId ?? '', questionId: v.questionId ?? '', response: v.response ?? '' }
-			: null;
-	}
-
-	function toDate(value: unknown): DateValue | undefined {
-		if (typeof value !== 'string' || !value) return undefined;
-		try {
-			return parseDate(value);
-		} catch {
-			return undefined;
-		}
-	}
 </script>
 
-<div class="flex flex-nowrap items-center gap-2 rounded-lg border border-outline-subtle bg-surface px-4 py-2 shadow-sm">
-	{#if ondragstart}
-		<DragHandle {ondragstart} {ondragend} />
-	{/if}
-	<span class="min-w-32 shrink-0 text-sm font-medium text-on-surface">{definition.name}</span>
-
-	<Dropdown
-		class="shrink-0"
-		aria-label="Operation"
-		items={operationItems}
-		value={filter.operation}
-		onValueChange={(next) => onchange({ ...filter, operation: next as Filter['operation'] })}
-	/>
-
-	{#if definition.valueType === 'text'}
-		<TextInput
-			class="w-48"
-			aria-label="Value"
-			value={String(filter.value ?? '')}
-			oninput={(e: Event) => setValue((e.currentTarget as HTMLInputElement).value)}
-		/>
-		<Checkbox
-			id="{uid}-case-sensitive"
-			checked={filter.caseSensitive === true}
-			onCheckedChange={(checked: boolean) => onchange({ ...filter, caseSensitive: checked })}
-		>
-			Case sensitive
-		</Checkbox>
-	{:else if definition.valueType === 'number'}
-		<TextInput
-			type="number"
-			class="w-32"
-			aria-label="Value"
-			value={String(filter.value ?? '')}
-			oninput={(e: Event) => {
-				const raw = (e.currentTarget as HTMLInputElement).value;
-				setValue(raw === '' ? '' : Number(raw));
-			}}
-		/>
-	{:else if definition.valueType === 'date'}
-		<DatePicker
-			aria-label="Value"
-			value={toDate(filter.value)}
-			onValueChange={(next: DateValue | undefined) => setValue(next?.toString() ?? '')}
-		/>
-	{:else if definition.valueType === 'boolean'}
-		<Switch
-			aria-label="Value"
-			checked={filter.value === true}
-			onCheckedChange={(checked: boolean) => setValue(checked)}
-		/>
-	{:else if definition.valueType === 'select'}
-		<Dropdown
-			class="shrink-0"
-			aria-label="Value"
-			placeholder="Select..."
-			items={definition.options ?? []}
-			value={String(filter.value ?? '')}
-			onValueChange={(next) => setValue(next)}
-		/>
-	{:else if definition.valueType === 'radius'}
-		<Button
-			variant="outline"
-			weight="normal"
-			class="shrink-0 whitespace-nowrap"
-			aria-label="Value"
-			onclick={() => (radiusOpen = true)}
-		>
-			{toRadius(filter.value) ? 'View / Edit area' : 'Choose area'}
-		</Button>
-		<RadiusPickerModal
-			open={radiusOpen}
-			value={toRadius(filter.value)}
-			onOpenChange={(next) => (radiusOpen = next)}
-			onapply={(area) => {
-				setValue(area);
-				radiusOpen = false;
-			}}
-		/>
-	{:else if definition.valueType === 'polygon'}
-<Button
-			variant="outline"
-			weight="normal"
-			class="shrink-0 whitespace-nowrap"
-			aria-label="Value"
-			onclick={() => (polygonOpen = true)}
-		>
-			{toPolygon(filter.value) ? 'Edit area' : 'Draw area'}
-		</Button>
-		{#if toPolygon(filter.value)}
-			<span class="text-sm text-on-surface-subtle">Region drawn</span>
-		{/if}
-		<PolygonPickerModal
-			open={polygonOpen}
-			value={toPolygon(filter.value)}
-			onOpenChange={(next) => (polygonOpen = next)}
-			onapply={(region) => {
-				setValue(region);
-				polygonOpen = false;
-			}}
-		/>
-	{:else if definition.valueType === 'survey_response'}
-		{#if surveySource}
-			<SurveyResponsePicker
-				source={surveySource}
-				value={toSurveyResponse(filter.value)}
-				onchange={(next) => setValue(next)}
-			/>
-		{:else}
-			<span class="text-sm text-on-surface-subtle">Survey choices are unavailable here.</span>
-		{/if}
-	{/if}
-
-	{#if definition.unit && definition.valueType !== 'radius'}
-		<span class="text-sm text-on-surface-subtle">{definition.unit}</span>
-	{/if}
-
-	<Button
-		variant="ghost"
-		size="sm"
-		iconOnly
-		class="shrink-0"
-		aria-label="Remove filter"
-		onclick={onremove}
+<div class="rounded-lg border border-outline-subtle bg-surface shadow-sm select-none">
+	<!-- The filter's name. On a phone it moves into the bar beside the grip instead. -->
+	<div
+		class="border-b border-outline-subtle px-4 py-1 text-xs font-semibold text-on-surface max-sm:hidden"
 	>
-		<XIcon />
-	</Button>
+		{definition.name}
+	</div>
+	<div
+		class="flex flex-nowrap items-center gap-2 px-4 py-2 max-sm:flex-wrap max-sm:gap-y-1 max-sm:px-3"
+	>
+		{#if ondragstart}
+			<DragHandle {ondragstart} {ondragend} />
+		{/if}
+		<span class="min-w-0 truncate text-sm font-semibold text-on-surface sm:hidden">
+			{definition.name}
+		</span>
+
+		<!--
+			On a phone the grip and buttons form a bar above, so the sentence gets the
+			full width. A divider runs edge to edge between the two.
+		-->
+		<div
+			class="flex min-w-0 flex-1 max-sm:order-last max-sm:-mx-3 max-sm:basis-[calc(100%+1.5rem)] max-sm:border-t max-sm:border-outline-subtle max-sm:px-3 max-sm:pt-1"
+		>
+			<FilterSentence {parts} onview={(kind) => (viewing = kind)} onedit={() => (editing = true)} />
+		</div>
+
+		<Button
+			variant="ghost"
+			size="sm"
+			iconOnly
+			class="shrink-0 max-sm:ml-auto"
+			aria-label="Edit filter"
+			onclick={() => (editing = true)}
+		>
+			<PencilSimpleIcon />
+		</Button>
+		<Button
+			variant="ghost"
+			size="sm"
+			iconOnly
+			class="shrink-0"
+			aria-label="Remove filter"
+			onclick={onremove}
+		>
+			<XIcon />
+		</Button>
+	</div>
 </div>
+
+<FilterEditModal
+	open={editing}
+	{definition}
+	{filter}
+	isNew={unsaved}
+	onsave={save}
+	oncancel={cancel}
+/>
+
+<!-- The map button on the sentence reopens the picker on what was chosen. -->
+{#if definition.valueType === 'radius'}
+	<RadiusPickerModal
+		open={viewing === 'radius'}
+		value={toRadius(filter.value)}
+		onOpenChange={(next) => !next && (viewing = null)}
+		onapply={(area) => {
+			onchange({ ...filter, value: area });
+			viewing = null;
+		}}
+	/>
+{:else if definition.valueType === 'polygon'}
+	<PolygonPickerModal
+		open={viewing === 'polygon'}
+		value={toPolygon(filter.value)}
+		onOpenChange={(next) => !next && (viewing = null)}
+		onapply={(region) => {
+			onchange({ ...filter, value: region });
+			viewing = null;
+		}}
+	/>
+{/if}

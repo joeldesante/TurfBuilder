@@ -73,7 +73,8 @@ test('renders nested groups and their filters', async () => {
 	});
 
 	await expect.element(screen.getByRole('button', { name: 'Group operator' }).nth(1)).toBeVisible();
-	await expect.element(screen.getByText('Age')).toBeVisible();
+	await expect.element(screen.getByRole('button', { name: 'Edit filter' }).nth(1)).toBeVisible();
+	await expect.element(screen.getByText(/whose age is greater than/)).toBeVisible();
 });
 
 test('reports a change made inside a nested group to the parent', async () => {
@@ -107,7 +108,7 @@ test('reorders by dragging a grip onto another filter', async () => {
 	const { screen, onchange } = setup({ operator: 'AND', filters: [city, age] });
 
 	const grips = screen.getByRole('button', { name: 'Drag to reorder' });
-	await userEvent.dragAndDrop(grips.first(), screen.getByText('Age'));
+	await userEvent.dragAndDrop(grips.first(), screen.getByRole('button', { name: 'Edit filter' }).nth(1));
 
 	expect(onchange).toHaveBeenCalledWith({ operator: 'AND', filters: [age, city] });
 });

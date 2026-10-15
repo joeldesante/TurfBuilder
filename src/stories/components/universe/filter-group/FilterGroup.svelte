@@ -8,7 +8,7 @@
 	import XIcon from 'phosphor-svelte/lib/X';
 	import type { Filter, FilterGroup as FilterGroupValue, FilterGroupOperator } from '$lib/shared/types/filters';
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
-	import { getFilter } from '$lib/shared/utils/filter-registry';
+	import { defaultFilterValue, getFilter } from '$lib/shared/utils/filter-registry';
 	import { isFilterGroup } from '$lib/shared/utils/filters';
 	import { isSameOrDescendant, moveNode } from '$lib/shared/utils/filter-tree';
 	import type { FilterPath } from '$lib/shared/utils/filter-tree';
@@ -39,6 +39,16 @@
 
 	let catalogOpen = $state(false);
 
+	/**
+	 * Index of the filter just added, so its row opens the editor on creation.
+	 * Cleared once the row has been drawn: the row reads it only when created,
+	 * and a later move into this slot must not open an editor.
+	 */
+	let justAdded = $state<number | null>(null);
+	$effect(() => {
+		if (justAdded !== null) justAdded = null;
+	});
+
 	// The root owns the drag state and applies moves to the whole query; nested groups share it.
 	const dnd =
 		useFilterDnd() ??
@@ -56,12 +66,13 @@
 	}
 
 	function addFilter(entry: FilterRegistryEntry) {
+		justAdded = group.filters.length;
 		setFilters([
 			...group.filters,
 			{
 				item: entry.id,
 				operation: entry.operations[0],
-				value: entry.valueType === 'boolean' ? true : ''
+				value: defaultFilterValue(entry)
 			}
 		]);
 		catalogOpen = false;
@@ -140,22 +151,28 @@
 
 <div class="rounded border {onremove ? 'bg-surface-container-low' : ''}">
 	<div class="flex flex-nowrap items-center border-b">
-		<div class="flex flex-nowrap items-center gap-2 p-2">
+		<div class="flex min-w-0 flex-nowrap items-center gap-2 p-2">
 			{#if ondragstart}
 				<DragHandle {ondragstart} ondragend={(e) => { endDrag(); ondragend?.(e); }} />
 			{/if}
-			<span class="shrink-0 text-sm text-on-surface">Match</span>
+			<!-- On a phone the operator reads on its own ("All of the following"), so the label goes. -->
+			<span class="shrink-0 text-sm text-on-surface max-sm:hidden">Match</span>
 			<Dropdown
 				aria-label="Group operator"
+				class="min-w-0 max-sm:text-sm [&>span]:truncate"
 				items={operatorItems}
 				value={group.operator}
 				onValueChange={(next) => onchange({ ...group, operator: next as FilterGroupOperator })}
 			/>
 		</div>
-		<div class="ml-auto border-l p-2">
-			<Button class="whitespace-nowrap" onclick={() => (catalogOpen = true)}>
+		<div class="ml-auto shrink-0 border-l p-2">
+			<Button
+				class="whitespace-nowrap max-sm:px-2"
+				aria-label="Add Filter"
+				onclick={() => (catalogOpen = true)}
+			>
 				<PlusIcon />
-				Add Filter
+				<span class="max-sm:hidden">Add Filter</span>
 			</Button>
 		</div>
 		{#if onremove}
@@ -211,6 +228,7 @@
 								<FilterRow
 									{definition}
 									filter={entry}
+									startOpen={justAdded === i}
 									onchange={(next) => updateEntry(i, next)}
 									onremove={() => removeEntry(i)}
 									ondragstart={(e) => startDrag(e, i)}

@@ -1,11 +1,12 @@
 import { render } from 'vitest-browser-svelte';
 import { expect, test, vi } from 'vitest';
 import SurveyResponsePicker from './SurveyResponsePicker.svelte';
-import type { SurveyFilterSource } from '$lib/client/survey-filter-source';
+import type { FilterSource } from '$lib/client/filter-source';
 
-function makeSource(overrides: Partial<SurveyFilterSource> = {}): SurveyFilterSource {
+function makeSource(overrides: Partial<FilterSource> = {}): FilterSource {
 	return {
 		listBuckets: async () => [{ id: 'b1', name: 'Voters' }],
+		listLists: async () => [],
 		listSurveys: async () => [{ id: 's1', name: 'Spring canvass' }],
 		listQuestions: async () => [
 			{ id: 'q1', question_text: 'Vote for the measure?', question_type: 'radio', choices: ['Yes', 'No'] },
