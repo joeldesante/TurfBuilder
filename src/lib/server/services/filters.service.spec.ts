@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { getFilters } from '$lib/shared/utils/filter-registry';
 import {
 	buildFilterQuery,
+	COMPILED_FILTER_IDS,
 	convertLegacyBucketFilter,
 	convertStoredBucketFilter,
 	LegacyFilterError
@@ -257,6 +259,95 @@ describe('groups', () => {
 	});
 });
 
+describe('survey response filters', () => {
+	const Q = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
+	const answer = (operation: string, response: string, extra = {}) =>
+		f('survey_question_response', operation, { bucketId: Q, surveyId: Q, questionId: Q, response }, extra);
+	const flat = (sql: string) => sql.replace(/\s+/g, ' ');
+	const rejects = (run: () => unknown, status: number) => {
+		expect(run).toThrow(expect.objectContaining({ status }));
+	};
+
+	it('finds locations that gave the response to the question, on any attempt', () => {
+		const query = loc(group('AND', answer('equals', 'Yes')));
+
+		expect(flat(query.sql)).toContain(
+			'EXISTS (SELECT 1 FROM universe.survey_question_response sqr' +
+				' JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id' +
+				' JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id' +
+				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id' +
+				' LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id' +
+				' LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id' +
+				' WHERE sqr.survey_question_id = $2::uuid' +
+				' AND COALESCE(tpl.entity_id, tol.entity_id) = vl.entity_id AND '
+		);
+		expect(query.params).toEqual(['Yes', Q]);
+	});
+
+	it('matches the whole answer, ignoring case, for a question with one answer', () => {
+		expect(flat(loc(group('AND', answer('equals', 'Yes'))).sql)).toContain(
+			"CASE WHEN sq.question_type = 'check' THEN lower($1) = ANY(string_to_array(lower(sqr.response_value), ','))" +
+				' ELSE lower(sqr.response_value) = lower($1) END'
+		);
+	});
+
+	it('looks for the choice among those picked, for a question that allows several', () => {
+		expect(flat(loc(group('AND', answer('equals', 'Mail'))).sql)).toContain(
+			"ANY(string_to_array(lower(sqr.response_value), ','))"
+		);
+	});
+
+	it('has no option to match case, since only text filters offer one', () => {
+		rejects(() => loc(group('AND', answer('equals', 'Yes', { caseSensitive: true }))), 400);
+	});
+
+	it('means answered with something else for "is not", leaving out a location never asked', () => {
+		const sql = flat(loc(group('AND', answer('not_equals', 'Yes'))).sql);
+
+		expect(sql).toContain("AND COALESCE(sqr.response_value, '') <> '' AND NOT CASE WHEN");
+		expect(sql).toContain('EXISTS (SELECT 1 FROM universe.survey_question_response');
+	});
+
+	it('looks for text inside the answer for "contains", escaping wildcards', () => {
+		const query = loc(group('AND', answer('contains', '50%_off')));
+
+		expect(flat(query.sql)).toContain('sqr.response_value ILIKE $1');
+		expect(query.params).toEqual(['%50\\%\\_off%', Q]);
+	});
+
+	it('uses only the question, since it already belongs to its survey and bucket', () => {
+		const query = loc(group('AND', answer('equals', 'Yes')));
+
+		expect(query.params).toEqual(['Yes', Q]);
+		expect(query.sql).not.toContain('bucket');
+	});
+
+	it('combines with other filters, numbering parameters in order', () => {
+		const query = loc(group('AND', f('city', 'equals', 'Austin'), answer('equals', 'Yes'), f('state', 'equals', 'TX')));
+
+		expect(query.params).toEqual(['Austin', 'Yes', Q, 'TX']);
+		expect(query.sql).toContain('lower(vl.state_or_region) = lower($4)');
+	});
+
+	it('works inside an inverted group, so locations without the response can be found', () => {
+		const query = loc({ operator: 'OR', not: true, filters: [answer('equals', 'Yes')] });
+
+		expect(flat(query.sql)).toContain('WHERE NOT (COALESCE((EXISTS (SELECT 1 FROM universe.survey_question_response');
+	});
+
+	it('only applies to locations, which are what get canvassed', () => {
+		rejects(() => people(group('AND', answer('equals', 'Yes'))), 400);
+	});
+
+	it('answers 400 for an operation the filter does not offer', () => {
+		rejects(() => loc(group('AND', answer('starts_with', 'Y'))), 400);
+	});
+
+	it('answers 400 for a filter with no response chosen', () => {
+		rejects(() => loc(group('AND', answer('equals', ''))), 400);
+	});
+});
+
 describe('inverted groups', () => {
 	const not = (operator: 'AND' | 'OR', ...filters: unknown[]) => ({ operator, not: true, filters });
 	const flat = (sql: string) => sql.replace(/\s+/g, ' ');
@@ -388,22 +479,9 @@ describe('refusals', () => {
 		rejects(() => loc(group('AND', f('first_name', 'equals', 'Al'))), 400);
 	});
 
-	it('answers 501 rather than ignoring a filter it cannot compile yet', () => {
-		rejects(
-			() =>
-				loc(
-					group(
-						'AND',
-						f('survey_question_response', 'equals', {
-							bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
-							surveyId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
-							questionId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
-							response: 'Yes'
-						})
-					)
-				),
-			501
-		);
+	it('can compile every filter the registry offers, so none is refused as unsupported', () => {
+		const offered = getFilters().map((entry) => entry.id);
+		expect(COMPILED_FILTER_IDS().sort()).toEqual(offered.sort());
 	});
 });
 

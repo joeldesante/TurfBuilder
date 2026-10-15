@@ -273,17 +273,27 @@ describe('createList', () => {
 			expect(run('INSERT INTO universe.list_entry')![1]).toEqual(['Austin', LIST]);
 		});
 
-		it('answers 501, creating nothing, for a filter that cannot be compiled yet', async () => {
+		it('answers 400, creating nothing, for a filter that does not apply to the kind of record', async () => {
+			const name = { item: 'first_name', operation: 'equals', value: 'Al' };
+
+			await expect(create({ filters: { operator: 'AND', filters: [name] } })).rejects.toMatchObject({
+				status: 400
+			});
+			expect(run('INSERT INTO universe.list ')).toBeUndefined();
+		});
+
+		it('snapshots the locations that gave a survey response', async () => {
 			const survey = {
 				item: 'survey_question_response',
 				operation: 'equals',
 				value: { bucketId: BUCKET, surveyId: BUCKET, questionId: BUCKET, response: 'Yes' }
 			};
 
-			await expect(create({ filters: { operator: 'AND', filters: [survey] } })).rejects.toMatchObject({
-				status: 501
-			});
-			expect(run('INSERT INTO universe.list ')).toBeUndefined();
+			await create({ filters: { operator: 'AND', filters: [survey] } });
+
+			const [sql, params] = run('INSERT INTO universe.list_entry')!;
+			expect(String(sql)).toContain('FROM universe.survey_question_response sqr');
+			expect(params).toEqual(['Austin', 'Yes', BUCKET, LIST]);
 		});
 	});
 

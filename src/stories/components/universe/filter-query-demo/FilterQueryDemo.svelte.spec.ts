@@ -65,3 +65,28 @@ test('highlights the SQL keywords', async () => {
 		.element(sql.getByText('lower', { exact: true }).first())
 		.not.toHaveClass('font-bold');
 });
+
+test('compiles a survey response filter', async () => {
+	const { getByLabelText } = render(FilterQueryDemo, {
+		props: {
+			group: {
+				operator: 'AND',
+				filters: [
+					{
+						item: 'survey_question_response',
+						operation: 'equals',
+						value: {
+							bucketId: '11111111-1111-4111-8111-111111111111',
+							surveyId: '22222222-2222-4222-8222-222222222222',
+							questionId: '33333333-3333-4333-8333-333333333333',
+							response: 'Undecided'
+						}
+					}
+				]
+			}
+		}
+	});
+
+	await expect.element(getByLabelText('Generated SQL')).toHaveTextContent('survey_question_response');
+	await expect.element(getByLabelText('Query parameters')).toHaveTextContent("$1 = 'Undecided'");
+});

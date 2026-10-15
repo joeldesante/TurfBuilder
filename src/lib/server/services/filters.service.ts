@@ -12,7 +12,8 @@ import type {
 	Filter,
 	FilterGroup,
 	FilterOperation,
-	RadiusValue
+	RadiusValue,
+	SurveyResponseValue
 } from '$lib/shared/types/filters';
 
 export type { FilterEntity };
@@ -147,6 +148,62 @@ function attemptsAt(
 	);
 }
 
+/**
+ * Whether the response to a survey question is the choice, or contains the
+ * text, being looked for. A question of choose-many saves its choices as one
+ * comma-separated value, so for those the choice is looked for among them;
+ * for every other kind of question the whole answer is what is compared.
+ */
+function answerMatches(operation: Filter['operation'], filter: Filter, ctx: Context): string {
+	const answer = 'sqr.response_value';
+	const text = String((filter.value as SurveyResponseValue).response);
+
+	// Case is ignored: the filter has no option to match it, as only text filters do.
+	if (operation === 'contains') {
+		return `${answer} ILIKE ${ctx.param(`%${escapeLike(text)}%`)}`;
+	}
+
+	const wanted = ctx.param(text);
+	return (
+		`CASE WHEN sq.question_type = 'check'` +
+		` THEN lower(${wanted}) = ANY(string_to_array(lower(${answer}), ','))` +
+		` ELSE lower(${answer}) = lower(${wanted}) END`
+	);
+}
+
+/**
+ * Locations that were given a particular response to a survey question, on any
+ * attempt. Responses are matched to the location through its entity id, as
+ * attempts are, so a response made on an older version of the location still
+ * counts. "Is not" means answered with something else, so a location that was
+ * never asked is left out; invert the group to include it.
+ */
+function surveyResponse(filter: Filter, ctx: Context): string {
+	const value = filter.value as SurveyResponseValue;
+	const exists = (condition: string) =>
+		`EXISTS (SELECT 1 FROM universe.survey_question_response sqr` +
+		` JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id` +
+		` JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id` +
+		` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id` +
+		` LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id` +
+		` LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id` +
+		` WHERE sqr.survey_question_id = ${ctx.param(value.questionId)}::uuid` +
+		` AND COALESCE(tpl.entity_id, tol.entity_id) = ${ctx.alias}.entity_id` +
+		` AND ${condition})`;
+
+	switch (filter.operation) {
+		case 'equals':
+		case 'contains':
+			return exists(answerMatches(filter.operation, filter, ctx));
+		case 'not_equals':
+			return exists(
+				`COALESCE(sqr.response_value, '') <> '' AND NOT ${answerMatches('equals', filter, ctx)}`
+			);
+		default:
+			throw unsupported(filter);
+	}
+}
+
 /** Whether the attempt picked by `position` (and in scope) did or did not make contact. */
 function contactMade(value: ContactMadeValue, ctx: Context): string {
 	const attempts = attemptsAt('tla.contact_made', ctx, value);
@@ -168,6 +225,9 @@ function contactMade(value: ContactMadeValue, ctx: Context): string {
 // One handler per filter id in the registry. This table is the allowlist: only
 // SQL written here ever reaches the database, and values only as parameters.
 // ---------------------------------------------------------------------------
+
+/** Ids of the filters that can be compiled. Every registry filter is expected to be one. */
+export const COMPILED_FILTER_IDS = (): string[] => Object.keys(HANDLERS);
 
 const HANDLERS: Record<string, Handler> = {
 	city: {
@@ -204,6 +264,9 @@ const HANDLERS: Record<string, Handler> = {
 			// A location never canvassed has no date, so every comparison leaves it out.
 			comparison(`(${attemptsAt('max(tla.created_at)', ctx)})::date`, f, ctx, '::date')
 	},
+	survey_question_response: {
+		build: (f, ctx) => surveyResponse(f, ctx)
+	},
 	first_name: {
 		build: (f, ctx) => textCondition(`${ctx.alias}.first_name`, f, ctx)
 	},
@@ -223,8 +286,6 @@ const HANDLERS: Record<string, Handler> = {
 	has_phone: {
 		build: (f, ctx) => presence(`${ctx.alias}.phone`, f)
 	}
-	// Not compiled yet, so they fail loudly instead of matching everything:
-	// survey_question_response.
 };
 
 // ---------------------------------------------------------------------------
