@@ -657,3 +657,78 @@ describe('listBucketNavigation', () => {
 		expect(String(sqlRun('FROM universe.bucket WHERE org_id = $1')![0])).toContain('ORDER BY name');
 	});
 });
+
+describe('converting buckets whose stored filter is malformed', () => {
+	const attemptNode = {
+		v: 1,
+		people: { enabled: false, query: null },
+		locations: {
+			enabled: true,
+			query: {
+				select: ['vl.id'],
+				from: 'universe.v_locations vl',
+				where: {
+					type: 'group',
+					connector: 'AND',
+					negate: false,
+					children: [{ type: 'attempt', op: 'not_attempted', scope: 'latest', negate: false }]
+				}
+			}
+		}
+	};
+
+	function answer(rows: unknown[]) {
+		mockClient.query.mockImplementation(async (text: string) => {
+			if (text.includes('FROM auth.organization')) return { rows: [{ id: ORG }] };
+			if (text.includes('SELECT id, slug, filter, filters')) return { rows };
+			return { rowCount: 1, rows: [] };
+		});
+	}
+
+	it('reports an unknown kind of condition and finishes the rest', async () => {
+		answer([
+			{ id: 'odd', slug: 'unvisited-places', filter: attemptNode, filters: null },
+			{ id: 'good', slug: 'good', filter: legacyAustin, filters: null }
+		]);
+
+		const report = await convertAllBucketFilters();
+
+		expect(report.converted).toBe(1);
+		expect(report.failed).toEqual([
+			expect.objectContaining({ slug: 'unvisited-places', reason: expect.stringContaining('"attempt"') })
+		]);
+	});
+
+	it('reports a format it does not know, instead of emptying the bucket', async () => {
+		answer([{ id: 'odd', slug: 'all', filter: { v: 1, input: {} }, filters: null }]);
+
+		const report = await convertAllBucketFilters();
+
+		expect(report.converted).toBe(0);
+		expect(report.failed).toEqual([expect.objectContaining({ slug: 'all' })]);
+		expect(mockClient.query.mock.calls.some((c) => String(c[0]).includes('UPDATE universe.bucket'))).toBe(false);
+	});
+
+	it('reports an unexpected error as a failure, so one bucket cannot stop the migration', async () => {
+		const explodes = {
+			v: 1,
+			people: { enabled: false, query: null },
+			get locations(): never {
+				throw new TypeError('boom');
+			}
+		};
+		const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+		answer([
+			{ id: 'bad', slug: 'bad', filter: explodes, filters: null },
+			{ id: 'good', slug: 'good', filter: legacyAustin, filters: null }
+		]);
+
+		const report = await convertAllBucketFilters();
+
+		expect(report.converted).toBe(1);
+		expect(report.failed).toEqual([
+			expect.objectContaining({ slug: 'bad', reason: 'unexpected error while converting: boom' })
+		]);
+		quiet.mockRestore();
+	});
+});

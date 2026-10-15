@@ -1,18 +1,13 @@
 import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { POOL, withOrgTransaction } from '$lib/server/database';
-import { parseBucketFilter } from '$lib/server/filter-converter';
 import { requireBucketOrg, requireOrgPermission } from '$lib/server/list-access';
 import { canOrg } from '$lib/server/permissions';
 import { bucketFiltersSchema } from '$lib/shared/schemas/filters';
 import type { BucketFilters, FilterEntity, FilterGroup } from '$lib/shared/types/filters';
 import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
 import type { Page } from '$lib/shared/utils/pagination';
-import {
-	buildFilterQuery,
-	convertLegacyBucketFilter,
-	LegacyFilterError
-} from './filters.service';
+import { buildFilterQuery, convertStoredBucketFilter, LegacyFilterError } from './filters.service';
 import type { FilterQuery } from './filters.service';
 
 export interface BucketInput {
@@ -85,10 +80,16 @@ export class UnconvertibleBucketError extends Error {
 /** Converts a bucket's old filter, or throws `UnconvertibleBucketError`. */
 function convertOld(row: BucketFiltersRow): BucketFilters {
 	try {
-		return convertLegacyBucketFilter(parseBucketFilter(row.filter));
+		return convertStoredBucketFilter(row.filter);
 	} catch (e) {
 		if (e instanceof LegacyFilterError) throw new UnconvertibleBucketError(row.id, e.message);
-		throw e;
+		// Stored filters are untrusted JSON. A shape nobody foresaw must not break the
+		// migration for every other bucket, so it is reported like any other failure.
+		console.error(`Unexpected error converting the filter of bucket ${row.id}`, e);
+		throw new UnconvertibleBucketError(
+			row.id,
+			`unexpected error while converting: ${e instanceof Error ? e.message : String(e)}`
+		);
 	}
 }
 

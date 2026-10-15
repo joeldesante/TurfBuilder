@@ -212,23 +212,3 @@ export function convertBucketFilter(input: BucketFilterInput): StoredBucketFilte
 		locations: { enabled: input.locations.enabled, query: locationsQuery },
 	};
 }
-
-/**
- * Safely parses a raw JSONB value loaded from universe.bucket.filter.
- * Returns a default (all-disabled) filter when the stored value is missing or
- * from an older schema version that pre-dates the filter column.
- */
-export function parseBucketFilter(raw: unknown): StoredBucketFilter {
-	const empty: StoredBucketFilter = {
-		v: 1,
-		people: { enabled: false, query: null },
-		locations: { enabled: false, query: null },
-	};
-	if (!raw || typeof raw !== 'object') return empty;
-	const f = raw as Partial<StoredBucketFilter>;
-	return {
-		v: 1,
-		people: f.people ?? empty.people,
-		locations: f.locations ?? empty.locations,
-	};
-}

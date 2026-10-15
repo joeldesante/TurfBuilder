@@ -254,17 +254,15 @@
 			</Button>
 		{/if}
 
-		<!-- Wrapped because DropdownMenu's trigger is w-full, which would otherwise
-		     resolve against the whole actions row and push this off the edge. -->
-		<div>
-			<DropdownMenu items={importItems}>
-				<Button variant="outline">
+		<DropdownMenu items={importItems}>
+			{#snippet trigger(props)}
+				<Button {...props} variant="outline">
 					<UploadSimpleIcon />
 					Import
 					<CaretDownIcon />
 				</Button>
-			</DropdownMenu>
-		</div>
+			{/snippet}
+		</DropdownMenu>
 	{/snippet}
 </PageHeader>
 

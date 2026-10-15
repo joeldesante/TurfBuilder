@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildFilterQuery, convertLegacyBucketFilter, LegacyFilterError } from './filters.service';
+import {
+	buildFilterQuery,
+	convertLegacyBucketFilter,
+	convertStoredBucketFilter,
+	LegacyFilterError
+} from './filters.service';
 import { convertBucketFilter } from '$lib/server/filter-converter';
 import type { BucketFilterInput, MatchType, StoredBucketFilter } from '$lib/server/filter-converter';
 
@@ -628,5 +633,71 @@ describe('legacy bucket filters', () => {
 
 			expect(() => buildFilterQuery('people', doc.people)).not.toThrow();
 		});
+	});
+});
+
+// TEMPORARY: removed with the old filter column (see issue #221).
+describe('reading a stored old filter', () => {
+	const locations = (where: unknown) => ({
+		v: 1,
+		people: { enabled: false, query: null },
+		locations: { enabled: true, query: { select: ['vl.id'], from: 'universe.v_locations vl', where } }
+	});
+	const group = (children: unknown[]) => ({ type: 'group', connector: 'AND', negate: false, children });
+
+	it.each([[null], [undefined], [{}]])('reads %j as a bucket that includes nothing', (stored) => {
+		expect(convertStoredBucketFilter(stored)).toEqual({ v: 2, people: null, locations: null });
+	});
+
+	it('converts the old stored format', () => {
+		const stored = locations(group([{ type: 'condition', column: 'vl.postal_code', op: '=', negate: false, value: '19130' }]));
+
+		expect(convertStoredBucketFilter(stored).locations?.filters).toEqual([
+			{ item: 'zip_code', operation: 'equals', value: '19130', caseSensitive: true }
+		]);
+	});
+
+	// Found in a development database: the form input saved as-is under `input`.
+	it('refuses a format it does not know, instead of reading it as including nothing', () => {
+		const stored = {
+			v: 1,
+			input: {
+				people: { enabled: false, matchType: 'ONE_OR_MORE', conditions: [] },
+				locations: { enabled: true, matchType: 'ONE_OR_MORE', conditions: [{ filterId: 'survey_response' }] }
+			}
+		};
+
+		expect(() => convertStoredBucketFilter(stored)).toThrow(LegacyFilterError);
+		expect(() => convertStoredBucketFilter(stored)).toThrow(/does not know \(v, input\)/);
+	});
+
+	it.each([['a string', 'nope'], ['a number', 5], ['an array', []]])('refuses %s', (_name, stored) => {
+		expect(() => convertStoredBucketFilter(stored)).toThrow(LegacyFilterError);
+	});
+
+	// Also found in a development database: a canvassing condition with a type of its own.
+	it('refuses a kind of condition it does not know, without crashing', () => {
+		const stored = locations(
+			group([{ type: 'attempt', op: 'not_attempted', scope: 'latest', negate: false, bucketId: 'b', entityColumn: 'vl.entity_id' }])
+		);
+
+		expect(() => convertStoredBucketFilter(stored)).toThrow(LegacyFilterError);
+		expect(() => convertStoredBucketFilter(stored)).toThrow('locations: Cannot convert a "attempt" condition');
+	});
+
+	it.each([
+		['a group with no conditions list', { type: 'group', connector: 'AND', negate: false }],
+		['a group with an unknown connector', { type: 'group', connector: 'XOR', negate: false, children: [] }],
+		['conditions that are not an object', 'vl.city = 1']
+	])('refuses %s', (_name, where) => {
+		expect(() => convertStoredBucketFilter(locations(where))).toThrow(LegacyFilterError);
+	});
+
+	it('refuses a condition that is not an object', () => {
+		expect(() => convertStoredBucketFilter(locations(group([null])))).toThrow(LegacyFilterError);
+	});
+
+	it('refuses a kind of record that is not in the expected form', () => {
+		expect(() => convertStoredBucketFilter({ v: 1, people: 'yes', locations: null })).toThrow(LegacyFilterError);
 	});
 });

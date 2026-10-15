@@ -480,12 +480,21 @@ function convertCondition(kind: FilterEntity, condition: ConditionNode): Filter 
 	throw refuse(condition, `${kind} have no such filter`);
 }
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value);
+
 function convertNode(kind: FilterEntity, node: WhereNode): Filter | FilterGroup {
+	// Stored data is only JSON, so nothing about its shape is taken on trust.
+	if (!isObject(node)) throw new LegacyFilterError('A condition is not an object');
 	if (node.type === 'condition') return convertCondition(kind, node);
-	return convertGroup(kind, node);
+	if (node.type === 'group') return convertGroup(kind, node);
+	throw new LegacyFilterError(`Cannot convert a "${String((node as { type?: unknown }).type)}" condition`);
 }
 
 function convertGroup(kind: FilterEntity, group: GroupNode): FilterGroup {
+	if (!Array.isArray(group.children) || (group.connector !== 'AND' && group.connector !== 'OR')) {
+		throw new LegacyFilterError('A group of conditions is not in the expected form');
+	}
 	return {
 		operator: group.connector,
 		// "None of these" was stored negated, so it converts to an inverted group.
@@ -498,9 +507,15 @@ function convertGroup(kind: FilterEntity, group: GroupNode): FilterGroup {
 
 /** One kind of record's stored filter as an editor group, or null when the bucket does not include it. */
 function convertEntity(kind: FilterEntity, entity: StoredEntityFilter): FilterGroup | null {
+	if (!isObject(entity) || typeof entity.enabled !== 'boolean') {
+		throw new LegacyFilterError('The filter is not in the expected form');
+	}
 	if (!entity.enabled) return null;
 
 	const where = entity.query?.where;
+	if (where !== undefined && !isObject(where)) {
+		throw new LegacyFilterError('The conditions are not in the expected form');
+	}
 	const group: FilterGroup = where
 		? convertGroup(kind, where)
 		: // Included with no conditions: every record of the kind.
@@ -517,6 +532,23 @@ function convertEntity(kind: FilterEntity, entity: StoredEntityFilter): FilterGr
  * Converts a bucket's stored filter. Throws `LegacyFilterError`, naming the
  * kind of record, when some part cannot be converted faithfully.
  */
+/**
+ * Reads what is stored in a bucket's old `filter` column and converts it. A
+ * missing or empty value is a bucket that includes nothing. Anything that is
+ * not the old stored format is refused rather than read as empty, since
+ * reading it as empty would quietly empty the bucket.
+ */
+export function convertStoredBucketFilter(stored: unknown): BucketFilters {
+	if (stored === null || stored === undefined || (isObject(stored) && Object.keys(stored).length === 0)) {
+		return { v: 2, people: null, locations: null };
+	}
+	if (!isObject(stored) || !('people' in stored) || !('locations' in stored)) {
+		const keys = isObject(stored) ? Object.keys(stored).join(', ') : typeof stored;
+		throw new LegacyFilterError(`The stored filter is in a form the conversion does not know (${keys})`);
+	}
+	return convertLegacyBucketFilter(stored as unknown as StoredBucketFilter);
+}
+
 export function convertLegacyBucketFilter(legacy: StoredBucketFilter): BucketFilters {
 	const convert = (kind: FilterEntity) => {
 		try {
