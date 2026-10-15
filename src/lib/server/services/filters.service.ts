@@ -259,6 +259,13 @@ const HANDLERS: Record<string, Handler> = {
 			return contactMade(f.value as ContactMadeValue, ctx);
 		}
 	},
+	canvassed: {
+		build: (f, ctx) => {
+			if (f.operation !== 'equals') throw unsupported(f);
+			// Any attempt counts, whether or not anyone answered the door.
+			return `${f.value === true ? '' : 'NOT '}EXISTS (${attemptsAt('1', ctx)})`;
+		}
+	},
 	last_canvassed: {
 		build: (f, ctx) =>
 			// A location never canvassed has no date, so every comparison leaves it out.

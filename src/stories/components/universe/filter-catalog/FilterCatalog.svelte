@@ -124,7 +124,7 @@
 										<li>
 											<Button
 												variant="ghost"
-												class="h-auto! w-full flex-col items-start! justify-start! gap-0! py-2!"
+												class="h-auto! w-full flex-col items-start! justify-start! gap-0! py-2! text-left!"
 												onclick={() => onselect?.(filter)}
 											>
 												<span class="text-sm font-medium text-on-surface">{filter.name}</span>
@@ -146,7 +146,7 @@
 							{/if}
 							<Button
 								variant="ghost"
-								class="h-auto! w-full flex-col items-start! justify-start! gap-0! py-2!"
+								class="h-auto! w-full flex-col items-start! justify-start! gap-0! py-2! text-left!"
 								onclick={() => onselectgroup?.()}
 							>
 								<span class="text-sm font-medium text-on-surface">Filter Group</span>

@@ -86,10 +86,10 @@
 
 </script>
 
-<div class="rounded-lg border border-outline-subtle bg-surface shadow-sm select-none">
+<div class="rounded-lg border border-outline bg-surface-container-lowest shadow-sm select-none">
 	<!-- The filter's name. On a phone it moves into the bar beside the grip instead. -->
 	<div
-		class="border-b border-outline-subtle px-4 py-1 text-xs font-semibold text-on-surface max-sm:hidden"
+		class="border-b border-outline px-4 py-1 text-xs font-semibold text-on-surface max-sm:hidden"
 	>
 		{definition.name}
 	</div>

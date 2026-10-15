@@ -73,6 +73,17 @@
 		"operations": ["equals"]
 	},
 	{
+		"id": "canvassed",
+		"name": "Has Been Canvassed",
+		"description": "Whether anyone has knocked on this door yet. Choose no to find the locations that have never been canvassed.",
+		"category": "canvassing",
+		"entities": ["locations"],
+		"sentence": "{entity}\nthat {value} been canvassed",
+		"booleanLabels": { "true": "have", "false": "have not" },
+		"valueType": "boolean",
+		"operations": ["equals"]
+	},
+	{
 		"id": "first_name",
 		"name": "First Name",
 		"description": "The person's first name.",

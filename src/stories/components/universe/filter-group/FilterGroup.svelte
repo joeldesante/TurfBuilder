@@ -191,21 +191,21 @@
 	<!-- A tab on the card's top-left edge, so the header row keeps its own height. -->
 	{#if heading}
 		<span
-			class="relative z-[1] -mb-px rounded-t-md border border-b-0 px-2.5 py-1 text-xs {label
+			class="relative z-[1] -mb-px rounded-t-md border border-b-0 border-outline px-2.5 py-1 text-xs {label
 				? 'bg-success-container font-medium text-on-success-container'
 				: onremove
-					? 'bg-surface-container-low text-on-surface-subtle'
+					? 'border-l-4 border-l-primary/60 bg-surface-container text-on-surface-subtle'
 					: 'bg-surface text-on-surface-subtle'}"
 			>{heading}</span
 		>
 	{/if}
 	<!-- With a tab, the card's top-left corner is square so the tab's edge runs straight into it. -->
 	<div
-		class="w-full rounded border {heading ? 'rounded-tl-none' : ''} {onremove
-			? 'bg-surface-container-low'
+		class="w-full rounded border border-outline {heading ? 'rounded-tl-none' : ''} {onremove
+			? 'border-l-4 border-l-primary/60 bg-surface-container'
 			: ''}"
 	>
-		<div class="flex flex-nowrap items-center border-b">
+		<div class="flex flex-nowrap items-center border-b border-outline">
 			<div class="flex min-w-0 flex-nowrap items-center gap-2 p-2">
 				{#if ondragstart}
 					<DragHandle {ondragstart} ondragend={(e) => { endDrag(); ondragend?.(e); }} />
@@ -218,7 +218,7 @@
 					onValueChange={(next) => setMode(next as Mode)}
 				/>
 			</div>
-			<div class="ml-auto shrink-0 border-l p-2">
+			<div class="ml-auto shrink-0 border-l border-outline p-2">
 				<Button
 					class="whitespace-nowrap max-sm:px-2"
 					aria-label="Add Filter"
@@ -229,7 +229,7 @@
 				</Button>
 			</div>
 			{#if onremove}
-				<div class="border-l p-2">
+				<div class="border-l border-outline p-2">
 					<Button variant="ghost" size="sm" iconOnly aria-label="Remove group" onclick={onremove}>
 						<XIcon />
 					</Button>

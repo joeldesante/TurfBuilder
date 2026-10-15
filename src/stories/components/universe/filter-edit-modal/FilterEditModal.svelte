@@ -54,7 +54,10 @@
 	// Start from the saved filter each time the modal opens, so cancelling discards edits.
 	$effect(() => {
 		if (!open) return;
-		draft = structuredClone($state.snapshot(filter));
+		const copy: Filter = structuredClone($state.snapshot(filter));
+		// With nothing to choose between, the one operation is simply the filter's.
+		if (definition.operations.length === 1) copy.operation = definition.operations[0];
+		draft = copy;
 	});
 
 	const check = $derived(filterSchema.safeParse($state.snapshot(draft)));
@@ -114,16 +117,18 @@
 					<FilterSentence parts={preview} />
 				</div>
 
-				<div class="flex flex-col gap-1.5">
-					<span class="text-sm font-medium text-on-surface">Condition</span>
-					<Dropdown
-						class="self-start"
-						aria-label="Operation"
-						items={operationItems}
-						value={draft.operation}
-						onValueChange={(next) => (draft = { ...draft, operation: next as Filter['operation'] })}
-					/>
-				</div>
+				{#if operationItems.length > 1}
+					<div class="flex flex-col gap-1.5">
+						<span class="text-sm font-medium text-on-surface">Condition</span>
+						<Dropdown
+							class="self-start"
+							aria-label="Operation"
+							items={operationItems}
+							value={draft.operation}
+							onValueChange={(next) => (draft = { ...draft, operation: next as Filter['operation'] })}
+						/>
+					</div>
+				{/if}
 
 				<div class="flex flex-col gap-1.5">
 					{#if definition.valueType === 'text'}

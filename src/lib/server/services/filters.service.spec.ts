@@ -206,6 +206,19 @@ describe('canvassing filters', () => {
 		expect(query.params).toEqual(['2026-01-01']);
 	});
 
+	it('finds locations with at least one attempt when canvassed is yes', () => {
+		const sql = flat(loc(group('AND', f('canvassed', 'equals', true))).sql);
+
+		expect(sql).toContain('EXISTS (SELECT 1 FROM universe.turf_location_attempt tla');
+		expect(sql).not.toContain('NOT EXISTS');
+	});
+
+	it('finds locations never canvassed when canvassed is no', () => {
+		const sql = flat(loc(group('AND', f('canvassed', 'equals', false))).sql);
+
+		expect(sql).toContain('NOT EXISTS (SELECT 1 FROM universe.turf_location_attempt tla');
+	});
+
 	it('numbers the parameters of several canvassing filters in order', () => {
 		const query = loc(
 			group('AND', contact({ from: '2026-01-01' }), f('last_canvassed', 'greater_than', '2026-02-01'), f('city', 'equals', 'Austin'))
@@ -217,6 +230,7 @@ describe('canvassing filters', () => {
 
 	it('only applies to locations', () => {
 		expect(() => people(group('AND', contact()))).toThrow();
+		expect(() => people(group('AND', f('canvassed', 'equals', false)))).toThrow();
 		expect(() => people(group('AND', f('last_canvassed', 'less_than', '2026-01-01')))).toThrow();
 	});
 });

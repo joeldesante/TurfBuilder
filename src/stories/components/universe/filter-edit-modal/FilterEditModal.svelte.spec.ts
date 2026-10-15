@@ -167,3 +167,24 @@ test('stays unselectable while the mouse is held down in it', async () => {
 	expect(dialog.style.userSelect).not.toBe('text');
 	document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
 });
+
+test('hides the condition when the filter has only one operation', async () => {
+	const { screen } = setup('canvassed', { value: false });
+
+	await expect.element(screen.getByText('Condition')).not.toBeInTheDocument();
+	await expect.element(screen.getByRole('button', { name: 'Operation' })).not.toBeInTheDocument();
+});
+
+test('still saves the only operation when the condition is hidden', async () => {
+	const { screen, onsave } = setup('canvassed', { operation: 'greater_than', value: false });
+
+	await screen.getByRole('button', { name: 'Save' }).click();
+
+	expect(onsave).toHaveBeenCalledWith({ item: 'canvassed', operation: 'equals', value: false });
+});
+
+test('shows the condition when there is more than one operation', async () => {
+	const { screen } = setup('city');
+
+	await expect.element(screen.getByText('Condition')).toBeVisible();
+});

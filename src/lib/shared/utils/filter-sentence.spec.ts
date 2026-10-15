@@ -83,6 +83,11 @@ describe('number and date filters', () => {
 		expect(sentenceText(say('age', { operation: 'greater_than', value: 65 }))).toContain('age is greater than 65 years');
 	});
 
+	it('reads the canvassed filter as have or have not been canvassed', () => {
+		expect(sentenceText(say('canvassed', { value: false }))).toBe('Records that have not been canvassed');
+		expect(sentenceText(say('canvassed', { value: true }))).toBe('Records that have been canvassed');
+	});
+
 	it('uses wording for dates that reads naturally', () => {
 		expect(sentenceText(say('last_canvassed', { operation: 'less_than', value: '2026-01-05' }))).toBe(
 			'Records whose last canvass is before Jan 5, 2026'

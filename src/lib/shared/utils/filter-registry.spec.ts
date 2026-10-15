@@ -28,7 +28,7 @@ describe('filter registry', () => {
 
 	it('groups what comes from field attempts under canvassing', () => {
 		const ids = getFilters('canvassing').map((f) => f.id);
-		expect(ids).toEqual(['contact_made', 'last_canvassed']);
+		expect(ids).toEqual(['contact_made', 'canvassed', 'last_canvassed']);
 	});
 
 	it('starts a filter with a value that is complete only when it has a sensible default', () => {
