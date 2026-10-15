@@ -1,5 +1,5 @@
 import { render } from 'vitest-browser-svelte';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import EntityFilterEditor from './EntityFilterEditor.svelte';
 
 test('starts with an empty root group', async () => {
@@ -116,4 +116,20 @@ test('names the kind of record in the group mode', async () => {
 	await expect
 		.element(getByRole('option', { name: 'Locations where no condition below is true' }))
 		.toBeInTheDocument();
+});
+
+test('reports the whole query after each change', async () => {
+	const onchange = vi.fn();
+	const { getByRole } = render(EntityFilterEditor, {
+		props: { onchange, group: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: 'Dallas' }] } }
+	});
+
+	await getByRole('button', { name: 'Edit filter' }).click();
+	await getByRole('textbox', { name: 'Value' }).fill('Austin');
+	await getByRole('button', { name: 'Save' }).click();
+
+	expect(onchange).toHaveBeenLastCalledWith({
+		operator: 'AND',
+		filters: [{ item: 'city', operation: 'equals', value: 'Austin' }]
+	});
 });

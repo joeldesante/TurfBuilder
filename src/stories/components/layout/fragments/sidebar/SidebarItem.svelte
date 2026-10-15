@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { SidebarNavItem } from './types';
+	import { compactNumber } from '$lib/shared/utils/compact-number';
 
 	interface Props {
 		/** Pass an `onclick` instead of an `href` to render a button with the same look. */
@@ -46,6 +47,18 @@
 			? 'max-w-0'
 			: 'max-w-[200px]'}">{item.label}</span
 	>
+	{#if item.badge !== undefined && !collapsed}
+		{@const description = [item.badge.toLocaleString(), item.badgeLabel].filter(Boolean).join(' ')}
+		<span
+			aria-hidden="true"
+			title={description}
+			class="ml-auto rounded-full px-2 py-0.5 text-xs font-medium tabular-nums {active
+				? 'bg-on-primary/15 text-on-primary'
+				: 'bg-surface-container text-on-surface border border-outline'}"
+			>{compactNumber(item.badge)}</span
+		>
+		<span class="sr-only">{description}</span>
+	{/if}
 {/snippet}
 
 {#if onclick}

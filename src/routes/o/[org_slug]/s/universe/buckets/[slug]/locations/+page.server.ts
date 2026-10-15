@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
 import { queryBucketEntitiesPage } from '$lib/server/services/buckets.service';
 import { PAGE_SIZE, requestedPage } from '$lib/shared/utils/pagination';
@@ -14,6 +15,8 @@ export interface LocationRow {
 
 export async function load({ parent, locals, url }) {
 	const { bucket } = await parent();
+
+	if (!bucket.filters) throw error(422, bucket.problem);
 
 	const group = bucket.filters.locations;
 	if (!group) {

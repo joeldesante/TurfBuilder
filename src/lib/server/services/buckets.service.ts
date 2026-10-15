@@ -260,24 +260,52 @@ export async function queryBucketEntitiesPage(
 	return { items: result.rows, totalCount, page, pageSize };
 }
 
+/** How many entities of one kind a bucket's filter group matches. Must run inside withOrgTransaction. */
+export async function countBucketEntities(
+	client: PoolClient,
+	kind: FilterEntity,
+	group: FilterGroup
+): Promise<number> {
+	const query = buildFilterQuery(kind, group, { columns: PAGE_COLUMNS[kind] });
+	const result = await client.query<{ count: string }>(
+		`SELECT COUNT(*)::text AS count FROM (${query.sql}) q`,
+		query.params
+	);
+	return parseInt(result.rows[0].count, 10);
+}
+
 // ---------------------------------------------------------------------------
 // Finding buckets, for pages and layouts
 // ---------------------------------------------------------------------------
 
 type FoundBucket = { id: string; name: string; slug: string; filters: BucketFilters };
 
-/** Finds one bucket by a column of the organization's buckets, with its filters. */
+/** A bucket as the pages inside it see it: `filters` is null, with the reason, when its old filter cannot be converted. */
+export type BucketForPage =
+	| (FoundBucket & { problem: null })
+	| (Omit<FoundBucket, 'filters'> & { filters: null; problem: string });
+
+/** Finds one bucket by a column of the organization's buckets, without resolving its filters. */
+async function selectBucket(
+	client: PoolClient,
+	orgId: string,
+	column: 'id' | 'slug',
+	value: string
+): Promise<BucketRow | null> {
+	const result = await client.query<BucketRow>(
+		`SELECT ${COLUMNS} FROM universe.bucket WHERE org_id = $1 AND ${column} = $2`,
+		[orgId, value]
+	);
+	return result.rows[0] ?? null;
+}
+
 async function findBucket(
 	client: PoolClient,
 	orgId: string,
 	column: 'id' | 'slug',
 	value: string
 ): Promise<FoundBucket | null> {
-	const result = await client.query<BucketRow>(
-		`SELECT ${COLUMNS} FROM universe.bucket WHERE org_id = $1 AND ${column} = $2`,
-		[orgId, value]
-	);
-	const row = result.rows[0];
+	const row = await selectBucket(client, orgId, column, value);
 	if (!row) return null;
 
 	return {
@@ -300,6 +328,29 @@ export function findBucketBySlug(client: PoolClient, orgId: string, slug: string
 /** `findBucketBySlug`, by id. */
 export function findBucketById(client: PoolClient, orgId: string, bucketId: string) {
 	return findBucket(client, orgId, 'id', bucketId);
+}
+
+/**
+ * `findBucketBySlug` for the pages inside a bucket. A bucket whose old filter
+ * cannot be converted is still returned, with the reason, so that its filters
+ * page can open and let it be rebuilt; the other pages answer with the reason.
+ */
+export async function findBucketForPage(
+	client: PoolClient,
+	orgId: string,
+	slug: string
+): Promise<BucketForPage | null> {
+	const row = await selectBucket(client, orgId, 'slug', slug);
+	if (!row) return null;
+
+	const base = { id: row.id, name: row.name, slug: row.slug };
+	try {
+		const filters = await resolveBucketFilters(client, orgId, row);
+		return { ...base, filters, problem: null };
+	} catch (e) {
+		if (e instanceof UnconvertibleBucketError) return { ...base, filters: null, problem: e.message };
+		throw e;
+	}
 }
 
 /**

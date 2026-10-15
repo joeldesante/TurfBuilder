@@ -298,7 +298,7 @@
 				{@const p = entry as PersonEntry}
 				<a
 					href={entityHref(p)}
-					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors group"
+					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle no-underline hover:bg-surface-container transition-colors group"
 				>
 					<span
 						class="w-48 text-sm text-on-surface font-medium truncate group-hover:text-primary transition-colors"
@@ -330,7 +330,7 @@
 				{@const l = entry as LocationEntry}
 				<a
 					href={entityHref(l)}
-					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors group"
+					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle no-underline hover:bg-surface-container transition-colors group"
 				>
 					<div class="flex-1 min-w-0">
 						<p

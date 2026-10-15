@@ -1,12 +1,10 @@
 <script lang="ts">
 	import Button from '$components/actions/button/Button.svelte';
-	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
-	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
+	import BucketFiltersEditor from '$components/universe/bucket-filters-editor/BucketFiltersEditor.svelte';
 	import type { FilterSource } from '$lib/client/filter-source';
 	import { bucketFiltersSchema } from '$lib/shared/schemas/filters';
-	import type { BucketFilters, FilterGroup } from '$lib/shared/types/filters';
-	import { filtersFor } from '$lib/shared/utils/filter-registry';
+	import type { BucketFilters } from '$lib/shared/types/filters';
 
 	interface Props {
 		/** The organization whose buckets, lists, and surveys the filters offer. */
@@ -30,25 +28,17 @@
 			.replace(/^-+|-+$/g, '')
 	);
 
-	let includePeople = $state(false);
-	let includeLocations = $state(false);
+	let filters = $state<BucketFilters>({ v: 2, people: null, locations: null });
 
-	// Kept while a kind is unticked, so ticking it again brings its filters back.
-	let peopleGroup = $state<FilterGroup>({ operator: 'AND', filters: [] });
-	let locationsGroup = $state<FilterGroup>({ operator: 'AND', filters: [] });
-
-	const canSubmit = $derived(!!slug && (includePeople || includeLocations) && !submitting);
+	const canSubmit = $derived(
+		!!slug && (filters.people !== null || filters.locations !== null) && !submitting
+	);
 
 	async function handleSubmit() {
 		if (!canSubmit) return;
 		errorMessage = '';
 
-		const filters: BucketFilters = {
-			v: 2,
-			people: includePeople ? $state.snapshot(peopleGroup) : null,
-			locations: includeLocations ? $state.snapshot(locationsGroup) : null
-		};
-		const checked = bucketFiltersSchema.safeParse(filters);
+		const checked = bucketFiltersSchema.safeParse($state.snapshot(filters));
 		if (!checked.success) {
 			errorMessage = checked.error.issues[0]?.message ?? 'Finish the filters before creating the bucket.';
 			return;
@@ -86,41 +76,7 @@
 			{/if}
 		</div>
 
-		<div class="border rounded p-4">
-			<h2>What entities would you like to include in this bucket?</h2>
-			<div class="flex flex-row gap-6 my-2">
-				<Checkbox id="entity-people" bind:checked={includePeople}>People</Checkbox>
-				<Checkbox id="entity-locations" bind:checked={includeLocations}>Locations</Checkbox>
-			</div>
-		</div>
-
-		{#if includePeople}
-			<section class="flex flex-col gap-2" aria-label="People filters">
-				<h2 class="text-sm font-medium">People</h2>
-				<EntityFilterEditor
-					label="This bucket will contain"
-					entity="people"
-					catalog={filtersFor('people')}
-					{orgId}
-					{source}
-					bind:group={peopleGroup}
-				/>
-			</section>
-		{/if}
-
-		{#if includeLocations}
-			<section class="flex flex-col gap-2" aria-label="Locations filters">
-				<h2 class="text-sm font-medium">Locations</h2>
-				<EntityFilterEditor
-					label="This bucket will contain"
-					entity="locations"
-					catalog={filtersFor('locations')}
-					{orgId}
-					{source}
-					bind:group={locationsGroup}
-				/>
-			</section>
-		{/if}
+		<BucketFiltersEditor bind:filters {orgId} {source} />
 
 		{#if errorMessage}
 			<p class="text-sm text-error">{errorMessage}</p>

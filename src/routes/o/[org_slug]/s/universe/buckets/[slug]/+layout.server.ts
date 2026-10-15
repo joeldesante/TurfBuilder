@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
-import { findBucketBySlug } from '$lib/server/services/buckets.service';
+import { countBucketEntities, findBucketForPage } from '$lib/server/services/buckets.service';
 
 export async function load({ params, locals }) {
 	if (!locals.organization) {
@@ -8,9 +8,12 @@ export async function load({ params, locals }) {
 	}
 
 	return withOrgTransaction(locals.organization.id, async (client) => {
-		const bucket = await findBucketBySlug(client, locals.organization!.id, params.slug);
+		const bucket = await findBucketForPage(client, locals.organization!.id, params.slug);
 		if (!bucket) throw error(404, 'Bucket not found');
 
-		return { bucket };
+		const locations = bucket.filters?.locations;
+		const locationCount = locations ? await countBucketEntities(client, 'locations', locations) : null;
+
+		return { bucket, locationCount };
 	});
 }

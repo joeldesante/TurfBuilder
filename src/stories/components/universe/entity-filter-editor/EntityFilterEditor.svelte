@@ -16,6 +16,8 @@
 		 * of the query and cannot be removed. Bindable so parents can read it on submit.
 		 */
 		group?: FilterGroupValue;
+		/** Called with the whole query after each change, for parents that hold it themselves instead of binding. */
+		onchange?: (group: FilterGroupValue) => void;
 		/** Filters offered in the catalog. Defaults to the full shared registry. */
 		catalog?: FilterRegistryEntry[];
 		/** Small text above the root group's mode, saying what the query is for, such as "This bucket will contain". */
@@ -28,7 +30,15 @@
 		source?: FilterSource;
 	}
 
-	let { group = $bindable({ operator: 'AND', filters: [] }), catalog, label, entity, orgId, source }: Props = $props();
+	let {
+		group = $bindable({ operator: 'AND', filters: [] }),
+		onchange,
+		catalog,
+		label,
+		entity,
+		orgId,
+		source
+	}: Props = $props();
 
 	// Context is fixed when the component is created, so these are read once.
 	const resolved = untrack(() => source ?? (orgId ? createFilterSource(orgId) : undefined));
@@ -36,4 +46,12 @@
 	provideFilterEntity(() => entity);
 </script>
 
-<FilterGroup {group} {catalog} {label} onchange={(next) => (group = next)} />
+<FilterGroup
+	{group}
+	{catalog}
+	{label}
+	onchange={(next) => {
+		group = next;
+		onchange?.(next);
+	}}
+/>

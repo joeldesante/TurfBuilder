@@ -45,6 +45,7 @@ import {
 	bucketSections,
 	convertAllBucketFilters,
 	findBucketBySlug,
+	findBucketForPage,
 	listBucketNavigation,
 	queryBucketEntitiesPage,
 	resolveBucketFilters,
@@ -730,5 +731,59 @@ describe('converting buckets whose stored filter is malformed', () => {
 			expect.objectContaining({ slug: 'bad', reason: 'unexpected error while converting: boom' })
 		]);
 		quiet.mockRestore();
+	});
+});
+
+describe('findBucketForPage', () => {
+	const rowOf = (change = {}) => ({
+		id: BUCKET,
+		org_id: ORG,
+		name: 'Voters',
+		slug: 'voters',
+		filter: null,
+		filters: stored,
+		created_at: 'then',
+		...change
+	});
+
+	it('returns the bucket with its filters and no problem', async () => {
+		stub(() => ({ rowCount: 1, rows: [rowOf()] }));
+
+		expect(await findBucketForPage(mockClient as never, ORG, 'voters')).toEqual({
+			id: BUCKET,
+			name: 'Voters',
+			slug: 'voters',
+			filters: stored,
+			problem: null
+		});
+	});
+
+	it('returns null when the organization has no such bucket', async () => {
+		stub(() => ({ rowCount: 0, rows: [] }));
+
+		expect(await findBucketForPage(mockClient as never, ORG, 'nope')).toBeNull();
+	});
+
+	it('still returns a bucket whose old filter cannot be converted, saying why, so it can be rebuilt', async () => {
+		stub(() => ({ rowCount: 1, rows: [rowOf({ filter: legacyBroken, filters: null })] }));
+
+		const bucket = await findBucketForPage(mockClient as never, ORG, 'voters');
+
+		expect(bucket).toMatchObject({ id: BUCKET, name: 'Voters', filters: null });
+		expect(bucket?.problem).toContain('could not be converted');
+		expect(sqlRun('UPDATE universe.bucket SET filters')).toBeUndefined();
+	});
+
+	it('converts an old filter on the way, as the strict version does', async () => {
+		stub((sql) =>
+			sql.startsWith('SELECT id, org_id')
+				? { rowCount: 1, rows: [rowOf({ filter: legacyAustin, filters: null })] }
+				: { rowCount: 1, rows: [] }
+		);
+
+		const bucket = await findBucketForPage(mockClient as never, ORG, 'voters');
+
+		expect(bucket?.filters?.locations?.filters).toHaveLength(1);
+		expect(bucket?.problem).toBeNull();
 	});
 });

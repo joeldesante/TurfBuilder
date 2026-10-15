@@ -58,7 +58,7 @@
 	{#each people as person (person.id)}
 		<a
 			href="/o/{orgSlug}/s/universe/people/{person.id}"
-			class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors duration-100 group"
+			class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle no-underline hover:bg-surface-container transition-colors duration-100 group"
 		>
 			<div class="w-8 h-8 shrink-0 flex items-center justify-center text-on-surface-subtle">
 				<UserIcon size={20} />

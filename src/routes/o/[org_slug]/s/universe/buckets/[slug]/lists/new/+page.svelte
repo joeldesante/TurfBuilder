@@ -30,8 +30,8 @@
 <CreateListPage
 	bucketName={data.bucket.name}
 	bucketFilter={{
-		people: { enabled: data.bucket.filters.people !== null },
-		locations: { enabled: data.bucket.filters.locations !== null }
+		people: { enabled: data.bucket.filters?.people != null },
+		locations: { enabled: data.bucket.filters?.locations != null }
 	}}
 	orgId={data.organization.id}
 	onCreate={handleCreate}
