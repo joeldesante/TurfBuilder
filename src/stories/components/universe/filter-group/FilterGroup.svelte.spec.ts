@@ -37,7 +37,7 @@ test('reports a changed operator', async () => {
 	const { screen, onchange } = setup({ operator: 'AND', filters: [city] });
 
 	await screen.getByRole('button', { name: 'Group operator' }).click();
-	await screen.getByRole('option', { name: 'Records matching at least one filter in this group', exact: true }).click();
+	await screen.getByRole('option', { name: 'Records where at least one condition below is true', exact: true }).click();
 
 	expect(onchange).toHaveBeenCalledWith({ operator: 'OR', filters: [city] });
 });
@@ -48,29 +48,29 @@ test('offers to invert the group', async () => {
 	await screen.getByRole('button', { name: 'Group operator' }).click();
 
 	for (const name of [
-		'Records matching every filter in this group',
-		'Records matching at least one filter in this group',
-		'Records matching no filter in this group',
-		'Records failing at least one filter in this group'
+		'Records where every condition below is true',
+		'Records where at least one condition below is true',
+		'Records where no condition below is true',
+		'Records where at least one condition below is false'
 	]) {
 		await expect.element(screen.getByRole('option', { name, exact: true })).toBeInTheDocument();
 	}
 });
 
-test('"matching no filter" is an inverted OR', async () => {
+test('"no condition below is true" is an inverted OR', async () => {
 	const { screen, onchange } = setup({ operator: 'AND', filters: [city] });
 
 	await screen.getByRole('button', { name: 'Group operator' }).click();
-	await screen.getByRole('option', { name: 'Records matching no filter in this group' }).click();
+	await screen.getByRole('option', { name: 'Records where no condition below is true' }).click();
 
 	expect(onchange).toHaveBeenCalledWith({ operator: 'OR', not: true, filters: [city] });
 });
 
-test('"failing at least one filter" is an inverted AND', async () => {
+test('"at least one condition below is false" is an inverted AND', async () => {
 	const { screen, onchange } = setup({ operator: 'OR', filters: [city] });
 
 	await screen.getByRole('button', { name: 'Group operator' }).click();
-	await screen.getByRole('option', { name: 'Records failing at least one filter in this group' }).click();
+	await screen.getByRole('option', { name: 'Records where at least one condition below is false' }).click();
 
 	expect(onchange).toHaveBeenCalledWith({ operator: 'AND', not: true, filters: [city] });
 });
@@ -78,14 +78,14 @@ test('"failing at least one filter" is an inverted AND', async () => {
 test('shows an inverted group as such', async () => {
 	const { screen } = setup({ operator: 'OR', not: true, filters: [city] });
 
-	await expect.element(screen.getByRole('button', { name: 'Group operator' })).toHaveTextContent('Records matching no filter in this group');
+	await expect.element(screen.getByRole('button', { name: 'Group operator' })).toHaveTextContent('Records where no condition below is true');
 });
 
 test('switching back to a plain mode drops the inversion', async () => {
 	const { screen, onchange } = setup({ operator: 'OR', not: true, filters: [city] });
 
 	await screen.getByRole('button', { name: 'Group operator' }).click();
-	await screen.getByRole('option', { name: 'Records matching at least one filter in this group', exact: true }).click();
+	await screen.getByRole('option', { name: 'Records where at least one condition below is true', exact: true }).click();
 
 	const [group] = onchange.mock.calls[0];
 	expect(group).toEqual({ operator: 'OR', filters: [city] });
@@ -132,7 +132,7 @@ test('reports a change made inside a nested group to the parent', async () => {
 	const { screen, onchange } = setup({ operator: 'AND', filters: [inner] });
 
 	await screen.getByRole('button', { name: 'Group operator' }).nth(1).click();
-	await screen.getByRole('option', { name: 'Records matching every filter in this group', exact: true }).click();
+	await screen.getByRole('option', { name: 'Every condition below is true', exact: true }).click();
 
 	expect(onchange).toHaveBeenCalledWith({
 		operator: 'AND',
@@ -180,4 +180,51 @@ test('shows no label unless given one', async () => {
 	const { screen } = setup({ operator: 'AND', filters: [] });
 
 	await expect.element(screen.getByText(/will contain/)).not.toBeInTheDocument();
+});
+
+test('a nested group says when it counts as true, since it is one condition of the group around it', async () => {
+	const screen = render(FilterGroup, {
+		props: {
+			group: { operator: 'AND', filters: [{ operator: 'OR', not: true, filters: [city] }] },
+			onchange: vi.fn()
+		}
+	});
+
+	await expect.element(screen.getByText('This group is true when')).toBeVisible();
+	await expect
+		.element(screen.getByRole('button', { name: 'Group operator' }).nth(1))
+		.toHaveTextContent('No condition below is true');
+});
+
+test('the outermost group names the records it selects; nested groups do not', async () => {
+	const screen = render(FilterGroup, {
+		props: { group: { operator: 'AND', filters: [{ operator: 'OR', filters: [city] }] }, onchange: vi.fn() }
+	});
+
+	await expect
+		.element(screen.getByRole('button', { name: 'Group operator' }).first())
+		.toHaveTextContent('Records where every condition below is true');
+	await expect
+		.element(screen.getByRole('button', { name: 'Group operator' }).nth(1))
+		.toHaveTextContent('At least one condition below is true');
+});
+
+test('none of its text can be selected, but what is typed into a field can', async () => {
+	const screen = render(FilterGroup, {
+		props: {
+			group: { operator: 'AND', filters: [city, { operator: 'OR', filters: [city] }] },
+			onchange: vi.fn(),
+			label: 'This bucket will contain'
+		}
+	});
+
+	// Tailwind's styles are not loaded in component tests, so this checks the classes that set them.
+	const editor = screen.getByText('This bucket will contain').element().closest('.select-none')!;
+	expect(editor).not.toBeNull();
+	expect(editor.classList).toContain('[&_input]:select-text');
+	expect(editor.classList).toContain('[&_textarea]:select-text');
+	// The label, the sentences, and nested groups all sit inside it.
+	for (const text of [/whose city is Austin/, 'This group is true when']) {
+		expect(editor.contains(screen.getByText(text).first().element())).toBe(true);
+	}
 });

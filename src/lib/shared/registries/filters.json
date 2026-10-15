@@ -5,7 +5,7 @@
 		"description": "The city of the location.",
 		"category": "geographical",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwhose city {operation} {value}",
+		"sentence": "{entity}\nwhose city {operation} {value}",
 		"valueType": "text",
 		"operations": ["equals", "not_equals", "contains"]
 	},
@@ -15,7 +15,7 @@
 		"description": "The state of the location, e.g. CA.",
 		"category": "geographical",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwhose state {operation} {value}",
+		"sentence": "{entity}\nwhose state {operation} {value}",
 		"valueType": "text",
 		"operations": ["equals", "not_equals"]
 	},
@@ -25,7 +25,7 @@
 		"description": "The ZIP code of the location.",
 		"category": "geographical",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwhose ZIP code {operation} {value}",
+		"sentence": "{entity}\nwhose ZIP code {operation} {value}",
 		"valueType": "text",
 		"operations": ["equals", "not_equals", "starts_with"]
 	},
@@ -35,7 +35,7 @@
 		"description": "Include or exclude entities within a distance of a point you choose on the map.",
 		"category": "geographical",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwho reside {operation} {radius}\nof {point}",
+		"sentence": "{entity}\nwho reside {operation} {radius}\nof {point}",
 		"operationLabels": {"within": "within", "not_within": "outside of"},
 		"valueType": "radius",
 		"operations": ["within", "not_within"],
@@ -47,7 +47,7 @@
 		"description": "Include or exclude entities inside a closed shape you draw on the map.",
 		"category": "geographical",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwho reside {operation} {region}",
+		"sentence": "{entity}\nwho reside {operation} {region}",
 		"operationLabels": {"within": "inside", "not_within": "outside"},
 		"valueType": "polygon",
 		"operations": ["within", "not_within"]
@@ -58,7 +58,7 @@
 		"description": "How people answered a question on a survey from any bucket.",
 		"category": "survey",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwhose answer to {question}\nin {survey}\n{operation} {response}",
+		"sentence": "{entity}\nwhose answer to {question}\nin {survey}\n{operation} {response}",
 		"valueType": "survey_response",
 		"operations": ["equals", "not_equals", "contains"]
 	},
@@ -68,7 +68,7 @@
 		"description": "Whether a canvasser reached someone at the door. Choose which attempts to look at: the latest, an earlier one, or any, within a time range or a bucket or list.",
 		"category": "canvassing",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwhere {outcome}\non {attempt}{scope}{range}",
+		"sentence": "{entity}\nwhere {outcome}\non {attempt}{scope}{range}",
 		"valueType": "contact_made",
 		"operations": ["equals"]
 	},
@@ -78,7 +78,7 @@
 		"description": "The person's first name.",
 		"category": "meta",
 		"entities": ["people"],
-		"sentence": "Select only {entity}\nwhose first name {operation} {value}",
+		"sentence": "{entity}\nwhose first name {operation} {value}",
 		"valueType": "text",
 		"operations": ["equals", "not_equals", "contains", "starts_with"]
 	},
@@ -88,7 +88,7 @@
 		"description": "The person's last name.",
 		"category": "meta",
 		"entities": ["people"],
-		"sentence": "Select only {entity}\nwhose last name {operation} {value}",
+		"sentence": "{entity}\nwhose last name {operation} {value}",
 		"valueType": "text",
 		"operations": ["equals", "not_equals", "contains", "starts_with"]
 	},
@@ -98,7 +98,7 @@
 		"description": "The person's age in years.",
 		"category": "meta",
 		"entities": ["people"],
-		"sentence": "Select only {entity}\nwhose age {operation} {value}",
+		"sentence": "{entity}\nwhose age {operation} {value}",
 		"valueType": "number",
 		"operations": ["equals", "greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"],
 		"unit": "years"
@@ -109,7 +109,7 @@
 		"description": "The person's date of birth.",
 		"category": "meta",
 		"entities": ["people"],
-		"sentence": "Select only {entity}\nwhose date of birth {operation} {value}",
+		"sentence": "{entity}\nwhose date of birth {operation} {value}",
 		"operationLabels": {"greater_than": "is after", "less_than": "is before", "greater_than_or_equal": "is on or after", "less_than_or_equal": "is on or before"},
 		"valueType": "date",
 		"operations": ["greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"]
@@ -120,7 +120,7 @@
 		"description": "Whether we have an email address for the person.",
 		"category": "meta",
 		"entities": ["people"],
-		"sentence": "Select only {entity}\nwho {value} an email address",
+		"sentence": "{entity}\nwho {value} an email address",
 		"booleanLabels": {"true": "have", "false": "do not have"},
 		"valueType": "boolean",
 		"operations": ["equals"]
@@ -131,7 +131,7 @@
 		"description": "Whether we have a phone number for the person.",
 		"category": "meta",
 		"entities": ["people"],
-		"sentence": "Select only {entity}\nwho {value} a phone number",
+		"sentence": "{entity}\nwho {value} a phone number",
 		"booleanLabels": {"true": "have", "false": "do not have"},
 		"valueType": "boolean",
 		"operations": ["equals"]
@@ -142,7 +142,7 @@
 		"description": "When someone last knocked on this door.",
 		"category": "canvassing",
 		"entities": ["locations"],
-		"sentence": "Select only {entity}\nwhose last canvass {operation} {value}",
+		"sentence": "{entity}\nwhose last canvass {operation} {value}",
 		"operationLabels": {"greater_than": "is after", "less_than": "is before", "greater_than_or_equal": "is on or after", "less_than_or_equal": "is on or before"},
 		"valueType": "date",
 		"operations": ["greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"]

@@ -109,7 +109,7 @@ describe('select values', () => {
 		description: '',
 		category: 'meta',
 		entities: ['people'],
-		sentence: 'Select only {entity} whose x {operation} {value}',
+		sentence: '{entity} whose x {operation} {value}',
 		valueType: 'select',
 		operations: ['equals'],
 		options: [{ value: 'yes', label: 'Yes' }]

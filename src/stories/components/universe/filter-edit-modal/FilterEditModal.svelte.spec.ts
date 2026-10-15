@@ -144,3 +144,26 @@ test('survey choices are unavailable without a source', async () => {
 
 	await expect.element(screen.getByText('Survey choices are unavailable here.')).toBeVisible();
 });
+
+test('its text cannot be selected, but what is typed into a field can', async () => {
+	const { screen } = setup('city', { value: 'Austin' });
+
+	// Tailwind's styles are not loaded in component tests, so this checks the classes that set them.
+	const dialog = screen.getByRole('dialog').element();
+	expect(dialog.classList).toContain('select-none');
+	expect(dialog.classList).toContain('[&_input]:select-text');
+	expect(dialog.classList).toContain('[&_textarea]:select-text');
+});
+
+test('stays unselectable while the mouse is held down in it', async () => {
+	const { screen } = setup('city', { value: 'Austin' });
+	const dialog = screen.getByRole('dialog').element() as HTMLElement;
+
+	// bits-ui would make the dialog selectable for the length of a press; it is turned off here.
+	screen.getByRole('heading', { name: 'City' }).element().dispatchEvent(
+		new PointerEvent('pointerdown', { bubbles: true })
+	);
+
+	expect(dialog.style.userSelect).not.toBe('text');
+	document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+});

@@ -30,7 +30,7 @@ const city = { value: 'Austin' };
 test('describes the filter as a sentence', async () => {
 	const { screen } = setup('city', city);
 
-	await expect.element(screen.getByText(/Select only Records whose city is Austin/)).toBeVisible();
+	await expect.element(screen.getByText(/Records whose city is Austin/)).toBeVisible();
 });
 
 test('names the filter above the sentence, or beside the grip on a phone', async () => {

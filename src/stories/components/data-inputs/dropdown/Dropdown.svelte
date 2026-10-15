@@ -51,7 +51,7 @@
 	<Select.Portal>
 		<Select.Content
 			sideOffset={4}
-			class="z-50 min-w-(--bits-select-anchor-width) rounded-lg border border-outline-subtle bg-surface p-1 shadow-md outline-none"
+			class="z-50 min-w-(--bits-select-anchor-width) select-none rounded-lg border border-outline-subtle bg-surface p-1 shadow-md outline-none"
 		>
 			<Select.Viewport>
 				{#each items as item (item.value)}

@@ -31,14 +31,15 @@ describe('every registry filter', () => {
 		for (const entry of getFilters()) {
 			const text = sentenceText(describeFilter(entry, { item: entry.id, operation: entry.operations[0], value: '' }));
 			expect(text, entry.id).not.toMatch(/[{}]/);
-			expect(text.startsWith('Select only Records'), entry.id).toBe(true);
+			expect(text.startsWith('Records'), entry.id).toBe(true);
 		}
 	});
 
 	it('starts a new clause after the kind of record', () => {
 		for (const entry of getFilters()) {
 			const parts = describeFilter(entry, { item: entry.id, operation: entry.operations[0], value: '' });
-			expect(parts[2], entry.id).toMatchObject({ break: true, text: ' ' });
+			expect(parts[0], entry.id).toMatchObject({ text: 'Records', badge: true });
+			expect(parts[1], entry.id).toMatchObject({ break: true, text: ' ' });
 		}
 	});
 
@@ -50,8 +51,8 @@ describe('every registry filter', () => {
 
 describe('the entity', () => {
 	it('names the kind of record', () => {
-		expect(sentenceText(say('city', { value: 'Austin' }, { entity: 'locations' }))).toContain('Select only Locations');
-		expect(sentenceText(say('first_name', { value: 'Al' }, { entity: 'people' }))).toContain('Select only People');
+		expect(sentenceText(say('city', { value: 'Austin' }, { entity: 'locations' }))).toContain('Locations');
+		expect(sentenceText(say('first_name', { value: 'Al' }, { entity: 'people' }))).toContain('People');
 	});
 
 	it('is a badge', () => {
@@ -63,7 +64,7 @@ describe('text filters', () => {
 	it('reads the operation and value', () => {
 		const parts = say('city', { operation: 'contains', value: 'phil' }, { entity: 'locations' });
 
-		expect(sentenceText(parts)).toBe('Select only Locations whose city contains phil');
+		expect(sentenceText(parts)).toBe('Locations whose city contains phil');
 		expect(badges(parts)).toEqual(['Locations', 'contains', 'phil']);
 	});
 
@@ -84,7 +85,7 @@ describe('number and date filters', () => {
 
 	it('uses wording for dates that reads naturally', () => {
 		expect(sentenceText(say('last_canvassed', { operation: 'less_than', value: '2026-01-05' }))).toBe(
-			'Select only Records whose last canvass is before Jan 5, 2026'
+			'Records whose last canvass is before Jan 5, 2026'
 		);
 		expect(sentenceText(say('date_of_birth', { operation: 'greater_than_or_equal', value: '1990-12-31' }))).toContain(
 			'is on or after Dec 31, 1990'
@@ -103,10 +104,10 @@ describe('number and date filters', () => {
 describe('boolean filters', () => {
 	it('reads as having or not having the thing', () => {
 		expect(sentenceText(say('has_email', { value: true }, { entity: 'people' }))).toBe(
-			'Select only People who have an email address'
+			'People who have an email address'
 		);
 		expect(sentenceText(say('has_phone', { value: false }, { entity: 'people' }))).toBe(
-			'Select only People who do not have a phone number'
+			'People who do not have a phone number'
 		);
 	});
 });
@@ -116,7 +117,7 @@ describe('radius filters', () => {
 
 	it('reads as within or outside of a distance of a point', () => {
 		expect(sentenceText(say('radius_from_point', { operation: 'within', value: area }, { entity: 'people' }))).toBe(
-			'Select only People who reside within 2 miles of 39.9500, -75.1600'
+			'People who reside within 2 miles of 39.9500, -75.1600'
 		);
 		expect(sentenceText(say('radius_from_point', { operation: 'not_within', value: area }))).toContain('outside of 2 miles');
 	});
@@ -145,7 +146,7 @@ describe('region filters', () => {
 
 		const parts = say('inside_drawn_region', { operation: 'not_within', value: polygon });
 
-		expect(sentenceText(parts)).toBe('Select only Records who reside outside the drawn region');
+		expect(sentenceText(parts)).toBe('Records who reside outside the drawn region');
 		expect(parts.find((p) => p.view)).toMatchObject({ view: 'polygon' });
 	});
 });
@@ -159,7 +160,7 @@ describe('survey response filters', () => {
 		});
 
 		expect(sentenceText(parts)).toBe(
-			'Select only Records whose answer to Will you vote for it? in Spring canvass is Yes'
+			'Records whose answer to Will you vote for it? in Spring canvass is Yes'
 		);
 	});
 
@@ -185,7 +186,7 @@ describe('contact made filters', () => {
 
 	it('reads the default as contact made on any attempt', () => {
 		expect(sentenceText(say('contact_made', { value: contact() }, { entity: 'locations' }))).toBe(
-			'Select only Locations where contact was made on any attempt'
+			'Locations where contact was made on any attempt'
 		);
 	});
 
@@ -229,7 +230,7 @@ describe('contact made filters', () => {
 
 		const clauses = sentenceText(parts.map((p) => (p.break ? { text: '|' } : p))).split('|');
 		expect(clauses).toEqual([
-			'Select only Records',
+			'Records',
 			'where contact was made',
 			'on any attempt',
 			'in Voters › Ward 3',

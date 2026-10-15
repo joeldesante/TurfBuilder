@@ -38,20 +38,26 @@
 
 	/** How a group reads and what it is stored as: the operator, and whether it is inverted. */
 	const MODES = {
-		AND: { operator: 'AND', not: false, label: 'matching every filter in this group' },
-		OR: { operator: 'OR', not: false, label: 'matching at least one filter in this group' },
-		NOT_OR: { operator: 'OR', not: true, label: 'matching no filter in this group' },
-		NOT_AND: { operator: 'AND', not: true, label: 'failing at least one filter in this group' }
+		AND: { operator: 'AND', not: false, label: 'every condition below is true' },
+		OR: { operator: 'OR', not: false, label: 'at least one condition below is true' },
+		NOT_OR: { operator: 'OR', not: true, label: 'no condition below is true' },
+		NOT_AND: { operator: 'AND', not: true, label: 'at least one condition below is false' }
 	} as const;
 	type Mode = keyof typeof MODES;
 
 	const entity = useFilterEntity();
 
-	// Each mode says who is selected and by which filters, e.g. "Locations matching no filter in this group".
+	// A nested group counts as one condition of the group around it, true or false as a whole.
+	// So the root says which records it selects ("Locations where no condition below is true"),
+	// and a nested group says when it is true ("This group is true when ...").
+	const nested = $derived(path.length > 0);
+	const heading = $derived(label ?? (nested ? 'This group is true when' : undefined));
 	const operatorItems = $derived(
 		(Object.keys(MODES) as Mode[]).map((mode) => ({
 			value: mode,
-			label: `${entityName(entity())} ${MODES[mode].label}`
+			label: nested
+				? MODES[mode].label.charAt(0).toUpperCase() + MODES[mode].label.slice(1)
+				: `${entityName(entity())} where ${MODES[mode].label}`
 		}))
 	);
 
@@ -180,15 +186,29 @@
 	}
 </script>
 
-<div class="rounded border {onremove ? 'bg-surface-container-low' : ''}">
-	<div class="flex flex-nowrap items-center border-b">
-		<div class="flex min-w-0 flex-nowrap items-center gap-2 p-2">
-			{#if ondragstart}
-				<DragHandle {ondragstart} ondragend={(e) => { endDrag(); ondragend?.(e); }} />
-			{/if}
-			<div class="flex min-w-0 flex-col gap-1">
-				{#if label}
-					<span class="text-xs text-on-surface-subtle">{label}</span>
+<!-- Nothing in the editor is text to copy, so only what is typed into a field can be selected. -->
+<div class="flex select-none flex-col items-start [&_input]:select-text [&_textarea]:select-text">
+	<!-- A tab on the card's top-left edge, so the header row keeps its own height. -->
+	{#if heading}
+		<span
+			class="relative z-[1] -mb-px rounded-t-md border border-b-0 px-2.5 py-1 text-xs {label
+				? 'bg-success-container font-medium text-on-success-container'
+				: onremove
+					? 'bg-surface-container-low text-on-surface-subtle'
+					: 'bg-surface text-on-surface-subtle'}"
+			>{heading}</span
+		>
+	{/if}
+	<!-- With a tab, the card's top-left corner is square so the tab's edge runs straight into it. -->
+	<div
+		class="w-full rounded border {heading ? 'rounded-tl-none' : ''} {onremove
+			? 'bg-surface-container-low'
+			: ''}"
+	>
+		<div class="flex flex-nowrap items-center border-b">
+			<div class="flex min-w-0 flex-nowrap items-center gap-2 p-2">
+				{#if ondragstart}
+					<DragHandle {ondragstart} ondragend={(e) => { endDrag(); ondragend?.(e); }} />
 				{/if}
 				<Dropdown
 					aria-label="Group operator"
@@ -198,82 +218,82 @@
 					onValueChange={(next) => setMode(next as Mode)}
 				/>
 			</div>
-		</div>
-		<div class="ml-auto shrink-0 border-l p-2">
-			<Button
-				class="whitespace-nowrap max-sm:px-2"
-				aria-label="Add Filter"
-				onclick={() => (catalogOpen = true)}
-			>
-				<PlusIcon />
-				<span class="max-sm:hidden">Add Filter</span>
-			</Button>
-		</div>
-		{#if onremove}
-			<div class="border-l p-2">
-				<Button variant="ghost" size="sm" iconOnly aria-label="Remove group" onclick={onremove}>
-					<XIcon />
+			<div class="ml-auto shrink-0 border-l p-2">
+				<Button
+					class="whitespace-nowrap max-sm:px-2"
+					aria-label="Add Filter"
+					onclick={() => (catalogOpen = true)}
+				>
+					<PlusIcon />
+					<span class="max-sm:hidden">Add Filter</span>
 				</Button>
 			</div>
-		{/if}
-	</div>
-	<div class="p-2">
-		{#if group.filters.length === 0}
-			<p
-				class="rounded p-2 text-sm text-on-surface-subtle {dropTarget ? 'bg-primary/10' : ''}"
-				ondragover={dragOverEmpty}
-				ondragleave={() => (dropTarget = null)}
-				ondrop={dropOnEmpty}
-			>
-				No filters added yet.
-			</p>
-		{:else}
-			<ul class="flex flex-col gap-2">
-				{#each group.filters as entry, i (i)}
-					<li
-						class="relative {isBeingDragged(i) ? 'opacity-50' : ''}"
-						ondragover={(e) => dragOverEntry(e, i)}
-						ondragleave={() => (dropTarget = null)}
-						ondrop={(e) => dropOnEntry(e, i)}
-					>
-						{#if dropTarget?.index === i}
-							<div
-								class="pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded bg-primary {dropTarget.after
-									? '-bottom-1.5'
-									: '-top-1.5'}"
-							></div>
-						{/if}
-						{#if i > 0}
-							<p class="mb-2 px-1 text-xs font-bold text-on-surface-subtle">{group.operator}</p>
-						{/if}
-						{#if isFilterGroup(entry)}
-							<Self
-								group={entry}
-								{catalog}
-								path={[...path, i]}
-								onchange={(next) => updateEntry(i, next)}
-								onremove={() => removeEntry(i)}
-								ondragstart={(e) => startDrag(e, i)}
-								ondragend={endDrag}
-							/>
-						{:else}
-							{@const definition = getFilter(entry.item)}
-							{#if definition}
-								<FilterRow
-									{definition}
-									filter={entry}
-									startOpen={justAdded === i}
+			{#if onremove}
+				<div class="border-l p-2">
+					<Button variant="ghost" size="sm" iconOnly aria-label="Remove group" onclick={onremove}>
+						<XIcon />
+					</Button>
+				</div>
+			{/if}
+		</div>
+		<div class="p-2">
+			{#if group.filters.length === 0}
+				<p
+					class="rounded p-2 text-sm text-on-surface-subtle {dropTarget ? 'bg-primary/10' : ''}"
+					ondragover={dragOverEmpty}
+					ondragleave={() => (dropTarget = null)}
+					ondrop={dropOnEmpty}
+				>
+					No filters added yet.
+				</p>
+			{:else}
+				<ul class="flex flex-col gap-2">
+					{#each group.filters as entry, i (i)}
+						<li
+							class="relative {isBeingDragged(i) ? 'opacity-50' : ''}"
+							ondragover={(e) => dragOverEntry(e, i)}
+							ondragleave={() => (dropTarget = null)}
+							ondrop={(e) => dropOnEntry(e, i)}
+						>
+							{#if dropTarget?.index === i}
+								<div
+									class="pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded bg-primary {dropTarget.after
+										? '-bottom-1.5'
+										: '-top-1.5'}"
+								></div>
+							{/if}
+							{#if i > 0}
+								<p class="mb-2 px-1 text-xs font-bold text-on-surface-subtle">{group.operator}</p>
+							{/if}
+							{#if isFilterGroup(entry)}
+								<Self
+									group={entry}
+									{catalog}
+									path={[...path, i]}
 									onchange={(next) => updateEntry(i, next)}
 									onremove={() => removeEntry(i)}
 									ondragstart={(e) => startDrag(e, i)}
 									ondragend={endDrag}
 								/>
+							{:else}
+								{@const definition = getFilter(entry.item)}
+								{#if definition}
+									<FilterRow
+										{definition}
+										filter={entry}
+										startOpen={justAdded === i}
+										onchange={(next) => updateEntry(i, next)}
+										onremove={() => removeEntry(i)}
+										ondragstart={(e) => startDrag(e, i)}
+										ondragend={endDrag}
+									/>
+								{/if}
 							{/if}
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
 	</div>
 </div>
 

@@ -88,8 +88,10 @@
 <Dialog.Root {open} onOpenChange={(next) => !next && oncancel()}>
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-50 bg-black/40" />
+		<!-- preventOverflowTextSelection off: bits-ui would otherwise set user-select: text on the dialog while the mouse is down, overriding select-none. -->
 		<Dialog.Content
-			class="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-surface shadow-lg"
+			preventOverflowTextSelection={false}
+			class="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-surface shadow-lg select-none [&_input]:select-text [&_textarea]:select-text"
 		>
 			<div class="flex items-start justify-between gap-4 border-b border-outline px-6 py-4">
 				<div class="min-w-0">

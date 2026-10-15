@@ -45,7 +45,7 @@ test('adding a filter and saving it shows it as a sentence', async () => {
 	await getByRole('button', { name: 'Add filter', exact: true }).click();
 
 	await expect.element(getByRole('dialog')).not.toBeInTheDocument();
-	await expect.element(getByText(/Select only Locations whose city is Austin/)).toBeVisible();
+	await expect.element(getByText(/Locations whose city is Austin/)).toBeVisible();
 });
 
 test('cancelling a filter that was just added takes it back out', async () => {
@@ -103,7 +103,7 @@ test('names the kind of record in the sentences', async () => {
 		}
 	});
 
-	await expect.element(getByText(/Select only People whose age is greater than 65 years/)).toBeVisible();
+	await expect.element(getByText(/People whose age is greater than 65 years/)).toBeVisible();
 });
 
 test('names the kind of record in the group mode', async () => {
@@ -111,9 +111,9 @@ test('names the kind of record in the group mode', async () => {
 
 	await expect
 		.element(getByRole('button', { name: 'Group operator' }))
-		.toHaveTextContent('Locations matching every filter in this group');
+		.toHaveTextContent('Locations where every condition below is true');
 	await getByRole('button', { name: 'Group operator' }).click();
 	await expect
-		.element(getByRole('option', { name: 'Locations matching no filter in this group' }))
+		.element(getByRole('option', { name: 'Locations where no condition below is true' }))
 		.toBeInTheDocument();
 });

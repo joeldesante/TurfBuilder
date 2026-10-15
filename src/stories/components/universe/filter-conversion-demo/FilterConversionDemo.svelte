@@ -34,7 +34,7 @@
 			}
 		},
 		none: {
-			label: 'None of these (stored as failing at least one)',
+			label: 'None of these (stored as at least one is false)',
 			input: {
 				people: off,
 				locations: {

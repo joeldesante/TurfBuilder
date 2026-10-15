@@ -490,7 +490,7 @@ function convertGroup(kind: FilterEntity, group: GroupNode): FilterGroup {
 		operator: group.connector,
 		// "None of these" was stored negated, so it converts to an inverted group.
 		// Its connector is AND (the old converter only used OR for "one or more"),
-		// so it reads "failing at least one filter in this group", which is what those buckets actually select.
+		// so it reads "at least one condition below is false", which is what those buckets actually select.
 		...(group.negate ? { not: true } : {}),
 		filters: group.children.map((child) => convertNode(kind, child))
 	};

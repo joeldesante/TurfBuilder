@@ -479,7 +479,7 @@ describe('legacy bucket filters', () => {
 		it('"none" is inverted, and keeps the AND it was stored with', () => {
 			// The old converter documented "none" as NOT (a OR b) but stored NOT (a AND b),
 			// so those buckets select what is not all of the conditions. The conversion
-			// keeps what they select; the editor shows it as "failing at least one filter in this group".
+			// keeps what they select; the editor shows it as "at least one condition below is false".
 			expect(convertInput(locations('NONE', ...two)).locations).toMatchObject({ operator: 'AND', not: true });
 		});
 

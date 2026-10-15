@@ -120,3 +120,17 @@ test('the Groups category shows only the group option', async () => {
 	await expect.element(getByRole('button', { name: 'Filter Group' })).toBeVisible();
 	await expect.element(getByRole('button', { name: 'Door Open' })).not.toBeInTheDocument();
 });
+
+test('its text cannot be selected, even while the mouse is held down in it', async () => {
+	const { getByRole } = render(FilterCatalog, { props: base });
+	const dialog = getByRole('dialog').element() as HTMLElement;
+
+	getByRole('heading', { name: 'Add a Filter' }).element().dispatchEvent(
+		new PointerEvent('pointerdown', { bubbles: true })
+	);
+
+	// Tailwind's styles are not loaded in component tests, so this checks the class and the inline style.
+	expect(dialog.classList).toContain('select-none');
+	expect(dialog.style.userSelect).not.toBe('text');
+	document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+});
