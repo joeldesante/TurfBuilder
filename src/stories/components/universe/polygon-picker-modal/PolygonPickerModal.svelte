@@ -122,7 +122,7 @@
 				<div>
 					<Dialog.Title class="text-lg font-semibold text-on-surface">Drawn Region</Dialog.Title>
 					<Dialog.Description class="text-sm text-on-surface-subtle">
-						Use the polygon tool on the map to draw one closed shape. Drawing another replaces it.
+						Use the polygon tool, click each corner, then click the first corner again to close the shape. Drawing another replaces it.
 					</Dialog.Description>
 				</div>
 				<Dialog.Close>
