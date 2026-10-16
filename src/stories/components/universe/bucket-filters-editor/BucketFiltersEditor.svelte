@@ -4,6 +4,7 @@
 	import type { FilterSource } from '$lib/client/filter-source';
 	import type { BucketFilters, FilterEntity, FilterGroup } from '$lib/shared/types/filters';
 	import { filtersFor } from '$lib/shared/utils/filter-registry';
+	import { SELECTABLE_ENTITIES } from '$lib/shared/utils/filters';
 
 	interface Props {
 		/** What the bucket selects: a filter group for each kind of record it includes, null for each it does not. */
@@ -18,10 +19,12 @@
 
 	let { filters = $bindable(), orgId, source, label = 'This bucket will contain' }: Props = $props();
 
-	const KINDS: { kind: FilterEntity; name: string }[] = [
-		{ kind: 'people', name: 'People' },
-		{ kind: 'locations', name: 'Locations' }
-	];
+	const KINDS = (
+		[
+			{ kind: 'people', name: 'People' },
+			{ kind: 'locations', name: 'Locations' }
+		] as { kind: FilterEntity; name: string }[]
+	).filter(({ kind }) => SELECTABLE_ENTITIES.includes(kind));
 
 	// The filters of a kind that is unticked, kept so ticking it again brings them back.
 	let stash = $state<Record<FilterEntity, FilterGroup | null>>({ people: null, locations: null });

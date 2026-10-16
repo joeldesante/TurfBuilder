@@ -7,6 +7,7 @@
 	import { filterGroupSchema } from '$lib/shared/schemas/filters';
 	import type { FilterEntity, FilterGroup } from '$lib/shared/types/filters';
 	import { filtersFor } from '$lib/shared/utils/filter-registry';
+	import { SELECTABLE_ENTITIES } from '$lib/shared/utils/filters';
 
 	export interface CreateListPayload {
 		name: string;
@@ -30,7 +31,9 @@
 	const { bucketName, bucketFilter, orgId, source, onCreate }: Props = $props();
 
 	const availableTypes = $derived(
-		(['people', 'locations'] as const).filter((type) => bucketFilter[type].enabled)
+		(['people', 'locations'] as const).filter(
+			(type) => bucketFilter[type].enabled && SELECTABLE_ENTITIES.includes(type)
+		)
 	);
 
 	let name = $state('');
@@ -39,11 +42,7 @@
 	// Pre-select the only available type when there is exactly one. Read once:
 	// it sets the starting choice and should not follow later prop changes.
 	const defaultType = untrack((): FilterEntity | null =>
-		bucketFilter.people.enabled && !bucketFilter.locations.enabled
-			? 'people'
-			: !bucketFilter.people.enabled && bucketFilter.locations.enabled
-				? 'locations'
-				: null
+		availableTypes.length === 1 ? availableTypes[0] : null
 	);
 
 	let selectedType = $state<FilterEntity | null>(defaultType);

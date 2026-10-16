@@ -16,7 +16,13 @@ test('shows an editor only for each kind of record the bucket includes', async (
 	await expect.element(getByRole('region', { name: 'Locations filters' })).toBeVisible();
 	await expect.element(getByRole('region', { name: 'People filters' })).not.toBeInTheDocument();
 	await expect.element(getByRole('checkbox', { name: 'Locations' })).toBeChecked();
-	await expect.element(getByRole('checkbox', { name: 'People' })).not.toBeChecked();
+});
+
+test('does not offer people, which are not supported yet', async () => {
+	const { getByRole } = render(BucketFiltersEditor, { props: { filters: none } });
+
+	await expect.element(getByRole('checkbox', { name: 'Locations' })).toBeVisible();
+	await expect.element(getByRole('checkbox', { name: 'People' })).not.toBeInTheDocument();
 });
 
 test('shows the filters the bucket already has as sentences', async () => {
@@ -34,9 +40,9 @@ test('says what the bucket will contain', async () => {
 test('ticking a kind of record adds an empty editor for it', async () => {
 	const { getByRole } = render(BucketFiltersEditor, { props: { filters: none } });
 
-	await getByRole('checkbox', { name: 'People' }).click();
+	await getByRole('checkbox', { name: 'Locations' }).click();
 
-	await expect.element(getByRole('region', { name: 'People filters' })).toBeVisible();
+	await expect.element(getByRole('region', { name: 'Locations filters' })).toBeVisible();
 });
 
 test('unticking a kind removes its editor, and ticking it again brings its filters back', async () => {

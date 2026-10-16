@@ -98,25 +98,22 @@ test('removing a kind of record counts as a change that can be saved', async () 
 	const { screen, onSave } = setup();
 
 	await screen.getByRole('checkbox', { name: 'Locations' }).click();
-	await screen.getByRole('checkbox', { name: 'People' }).click();
 	await screen.getByRole('button', { name: 'Save Filters' }).click();
 
 	await vi.waitFor(() =>
 		expect(onSave).toHaveBeenCalledWith({
 			v: 2,
-			people: { operator: 'AND', filters: [] },
+			people: null,
 			locations: null
 		})
 	);
 });
 
-test('adds the filters of a kind of record that was not included', async () => {
+test('does not offer people, which are not supported yet', async () => {
 	const { screen } = setup();
 
-	await screen.getByRole('checkbox', { name: 'People' }).click();
-
-	await expect.element(screen.getByRole('region', { name: 'People filters' })).toBeVisible();
-	await expect.element(screen.getByRole('button', { name: 'Save Filters' })).toBeEnabled();
+	await expect.element(screen.getByRole('checkbox', { name: 'People' })).not.toBeInTheDocument();
+	await expect.element(screen.getByRole('region', { name: 'People filters' })).not.toBeInTheDocument();
 });
 
 test('says why a bucket whose old filters could not be converted has no filters, and starts empty', async () => {

@@ -1,4 +1,4 @@
-import type { Filter, FilterGroup, FilterOperation } from '../types/filters';
+import type { Filter, FilterEntity, FilterGroup, FilterOperation } from '../types/filters';
 
 export function isFilterGroup(entry: Filter | FilterGroup): entry is FilterGroup {
 	return 'operator' in entry;
@@ -24,3 +24,10 @@ export const FILTER_OPERATION_LABELS: Record<FilterOperation, string> = {
 export function isAnsweredOperation(operation: string): boolean {
 	return operation === 'answered' || operation === 'not_answered';
 }
+
+/**
+ * The kinds of record the filter editors let staff build filters for. People
+ * are not supported end to end yet (#189, #190), so they are left out; add
+ * 'people' here when they are.
+ */
+export const SELECTABLE_ENTITIES: readonly FilterEntity[] = ['locations'];
