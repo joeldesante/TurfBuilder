@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { circlePolygon, distanceMiles, isWithinPolygon, isWithinRadius } from './geo';
+import { asSinglePolygon, circlePolygon, distanceMiles, isWithinPolygon, isWithinRadius } from './geo';
 
 const philly = { latitude: 39.9526, longitude: -75.1652 };
 const nyc = { latitude: 40.7128, longitude: -74.006 };
@@ -47,5 +47,27 @@ describe('geo', () => {
 		expect(isWithinPolygon({ latitude: 2, longitude: 2 }, square)).toBe(true);
 		expect(isWithinPolygon({ latitude: 5, longitude: 5 }, square)).toBe(false);
 		expect(isWithinPolygon({ latitude: 20, longitude: 2 }, square)).toBe(false);
+	});
+});
+
+describe('asSinglePolygon', () => {
+	const ring = [[0, 0], [1, 0], [1, 1], [0, 0]];
+
+	it('keeps a polygon as it is', () => {
+		const polygon: GeoJSON.Polygon = { type: 'Polygon', coordinates: [ring] };
+		expect(asSinglePolygon(polygon)).toEqual(polygon);
+	});
+
+	it('takes the polygon out of a multipolygon of one', () => {
+		expect(asSinglePolygon({ type: 'MultiPolygon', coordinates: [[ring]] })).toEqual({
+			type: 'Polygon',
+			coordinates: [ring]
+		});
+	});
+
+	it('gives nothing for a shape that is not a region', () => {
+		expect(asSinglePolygon({ type: 'Point', coordinates: [0, 0] })).toBeNull();
+		expect(asSinglePolygon({ type: 'MultiPolygon', coordinates: [] })).toBeNull();
+		expect(asSinglePolygon(null)).toBeNull();
 	});
 });

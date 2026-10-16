@@ -71,3 +71,16 @@ export function isWithinPolygon(point: Point, polygon: GeoJSON.Polygon): boolean
 	const [outline, ...holes] = polygon.coordinates;
 	return inRing(outline) && !holes.some(inRing);
 }
+
+/**
+ * The single polygon a drawn shape stands for. The drawing tool saves a drawn
+ * polygon as a MultiPolygon of one polygon, which becomes that polygon; a
+ * shape that is neither (a point, a line) is not a region and gives null.
+ */
+export function asSinglePolygon(geometry: GeoJSON.Geometry | null | undefined): GeoJSON.Polygon | null {
+	if (geometry?.type === 'Polygon') return geometry;
+	if (geometry?.type === 'MultiPolygon' && geometry.coordinates.length > 0) {
+		return { type: 'Polygon', coordinates: geometry.coordinates[0] };
+	}
+	return null;
+}

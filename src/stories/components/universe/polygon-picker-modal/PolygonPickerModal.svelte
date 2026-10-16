@@ -4,6 +4,7 @@
 	import type { Geoman } from '@geoman-io/maplibre-geoman-free';
 	import Button from '$components/actions/button/Button.svelte';
 	import { getMapStyle } from '$lib/map-style';
+	import { asSinglePolygon } from '$lib/shared/utils/geo';
 	import XIcon from 'phosphor-svelte/lib/X';
 
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -36,13 +37,22 @@
 		let geoman: Geoman | undefined;
 		let cancelled = false;
 
+		/** Only one region can be chosen, so a newly drawn polygon replaces any other. */
+		function keepOnly(newestId?: string) {
+			if (!geoman) return;
+			const polygons = geoman.features.getAll().features.filter((f) => asSinglePolygon(f.geometry));
+			const keep = polygons.find((f) => f.properties?.__gm_id === newestId) ?? polygons[polygons.length - 1];
+			for (const feature of polygons) {
+				const id = feature.properties?.__gm_id;
+				if (feature !== keep && id) geoman.features.delete(id);
+			}
+		}
+
 		function readPolygon() {
 			if (!geoman) return;
-			const drawn = geoman.features
-				.getAll()
-				.features.filter((f) => f.geometry.type === 'Polygon');
-			// The most recently drawn shape wins; Polygon features are always closed rings.
-			polygon = drawn.length > 0 ? (drawn[drawn.length - 1].geometry as GeoJSON.Polygon) : null;
+			const drawn = geoman.features.getAll().features.filter((f) => asSinglePolygon(f.geometry));
+			// A drawn polygon is saved as a MultiPolygon of one, so it is read back as a Polygon.
+			polygon = drawn.length > 0 ? asSinglePolygon(structuredClone(drawn[drawn.length - 1].geometry)) : null;
 		}
 
 		(async () => {
@@ -75,7 +85,11 @@
 				}
 			});
 
-			(['gm:create', 'gm:edit', 'gm:remove', 'gm:change'] as const).forEach((event) => {
+			map.on('gm:create' as never, ((e: { feature?: { id?: string } }) => {
+				keepOnly(e.feature?.id);
+				queueMicrotask(readPolygon);
+			}) as never);
+			(['gm:edit', 'gm:remove', 'gm:change'] as const).forEach((event) => {
 				map!.on(event as never, () => queueMicrotask(readPolygon));
 			});
 
@@ -108,7 +122,7 @@
 				<div>
 					<Dialog.Title class="text-lg font-semibold text-on-surface">Drawn Region</Dialog.Title>
 					<Dialog.Description class="text-sm text-on-surface-subtle">
-						Use the polygon tool on the map to draw a closed shape.
+						Use the polygon tool on the map to draw one closed shape. Drawing another replaces it.
 					</Dialog.Description>
 				</div>
 				<Dialog.Close>
