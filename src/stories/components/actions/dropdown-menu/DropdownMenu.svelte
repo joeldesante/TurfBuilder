@@ -15,7 +15,14 @@
 	export type DropdownMenuEntry = DropdownMenuItem | { separator: true };
 
 	interface Props {
-		children: Snippet;
+		/** What the default trigger button shows. Must not contain a button of its own; use `trigger` for that. */
+		children?: Snippet;
+		/**
+		 * Renders the trigger yourself: spread `props` onto your own button (`<Button {...props}>`) and it
+		 * becomes the trigger. Use this whenever the trigger is a button, since a button cannot sit
+		 * inside the default trigger, which is a button too.
+		 */
+		trigger?: Snippet<[Record<string, unknown>]>;
 		items: DropdownMenuEntry[];
 		open?: boolean;
 		align?: 'start' | 'center' | 'end';
@@ -26,6 +33,7 @@
 
 	let {
 		children,
+		trigger,
 		items,
 		open = $bindable(false),
 		align = 'end',
@@ -56,9 +64,17 @@
 </script>
 
 <DropdownMenu.Root bind:open>
-	<DropdownMenu.Trigger class="w-full">
-		{@render children()}
-	</DropdownMenu.Trigger>
+	{#if trigger}
+		<DropdownMenu.Trigger>
+			{#snippet child({ props })}
+				{@render trigger(props)}
+			{/snippet}
+		</DropdownMenu.Trigger>
+	{:else}
+		<DropdownMenu.Trigger class="w-full">
+			{@render children?.()}
+		</DropdownMenu.Trigger>
+	{/if}
 	<DropdownMenu.Portal>
 		<DropdownMenu.Content
 			{side}

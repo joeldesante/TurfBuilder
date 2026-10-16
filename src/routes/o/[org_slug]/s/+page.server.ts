@@ -1,20 +1,24 @@
 import { withOrgTransaction } from '$lib/server/database';
 import { getDashboardPoints, getDashboardProgress } from '$lib/server/dashboard';
+import { findBucketBySlug } from '$lib/server/services/buckets.service';
 import { parseRange } from '$lib/dashboard-range';
 
 export async function load({ parent, locals, url }) {
-	const { buckets } = await parent();
+	await parent();
 
 	// ?bucket=<slug>; none (or an unknown slug) means the entire universe.
 	const slug = url.searchParams.get('bucket');
-	const bucket = buckets.find((b) => b.slug === slug) ?? null;
 	// ?range=7d|30d; none (or unknown) means all time.
 	const range = parseRange(url.searchParams.get('range'));
+	const orgId = locals.organization!.id;
 
-	const { progress, points } = await withOrgTransaction(locals.organization!.id, async (client) => ({
-		progress: await getDashboardProgress(client, locals.organization!.id, bucket, range),
-		points: await getDashboardPoints(client, locals.organization!.id, bucket, range)
-	}));
+	return withOrgTransaction(orgId, async (client) => {
+		// A bucket that cannot be read is an error, since showing the whole universe in its place would be wrong.
+		const bucket = slug ? await findBucketBySlug(client, orgId, slug) : null;
 
-	return { progress, points };
+		return {
+			progress: await getDashboardProgress(client, orgId, bucket, range),
+			points: await getDashboardPoints(client, orgId, bucket, range)
+		};
+	});
 }

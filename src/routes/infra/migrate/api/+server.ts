@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database';
+import { convertAllBucketFilters } from '$lib/server/services/buckets.service';
 import { SETUP_STEPS } from '$lib/server/setup-schema';
 import { resolveInfraPermissions } from '$lib/server/permissions';
 import type { RequestHandler } from './$types';
@@ -13,7 +14,8 @@ export const POST: RequestHandler = async ({ locals }) => {
 	}
 
 	const encoder = new TextEncoder();
-	const total = SETUP_STEPS.length;
+	// The schema steps, then one step that converts data the new schema can now hold.
+	const total = SETUP_STEPS.length + 1;
 
 	const stream = new ReadableStream({
 		async start(controller) {
@@ -51,6 +53,26 @@ export const POST: RequestHandler = async ({ locals }) => {
 					return;
 				}
 				client.release();
+			}
+
+			// Buckets made before the filter editor are converted to its format. The
+			// ones that cannot be are listed, since they need rebuilding by hand.
+			const conversion = { step: total, total, label: 'Converting legacy bucket filters' };
+			send({ ...conversion, status: 'running' });
+			try {
+				const report = await convertAllBucketFilters();
+				send({
+					...conversion,
+					status: 'done',
+					detail: [
+						`${report.converted} converted, ${report.alreadyDone} already converted.`,
+						...report.failed.map((f) => `Could not convert "${f.slug}": ${f.reason}`)
+					]
+				});
+			} catch (e) {
+				send({ ...conversion, status: 'error', error: String(e) });
+				controller.close();
+				return;
 			}
 
 			send({ done: true });

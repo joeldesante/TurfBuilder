@@ -20,7 +20,7 @@ const { page, browser, launchBrowser, getMapStyle } = vi.hoisted(() => {
 	};
 });
 
-vi.mock('./browser', () => ({ launchBrowser }));
+vi.mock('./browser.service', () => ({ launchBrowser }));
 vi.mock('$lib/map-style', () => ({ getMapStyle }));
 
 import { openMapRenderer, type MapDetails } from './map-engine.service';

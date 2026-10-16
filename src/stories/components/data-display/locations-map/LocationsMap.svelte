@@ -84,6 +84,13 @@
 		draftPin?: { latitude: number; longitude: number } | null;
 		onDraftMove?: (coords: { latitude: number; longitude: number }) => void;
 		/**
+		 * A small round grip the user can drag, e.g. on the edge of a circle to
+		 * resize it. `onHandleDrag` fires continuously while it moves so the
+		 * shape it controls can follow.
+		 */
+		handle?: { latitude: number; longitude: number } | null;
+		onHandleDrag?: (coords: { latitude: number; longitude: number }) => void;
+		/**
 		 * Where the viewer is, drawn as a pulsing dot. Supplied by the caller
 		 * rather than read here, so a page that already watches the position for
 		 * its own controls does not open a second geolocation subscription.
@@ -114,6 +121,8 @@
 		onPinDrop,
 		draftPin = null,
 		onDraftMove,
+		handle = null,
+		onHandleDrag,
 		userPosition = null,
 		draggableLocationId = null,
 		onLocationMove,
@@ -322,6 +331,42 @@
 		draftMarker = marker;
 	});
 
+	// The drag handle, kept out of the marker list for the same reason as the draft pin.
+	let handleMarker: maplibregl.Marker | undefined;
+
+	$effect(() => {
+		if (!mapReady || !map) return;
+		const grip = handle;
+
+		if (!grip) {
+			handleMarker?.remove();
+			handleMarker = undefined;
+			return;
+		}
+
+		if (handleMarker) {
+			handleMarker.setLngLat([grip.longitude, grip.latitude]);
+			return;
+		}
+
+		const element = document.createElement('div');
+		element.dataset.testid = 'map-handle';
+		element.setAttribute('aria-label', 'Drag to resize');
+		element.style.cssText =
+			'width:18px;height:18px;border-radius:9999px;background:#fff;border:3px solid #10b981;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:grab;';
+
+		const marker = new maplibregl.Marker({ element, anchor: 'center', draggable: true })
+			.setLngLat([grip.longitude, grip.latitude])
+			.addTo(map);
+
+		marker.on('drag', () => {
+			const { lng, lat } = marker.getLngLat();
+			onHandleDrag?.({ latitude: lat, longitude: lng });
+		});
+
+		handleMarker = marker;
+	});
+
 	// The viewer's own position, kept separate from the location markers for the
 	// same reason as the draft pin: the rebuild effect must not touch it.
 	let userMarker: maplibregl.Marker | undefined;
@@ -426,6 +471,8 @@
 	onMount(() => {
 		(async () => {
 			const style = await getMapStyle(isDarkTheme());
+			// The component can unmount while the style loads.
+			if (!mapContainer) return;
 
 			map = new maplibregl.Map({
 				container: mapContainer,

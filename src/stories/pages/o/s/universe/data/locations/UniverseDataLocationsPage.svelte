@@ -48,6 +48,7 @@
 </script>
 
 <script lang="ts">
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 	import DropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
@@ -59,8 +60,6 @@
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import Badge from '$components/data-display/badge/Badge.svelte';
-	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
-	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
 	import LocationsMap, {
 		type MapLocation,
 		type MapBounds
@@ -164,32 +163,6 @@
 		new Map([...locations, ...mapRows].map((l) => [l.entity_id, l]))
 	);
 
-	const totalPages = $derived(Math.max(1, Math.ceil(totalCount / pageSize)));
-	const firstShown = $derived(totalCount === 0 ? 0 : (page - 1) * pageSize + 1);
-	const lastShown = $derived(Math.min(page * pageSize, totalCount));
-
-	const rangeSummary = $derived(
-		`Showing ${firstShown.toLocaleString()}–${lastShown.toLocaleString()} of ${totalCount.toLocaleString()} records.`
-	);
-
-	/**
-	 * Page numbers to offer, with nulls standing in for gaps. Always includes the
-	 * first and last page so the ends of a long list stay one click away.
-	 */
-	const pageLinks = $derived.by<(number | null)[]>(() => {
-		if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-		const window = [page - 1, page, page + 1].filter((p) => p > 1 && p < totalPages);
-		const shown = [1, ...window, totalPages];
-
-		const out: (number | null)[] = [];
-		for (const [i, p] of shown.entries()) {
-			if (i > 0 && p - shown[i - 1] > 1) out.push(null);
-			out.push(p);
-		}
-		return out;
-	});
-
 	function formatPrimary(row: LocationRow): string {
 		if (row.name) return row.name;
 		const parts = [row.address_line_1, row.address_line_2].filter(Boolean);
@@ -281,17 +254,15 @@
 			</Button>
 		{/if}
 
-		<!-- Wrapped because DropdownMenu's trigger is w-full, which would otherwise
-		     resolve against the whole actions row and push this off the edge. -->
-		<div>
-			<DropdownMenu items={importItems}>
-				<Button variant="outline">
+		<DropdownMenu items={importItems}>
+			{#snippet trigger(props)}
+				<Button {...props} variant="outline">
 					<UploadSimpleIcon />
 					Import
 					<CaretDownIcon />
 				</Button>
-			</DropdownMenu>
-		</div>
+			{/snippet}
+		</DropdownMenu>
 	{/snippet}
 </PageHeader>
 
@@ -424,6 +395,8 @@
 	</div>
 {:else}
 	<div class="border-t border-outline-subtle">
+		<Pagination {page} {totalCount} {pageSize} noun="records" />
+
 		<div class="flex items-center gap-4 px-4 py-2">
 			<div class="w-8 shrink-0"></div>
 			<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
@@ -471,61 +444,7 @@
 			<p class="px-4 py-8 text-sm text-on-surface-subtle text-center">No location records found.</p>
 		{/each}
 
-		{#if totalCount > 0}
-			<nav
-				class="flex flex-col items-center gap-3 px-4 py-3 sm:flex-row sm:justify-between"
-				aria-label="Pagination"
-			>
-				<p class="text-xs text-on-surface-subtle">
-					{rangeSummary} Use
-					<a href="/o/{orgSlug}/s/universe/search" class="underline hover:text-on-surface"
-						>Quick Search</a
-					> to filter.
-				</p>
-
-				{#if totalPages > 1}
-					<div class="flex items-center gap-1">
-						<Button
-							variant="ghost"
-							size="sm"
-							iconOnly
-							aria-label="Previous page"
-							disabled={page <= 1}
-							href="?page={page - 1}"
-						>
-							<CaretLeftIcon />
-						</Button>
-
-						{#each pageLinks as target, i (i)}
-							{#if target === null}
-								<span class="px-1 text-xs text-on-surface-subtle" aria-hidden="true">…</span>
-							{:else}
-								<Button
-									variant={target === page ? 'outline' : 'ghost'}
-									size="sm"
-									href="?page={target}"
-									aria-label="Page {target}"
-									aria-current={target === page ? 'page' : undefined}
-								>
-									{target}
-								</Button>
-							{/if}
-						{/each}
-
-						<Button
-							variant="ghost"
-							size="sm"
-							iconOnly
-							aria-label="Next page"
-							disabled={page >= totalPages}
-							href="?page={page + 1}"
-						>
-							<CaretRightIcon />
-						</Button>
-					</div>
-				{/if}
-			</nav>
-		{/if}
+		<Pagination {page} {totalCount} {pageSize} noun="records" />
 	</div>
 {/if}
 

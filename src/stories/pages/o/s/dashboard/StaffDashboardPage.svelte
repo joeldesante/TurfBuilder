@@ -97,16 +97,19 @@
 <div class="flex flex-col gap-6">
 	<PageHeader title="Dashboard">
 		{#snippet actions()}
-			<!-- Wrapped because DropdownMenu's trigger is w-full, as on the locations page. -->
-			<div>
-				<DropdownMenu items={bucketItems}>
-					<Button variant="outline" aria-label="Showing {currentBucket?.name ?? 'Entire Universe'}. Change bucket">
+			<DropdownMenu items={bucketItems}>
+				{#snippet trigger(props)}
+					<Button
+						{...props}
+						variant="outline"
+						aria-label="Showing {currentBucket?.name ?? 'Entire Universe'}. Change bucket"
+					>
 						{#if universe}<GlobeIcon />{:else}<StackIcon />{/if}
 						{currentBucket?.name ?? 'Entire Universe'}
 						<CaretDownIcon />
 					</Button>
-				</DropdownMenu>
-			</div>
+				{/snippet}
+			</DropdownMenu>
 		{/snippet}
 	</PageHeader>
 

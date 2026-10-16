@@ -102,7 +102,8 @@
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `item` | `SidebarNavItem` | **required** |  |
+| `item` | `Omit<SidebarNavItem, "href"> & { href?: string; }` | **required** | Pass an `onclick` instead of an `href` to render a button with the same look. |
+| `onclick` | `((event: MouseEvent) => void) | undefined` | — |  |
 | `active` | `boolean | undefined` | `false` |  |
 | `collapsed` | `boolean | undefined` | `false` |  |
 | `class` | `string | undefined` | `''` |  |

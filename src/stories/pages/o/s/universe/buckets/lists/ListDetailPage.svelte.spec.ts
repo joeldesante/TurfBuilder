@@ -383,3 +383,26 @@ test('shows a toast when waiting for the pdf times out', async () => {
 		.toBeVisible();
 	await expect.element(getByRole('button', { name: 'Generate PDF' })).toBeEnabled();
 });
+
+test('pages through a long list of entries', async () => {
+	const { getByText, getByRole } = render(ListDetailPage, {
+		props: { ...baseProps, entries: peopleEntries, entryCount: 4800, page: 2, pageSize: peopleEntries.length }
+	});
+	const n = peopleEntries.length;
+	await expect
+		.element(getByText(`Showing ${n + 1}–${2 * n} of 4,800 people.`).first())
+		.toBeVisible();
+	await expect.element(getByRole('link', { name: 'Next page' }).first()).toHaveAttribute('href', '?page=3');
+});
+
+test('counts every entry in the Locations tab, not just this page', async () => {
+	const { getByRole } = render(ListDetailPage, {
+		props: {
+			...baseProps,
+			list: { ...baseList, entity_type: 'locations' },
+			entries: [],
+			entryCount: 1234
+		}
+	});
+	await expect.element(getByRole('button', { name: /Locations/ })).toHaveTextContent('1,234');
+});

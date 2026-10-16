@@ -2,29 +2,17 @@ import { error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { POOL } from '$lib/server/database.js';
+import { requestedPage } from '$lib/shared/utils/pagination';
+import { queryMembersPage } from '$lib/server/services/members.service';
 
-export async function load({ locals }) {
+export async function load({ locals, url }) {
 	if (!can(locals.organization, 'member', 'read')) {
 		throw error(403, 'Forbidden.');
 	}
 
 	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const [membersResult, linksResult, slugResult] = await Promise.all([
-			client.query(
-				// DISTINCT ON picks the lowest-weight (highest-priority) non-default role per user.
-				`SELECT DISTINCT ON (u.id) u.id, u.name, u.email, pr.id AS role_id, pr.name AS role_name
-				 FROM auth.member m
-				 JOIN auth."user" u ON u.id = m.user_id
-				 LEFT JOIN user_role_membership urm ON urm.user_id = m.user_id
-				 LEFT JOIN permission_role pr
-				   ON pr.id = urm.role_id
-				   AND pr.organization_id = m.organization_id
-				   AND pr.scope = 'organization'
-				   AND pr.is_default = false
-				 WHERE m.organization_id = $1
-				 ORDER BY u.id, pr.weight ASC NULLS LAST`,
-				[locals.organization!.id]
-			),
+			queryMembersPage(client, locals.organization!.id, requestedPage(url)),
 			POOL.query(
 				`SELECT id, created_at, expires_at FROM org_invite_link
 				 WHERE org_id = $1 ORDER BY created_at DESC`,
@@ -43,7 +31,10 @@ export async function load({ locals }) {
 		);
 
 		return {
-			members: membersResult.rows,
+			members: membersResult.items,
+			totalCount: membersResult.totalCount,
+			page: membersResult.page,
+			pageSize: membersResult.pageSize,
 			roles: rolesResult.rows,
 			canRemoveMembers: can(locals.organization, 'member', 'delete'),
 			canManageRoles: can(locals.organization, 'member', 'update'),

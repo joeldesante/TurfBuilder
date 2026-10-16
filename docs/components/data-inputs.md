@@ -69,6 +69,23 @@
 
 ---
 
+## Dropdown
+
+**Import:** `$components/data-inputs/dropdown/Dropdown.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `items` | `Item[]` | **required** |  |
+| `value` | `string | undefined` | `$bindable('')` |  |
+| `placeholder` | `string | undefined` | `'Select...'` | Shown on the trigger while nothing is selected. |
+| `disabled` | `boolean | undefined` | `false` |  |
+| `onValueChange` | `((value: string) => void) | undefined` | — |  |
+| `class` | `string | undefined` | `''` |  |
+
+---
+
 ## FormField
 
 **Import:** `$components/data-inputs/form-field/FormField.svelte`

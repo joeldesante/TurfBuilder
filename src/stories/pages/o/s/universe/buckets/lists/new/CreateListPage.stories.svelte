@@ -14,9 +14,8 @@
 	args={{
 		bucketName: 'Registered Voters',
 		bucketFilter: {
-			v: 1,
-			people: { enabled: true, query: null },
-			locations: { enabled: false, query: null }
+			people: { enabled: true },
+			locations: { enabled: false }
 		},
 		onCreate: async () => {}
 	}}
@@ -27,9 +26,8 @@
 	args={{
 		bucketName: 'Downtown Properties',
 		bucketFilter: {
-			v: 1,
-			people: { enabled: false, query: null },
-			locations: { enabled: true, query: null }
+			people: { enabled: false },
+			locations: { enabled: true }
 		},
 		onCreate: async () => {}
 	}}
@@ -40,9 +38,8 @@
 	args={{
 		bucketName: 'Full Universe',
 		bucketFilter: {
-			v: 1,
-			people: { enabled: true, query: null },
-			locations: { enabled: true, query: null }
+			people: { enabled: true },
+			locations: { enabled: true }
 		},
 		onCreate: async () => {}
 	}}

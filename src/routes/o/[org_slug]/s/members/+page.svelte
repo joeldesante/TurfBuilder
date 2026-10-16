@@ -70,6 +70,9 @@
 
 <MembersPage
 	members={data.members}
+	totalCount={data.totalCount}
+	page={data.page}
+	pageSize={data.pageSize}
 	roles={data.roles}
 	canRemoveMembers={data.canRemoveMembers}
 	canManageRoles={data.canManageRoles}

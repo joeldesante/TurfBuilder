@@ -128,56 +128,59 @@
 		{/snippet}
 	</DatePicker.Input>
 
-	<DatePicker.Content
-		sideOffset={6}
-		class="z-50 rounded-xl border border-outline bg-surface-container shadow-lg p-4"
-	>
-		<DatePicker.Calendar>
-			{#snippet children({ months, weekdays })}
-				<DatePicker.Header class="flex items-center justify-between mb-3">
-					<DatePicker.PrevButton
-						class="inline-flex size-9 md:size-8 items-center justify-center rounded-sm text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
-					>
-						<CaretLeft />
-					</DatePicker.PrevButton>
-					<DatePicker.Heading class="text-sm font-semibold text-on-surface" />
-					<DatePicker.NextButton
-						class="inline-flex size-9 md:size-8 items-center justify-center rounded-sm text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
-					>
-						<CaretRight />
-					</DatePicker.NextButton>
-				</DatePicker.Header>
-				{#each months as month (month.value)}
-					<DatePicker.Grid class="w-full border-collapse">
-						<DatePicker.GridHead>
-							<DatePicker.GridRow class="flex w-full justify-between mb-1">
-								{#each weekdays as day (day)}
-									<DatePicker.HeadCell
-										class="w-10 text-center text-xs font-normal text-on-surface-subtle pb-1"
-									>
-										{day}
-									</DatePicker.HeadCell>
-								{/each}
-							</DatePicker.GridRow>
-						</DatePicker.GridHead>
-						<DatePicker.GridBody>
-							{#each month.weeks as weekDates (weekDates)}
-								<DatePicker.GridRow class="flex w-full">
-									{#each weekDates as date (date)}
-										<DatePicker.Cell
-											{date}
-											month={month.value}
-											class="relative size-10 p-0 text-center"
+	<!-- Rendered at the end of the page so a dialog or scroll area cannot clip it. -->
+	<DatePicker.Portal>
+		<DatePicker.Content
+			sideOffset={6}
+			class="z-50 rounded-xl border border-outline bg-surface-container shadow-lg p-4"
+		>
+			<DatePicker.Calendar>
+				{#snippet children({ months, weekdays })}
+					<DatePicker.Header class="flex items-center justify-between mb-3">
+						<DatePicker.PrevButton
+							class="inline-flex size-9 md:size-8 items-center justify-center rounded-sm text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
+						>
+							<CaretLeft />
+						</DatePicker.PrevButton>
+						<DatePicker.Heading class="text-sm font-semibold text-on-surface" />
+						<DatePicker.NextButton
+							class="inline-flex size-9 md:size-8 items-center justify-center rounded-sm text-on-surface hover:bg-surface-container-high transition-colors [&>svg]:size-4"
+						>
+							<CaretRight />
+						</DatePicker.NextButton>
+					</DatePicker.Header>
+					{#each months as month (month.value)}
+						<DatePicker.Grid class="w-full border-collapse">
+							<DatePicker.GridHead>
+								<DatePicker.GridRow class="flex w-full justify-between mb-1">
+									{#each weekdays as day (day)}
+										<DatePicker.HeadCell
+											class="w-10 text-center text-xs font-normal text-on-surface-subtle pb-1"
 										>
-											<DatePicker.Day class={dayClass} />
-										</DatePicker.Cell>
+											{day}
+										</DatePicker.HeadCell>
 									{/each}
 								</DatePicker.GridRow>
-							{/each}
-						</DatePicker.GridBody>
-					</DatePicker.Grid>
-				{/each}
-			{/snippet}
-		</DatePicker.Calendar>
-	</DatePicker.Content>
+							</DatePicker.GridHead>
+							<DatePicker.GridBody>
+								{#each month.weeks as weekDates (weekDates)}
+									<DatePicker.GridRow class="flex w-full">
+										{#each weekDates as date (date)}
+											<DatePicker.Cell
+												{date}
+												month={month.value}
+												class="relative size-10 p-0 text-center"
+											>
+												<DatePicker.Day class={dayClass} />
+											</DatePicker.Cell>
+										{/each}
+									</DatePicker.GridRow>
+								{/each}
+							</DatePicker.GridBody>
+						</DatePicker.Grid>
+					{/each}
+				{/snippet}
+			</DatePicker.Calendar>
+		</DatePicker.Content>
+	</DatePicker.Portal>
 </DatePicker.Root>

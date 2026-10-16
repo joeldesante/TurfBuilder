@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { downloadListDocument, regenerateListDocument } from './list-document';
 
-const BASE = '/api/v1/organizations/org-1/lists/list-1/documents';
+const BASE = '/api/v1/lists/list-1/documents';
+const DOCS = '/api/v1/documents';
 const now = () => new Date().toISOString();
 
 const assign = vi.fn();
@@ -39,11 +40,11 @@ describe('downloadListDocument', () => {
 	it('downloads a ready pdf straight away without generating', async () => {
 		respond({
 			[`GET ${BASE}`]: [{ id: 'd1', status: 'ready', error: null, created_at: now() }],
-			[`GET ${BASE}/d1`]: { id: 'd1', status: 'ready', download_url: 'https://spaces/d1' }
+			[`GET ${DOCS}/d1`]: { id: 'd1', status: 'ready', download_url: 'https://spaces/d1' }
 		});
 		const onGenerating = vi.fn();
 
-		await downloadListDocument('org-1', 'list-1', onGenerating);
+		await downloadListDocument('list-1', onGenerating);
 
 		expect(onGenerating).not.toHaveBeenCalled();
 		expect(calls()).not.toContain(`POST ${BASE}`);
@@ -55,14 +56,14 @@ describe('downloadListDocument', () => {
 		respond({
 			[`GET ${BASE}`]: [],
 			[`POST ${BASE}`]: { id: 'd2', status: 'pending', created_at: now() },
-			[`GET ${BASE}/d2`]: () =>
+			[`GET ${DOCS}/d2`]: () =>
 				++polls < 3
 					? { id: 'd2', status: 'pending' }
 					: { id: 'd2', status: 'ready', download_url: 'https://spaces/d2' }
 		});
 		const onGenerating = vi.fn();
 
-		const done = downloadListDocument('org-1', 'list-1', onGenerating);
+		const done = downloadListDocument('list-1', onGenerating);
 		await vi.runAllTimersAsync();
 		await done;
 
@@ -73,10 +74,10 @@ describe('downloadListDocument', () => {
 	it('joins a recent pending document instead of starting another', async () => {
 		respond({
 			[`GET ${BASE}`]: [{ id: 'd3', status: 'pending', error: null, created_at: now() }],
-			[`GET ${BASE}/d3`]: { id: 'd3', status: 'ready', download_url: 'https://spaces/d3' }
+			[`GET ${DOCS}/d3`]: { id: 'd3', status: 'ready', download_url: 'https://spaces/d3' }
 		});
 
-		await downloadListDocument('org-1', 'list-1', vi.fn());
+		await downloadListDocument('list-1', vi.fn());
 
 		expect(calls()).not.toContain(`POST ${BASE}`);
 		expect(assign).toHaveBeenCalledWith('https://spaces/d3');
@@ -88,10 +89,10 @@ describe('downloadListDocument', () => {
 		respond({
 			[`GET ${BASE}`]: [{ id: 'old', status: 'pending', error: null, created_at: stale }],
 			[`POST ${BASE}`]: { id: 'd4', status: 'pending', created_at: now() },
-			[`GET ${BASE}/d4`]: { id: 'd4', status: 'ready', download_url: 'https://spaces/d4' }
+			[`GET ${DOCS}/d4`]: { id: 'd4', status: 'ready', download_url: 'https://spaces/d4' }
 		});
 
-		await downloadListDocument('org-1', 'list-1', vi.fn());
+		await downloadListDocument('list-1', vi.fn());
 
 		expect(calls()).toContain(`POST ${BASE}`);
 		expect(assign).toHaveBeenCalledWith('https://spaces/d4');
@@ -101,10 +102,10 @@ describe('downloadListDocument', () => {
 		respond({
 			[`GET ${BASE}`]: [{ id: 'bad', status: 'failed', error: 'boom', created_at: now() }],
 			[`POST ${BASE}`]: { id: 'd5', status: 'pending', created_at: now() },
-			[`GET ${BASE}/d5`]: { id: 'd5', status: 'ready', download_url: 'https://spaces/d5' }
+			[`GET ${DOCS}/d5`]: { id: 'd5', status: 'ready', download_url: 'https://spaces/d5' }
 		});
 
-		await downloadListDocument('org-1', 'list-1', vi.fn());
+		await downloadListDocument('list-1', vi.fn());
 
 		expect(assign).toHaveBeenCalledWith('https://spaces/d5');
 	});
@@ -113,10 +114,10 @@ describe('downloadListDocument', () => {
 		respond({
 			[`GET ${BASE}`]: [],
 			[`POST ${BASE}`]: { id: 'd6', status: 'pending', created_at: now() },
-			[`GET ${BASE}/d6`]: { id: 'd6', status: 'failed', error: 'Object storage is not configured.' }
+			[`GET ${DOCS}/d6`]: { id: 'd6', status: 'failed', error: 'Object storage is not configured.' }
 		});
 
-		await expect(downloadListDocument('org-1', 'list-1', vi.fn())).rejects.toThrow(
+		await expect(downloadListDocument('list-1', vi.fn())).rejects.toThrow(
 			'Object storage is not configured.'
 		);
 		expect(assign).not.toHaveBeenCalled();
@@ -126,10 +127,10 @@ describe('downloadListDocument', () => {
 		respond({
 			[`GET ${BASE}`]: [],
 			[`POST ${BASE}`]: { id: 'd7', status: 'pending', created_at: now() },
-			[`GET ${BASE}/d7`]: { id: 'd7', status: 'pending' }
+			[`GET ${DOCS}/d7`]: { id: 'd7', status: 'pending' }
 		});
 
-		const done = downloadListDocument('org-1', 'list-1', vi.fn());
+		const done = downloadListDocument('list-1', vi.fn());
 		const assertion = expect(done).rejects.toThrow('taking too long');
 		await vi.runAllTimersAsync();
 		await assertion;
@@ -138,7 +139,7 @@ describe('downloadListDocument', () => {
 	it('says the server could not be reached when the request fails outright', async () => {
 		fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
 
-		await expect(downloadListDocument('org-1', 'list-1', vi.fn())).rejects.toThrow(
+		await expect(downloadListDocument('list-1', vi.fn())).rejects.toThrow(
 			'Could not reach the server. Check your connection and try again.'
 		);
 	});
@@ -151,7 +152,7 @@ describe('downloadListDocument', () => {
 			})
 		);
 
-		await expect(downloadListDocument('org-1', 'list-1', vi.fn())).rejects.toThrow(
+		await expect(downloadListDocument('list-1', vi.fn())).rejects.toThrow(
 			'Something went wrong on the server. Try again shortly.'
 		);
 	});
@@ -161,7 +162,7 @@ describe('downloadListDocument', () => {
 			new Response(JSON.stringify({ message: 'Forbidden' }), { status: 403 })
 		);
 
-		await expect(downloadListDocument('org-1', 'list-1', vi.fn())).rejects.toThrow('Forbidden');
+		await expect(downloadListDocument('list-1', vi.fn())).rejects.toThrow('Forbidden');
 	});
 });
 
@@ -170,14 +171,14 @@ describe('regenerateListDocument', () => {
 		let polls = 0;
 		respond({
 			[`POST ${BASE}`]: { id: 'new', status: 'pending', created_at: now() },
-			[`GET ${BASE}/new`]: () =>
+			[`GET ${DOCS}/new`]: () =>
 				++polls < 2
 					? { id: 'new', status: 'pending' }
 					: { id: 'new', status: 'ready', download_url: 'https://spaces/new' }
 		});
 		const onGenerating = vi.fn();
 
-		const done = regenerateListDocument('org-1', 'list-1', onGenerating);
+		const done = regenerateListDocument('list-1', onGenerating);
 		await vi.runAllTimersAsync();
 		await done;
 
@@ -190,10 +191,10 @@ describe('regenerateListDocument', () => {
 	it("sends the browser's timezone so times print as the requester reads them", async () => {
 		respond({
 			[`POST ${BASE}`]: { id: 'new', status: 'pending', created_at: now() },
-			[`GET ${BASE}/new`]: { id: 'new', status: 'ready', download_url: 'https://spaces/new' }
+			[`GET ${DOCS}/new`]: { id: 'new', status: 'ready', download_url: 'https://spaces/new' }
 		});
 
-		await regenerateListDocument('org-1', 'list-1', vi.fn());
+		await regenerateListDocument('list-1', vi.fn());
 
 		const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')!;
 		expect(JSON.parse(post[1].body)).toEqual({
@@ -205,12 +206,10 @@ describe('regenerateListDocument', () => {
 	it('rejects with the server reason when regeneration fails', async () => {
 		respond({
 			[`POST ${BASE}`]: { id: 'new', status: 'pending', created_at: now() },
-			[`GET ${BASE}/new`]: { id: 'new', status: 'failed', error: 'render failed' }
+			[`GET ${DOCS}/new`]: { id: 'new', status: 'failed', error: 'render failed' }
 		});
 
-		await expect(regenerateListDocument('org-1', 'list-1', vi.fn())).rejects.toThrow(
-			'render failed'
-		);
+		await expect(regenerateListDocument('list-1', vi.fn())).rejects.toThrow('render failed');
 		expect(assign).not.toHaveBeenCalled();
 	});
 });

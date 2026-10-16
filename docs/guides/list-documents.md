@@ -59,8 +59,8 @@ click Generate / Download
 |---|---|
 | `src/stories/pages/o/s/universe/buckets/lists/ListDetailPage.svelte` | The button, its states, the Regenerate menu, and error toasts. |
 | `src/lib/client/list-document.ts` | `downloadListDocument()` and `regenerateListDocument()`: request, poll, download. Turns every failure into a message fit to show. |
-| `src/routes/api/v1/organizations/[org_id]/lists/[list_id]/documents/` | The API: list, create, fetch, soft-delete. See the [API reference](../api/documents.md). |
-| `src/lib/server/list-access.ts` | Checks the caller is signed in and has `system.access` in the org, and that the list belongs to it. These routes sit outside `/o/[org_slug]`, so no layout guard runs. |
+| `src/routes/api/v1/lists/[list_id]/documents/`, `src/routes/api/v1/documents/[document_id]/` | The API: list and create on the list, fetch and soft-delete by document id. See the [API reference](../api/documents.md). |
+| `src/lib/server/list-access.ts` | Finds which of the caller's orgs holds the list or document (the URLs carry no org id, and RLS hides rows from other orgs), then checks the caller has `system.access` there and that the list belongs to it. These routes sit outside `/o/[org_slug]`, so no layout guard runs. |
 | `src/lib/server/services/list-document.service.ts` | Loads the data, numbers and formats it, draws the maps, renders, uploads, and records the outcome. |
 | `src/lib/server/services/map-engine.service.ts` | `openMapRenderer()`: one headless Chrome running MapLibre that draws any number of static maps (JPEG, 1400x720) with numbered markers and a dashed turf boundary. |
 | `src/lib/server/services/pdf-engine.service.ts` | `generatePDF()`: fills a Handlebars template and prints a Letter PDF with headless Chrome. |
@@ -164,12 +164,12 @@ See the [List Documents API reference](../api/documents.md). In short:
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/organizations/{org_id}/lists/{list_id}/documents` | Current documents, newest first |
-| `POST` | `/api/v1/organizations/{org_id}/lists/{list_id}/documents` | Start generating (optional `{ "timeZone": "America/New_York" }`). 202 + `Location` |
-| `GET` | `/api/v1/organizations/{org_id}/lists/{list_id}/documents/{document_id}` | Status, and a download link when ready |
-| `DELETE` | `/api/v1/organizations/{org_id}/lists/{list_id}/documents/{document_id}` | Soft-delete. 204 |
+| `GET` | `/api/v1/lists/{list_id}/documents` | Current documents, newest first |
+| `POST` | `/api/v1/lists/{list_id}/documents` | Start generating (optional `{ "timeZone": "America/New_York" }`). 202 + `Location` |
+| `GET` | `/api/v1/documents/{document_id}` | Status, and a download link when ready |
+| `DELETE` | `/api/v1/documents/{document_id}` | Soft-delete. 204 |
 
-All four require a signed-in user with `system.access` in the organization.
+All four require a signed-in user with `system.access` in the organization that owns the list. A list or document outside the caller's organizations returns 404.
 
 ## Database
 
@@ -194,7 +194,7 @@ All four require a signed-in user with `system.access` in the organization.
 | `src/lib/server/services/*.spec.ts` | Service (data, numbering, maps, timezone, timeout, restore, safe errors), PDF engine, map engine, browser launch |
 | `src/lib/server/services/templates/list-document.spec.ts` | Template structure and safety rules |
 | `src/lib/client/list-document.spec.ts` | Reuse, join and create, polling, timeout, safe error messages, timezone in the request |
-| `src/routes/api/v1/.../documents/**/server.spec.ts` | All four endpoints: access, validation, soft-delete and supersede queries |
+| `src/routes/api/v1/**/server.spec.ts` | All four endpoints: access, validation, soft-delete and supersede queries |
 | `src/routes/o/.../lists/[id]/page.server.spec.ts` | `hasPdf` on the list page |
 | `ListDetailPage.svelte.spec.ts`, `Toaster.svelte.spec.ts` | Button states, the Regenerate menu, toasts |
 | `e2e/list-documents.spec.ts` | Signed-out access is refused. The full flow on a real stack: generate, download, regenerate after cutting a turf, delete. |

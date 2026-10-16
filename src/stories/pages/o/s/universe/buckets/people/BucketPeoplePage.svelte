@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import UserIcon from 'phosphor-svelte/lib/User';
 
@@ -15,12 +16,28 @@
 		bucketName: string;
 		/** Whether the people filter is enabled for this bucket. */
 		enabled: boolean;
+		/** One page of the matches, already ordered and sliced by the server. */
 		people: PersonRow[];
+		/** Every match across all pages. Defaults to the rows given. */
+		totalCount?: number;
+		/** 1-based index of the page in `people`. */
+		page?: number;
+		pageSize?: number;
 		/** Base path for person detail links, e.g. /o/myorg/s/universe/buckets/my-bucket/people */
 		basePath?: string;
 	}
 
-	const { bucketName, enabled, people, basePath = '' }: Props = $props();
+	const {
+		bucketName,
+		enabled,
+		people,
+		totalCount: totalCountProp,
+		page = 1,
+		pageSize = 100,
+		basePath = ''
+	}: Props = $props();
+
+	const totalCount = $derived(totalCountProp ?? people.length);
 
 	function formatName(row: PersonRow): string {
 		const parts = [row.first_name, row.last_name].filter(Boolean);
@@ -52,10 +69,11 @@
 		</p>
 	{:else}
 		<p class="text-sm text-on-surface-subtle my-4">
-			{people.length} {people.length === 1 ? 'person' : 'people'} matched
+			{totalCount.toLocaleString()} {totalCount === 1 ? 'person' : 'people'} matched
 		</p>
 
 		<div class="border-t border-outline-subtle">
+			<Pagination {page} {totalCount} {pageSize} noun="people" />
 			<div class="flex items-center gap-4 px-4 py-2">
 				<div class="w-8 shrink-0"></div>
 				<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Name</span>
@@ -65,7 +83,7 @@
 			{#each people as person (person.id)}
 				<a
 					href="{basePath}/{person.id}"
-					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors duration-100 group"
+					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle no-underline hover:bg-surface-container transition-colors duration-100 group"
 				>
 					<div class="w-8 h-8 shrink-0 flex items-center justify-center text-on-surface-subtle">
 						<UserIcon size={20} />
@@ -84,5 +102,7 @@
 				</a>
 			{/each}
 		</div>
+
+		<Pagination {page} {totalCount} {pageSize} noun="people" />
 	{/if}
 </div>
