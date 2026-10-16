@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { BucketFilters, Filter, FilterGroup } from '../types/filters';
 import type { FilterRegistryEntry, FilterValueType } from '../types/filter-registry';
 import { getFilter } from '../utils/filter-registry';
+import { isAnsweredOperation } from '../utils/filters';
 
 /**
  * Validation for the filter editor's output, shared by the browser (to mark
@@ -67,6 +68,9 @@ const surveyResponseValue = z.object({
 	response: z.string().min(1)
 });
 
+/** Whether a question was answered at all takes no response to compare with. */
+const surveyQuestionValue = surveyResponseValue.extend({ response: z.string() });
+
 /** The shape of the value for each kind of filter, ignoring which options a `select` allows. */
 const VALUE_SCHEMAS: Record<Exclude<FilterValueType, 'select'>, z.ZodType> = {
 	text: z.string().min(1),
@@ -107,7 +111,11 @@ export const filterSchema: z.ZodType<Filter> = z
 			});
 		}
 
-		const value = valueSchemaFor(entry).safeParse(filter.value);
+		const value = (
+			entry.valueType === 'survey_response' && isAnsweredOperation(filter.operation)
+				? surveyQuestionValue
+				: valueSchemaFor(entry)
+		).safeParse(filter.value);
 		if (!value.success) {
 			// A rule written for the filter (such as a date range that ends before it starts) says what is wrong; a plain type mismatch does not.
 			const issue = value.error.issues[0];

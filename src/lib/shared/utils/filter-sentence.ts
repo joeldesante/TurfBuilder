@@ -6,7 +6,7 @@ import type {
 	RadiusValue,
 	SurveyResponseValue
 } from '../types/filters';
-import { FILTER_OPERATION_LABELS } from './filters';
+import { FILTER_OPERATION_LABELS, isAnsweredOperation } from './filters';
 
 /** One run of a filter's sentence: plain words, or a highlighted value. */
 export interface SentencePart {
@@ -142,9 +142,11 @@ function polygonParts(filter: Filter): Parts {
 
 function surveyParts(filter: Filter, names: SentenceNames): Parts {
 	const v = isObject(filter.value) ? (filter.value as Partial<SurveyResponseValue>) : {};
-	const response = v.response
-		? [badge(v.response)]
-		: [missing('no response chosen')];
+	const response = isAnsweredOperation(filter.operation)
+		? []
+		: v.response
+			? [badge(v.response)]
+			: [missing('no response chosen')];
 	return {
 		question: v.questionId ? [badge(names.question ?? 'a question')] : [missing('no question chosen')],
 		survey: v.surveyId ? [badge(names.survey ?? 'a survey')] : [missing('no survey chosen')],
@@ -265,6 +267,14 @@ export function describeFilter(
 		} else {
 			out.push(...(named[token] ?? []));
 		}
+	}
+
+	// A setting that has no part (an answered filter has no response) leaves its space behind.
+	const last = out[out.length - 1];
+	if (last && !last.badge && last.text.endsWith(' ')) {
+		const text = last.text.trimEnd();
+		if (text) out[out.length - 1] = { ...last, text };
+		else out.pop();
 	}
 	return out;
 }

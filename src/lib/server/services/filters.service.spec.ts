@@ -273,6 +273,19 @@ describe('groups', () => {
 	});
 });
 
+describe('location name filter', () => {
+	it('matches the name of a location, ignoring case by default', () => {
+		const query = loc(group('AND', f('location_name', 'contains', 'library')));
+
+		expect(query.sql).toContain('vl.name');
+		expect(query.params).toEqual(['%library%']);
+	});
+
+	it('only applies to locations', () => {
+		expect(() => people(group('AND', f('location_name', 'equals', 'Library')))).toThrow();
+	});
+});
+
 describe('survey response filters', () => {
 	const Q = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
 	const answer = (operation: string, response: string, extra = {}) =>
@@ -281,6 +294,21 @@ describe('survey response filters', () => {
 	const rejects = (run: () => unknown, status: number) => {
 		expect(run).toThrow(expect.objectContaining({ status }));
 	};
+
+	it('finds locations with any answer to the question when it was answered', () => {
+		const query = loc(group('AND', answer('answered', '')));
+
+		expect(flat(query.sql)).toContain("EXISTS (SELECT 1 FROM universe.survey_question_response sqr");
+		expect(flat(query.sql)).toContain("COALESCE(sqr.response_value, '') <> ''");
+		expect(flat(query.sql)).not.toContain('NOT EXISTS');
+	});
+
+	it('includes locations never asked when the question was not answered', () => {
+		const query = loc(group('AND', answer('not_answered', '')));
+
+		expect(flat(query.sql)).toContain('NOT EXISTS (SELECT 1 FROM universe.survey_question_response sqr');
+		expect(query.params).toEqual([Q]);
+	});
 
 	it('finds locations that gave the response to the question, on any attempt', () => {
 		const query = loc(group('AND', answer('equals', 'Yes')));

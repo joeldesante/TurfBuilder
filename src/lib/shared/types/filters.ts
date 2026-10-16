@@ -11,7 +11,9 @@ export type FilterOperation =
 	| 'contains'
 	| 'starts_with'
 	| 'within'
-	| 'not_within';
+	| 'not_within'
+	| 'answered'
+	| 'not_answered';
 
 /** Value of a radius filter: a point and a distance around it, in miles. */
 export interface RadiusValue {

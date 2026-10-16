@@ -169,6 +169,16 @@ describe('survey response filters', () => {
 		);
 	});
 
+	it('reads an answered filter without a response', () => {
+		const answered = { bucketId: ID, surveyId: ID, questionId: ID, response: '' };
+		const parts = say('survey_question_response', { operation: 'not_answered', value: answered }, {
+			names: { question: 'Top concern?', survey: 'Spring canvass' }
+		});
+
+		expect(sentenceText(parts)).toBe('Records whose answer to Top concern? in Spring canvass was never given');
+		expect(parts.some((p) => p.incomplete && p.text === 'no response chosen')).toBe(false);
+	});
+
 	it('reads generically until the names are known', () => {
 		expect(sentenceText(say('survey_question_response', { value }))).toContain('answer to a question in a survey is Yes');
 	});

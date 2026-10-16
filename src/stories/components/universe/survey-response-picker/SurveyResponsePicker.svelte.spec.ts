@@ -67,6 +67,15 @@ test('offers the choices of a multiple choice question', async () => {
 	expect(onchange).toHaveBeenCalledWith({ ...chosen, response: 'No' });
 });
 
+test('asks for no response when the filter only needs to know it was answered', async () => {
+	const { getByRole } = render(SurveyResponsePicker, {
+		props: { source: makeSource(), value: chosen, onchange: vi.fn(), needsResponse: false }
+	});
+
+	await expect.element(getByRole('button', { name: 'Question' })).toBeVisible();
+	await expect.element(getByRole('button', { name: 'Response' })).not.toBeInTheDocument();
+});
+
 test('takes typed text for a question without choices', async () => {
 	const onchange = vi.fn();
 	const { getByRole } = render(SurveyResponsePicker, {

@@ -11,9 +11,11 @@
 		/** The current choice; null until a bucket is picked. */
 		value: SurveyResponseValue | null;
 		onchange: (value: SurveyResponseValue) => void;
+		/** False when the filter only asks whether the question was answered, so there is no response to pick. */
+		needsResponse?: boolean;
 	}
 
-	const { source, value, onchange }: Props = $props();
+	const { source, value, onchange, needsResponse = true }: Props = $props();
 
 	let buckets = $state<SourceBucket[]>([]);
 	let surveys = $state<SourceSurvey[]>([]);
@@ -76,7 +78,7 @@
 		/>
 	{/if}
 
-	{#if questionId && question}
+	{#if questionId && question && needsResponse}
 		{#if hasChoices}
 			<Dropdown
 				class="min-w-0 max-w-56"

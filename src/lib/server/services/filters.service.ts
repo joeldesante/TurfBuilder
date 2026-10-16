@@ -176,7 +176,7 @@ function answerMatches(operation: Filter['operation'], filter: Filter, ctx: Cont
  * attempt. Responses are matched to the location through its entity id, as
  * attempts are, so a response made on an older version of the location still
  * counts. "Is not" means answered with something else, so a location that was
- * never asked is left out; invert the group to include it.
+ * never asked is left out; "was not answered" includes it.
  */
 function surveyResponse(filter: Filter, ctx: Context): string {
 	const value = filter.value as SurveyResponseValue;
@@ -199,6 +199,11 @@ function surveyResponse(filter: Filter, ctx: Context): string {
 			return exists(
 				`COALESCE(sqr.response_value, '') <> '' AND NOT ${answerMatches('equals', filter, ctx)}`
 			);
+		case 'answered':
+			return exists(`COALESCE(sqr.response_value, '') <> ''`);
+		case 'not_answered':
+			// A location never asked has no response at all, so it counts as not answered.
+			return `NOT ${exists(`COALESCE(sqr.response_value, '') <> ''`)}`;
 		default:
 			throw unsupported(filter);
 	}
@@ -273,6 +278,9 @@ const HANDLERS: Record<string, Handler> = {
 	},
 	survey_question_response: {
 		build: (f, ctx) => surveyResponse(f, ctx)
+	},
+	location_name: {
+		build: (f, ctx) => textCondition(`${ctx.alias}.name`, f, ctx)
 	},
 	first_name: {
 		build: (f, ctx) => textCondition(`${ctx.alias}.first_name`, f, ctx)

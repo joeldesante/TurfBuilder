@@ -27,7 +27,7 @@
 		asRadius,
 		asSurveyResponse
 	} from '$lib/shared/utils/filter-values';
-	import { FILTER_OPERATION_LABELS } from '$lib/shared/utils/filters';
+	import { FILTER_OPERATION_LABELS, isAnsweredOperation } from '$lib/shared/utils/filters';
 
 	interface Props {
 		open: boolean;
@@ -235,6 +235,7 @@
 							<SurveyResponsePicker
 								source={filterSource}
 								value={asSurveyResponse(draft.value)}
+								needsResponse={!isAnsweredOperation(draft.operation)}
 								onchange={(next) => setValue(next)}
 							/>
 						{:else}

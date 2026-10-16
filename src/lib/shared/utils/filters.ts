@@ -15,5 +15,12 @@ export const FILTER_OPERATION_LABELS: Record<FilterOperation, string> = {
 	contains: 'contains',
 	starts_with: 'starts with',
 	within: 'is within',
-	not_within: 'is not within'
+	not_within: 'is not within',
+	answered: 'was answered',
+	not_answered: 'was not answered'
 };
+
+/** Operations on a survey question that look only at whether it was answered, not at what the answer was. */
+export function isAnsweredOperation(operation: string): boolean {
+	return operation === 'answered' || operation === 'not_answered';
+}

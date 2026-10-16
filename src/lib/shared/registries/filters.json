@@ -59,8 +59,9 @@
 		"category": "survey",
 		"entities": ["locations"],
 		"sentence": "{entity}\nwhose answer to {question}\nin {survey}\n{operation} {response}",
+		"operationLabels": { "answered": "was given", "not_answered": "was never given" },
 		"valueType": "survey_response",
-		"operations": ["equals", "not_equals", "contains"]
+		"operations": ["equals", "not_equals", "contains", "answered", "not_answered"]
 	},
 	{
 		"id": "contact_made",
@@ -82,6 +83,16 @@
 		"booleanLabels": { "true": "have", "false": "have not" },
 		"valueType": "boolean",
 		"operations": ["equals"]
+	},
+	{
+		"id": "location_name",
+		"name": "Location Name",
+		"description": "What the location is called, such as a building or business name.",
+		"category": "meta",
+		"entities": ["locations"],
+		"sentence": "{entity}\nwhose name {operation} {value}",
+		"valueType": "text",
+		"operations": ["equals", "not_equals", "contains", "starts_with"]
 	},
 	{
 		"id": "first_name",
