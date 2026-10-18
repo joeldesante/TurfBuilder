@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { joinChoices, splitChoices } from '$lib/shared/utils/survey-answer';
 	import SurveyAnswerOption from '../survey-answer-option/SurveyAnswerOption.svelte';
 	import Textarea from '../textarea/Textarea.svelte';
 
@@ -28,9 +29,7 @@
 
 	let radioName = `survey-q-${questionNumber}`;
 
-	let selectedCheckboxes = $derived(
-		questionType === 'check' && value ? value.split(',').filter((v) => v) : []
-	);
+	let selectedCheckboxes = $derived(questionType === 'check' ? splitChoices(value) : []);
 
 	function handleRadioChange(choice: string) {
 		if (disabled) return;
@@ -39,11 +38,11 @@
 
 	function handleCheckboxChange(choice: string) {
 		if (disabled) return;
-		const current = value ? value.split(',').filter((v) => v) : [];
+		const current = splitChoices(value);
 		if (current.includes(choice)) {
-			value = current.filter((c) => c !== choice).join(',');
+			value = joinChoices(current.filter((c) => c !== choice));
 		} else {
-			value = [...current, choice].join(',');
+			value = joinChoices([...current, choice]);
 		}
 	}
 

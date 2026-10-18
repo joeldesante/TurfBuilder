@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { filterGroupSchema } from '$lib/shared/schemas/filters';
 import { getFilter } from '$lib/shared/utils/filter-registry';
 import { isFilterGroup } from '$lib/shared/utils/filters';
+import { encodeChoice } from '$lib/shared/utils/survey-answer';
 import type { ConditionNode, GroupNode, WhereNode } from '$lib/server/query-builder';
 import type { StoredBucketFilter, StoredEntityFilter } from '$lib/server/filter-converter';
 import type {
@@ -163,22 +164,28 @@ function attemptsAt(
 /**
  * Whether the response to a survey question is the choice, or contains the
  * text, being looked for. A question of choose-many saves its choices as one
- * comma-separated value, so for those the choice is looked for among them;
- * for every other kind of question the whole answer is what is compared.
+ * comma-separated value, each with its commas escaped (see `encodeChoice`), so
+ * for those the escaped choice is looked for among them; for every other kind
+ * of question the whole answer is what is compared.
  */
 function answerMatches(operation: Filter['operation'], filter: Filter, ctx: Context): string {
 	const answer = 'sqr.response_value';
 	const text = String((filter.value as SurveyResponseValue).response);
+	const choice = encodeChoice(text);
 
 	// Case is ignored: the filter has no option to match it, as only text filters do.
 	if (operation === 'contains') {
-		return `${answer} ILIKE ${ctx.param(`%${escapeLike(text)}%`)}`;
+		const raw = ctx.param(`%${escapeLike(text)}%`);
+		if (choice === text) return `${answer} ILIKE ${raw}`;
+		const escaped = ctx.param(`%${escapeLike(choice)}%`);
+		return `CASE WHEN sq.question_type = 'check' THEN ${answer} ILIKE ${escaped} ELSE ${answer} ILIKE ${raw} END`;
 	}
 
 	const wanted = ctx.param(text);
+	const wantedChoice = choice === text ? wanted : ctx.param(choice);
 	return (
 		`CASE WHEN sq.question_type = 'check'` +
-		` THEN lower(${wanted}) = ANY(string_to_array(lower(${answer}), ','))` +
+		` THEN lower(${wantedChoice}) = ANY(string_to_array(lower(${answer}), ','))` +
 		` ELSE lower(${answer}) = lower(${wanted}) END`
 	);
 }

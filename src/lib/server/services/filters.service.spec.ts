@@ -362,6 +362,25 @@ describe('survey response filters', () => {
 		);
 	});
 
+	it('looks for a choice with a comma among those picked as it is saved, with the comma escaped', () => {
+		const query = loc(group('AND', answer('equals', 'Yes, definitely')));
+
+		expect(flat(query.sql)).toContain(
+			"CASE WHEN sq.question_type = 'check' THEN lower($2) = ANY(string_to_array(lower(sqr.response_value), ','))" +
+				' ELSE lower(sqr.response_value) = lower($1) END'
+		);
+		expect(query.params.slice(0, 2)).toEqual(['Yes, definitely', 'Yes%2C definitely']);
+	});
+
+	it('escapes the comma for "contains" only on a question that allows several', () => {
+		const query = loc(group('AND', answer('contains', 'Yes, def')));
+
+		expect(flat(query.sql)).toContain(
+			"CASE WHEN sq.question_type = 'check' THEN sqr.response_value ILIKE $2 ELSE sqr.response_value ILIKE $1 END"
+		);
+		expect(query.params.slice(0, 2)).toEqual(['%Yes, def%', '%Yes\\%2C def%']);
+	});
+
 	it('looks for the choice among those picked, for a question that allows several', () => {
 		expect(flat(loc(group('AND', answer('equals', 'Mail'))).sql)).toContain(
 			"ANY(string_to_array(lower(sqr.response_value), ','))"
@@ -382,8 +401,9 @@ describe('survey response filters', () => {
 	it('looks for text inside the answer for "contains", escaping wildcards', () => {
 		const query = loc(group('AND', answer('contains', '50%_off')));
 
-		expect(flat(query.sql)).toContain('sqr.response_value ILIKE $1');
-		expect(query.params).toEqual(['%50\\%\\_off%', ORG, Q]);
+		expect(flat(query.sql)).toContain('ELSE sqr.response_value ILIKE $1 END');
+		// The percent sign is also escaped the way a choose-many answer saves it.
+		expect(query.params).toEqual(['%50\\%\\_off%', '%50\\%25\\_off%', ORG, Q]);
 	});
 
 	it('uses only the question, since it already belongs to its survey and bucket', () => {

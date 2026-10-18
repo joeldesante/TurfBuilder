@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatAnswer } from '$lib/shared/utils/survey-answer';
 	import { mount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
@@ -374,7 +375,7 @@
 													<p class="text-sm font-medium text-on-surface">{response.question_text}</p>
 													<p class="text-sm text-on-surface-subtle">
 														{#if response.response_value}
-															{response.response_value}
+															{formatAnswer(response.question_type, response.response_value)}
 														{:else}
 															<em class="italic">No answer</em>
 														{/if}
