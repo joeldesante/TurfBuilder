@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import TurfPreviewModal from './TurfPreviewModal.svelte';
@@ -63,7 +64,13 @@
 			expires_at: string;
 			created_at: string;
 		};
+		/** One page of entries, already ordered and sliced by the server. */
 		entries: PersonEntry[] | LocationEntry[];
+		/** Every entry across all pages. Defaults to the entries given. */
+		entryCount?: number;
+		/** 1-based index of the page in `entries`. */
+		page?: number;
+		pageSize?: number;
 		turfs: TurfEntry[];
 		selectedTab: string | null;
 		/** Whether the list already has a generated PDF to download. */
@@ -88,6 +95,9 @@
 		listHref,
 		list,
 		entries,
+		entryCount: entryCountProp,
+		page = 1,
+		pageSize = 100,
 		turfs,
 		selectedTab,
 		hasPdf = false,
@@ -129,6 +139,7 @@
 		}
 	]);
 
+	const entryCount = $derived(entryCountProp ?? entries.length);
 	const isPeople = $derived(list.entity_type === 'people');
 	const isExpired = $derived(new Date(list.expires_at) < new Date());
 
@@ -252,7 +263,7 @@
 			<span
 				class="text-xs rounded-full px-1.5 py-0.5 font-normal {activeTab === 'entries'
 					? 'bg-on-primary/20 text-on-primary'
-					: 'bg-surface-container text-on-surface-subtle'}">{entries.length}</span
+					: 'bg-surface-container text-on-surface-subtle'}">{entryCount.toLocaleString()}</span
 			>
 		</button>
 		<button class={tabClass('turfs')} onclick={() => (activeTab = 'turfs')}>
@@ -268,6 +279,8 @@
 
 {#if activeTab === 'entries' || isPeople}
 	<div class="border-t border-outline-subtle">
+		<Pagination {page} totalCount={entryCount} {pageSize} noun={isPeople ? 'people' : 'locations'} />
+
 		{#if isPeople}
 			<div class="flex items-center gap-4 px-4 py-2">
 				<span class="w-48 text-xs font-medium text-on-surface-subtle uppercase tracking-wide"
@@ -285,7 +298,7 @@
 				{@const p = entry as PersonEntry}
 				<a
 					href={entityHref(p)}
-					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors group"
+					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle no-underline hover:bg-surface-container transition-colors group"
 				>
 					<span
 						class="w-48 text-sm text-on-surface font-medium truncate group-hover:text-primary transition-colors"
@@ -317,7 +330,7 @@
 				{@const l = entry as LocationEntry}
 				<a
 					href={entityHref(l)}
-					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors group"
+					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle no-underline hover:bg-surface-container transition-colors group"
 				>
 					<div class="flex-1 min-w-0">
 						<p
@@ -337,6 +350,8 @@
 				<p class="px-4 py-8 text-sm text-on-surface-subtle text-center">No entries in this list.</p>
 			{/each}
 		{/if}
+
+		<Pagination {page} totalCount={entryCount} {pageSize} noun={isPeople ? 'people' : 'locations'} />
 	</div>
 {:else}
 	<div class="border-t border-outline-subtle">

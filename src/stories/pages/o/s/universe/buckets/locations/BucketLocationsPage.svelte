@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import MapPinIcon from 'phosphor-svelte/lib/MapPin';
 
@@ -16,12 +17,28 @@
 		bucketName: string;
 		/** Whether the locations filter is enabled for this bucket. */
 		enabled: boolean;
+		/** One page of the matches, already ordered and sliced by the server. */
 		locations: LocationRow[];
+		/** Every match across all pages. Defaults to the rows given. */
+		totalCount?: number;
+		/** 1-based index of the page in `locations`. */
+		page?: number;
+		pageSize?: number;
 		/** Base path for location detail links, e.g. /o/myorg/s/universe/buckets/my-bucket/locations */
 		basePath?: string;
 	}
 
-	const { bucketName, enabled, locations, basePath = '' }: Props = $props();
+	const {
+		bucketName,
+		enabled,
+		locations,
+		totalCount: totalCountProp,
+		page = 1,
+		pageSize = 100,
+		basePath = ''
+	}: Props = $props();
+
+	const totalCount = $derived(totalCountProp ?? locations.length);
 
 	function formatPrimary(row: LocationRow): string {
 		if (row.name) return row.name;
@@ -48,10 +65,11 @@
 		</p>
 	{:else}
 		<p class="text-sm text-on-surface-subtle my-4">
-			{locations.length} {locations.length === 1 ? 'location' : 'locations'} matched
+			{totalCount.toLocaleString()} {totalCount === 1 ? 'location' : 'locations'} matched
 		</p>
 
 		<div class="border-t border-outline-subtle">
+			<Pagination {page} {totalCount} {pageSize} noun="locations" />
 			<div class="flex items-center gap-4 px-4 py-2">
 				<div class="w-8 shrink-0"></div>
 				<span class="flex-1 text-xs font-medium text-on-surface-subtle uppercase tracking-wide">Location</span>
@@ -60,7 +78,7 @@
 			{#each locations as location (location.id)}
 				<a
 					href="{basePath}/{location.id}"
-					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle hover:bg-surface-container transition-colors duration-100 group"
+					class="flex items-center gap-4 px-4 py-3 border-b border-outline-subtle no-underline hover:bg-surface-container transition-colors duration-100 group"
 				>
 					<div class="w-8 h-8 shrink-0 flex items-center justify-center text-on-surface-subtle">
 						<MapPinIcon size={20} />
@@ -78,5 +96,7 @@
 				</a>
 			{/each}
 		</div>
+
+		<Pagination {page} {totalCount} {pageSize} noun="locations" />
 	{/if}
 </div>

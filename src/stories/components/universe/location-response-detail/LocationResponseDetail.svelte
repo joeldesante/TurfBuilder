@@ -26,6 +26,7 @@
 
 <script lang="ts">
 	import XIcon from 'phosphor-svelte/lib/X';
+	import { formatAnswer } from '$lib/shared/utils/survey-answer';
 
 	interface Props {
 		location: Pick<MetricsLocationResult, 'name' | 'address_line_1' | 'city' | 'questions'>;
@@ -77,7 +78,7 @@
 						<ul class="space-y-1.5">
 							{#each question.responses as response, i (i)}
 								<li class="bg-surface-container rounded-md px-2.5 py-2">
-									<p class="text-sm text-on-surface">{response.value}</p>
+									<p class="text-sm text-on-surface">{formatAnswer(question.type, response.value)}</p>
 									<p class="text-xs text-on-surface-subtle">
 										{response.respondedBy ?? 'Unknown user'} &middot; {formatRespondedAt(
 											response.respondedAt

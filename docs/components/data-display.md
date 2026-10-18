@@ -1,5 +1,11 @@
 # Data-display Components
 
+## ActivityMap
+
+**Import:** `$components/data-display/activity-map/ActivityMap.svelte`
+
+---
+
 ## AdaptiveDataGrid
 
 **Import:** `$components/data-display/adaptive-datagrid/AdaptiveDataGrid.svelte`
@@ -151,6 +157,22 @@ Small pill label for status, categories, and location visit states.
 | `locationName` | `string` | **required** |  |
 | `street` | `string | null | undefined` | `null` |  |
 | `locality` | `string | null | undefined` | `null` |  |
+
+---
+
+## Pagination
+
+**Import:** `$components/data-display/pagination/Pagination.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `page` | `number` | **required** | 1-based number of the page being shown. |
+| `totalCount` | `number` | **required** | Rows across all pages. |
+| `pageSize` | `number` | **required** |  |
+| `noun` | `string | undefined` | `'records'` | What the rows are, plural, for the summary: "Showing 1-100 of 250 locations." |
+| `children` | `Snippet<[]> | undefined` | — | Extra text after the summary, such as a pointer to search. |
 
 ---
 

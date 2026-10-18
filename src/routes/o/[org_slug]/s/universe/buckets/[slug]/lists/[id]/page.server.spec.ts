@@ -37,14 +37,17 @@ const list = {
 function stub({ listFound = true, pdfs = 0 } = {}) {
 	mockClient.query.mockImplementation(async (sql: string) => {
 		if (sql.includes('FROM universe.list l')) return { rows: listFound ? [list] : [] };
+		if (sql.includes('COUNT(*)')) return { rows: [{ count: '0' }] };
 		if (sql.includes('FROM universe.list_document'))
 			return { rows: Array(pdfs).fill({ '?column?': 1 }), rowCount: pdfs };
 		return { rows: [], rowCount: 0 };
 	});
 }
 
-function event(locals: object = { organization: { id: ORG } }) {
-	return { params: { id: LIST, slug: 'downtown' }, locals } as never;
+function event(locals: object = { organization: { id: ORG } }, page?: string) {
+	const url = new URL('https://x/o/acme/s/universe/buckets/downtown/lists/' + LIST);
+	if (page !== undefined) url.searchParams.set('page', page);
+	return { params: { id: LIST, slug: 'downtown' }, locals, url } as never;
 }
 
 function pdfQuery() {
@@ -90,5 +93,25 @@ describe('list detail page load', () => {
 		expect(sql).toContain('deleted_at IS NULL');
 		expect(sql).toContain('org_id = $2');
 		expect(params).toEqual([LIST, ORG]);
+	});
+
+	it('returns the first page of entries with their total', async () => {
+		const data = await load(event());
+
+		expect(data).toMatchObject({ entries: [], entryCount: 0, page: 1, pageSize: 100 });
+	});
+
+	it('reads the page asked for, within the list and the org', async () => {
+		mockClient.query.mockImplementation(async (sql: string) => {
+			if (sql.includes('FROM universe.list l')) return { rows: [list] };
+			if (sql.includes('COUNT(*)')) return { rows: [{ count: '250' }] };
+			return { rows: [], rowCount: 0 };
+		});
+
+		const data = await load(event(undefined, '3'));
+
+		expect(data).toMatchObject({ page: 3, entryCount: 250 });
+		const entries = mockClient.query.mock.calls.find((c) => String(c[0]).includes('LIMIT $3 OFFSET $4'))!;
+		expect(entries[1]).toEqual([LIST, ORG, 100, 200]);
 	});
 });

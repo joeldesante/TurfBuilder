@@ -1,5 +1,7 @@
+import { error } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database';
-import { runBucketEntityQuery } from '$lib/server/bucket-query';
+import { queryBucketEntitiesPage } from '$lib/server/services/buckets.service';
+import { PAGE_SIZE, requestedPage } from '$lib/shared/utils/pagination';
 
 export interface LocationRow {
 	id: string;
@@ -11,15 +13,24 @@ export interface LocationRow {
 	postal_code: string | null;
 }
 
-export async function load({ parent, locals }) {
+export async function load({ parent, locals, url }) {
 	const { bucket } = await parent();
 
-	if (!bucket.filter.locations.enabled || !bucket.filter.locations.query) {
-		return { locations: [] as LocationRow[], enabled: false };
+	if (!bucket.filters) throw error(422, bucket.problem);
+
+	const group = bucket.filters.locations;
+	if (!group) {
+		return { locations: [] as LocationRow[], enabled: false, totalCount: 0, page: 1, pageSize: PAGE_SIZE };
 	}
 
 	return withOrgTransaction(locals.organization!.id, async (client) => {
-		const rows = await runBucketEntityQuery(client, bucket.filter.locations.query!);
-		return { locations: rows as unknown as LocationRow[], enabled: true };
+		const result = await queryBucketEntitiesPage(client, locals.organization!.id, 'locations', group, requestedPage(url));
+		return {
+			locations: result.items as unknown as LocationRow[],
+			enabled: true,
+			totalCount: result.totalCount,
+			page: result.page,
+			pageSize: result.pageSize
+		};
 	});
 }

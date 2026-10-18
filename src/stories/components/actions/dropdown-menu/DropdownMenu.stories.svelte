@@ -49,9 +49,11 @@
 
 <Story name="Default" asChild>
 	<DropdownMenu items={[{ label: 'Edit' }, { label: 'Duplicate' }, { label: 'Archive' }]}>
-		<Button variant="ghost" iconOnly aria-label="More options">
-			<DotsThreeVerticalIcon />
-		</Button>
+		{#snippet trigger(props)}
+			<Button {...props} variant="ghost" iconOnly aria-label="More options">
+				<DotsThreeVerticalIcon />
+			</Button>
+		{/snippet}
 	</DropdownMenu>
 </Story>
 
@@ -63,9 +65,11 @@
 			{ label: 'Archive', icon: ArchiveIcon }
 		]}
 	>
-		<Button variant="ghost" iconOnly aria-label="More options">
-			<DotsThreeVerticalIcon />
-		</Button>
+		{#snippet trigger(props)}
+			<Button {...props} variant="ghost" iconOnly aria-label="More options">
+				<DotsThreeVerticalIcon />
+			</Button>
+		{/snippet}
 	</DropdownMenu>
 </Story>
 
@@ -79,9 +83,11 @@
 			{ label: 'Delete', icon: TrashIcon, variant: 'destructive', onclick: () => {} }
 		]}
 	>
-		<Button variant="ghost" iconOnly aria-label="More options">
-			<DotsThreeVerticalIcon />
-		</Button>
+		{#snippet trigger(props)}
+			<Button {...props} variant="ghost" iconOnly aria-label="More options">
+				<DotsThreeVerticalIcon />
+			</Button>
+		{/snippet}
 	</DropdownMenu>
 </Story>
 
@@ -95,9 +101,11 @@
 			{ label: 'Delete', icon: TrashIcon, variant: 'destructive' }
 		]}
 	>
-		<Button variant="ghost" iconOnly aria-label="More options">
-			<DotsThreeVerticalIcon />
-		</Button>
+		{#snippet trigger(props)}
+			<Button {...props} variant="ghost" iconOnly aria-label="More options">
+				<DotsThreeVerticalIcon />
+			</Button>
+		{/snippet}
 	</DropdownMenu>
 </Story>
 

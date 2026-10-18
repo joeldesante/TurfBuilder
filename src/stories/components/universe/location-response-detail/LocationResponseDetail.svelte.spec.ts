@@ -75,3 +75,25 @@ test('calls onClose when the close button is clicked', async () => {
 
 	expect(onClose).toHaveBeenCalledTimes(1);
 });
+
+test('lists the choices of a choose-many answer, keeping a choice with a comma whole', async () => {
+	const { getByText } = render(LocationResponseDetail, {
+		props: {
+			location: {
+				...location,
+				questions: [
+					{
+						id: 'q3',
+						text: 'How do you want to be reached?',
+						type: 'check',
+						choices: ['Yes, definitely', 'Mail'],
+						responses: [{ value: 'Yes%2C definitely,Mail', respondedAt: '2026-06-01T14:32:00.000Z', respondedBy: 'alice' }]
+					}
+				]
+			},
+			onClose: () => {}
+		}
+	});
+
+	await expect.element(getByText('Yes, definitely, Mail')).toBeVisible();
+});

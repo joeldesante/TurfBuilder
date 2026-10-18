@@ -23,11 +23,14 @@
 	{listHref}
 	list={data.list}
 	entries={data.entries as unknown as PersonEntry[] | LocationEntry[]}
+	entryCount={data.entryCount}
+	page={data.page}
+	pageSize={data.pageSize}
 	turfs={data.turfs as TurfEntry[]}
 	{selectedTab}
 	hasPdf={data.hasPdf}
 	onDownloadPdf={(onGenerating) =>
-		downloadListDocument(data.organization.id, data.list.id, onGenerating)}
+		downloadListDocument(data.list.id, onGenerating)}
 	onRegeneratePdf={(onGenerating) =>
-		regenerateListDocument(data.organization.id, data.list.id, onGenerating)}
+		regenerateListDocument(data.list.id, onGenerating)}
 />

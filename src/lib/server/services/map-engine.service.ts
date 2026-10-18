@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import type { Browser } from 'puppeteer';
 import { getMapStyle } from '$lib/map-style';
-import { launchBrowser } from './browser';
+import { launchBrowser } from './browser.service';
 
 const require = createRequire(import.meta.url);
 

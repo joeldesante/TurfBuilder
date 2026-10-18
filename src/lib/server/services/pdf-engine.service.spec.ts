@@ -9,7 +9,7 @@ const { page, browser, launchBrowser } = vi.hoisted(() => {
 	return { page, browser, launchBrowser: vi.fn(async () => browser) };
 });
 
-vi.mock('./browser', () => ({ launchBrowser }));
+vi.mock('./browser.service', () => ({ launchBrowser }));
 
 import { generatePDF } from './pdf-engine.service';
 

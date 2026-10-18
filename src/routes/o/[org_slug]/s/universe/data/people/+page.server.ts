@@ -1,27 +1,18 @@
 import { withOrgTransaction } from '$lib/server/database';
+import { requestedPage } from '$lib/shared/utils/pagination';
+import { queryOrgPeoplePage } from '$lib/server/services/people.service';
 
-const PAGE_SIZE = 100;
+export async function load({ locals, url }) {
+	const orgId = locals.organization!.id;
 
-export async function load({ locals }) {
-	return withOrgTransaction(locals.organization!.id, async (client) => {
-		const [countResult, rowsResult] = await Promise.all([
-			client.query<{ count: string }>(
-				`SELECT COUNT(*)::text AS count FROM universe.org_person WHERE org_id = $1`,
-				[locals.organization!.id]
-			),
-			client.query(
-				`SELECT id, first_name, last_name, email, phone, dob
-				 FROM universe.org_person
-				 WHERE org_id = $1
-				 ORDER BY last_name NULLS LAST, first_name NULLS LAST
-				 LIMIT $2`,
-				[locals.organization!.id, PAGE_SIZE]
-			)
-		]);
+	return withOrgTransaction(orgId, async (client) => {
+		const result = await queryOrgPeoplePage(client, orgId, requestedPage(url));
 
 		return {
-			totalCount: parseInt(countResult.rows[0].count, 10),
-			people: rowsResult.rows
+			people: result.items,
+			totalCount: result.totalCount,
+			page: result.page,
+			pageSize: result.pageSize
 		};
 	});
 }

@@ -192,7 +192,7 @@ toast.error('The PDF could not be generated.');
 - **Plugin pages (staff):** `/o/[org_slug]/s/plugins/[plugin_slug]/[...path]`
 - **Plugin pages (volunteer):** `/o/[org_slug]/plugins/[plugin_slug]/[...path]`
 - **Internal API:** `/o/[org_slug]/s/api/` — JSON endpoints consumed by fetch in route files
-- **Versioned API:** `/api/v1/organizations/[org_id]/...` — addressed by org id, outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`). Currently: list documents
+- **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Currently: list documents
 - **Global utilities:** `/join` (turf code entry), `/orgs` (org picker), `/orgs/create`, `/invite/[token]`
 - **Infrastructure:** `/infra/` — system dashboard, users, settings, migrations (requires infra permissions)
 - `/auth/**` — managed by better-auth; do not modify
@@ -265,7 +265,7 @@ if (!can(locals.organization, 'survey', 'create')) throw error(403, 'Forbidden')
 - Owners (`org.role.is_owner === true`) bypass all permission checks
 - Staff guard (any role = staff access): check `locals.organization?.role` exists
 - Permission keys use dot notation: `resource.action`
-- Outside `/o/[org_slug]` (the `/api/v1/organizations/[org_id]` routes) `locals.organization` is not set, so `can()` has nothing to read. Use `canOrg(client, userId, orgId, key)` from `$lib/server/permissions` inside `withOrgTransaction`, as `requireListAccess()` does
+- Outside `/o/[org_slug]` (the `/api/v1` routes) `locals.organization` is not set, so `can()` has nothing to read. Use `canOrg(client, userId, orgId, key)` from `$lib/server/permissions` inside `withOrgTransaction`, as `requireListAccess()` does
 
 ### Organization permission keys
 
@@ -326,7 +326,7 @@ kubectl rollout restart deployment/turfbuilder-production -n turfbuilder
 
 Staff generate a printable PDF of a location list (master list, turf checkout sheet, one page per turf with numbered maps) from the list page. Full guide: `docs/guides/list-documents.md`; API: `docs/api/documents.md`.
 
-- **Flow:** `POST /api/v1/organizations/[org_id]/lists/[list_id]/documents` inserts a `pending` row in `universe.list_document`, soft-deletes the list's earlier documents (`deleted_at`, `superseded_by`), and starts `generateListDocument()` in the background (not awaited). The client (`$lib/client/list-document.ts`) polls `GET .../documents/[id]` and follows the presigned download link. `DELETE .../documents/[id]` soft-deletes.
+- **Flow:** `POST /api/v1/lists/[list_id]/documents` inserts a `pending` row in `universe.list_document`, soft-deletes the list's earlier documents (`deleted_at`, `superseded_by`), and starts `generateListDocument()` in the background (not awaited). The client (`$lib/client/list-document.ts`) polls `GET /api/v1/documents/[id]` and follows the presigned download link. `DELETE /api/v1/documents/[id]` soft-deletes.
 - **Rendering:** `list-document.service.ts` loads data (every query filtered by `org_id`), draws all maps with one `openMapRenderer()` browser, fills the Handlebars template, prints with `generatePDF()`, uploads with `uploadObject()`. At most two Chromes per document.
 - **Failure:** generation fails after `GENERATION_TIMEOUT_MS` (90s, under the client's 2 minute wait). On failure the documents it superseded are restored. Only `ListDocumentError` messages (and a storage-not-configured message) are stored in `error` and shown; everything else becomes a generic message and the real error is logged.
 - **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.

@@ -3,4 +3,10 @@
 	const { data } = $props();
 </script>
 
-<UniverseDataPeoplePage orgSlug={data.organization.slug} totalCount={data.totalCount} people={data.people} />
+<UniverseDataPeoplePage
+	orgSlug={data.organization.slug}
+	totalCount={data.totalCount}
+	page={data.page}
+	pageSize={data.pageSize}
+	people={data.people}
+/>

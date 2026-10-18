@@ -1,10 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import SidebarItem from './SidebarItem.svelte';
 
 const testItem = { label: 'Dashboard', href: '/system' };
 
 describe('SidebarItem', () => {
+	describe('button mode', () => {
+		it('renders a button and calls onclick when given an onclick', async () => {
+			const onclick = vi.fn();
+			const screen = render(SidebarItem, { item: { label: 'Survey' }, onclick });
+			await screen.getByRole('button', { name: 'Survey' }).click();
+			expect(onclick).toHaveBeenCalledTimes(1);
+		});
+	});
+
 	describe('rendering', () => {
 		it('renders as a link with the correct href', async () => {
 			const screen = render(SidebarItem, { item: testItem });
@@ -35,7 +44,7 @@ describe('SidebarItem', () => {
 		it('applies active styling classes when active', async () => {
 			const screen = render(SidebarItem, { item: testItem, active: true });
 			const link = screen.getByRole('link').element();
-			expect(link.classList.contains('bg-primary-container')).toBe(true);
+			expect(link.classList.contains('bg-primary')).toBe(true);
 		});
 
 		it('applies inactive styling classes when not active', async () => {
@@ -62,6 +71,45 @@ describe('SidebarItem', () => {
 			const screen = render(SidebarItem, { item: testItem, collapsed: true });
 			const labelSpan = screen.getByText('Dashboard').element();
 			expect(labelSpan.classList.contains('max-w-0')).toBe(true);
+		});
+	});
+
+	describe('badge', () => {
+		it('shows a large count in compact form', async () => {
+			const screen = render(SidebarItem, { item: { ...testItem, badge: 65_400 } });
+			await expect.element(screen.getByText('65.4k')).toBeVisible();
+		});
+
+		it('describes the exact count for screen readers and as a title', async () => {
+			const screen = render(SidebarItem, {
+				item: { ...testItem, badge: 65_432, badgeLabel: 'locations matching the current filters' }
+			});
+			await expect
+				.element(screen.getByRole('link', { name: /65,432 locations matching the current filters/ }))
+				.toBeVisible();
+			await expect
+				.element(screen.getByText('65.4k'))
+				.toHaveAttribute('title', '65,432 locations matching the current filters');
+		});
+
+		it('hides the compact figure from assistive technology', async () => {
+			const screen = render(SidebarItem, { item: { ...testItem, badge: 65_432 } });
+			await expect.element(screen.getByText('65.4k')).toHaveAttribute('aria-hidden', 'true');
+		});
+
+		it('shows a zero count', async () => {
+			const screen = render(SidebarItem, { item: { ...testItem, badge: 0 } });
+			await expect.element(screen.getByText('0', { exact: true }).first()).toHaveAttribute('aria-hidden', 'true');
+		});
+
+		it('shows nothing without a badge', async () => {
+			const screen = render(SidebarItem, { item: testItem });
+			await expect.element(screen.getByText('0', { exact: true })).not.toBeInTheDocument();
+		});
+
+		it('hides the badge when collapsed', async () => {
+			const screen = render(SidebarItem, { item: { ...testItem, badge: 7 }, collapsed: true });
+			await expect.element(screen.getByText('7', { exact: true })).not.toBeInTheDocument();
 		});
 	});
 });

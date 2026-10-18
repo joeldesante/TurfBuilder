@@ -9,6 +9,8 @@
 		label: string;
 		status: StepStatus;
 		error?: string;
+		/** Lines of explanation under the step, such as what a data conversion could not do. */
+		detail?: string[];
 	}
 
 	let started = $state(false);
@@ -84,7 +86,7 @@
 
 <PageHeader
 	title="Database Migration"
-	subheading="Re-run schema setup to apply new tables, indexes, and policies. Safe to run on an existing database — no data will be modified."
+	subheading="Re-run schema setup to apply new tables, indexes, and policies. Safe to run on an existing database — existing data is kept, and data saved in an older format is converted."
 />
 
 <div class="p-6 max-w-2xl space-y-4">
@@ -92,7 +94,7 @@
 		<div class="rounded-lg border border-outline bg-surface-container-low px-5 py-6 space-y-4">
 			<p class="text-sm text-on-surface-subtle">
 				This runs all schema setup steps idempotently. Existing tables, data, and settings are
-				preserved. Only new additions (tables, columns, indexes, seed rows) will be applied.
+				preserved. Only new additions (tables, columns, indexes, seed rows) will be applied. Afterwards, bucket filters saved in the old format are converted to the new one; any that cannot be are listed.
 			</p>
 			<button
 				onclick={runMigration}
@@ -127,6 +129,13 @@
 							>{item.label}</span
 						>
 					</div>
+					{#if item.detail?.length}
+						<ul class="ml-8 space-y-1 text-xs text-on-surface-subtle">
+							{#each item.detail as line, i (i)}
+								<li>{line}</li>
+							{/each}
+						</ul>
+					{/if}
 				{/each}
 			</div>
 

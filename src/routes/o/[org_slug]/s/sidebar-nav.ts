@@ -16,6 +16,7 @@ import CircleIcon from 'phosphor-svelte/lib/Circle';
 import PlusIcon from 'phosphor-svelte/lib/Plus';
 import ScrollIcon from 'phosphor-svelte/lib/ScrollIcon';
 import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets';
+import FunnelIcon from 'phosphor-svelte/lib/Funnel';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
 // import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
 import ChartPieSliceIcon from 'phosphor-svelte/lib/ChartPieSlice';
@@ -40,7 +41,8 @@ interface Bucket {
 export function buildBucketNav(
 	orgSlug: string,
 	bucketSlug: string,
-	filter?: BucketFilter
+	filter?: BucketFilter,
+	locationCount?: number | null
 ): SidebarNavEntry[] {
 	const base = `/o/${orgSlug}/s/universe/buckets/${bucketSlug}`;
 	return [
@@ -50,11 +52,20 @@ export function buildBucketNav(
 				label: 'Entities',
 				icon: GlobeIcon,
 				items: [
+					{ label: 'Filters', href: `${base}/filters`, icon: FunnelIcon },
 					...(filter?.people.enabled
 						? [{ label: 'People', href: `${base}/people`, icon: UsersIcon }]
 						: []),
 					...(filter?.locations.enabled
-						? [{ label: 'Locations', href: `${base}/locations`, icon: MapPinIcon }]
+						? [
+								{
+									label: 'Locations',
+									href: `${base}/locations`,
+									icon: MapPinIcon,
+									badge: locationCount ?? undefined,
+									badgeLabel: `${locationCount === 1 ? 'location' : 'locations'} matching the current filters`
+								}
+							]
 						: []),
 					{ label: 'Scripts', href: `${base}/scripts`, icon: ScrollIcon },
 					{ label: 'Surveys', href: `${base}/surveys`, icon: ClipboardTextIcon }

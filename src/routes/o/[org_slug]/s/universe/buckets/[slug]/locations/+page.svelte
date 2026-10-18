@@ -11,5 +11,8 @@
 	bucketName={data.bucket.name}
 	locations={data.locations}
 	enabled={data.enabled}
+	totalCount={data.totalCount}
+	page={data.page}
+	pageSize={data.pageSize}
 	{basePath}
 />

@@ -71,6 +71,34 @@ describe('SurveyQuestion', () => {
 			const checkboxes = screen.container.querySelectorAll('input[type="checkbox"]');
 			expect(checkboxes.length).toBe(3);
 		});
+
+		describe('a choice that contains a comma', () => {
+			const commaProps = {
+				...baseProps,
+				questionType: 'check' as const,
+				choices: ['Yes', 'Yes, definitely', 'Maybe']
+			};
+
+			it('shows a saved answer as that one choice', async () => {
+				const screen = render(SurveyQuestion, { ...commaProps, value: 'Yes%2C definitely,Maybe' });
+
+				await expect.element(screen.getByRole('checkbox', { name: 'Yes, definitely' })).toBeChecked();
+				await expect.element(screen.getByRole('checkbox', { name: 'Maybe' })).toBeChecked();
+				await expect.element(screen.getByRole('checkbox', { name: 'Yes', exact: true })).not.toBeChecked();
+			});
+
+			it('checks and unchecks it as one choice', async () => {
+				const screen = render(SurveyQuestion, commaProps);
+				const definitely = screen.getByRole('checkbox', { name: 'Yes, definitely' });
+
+				await definitely.click();
+				await expect.element(definitely).toBeChecked();
+				await expect.element(screen.getByRole('checkbox', { name: 'Yes', exact: true })).not.toBeChecked();
+
+				await definitely.click();
+				await expect.element(definitely).not.toBeChecked();
+			});
+		});
 	});
 
 	describe('text type', () => {

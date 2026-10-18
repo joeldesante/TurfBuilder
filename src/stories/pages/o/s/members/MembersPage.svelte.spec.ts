@@ -85,4 +85,18 @@ describe('MembersPage', () => {
 			.element(page.getByRole('heading', { name: 'Invite Links' }))
 			.not.toBeInTheDocument();
 	});
+
+	it('shows no page links when every member fits on one page', async () => {
+		render(MembersPage, baseProps);
+		await expect.element(page.getByText('Showing 1–3 of 3 members.').first()).toBeVisible();
+		await expect.element(page.getByRole('link', { name: 'Next page' }).first()).not.toBeInTheDocument();
+	});
+
+	it('pages through a large membership', async () => {
+		render(MembersPage, { ...baseProps, totalCount: 1250, page: 2, pageSize: 3 });
+		await expect.element(page.getByText('Showing 4–6 of 1,250 members.').first()).toBeVisible();
+		await expect
+			.element(page.getByRole('link', { name: 'Next page' }).first())
+			.toHaveAttribute('href', '?page=3');
+	});
 });

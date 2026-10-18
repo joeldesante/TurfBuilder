@@ -2,30 +2,20 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import CreateListPage from '$pages/o/s/universe/buckets/lists/new/CreateListPage.svelte';
+	import type { CreateListPayload } from '$pages/o/s/universe/buckets/lists/new/CreateListPage.svelte';
 
 	const { data } = $props();
 
-	// Captured once — org/bucket slugs come from server load data and don't change.
+	// Captured once — the org and bucket come from server load data and don't change.
 	const orgSlug = untrack(() => data.organization.slug);
-	const bucketSlug = untrack(() => data.bucket.slug);
+	const bucket = untrack(() => data.bucket);
 
-	async function handleCreate(payload: {
-		name: string;
-		entity_type: 'people' | 'locations';
-		expires_at: string;
-		filter: {
-			matchType: 'ONE_OR_MORE' | 'ALL' | 'NONE';
-			conditions: { filterId: string; qualifierId: string; value: string }[];
-		};
-	}) {
-		const response = await fetch(
-			`/o/${orgSlug}/s/api/buckets/${bucketSlug}/lists`,
-			{
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			}
-		);
+	async function handleCreate(payload: CreateListPayload) {
+		const response = await fetch(`/api/v1/buckets/${bucket.id}/lists`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
+		});
 
 		if (!response.ok) {
 			const body = await response.json().catch(() => ({}));
@@ -33,12 +23,16 @@
 		}
 
 		await invalidateAll();
-		await goto(`/o/${orgSlug}/s/universe/buckets/${bucketSlug}/lists`);
+		await goto(`/o/${orgSlug}/s/universe/buckets/${bucket.slug}/lists`);
 	}
 </script>
 
 <CreateListPage
 	bucketName={data.bucket.name}
-	bucketFilter={data.bucket.filter}
+	bucketFilter={{
+		people: { enabled: data.bucket.filters?.people != null },
+		locations: { enabled: data.bucket.filters?.locations != null }
+	}}
+	orgId={data.organization.id}
 	onCreate={handleCreate}
 />

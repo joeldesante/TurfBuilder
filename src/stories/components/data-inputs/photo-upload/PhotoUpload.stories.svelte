@@ -3,7 +3,7 @@
 	import PhotoUpload from './PhotoUpload.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/DataInputs/PhotoUpload',
+		title: 'Components/Data Inputs/PhotoUpload',
 		component: PhotoUpload,
 		args: { orgSlug: 'acme' }
 	});

@@ -92,7 +92,7 @@ function routeToUrl(filePath: string): string {
 /** Map a URL pattern to a documentation section key. */
 function routeSection(url: string): string {
   // Versioned staff API; checked before the unauthenticated /api/ catch-all.
-  if (url.startsWith('/api/v1/organizations/') && url.includes('/documents')) return 'documents';
+  if (url.startsWith('/api/v1/') && url.includes('/documents')) return 'documents';
   if (url.startsWith('/api/')) return 'public';
   if (url.includes('/s/api/surveys')) return 'surveys';
   if (url.includes('/s/api/turf')) return 'turfs';

@@ -375,6 +375,29 @@ test('reports the new position when the draft pin is dragged', async () => {
 	expect(onDraftMove).toHaveBeenCalledWith({ latitude: 40.6, longitude: -75.4 });
 });
 
+test('reports the handle position continuously while it is dragged', async () => {
+	const onHandleDrag = vi.fn();
+	render(LocationsMap, {
+		props: {
+			locations,
+			handle: { latitude: 40.5, longitude: -75.5 },
+			onHandleDrag,
+			class: 'w-96 h-96'
+		}
+	});
+
+	await loadMap(3);
+
+	const grip = markerInstances.find((m) => m.element.dataset.testid === 'map-handle')!;
+	expect(grip.draggable).toBe(true);
+	expect(grip.lngLat).toEqual([-75.5, 40.5]);
+
+	grip.lngLat = [-75.4, 40.5];
+	grip.handlers['drag']();
+
+	expect(onHandleDrag).toHaveBeenCalledWith({ latitude: 40.5, longitude: -75.4 });
+});
+
 test('draws the viewer position as a centred dot', async () => {
 	render(LocationsMap, {
 		props: { locations, userPosition: { latitude: 39.95, longitude: -75.16 }, class: 'w-96 h-96' }

@@ -4,6 +4,10 @@ export interface SidebarNavItem {
 	label: string;
 	href: string;
 	icon?: Component;
+	/** Count shown in a badge after the label. */
+	badge?: number;
+	/** What the badge counts, read after the exact number by screen readers and shown in the tooltip, e.g. "locations matching the current filters". */
+	badgeLabel?: string;
 }
 
 export interface SidebarNavAccordion {

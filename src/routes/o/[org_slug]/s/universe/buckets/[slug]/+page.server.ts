@@ -5,9 +5,12 @@ import { redirect } from '@sveltejs/kit';
 export async function load({ parent, params }) {
 	const { bucket } = await parent();
 	const base = `/o/${params.org_slug}/s/universe/buckets/${bucket.slug}`;
-	const section = bucket.filter.locations.enabled
-		? 'locations'
-		: bucket.filter.people.enabled
+	// A bucket whose filters could not be converted opens on its filters page, where it can be rebuilt.
+	const section = !bucket.filters
+		? 'filters'
+		: bucket.filters.locations
+			? 'locations'
+			: bucket.filters.people
 			? 'people'
 			: 'scripts';
 	throw redirect(307, `${base}/${section}`);

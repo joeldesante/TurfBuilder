@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
+	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import InviteLinksSection from './InviteLinksSection.svelte';
 	import TrashIcon from 'phosphor-svelte/lib/Trash';
 
@@ -24,7 +25,13 @@
 	}
 
 	interface Props {
+		/** One page of members, already ordered and sliced by the server. */
 		members: Member[];
+		/** Every member across all pages. Defaults to the rows given. */
+		totalCount?: number;
+		/** 1-based index of the page in `members`. */
+		page?: number;
+		pageSize?: number;
 		roles: Role[];
 		canRemoveMembers: boolean;
 		canManageRoles: boolean;
@@ -41,6 +48,9 @@
 
 	const {
 		members,
+		totalCount: totalCountProp,
+		page = 1,
+		pageSize = 100,
 		roles,
 		canRemoveMembers,
 		canManageRoles,
@@ -54,6 +64,8 @@
 		onRevokeLink,
 		onToggleSlugInvite
 	}: Props = $props();
+
+	const totalCount = $derived(totalCountProp ?? members.length);
 
 	let removingId = $state<string | null>(null);
 	let assigningId = $state<string | null>(null);
@@ -81,6 +93,7 @@
 
 <div class="p-6 space-y-6 max-w-3xl">
 	<div class="rounded-lg border border-outline overflow-hidden">
+		<Pagination {page} {totalCount} {pageSize} noun="members" />
 		<table class="w-full text-sm">
 			<thead class="bg-surface-container text-on-surface-subtle text-left">
 				<tr>
@@ -143,6 +156,7 @@
 				{/each}
 			</tbody>
 		</table>
+		<Pagination {page} {totalCount} {pageSize} noun="members" />
 	</div>
 
 	{#if canInvite}

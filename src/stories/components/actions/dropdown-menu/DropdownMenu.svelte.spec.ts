@@ -13,6 +13,38 @@ const basicItems = [
 ];
 
 describe('DropdownMenu', () => {
+	describe('own trigger', () => {
+		const ownButton = createRawSnippet((props: () => Record<string, unknown>) => ({
+			render: () => `<button data-own>Choose</button>`,
+			setup: (node: Element) => {
+				for (const [key, value] of Object.entries(props())) {
+					if (key.startsWith('on') && typeof value === 'function') {
+						node.addEventListener(key.slice(2), value as EventListener);
+					} else if (typeof value === 'string' || typeof value === 'boolean') {
+						node.setAttribute(key, String(value));
+					}
+				}
+			}
+		}));
+
+		it('makes the given button the trigger, without wrapping it in another button', async () => {
+			const screen = render(DropdownMenu, { trigger: ownButton, items: basicItems });
+
+			const own = screen.container.querySelector('[data-own]')!;
+			expect(own.closest('button')).toBe(own);
+			expect(own.parentElement?.closest('button')).toBeNull();
+			expect(screen.container.querySelectorAll('button')).toHaveLength(1);
+		});
+
+		it('opens the menu from the given button', async () => {
+			const screen = render(DropdownMenu, { trigger: ownButton, items: basicItems });
+
+			await screen.getByRole('button', { name: 'Choose' }).click();
+
+			await expect.element(screen.getByRole('menuitem', { name: 'Edit' })).toBeVisible();
+		});
+	});
+
 	describe('trigger', () => {
 		it('renders the trigger content', async () => {
 			const screen = render(DropdownMenu, {

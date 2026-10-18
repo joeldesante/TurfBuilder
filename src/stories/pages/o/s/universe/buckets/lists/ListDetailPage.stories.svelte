@@ -145,3 +145,28 @@
 		turfs: []
 	}}
 />
+
+<Story
+	name="Second Page Of A Long List"
+	args={{
+		orgSlug: 'test-org',
+		bucketName: 'Registered Voters',
+		bucketSlug: 'registered-voters',
+		listHref: '/o/test-org/s/universe/buckets/registered-voters/lists/1',
+		list: {
+			id: '1',
+			name: 'Ward 3 Doors',
+			entity_type: 'people',
+			expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+			created_at: new Date().toISOString()
+		},
+		entries: [
+			{ record_id: 'a', record_source: 'org_person', entity_id: 'ent-a', first_name: 'Alice', last_name: 'Nguyen', email: 'alice@example.com', phone: '555-1234' }
+		],
+		entryCount: 4800,
+		page: 2,
+		pageSize: 100,
+		turfs: []
+	}}
+/>
+

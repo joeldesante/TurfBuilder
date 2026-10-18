@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
-import { schemaToSqlQuery } from './query-builder';
-import type { StoredBucketFilter } from './filter-converter';
+import { buildFilterQuery, FILTER_COLUMNS } from './services/filters.service';
+import type { BucketFilters } from '$lib/shared/types/filters';
 import { rangeInterval, type DashboardRange } from '$lib/dashboard-range';
 
 export type { DashboardRange };
@@ -32,7 +32,7 @@ export interface DashboardPoint {
 	lastVisitAt: string | null;
 }
 
-type DashboardBucket = { id: string; filter: StoredBucketFilter } | null;
+type DashboardBucket = { id: string; filters: BucketFilters } | null;
 
 /** Most points the map is sent at once. Viewport loading comes later. */
 export const MAX_POINTS = 5000;
@@ -47,19 +47,22 @@ export const MAX_POINTS = 5000;
  * Buckets are live filters, so scope reads current versions. Returns null when
  * the bucket does not cover locations at all.
  */
-function scopeSql(orgId: string, bucket: DashboardBucket, range: DashboardRange, columns: string[]) {
+function scopeSql(
+	orgId: string,
+	bucket: DashboardBucket,
+	range: DashboardRange,
+	columns: (typeof FILTER_COLUMNS.locations)[number][]
+) {
 	let sql: string;
 	let params: unknown[];
 
 	if (bucket) {
-		const query = bucket.filter.locations.enabled ? bucket.filter.locations.query : null;
-		if (!query) return null;
+		const group = bucket.filters.locations;
+		if (!group) return null;
 		// Same filter the bucket's Locations page runs, with the columns the dashboard needs.
-		const [built] = schemaToSqlQuery({
-			queries: [{ ...query, select: columns.map((c) => `vl.${c}`) }]
-		});
-		sql = built.query.replace(/;$/, '');
-		params = built.parameters;
+		const built = buildFilterQuery('locations', group, { orgId, columns });
+		sql = built.sql;
+		params = built.params;
 	} else {
 		sql = `SELECT ${columns.join(', ')} FROM universe.v_locations`;
 		params = [];

@@ -1,33 +1,29 @@
-import { z } from 'zod';
 import type { ConditionNode, GroupNode, SingleQuery } from './query-builder';
 
 // ---------------------------------------------------------------------------
-// Schema — the raw UI filter state the API receives
+// The form the old bucket and list pages sent. Nothing sends it any more; the
+// tests use `convertBucketFilter` to build filters stored in the old format,
+// which the migration still has to read (see issue #221).
 // ---------------------------------------------------------------------------
 
-export const FilterConditionSchema = z.object({
-	filterId: z.string().min(1),
-	qualifierId: z.string().default(''),
-	value: z.coerce.string().default(''),
-});
+export interface FilterCondition {
+	filterId: string;
+	qualifierId: string;
+	value: string;
+}
 
-export type FilterCondition = z.infer<typeof FilterConditionSchema>;
+export type MatchType = 'ONE_OR_MORE' | 'ALL' | 'NONE';
 
-const MatchTypeSchema = z.enum(['ONE_OR_MORE', 'ALL', 'NONE']);
-export type MatchType = z.infer<typeof MatchTypeSchema>;
+interface EntityFilterInput {
+	enabled: boolean;
+	matchType: MatchType;
+	conditions: FilterCondition[];
+}
 
-const EntityFilterInputSchema = z.object({
-	enabled: z.boolean(),
-	matchType: MatchTypeSchema,
-	conditions: z.array(FilterConditionSchema),
-});
-
-export const BucketFilterInputSchema = z.object({
-	people: EntityFilterInputSchema,
-	locations: EntityFilterInputSchema,
-});
-
-export type BucketFilterInput = z.infer<typeof BucketFilterInputSchema>;
+export interface BucketFilterInput {
+	people: EntityFilterInput;
+	locations: EntityFilterInput;
+}
 
 // ---------------------------------------------------------------------------
 // Stored format — what is persisted in universe.bucket.filter (JSONB)
@@ -214,25 +210,5 @@ export function convertBucketFilter(input: BucketFilterInput): StoredBucketFilte
 		v: 1,
 		people: { enabled: input.people.enabled, query: peopleQuery },
 		locations: { enabled: input.locations.enabled, query: locationsQuery },
-	};
-}
-
-/**
- * Safely parses a raw JSONB value loaded from universe.bucket.filter.
- * Returns a default (all-disabled) filter when the stored value is missing or
- * from an older schema version that pre-dates the filter column.
- */
-export function parseBucketFilter(raw: unknown): StoredBucketFilter {
-	const empty: StoredBucketFilter = {
-		v: 1,
-		people: { enabled: false, query: null },
-		locations: { enabled: false, query: null },
-	};
-	if (!raw || typeof raw !== 'object') return empty;
-	const f = raw as Partial<StoredBucketFilter>;
-	return {
-		v: 1,
-		people: f.people ?? empty.people,
-		locations: f.locations ?? empty.locations,
 	};
 }

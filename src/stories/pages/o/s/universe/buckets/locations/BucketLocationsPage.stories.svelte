@@ -39,3 +39,15 @@
 		locations: []
 	}}
 />
+
+<Story
+	name="Second Page Of Many"
+	args={{
+		bucketName: 'Downtown District',
+		enabled: true,
+		locations: [{ id: '1', name: 'City Hall', address_line_1: '100 Main St', address_line_2: null, city: 'Springfield', state_or_region: 'IL', postal_code: '62701' }],
+		totalCount: 1240,
+		page: 2,
+		pageSize: 100
+	}}
+/>
