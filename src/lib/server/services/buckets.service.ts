@@ -77,6 +77,19 @@ export class UnconvertibleBucketError extends Error {
 	}
 }
 
+/**
+ * A bucket whose saved filters no longer pass the schema, for example after a
+ * filter or operation is removed. It is handled like an unconvertible bucket, so
+ * one bad bucket cannot break every staff page, and its Filters page still opens
+ * so the filters can be rebuilt.
+ */
+export class InvalidBucketFiltersError extends UnconvertibleBucketError {
+	constructor(bucketId: string, reason: string) {
+		super(bucketId, reason);
+		this.message = `This bucket's saved filters are no longer valid: ${reason}. Rebuild them on the Filters page.`;
+	}
+}
+
 /** Converts a bucket's old filter, or throws `UnconvertibleBucketError`. */
 function convertOld(row: BucketFiltersRow): BucketFilters {
 	try {
@@ -97,7 +110,9 @@ function parseStored(bucketId: string, stored: unknown): BucketFilters | null {
 	if (stored === null || stored === undefined) return null;
 	const parsed = bucketFiltersSchema.safeParse(stored);
 	if (!parsed.success) {
-		throw new Error(`Bucket ${bucketId} has invalid filters: ${parsed.error.issues[0]?.message}`);
+		const reason = parsed.error.issues[0]?.message ?? 'unknown problem';
+		console.error(`Bucket ${bucketId} has invalid filters`, parsed.error.issues);
+		throw new InvalidBucketFiltersError(bucketId, reason);
 	}
 	return parsed.data;
 }

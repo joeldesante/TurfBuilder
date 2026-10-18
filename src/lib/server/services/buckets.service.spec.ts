@@ -31,6 +31,8 @@ const stored: BucketFilters = {
 	locations: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: 'Austin' }] }
 };
 const found = { rowCount: 1, rows: [{ id: BUCKET, filters: stored }] };
+/** Saved filters that no longer pass the schema. */
+const invalidFilters = { v: 2, people: 'nope', locations: null };
 
 import type { BucketFilters } from '$lib/shared/types/filters';
 import { convertBucketFilter } from '$lib/server/filter-converter';
@@ -49,6 +51,7 @@ import {
 	listBucketNavigation,
 	queryBucketEntitiesPage,
 	resolveBucketFilters,
+	InvalidBucketFiltersError,
 	UnconvertibleBucketError
 } from './buckets.service';
 
@@ -145,6 +148,12 @@ describe('getBucket', () => {
 		canOrg.mockResolvedValue(false);
 
 		await expect(getBucket('u1', BUCKET)).rejects.toMatchObject({ status: 403 });
+	});
+
+	it('returns null filters, rather than failing, when the saved filters are no longer valid', async () => {
+		stub(() => ({ rowCount: 1, rows: [{ id: BUCKET, filter: null, filters: invalidFilters }] }));
+
+		expect(await getBucket('u1', BUCKET)).toMatchObject({ id: BUCKET, filters: null });
 	});
 });
 
@@ -388,9 +397,12 @@ describe('resolveBucketFilters', () => {
 	});
 
 	it('refuses stored filters that are not valid, instead of using them', async () => {
-		await expect(resolve(row({ filters: { v: 2, people: 'nope', locations: null } }))).rejects.toThrow(
-			/invalid filters/
-		);
+		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(InvalidBucketFiltersError);
+		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(/no longer valid/);
+	});
+
+	it('refuses them as an unconvertible bucket, so callers that skip those skip it too', async () => {
+		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(UnconvertibleBucketError);
 	});
 
 	it('converts the old filter when there are none, and saves the result', async () => {
@@ -657,6 +669,23 @@ describe('listBucketNavigation', () => {
 		]);
 		expect(String(sqlRun('FROM universe.bucket WHERE org_id = $1')![0])).toContain('ORDER BY name');
 	});
+
+	it('keeps a bucket whose saved filters are no longer valid, instead of failing every staff page', async () => {
+		stub(() => ({
+			rowCount: 2,
+			rows: [
+				{ id: 'a', name: 'A', slug: 'a', filter: null, filters: stored },
+				{ id: 'b', name: 'B', slug: 'b', filter: null, filters: invalidFilters }
+			]
+		}));
+
+		const nav = await listBucketNavigation(mockClient as never, ORG);
+
+		expect(nav).toEqual([
+			{ id: 'a', name: 'A', slug: 'a', filter: { people: { enabled: false }, locations: { enabled: true } } },
+			{ id: 'b', name: 'B', slug: 'b', filter: { people: { enabled: false }, locations: { enabled: false } } }
+		]);
+	});
 });
 
 describe('converting buckets whose stored filter is malformed', () => {
@@ -772,6 +801,15 @@ describe('findBucketForPage', () => {
 		expect(bucket).toMatchObject({ id: BUCKET, name: 'Voters', filters: null });
 		expect(bucket?.problem).toContain('could not be converted');
 		expect(sqlRun('UPDATE universe.bucket SET filters')).toBeUndefined();
+	});
+
+	it('still returns a bucket whose saved filters are no longer valid, saying why, so it can be rebuilt', async () => {
+		stub(() => ({ rowCount: 1, rows: [rowOf({ filters: invalidFilters })] }));
+
+		const bucket = await findBucketForPage(mockClient as never, ORG, 'voters');
+
+		expect(bucket).toMatchObject({ id: BUCKET, name: 'Voters', filters: null });
+		expect(bucket?.problem).toContain('no longer valid');
 	});
 
 	it('converts an old filter on the way, as the strict version does', async () => {
