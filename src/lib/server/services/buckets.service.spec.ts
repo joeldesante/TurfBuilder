@@ -533,7 +533,7 @@ describe('queryBucketEntitiesPage', () => {
 	}
 	const pageCall = () => mockClient.query.mock.calls.find((c) => !String(c[0]).includes('COUNT(*)'))!;
 	const run = (page: number, kind: 'locations' | 'people' = 'locations', size?: number) =>
-		queryBucketEntitiesPage(mockClient as never, kind, kind === 'locations' ? austin : { operator: 'AND', filters: [] }, page, size);
+		queryBucketEntitiesPage(mockClient as never, ORG, kind, kind === 'locations' ? austin : { operator: 'AND', filters: [] }, page, size);
 
 	beforeEach(() => answer(250));
 

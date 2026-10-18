@@ -40,12 +40,15 @@
 		]
 	};
 
+	/** Stands in for the organization a real query runs for. */
+	const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000';
+
 	const json = $derived(JSON.stringify(group, null, 2));
 
 	/** The query the document compiles to, or the reason it does not. */
 	const result = $derived.by<{ query: FilterQuery } | { problem: string }>(() => {
 		try {
-			return { query: buildFilterQuery(entity, $state.snapshot(group)) };
+			return { query: buildFilterQuery(entity, $state.snapshot(group), { orgId: DEMO_ORG_ID }) };
 		} catch (e) {
 			const body = (e as { body?: { message?: string } }).body;
 			return { problem: body?.message ?? 'The filter could not be compiled.' };

@@ -12,7 +12,7 @@ export async function load({ params, locals }) {
 		if (!bucket) throw error(404, 'Bucket not found');
 
 		const locations = bucket.filters?.locations;
-		const locationCount = locations ? await countBucketEntities(client, 'locations', locations) : null;
+		const locationCount = locations ? await countBucketEntities(client, locals.organization!.id, 'locations', locations) : null;
 
 		return { bucket, locationCount };
 	});

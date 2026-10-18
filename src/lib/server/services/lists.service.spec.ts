@@ -293,7 +293,8 @@ describe('createList', () => {
 
 			const [sql, params] = run('INSERT INTO universe.list_entry')!;
 			expect(String(sql)).toContain('FROM universe.survey_question_response sqr');
-			expect(params).toEqual(['Austin', 'Yes', BUCKET, LIST]);
+			expect(String(sql)).toContain('sqr.org_id = $3::uuid');
+			expect(params).toEqual(['Austin', 'Yes', ORG, BUCKET, LIST]);
 		});
 	});
 

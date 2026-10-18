@@ -246,18 +246,19 @@ const PAGE_COLUMNS = {
  * bucket can match far more rows than fit in memory on the server or in the
  * browser, so callers always get a page, never the whole result.
  *
- * Org scoping is handled by the underlying views (universe.v_people,
- * universe.v_locations) which filter org-owned rows using
- * current_setting('app.current_org_id'). Must run inside withOrgTransaction.
+ * The underlying views (universe.v_people, universe.v_locations) filter
+ * org-owned rows using current_setting('app.current_org_id'), and the filters'
+ * subqueries are filtered by `orgId`. Must run inside withOrgTransaction.
  */
 export async function queryBucketEntitiesPage(
 	client: PoolClient,
+	orgId: string,
 	kind: FilterEntity,
 	group: FilterGroup,
 	requested: number,
 	pageSize = PAGE_SIZE
 ): Promise<Page<Record<string, unknown>>> {
-	const query: FilterQuery = buildFilterQuery(kind, group, { columns: PAGE_COLUMNS[kind] });
+	const query: FilterQuery = buildFilterQuery(kind, group, { orgId, columns: PAGE_COLUMNS[kind] });
 
 	const countResult = await client.query<{ count: string }>(
 		`SELECT COUNT(*)::text AS count FROM (${query.sql}) q`,
@@ -278,10 +279,11 @@ export async function queryBucketEntitiesPage(
 /** How many entities of one kind a bucket's filter group matches. Must run inside withOrgTransaction. */
 export async function countBucketEntities(
 	client: PoolClient,
+	orgId: string,
 	kind: FilterEntity,
 	group: FilterGroup
 ): Promise<number> {
-	const query = buildFilterQuery(kind, group, { columns: PAGE_COLUMNS[kind] });
+	const query = buildFilterQuery(kind, group, { orgId, columns: PAGE_COLUMNS[kind] });
 	const result = await client.query<{ count: string }>(
 		`SELECT COUNT(*)::text AS count FROM (${query.sql}) q`,
 		query.params
@@ -540,7 +542,7 @@ async function listBucketEntities(
 		const group = filters[kind];
 		if (!group) return { items: [], totalCount: 0, page: 1, pageSize: PAGE_SIZE };
 
-		return queryBucketEntitiesPage(client, kind, group, requested);
+		return queryBucketEntitiesPage(client, orgId, kind, group, requested);
 	});
 }
 

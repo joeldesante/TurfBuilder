@@ -39,6 +39,14 @@ interface Context {
 	param: (value: unknown) => string;
 	/** The parameters registered so far, in placeholder order. */
 	params: unknown[];
+	/**
+	 * The placeholder for the organization's id, for every org-scoped table a
+	 * subquery joins. Registered on first use only: Postgres refuses a query with
+	 * a parameter it never reads.
+	 */
+	org: () => string;
+	/** Drops the parameters from `length` on, for SQL that was discarded. */
+	truncate: (length: number) => void;
 }
 
 interface Handler {
@@ -123,15 +131,19 @@ function attemptsAt(
 	ctx: Context,
 	scope: Partial<Pick<AttemptScope, 'bucketId' | 'listId' | 'from' | 'to'>> = {}
 ): string {
+	const org = ctx.org();
 	const joins: string[] = [];
-	const where = [`COALESCE(tpl.entity_id, tol.entity_id) = ${ctx.alias}.entity_id`];
+	const where = [
+		`tla.org_id = ${org}`,
+		`COALESCE(tpl.entity_id, tol.entity_id) = ${ctx.alias}.entity_id`
+	];
 
 	if (scope.bucketId || scope.listId) {
-		joins.push('JOIN universe.turf tt ON tt.id = tl.turf_id');
+		joins.push(`JOIN universe.turf tt ON tt.id = tl.turf_id AND tt.org_id = ${org}`);
 	}
 	if (scope.listId) where.push(`tt.list_id = ${ctx.param(scope.listId)}`);
 	if (scope.bucketId) {
-		joins.push('JOIN universe.list tli ON tli.id = tt.list_id');
+		joins.push(`JOIN universe.list tli ON tli.id = tt.list_id AND tli.org_id = ${org}`);
 		where.push(`tli.bucket = ${ctx.param(scope.bucketId)}`);
 	}
 	// Both ends are whole days: the end date includes everything made on it.
@@ -140,9 +152,9 @@ function attemptsAt(
 
 	return (
 		`SELECT ${select} FROM universe.turf_location_attempt tla` +
-		` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id` +
+		` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
 		` LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id` +
-		` LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id` +
+		` LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
 		(joins.length ? ` ${joins.join(' ')}` : '') +
 		` WHERE ${where.join(' AND ')}`
 	);
@@ -180,16 +192,21 @@ function answerMatches(operation: Filter['operation'], filter: Filter, ctx: Cont
  */
 function surveyResponse(filter: Filter, ctx: Context): string {
 	const value = filter.value as SurveyResponseValue;
-	const exists = (condition: string) =>
-		`EXISTS (SELECT 1 FROM universe.survey_question_response sqr` +
-		` JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id` +
-		` JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id` +
-		` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id` +
-		` LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id` +
-		` LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id` +
-		` WHERE sqr.survey_question_id = ${ctx.param(value.questionId)}::uuid` +
-		` AND COALESCE(tpl.entity_id, tol.entity_id) = ${ctx.alias}.entity_id` +
-		` AND ${condition})`;
+	const exists = (condition: string) => {
+		const org = ctx.org();
+		return (
+			`EXISTS (SELECT 1 FROM universe.survey_question_response sqr` +
+			` JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = ${org}` +
+			` JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = ${org}` +
+			` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
+			` LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id` +
+			` LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
+			` WHERE sqr.org_id = ${org}` +
+			` AND sqr.survey_question_id = ${ctx.param(value.questionId)}::uuid` +
+			` AND COALESCE(tpl.entity_id, tol.entity_id) = ${ctx.alias}.entity_id` +
+			` AND ${condition})`
+		);
+	};
 
 	switch (filter.operation) {
 		case 'equals':
@@ -363,12 +380,12 @@ function compileGroup(
 	if (parts.includes(settles)) {
 		// The branches are discarded, so their parameters must go too: the
 		// database rejects a parameter that no placeholder uses.
-		ctx.params.length = firstParam;
+		ctx.truncate(firstParam);
 		result = settles;
 	} else {
 		const sql = parts.filter((p): p is string => typeof p === 'string');
 		if (sql.length === 0) {
-			ctx.params.length = firstParam;
+			ctx.truncate(firstParam);
 			result = !settles;
 		} else {
 			result = `(${sql.join(group.operator === 'OR' ? ' OR ' : ' AND ')})`;
@@ -400,6 +417,11 @@ export const FILTER_COLUMNS = {
 } as const satisfies Record<FilterEntity, readonly string[]>;
 
 export interface BuildFilterOptions {
+	/**
+	 * The organization the query runs for. Every org-scoped table a subquery
+	 * joins is filtered by it, alongside row-level security.
+	 */
+	orgId: string;
 	/** Columns of the entity view to select. Defaults to `id` and `source`. */
 	columns?: readonly string[];
 }
@@ -420,7 +442,7 @@ export interface BuildFilterOptions {
 export function buildFilterQuery(
 	entity: FilterEntity,
 	document: unknown,
-	{ columns = ['id', 'source'] }: BuildFilterOptions = {}
+	{ orgId, columns = ['id', 'source'] }: BuildFilterOptions
 ): FilterQuery {
 	const parsed = filterGroupSchema.safeParse(document);
 	if (!parsed.success) {
@@ -435,7 +457,22 @@ export function buildFilterQuery(
 
 	const params: unknown[] = [];
 	const { from, alias } = ENTITY_VIEWS[entity];
-	const ctx: Context = { alias, params, param: (value) => `$${params.push(value)}` };
+	const param = (value: unknown) => `$${params.push(value)}`;
+	// The organization's parameter number, or 0 while it is not registered.
+	let orgNumber = 0;
+	const ctx: Context = {
+		alias,
+		params,
+		param,
+		org: () => {
+			if (orgNumber === 0) orgNumber = params.push(orgId);
+			return `$${orgNumber}::uuid`;
+		},
+		truncate: (length) => {
+			params.length = length;
+			if (orgNumber > length) orgNumber = 0;
+		}
+	};
 
 	const where = compileGroup(parsed.data, entity, ctx, false);
 	const select = columns.map((c) => `${alias}.${c}`).join(', ');

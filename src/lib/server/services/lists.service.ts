@@ -197,7 +197,7 @@ export async function createList(
 		own && own.filters.length > 0 ? { operator: 'AND', filters: [bucketGroup, own] } : bucketGroup;
 
 	// Compiled before anything is written, so a filter that cannot run fails the request cleanly.
-	const matches = buildFilterQuery(input.entity_type, effective);
+	const matches = buildFilterQuery(input.entity_type, effective, { orgId });
 
 	const created = await client.query<{ id: string }>(
 		`INSERT INTO universe.list (name, bucket, org_id, entity_type, expires_at, filters)

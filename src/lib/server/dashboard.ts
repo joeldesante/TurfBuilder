@@ -60,7 +60,7 @@ function scopeSql(
 		const group = bucket.filters.locations;
 		if (!group) return null;
 		// Same filter the bucket's Locations page runs, with the columns the dashboard needs.
-		const built = buildFilterQuery('locations', group, { columns });
+		const built = buildFilterQuery('locations', group, { orgId, columns });
 		sql = built.sql;
 		params = built.params;
 	} else {

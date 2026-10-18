@@ -21,8 +21,10 @@ const f = (item: string, operation: string, value: unknown, extra = {}) => ({
 const LOC = 'SELECT vl.id, vl.source FROM universe.v_locations vl';
 const PEOPLE = 'SELECT vp.id, vp.source FROM universe.v_people vp';
 
-const loc = (doc: unknown) => buildFilterQuery('locations', doc);
-const people = (doc: unknown) => buildFilterQuery('people', doc);
+const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
+const loc = (doc: unknown) => buildFilterQuery('locations', doc, { orgId: ORG });
+const people = (doc: unknown) => buildFilterQuery('people', doc, { orgId: ORG });
 
 describe('an empty document', () => {
 	it('matches every record', () => {
@@ -145,40 +147,42 @@ describe('canvassing filters', () => {
 
 		expect(flat(query.sql)).toContain(
 			'EXISTS (SELECT tla.contact_made FROM universe.turf_location_attempt tla' +
-				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id' +
+				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $1::uuid' +
 				' LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id' +
-				' LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id' +
-				' WHERE COALESCE(tpl.entity_id, tol.entity_id) = vl.entity_id AND tla.contact_made = $1)'
+				' LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $1::uuid' +
+				' WHERE tla.org_id = $1::uuid' +
+				' AND COALESCE(tpl.entity_id, tol.entity_id) = vl.entity_id AND tla.contact_made = $2)'
 		);
-		expect(query.params).toEqual([true]);
+		expect(query.params).toEqual([ORG, true]);
 	});
 
 	it('can look for attempts where no one was reached', () => {
-		expect(loc(group('AND', contact({ contacted: false }))).params).toEqual([false]);
+		expect(loc(group('AND', contact({ contacted: false }))).params).toEqual([ORG, false]);
 	});
 
 	it('looks only at the newest attempt for "latest"', () => {
 		const query = loc(group('AND', contact({ position: 'latest' })));
 
 		expect(flat(query.sql)).toContain(
-			'ORDER BY tla.created_at DESC, tla.id DESC LIMIT 1 OFFSET $2) picked WHERE picked.contact_made = $1'
+			'ORDER BY tla.created_at DESC, tla.id DESC LIMIT 1 OFFSET $3) picked WHERE picked.contact_made = $2'
 		);
-		expect(query.params).toEqual([true, 0]);
+		expect(query.params).toEqual([ORG, true, 0]);
 	});
 
 	it('skips the newer attempts for "from the last"', () => {
-		expect(loc(group('AND', contact({ position: 'nth_from_last', n: 3 }))).params).toEqual([true, 2]);
+		expect(loc(group('AND', contact({ position: 'nth_from_last', n: 3 }))).params).toEqual([ORG, true, 2]);
 	});
 
 	it('narrows to a bucket and a list through the turfs they were cut into', () => {
 		const query = loc(group('AND', contact({ bucketId: BUCKET, listId: LIST })));
 
 		expect(flat(query.sql)).toContain(
-			'JOIN universe.turf tt ON tt.id = tl.turf_id JOIN universe.list tli ON tli.id = tt.list_id'
+			'JOIN universe.turf tt ON tt.id = tl.turf_id AND tt.org_id = $1::uuid' +
+				' JOIN universe.list tli ON tli.id = tt.list_id AND tli.org_id = $1::uuid'
 		);
-		expect(flat(query.sql)).toContain('tt.list_id = $1 AND tli.bucket = $2');
-		expect(flat(query.sql)).toContain('tla.contact_made = $3');
-		expect(query.params).toEqual([LIST, BUCKET, true]);
+		expect(flat(query.sql)).toContain('tt.list_id = $2 AND tli.bucket = $3');
+		expect(flat(query.sql)).toContain('tla.contact_made = $4');
+		expect(query.params).toEqual([ORG, LIST, BUCKET, true]);
 	});
 
 	it('does not join turfs when no bucket or list is chosen', () => {
@@ -188,8 +192,8 @@ describe('canvassing filters', () => {
 	it('includes the whole end date in a time range', () => {
 		const query = loc(group('AND', contact({ from: '2026-01-01', to: '2026-01-31' })));
 
-		expect(flat(query.sql)).toContain('tla.created_at >= $1::date AND tla.created_at < ($2::date + 1)');
-		expect(query.params).toEqual(['2026-01-01', '2026-01-31', true]);
+		expect(flat(query.sql)).toContain('tla.created_at >= $2::date AND tla.created_at < ($3::date + 1)');
+		expect(query.params).toEqual([ORG, '2026-01-01', '2026-01-31', true]);
 	});
 
 	it('applies the scope before picking the latest attempt', () => {
@@ -202,8 +206,8 @@ describe('canvassing filters', () => {
 		const query = loc(group('AND', f('last_canvassed', 'less_than', '2026-01-01')));
 
 		expect(flat(query.sql)).toContain('(SELECT max(tla.created_at) FROM universe.turf_location_attempt tla');
-		expect(flat(query.sql)).toContain(')::date < $1::date');
-		expect(query.params).toEqual(['2026-01-01']);
+		expect(flat(query.sql)).toContain(')::date < $2::date');
+		expect(query.params).toEqual([ORG, '2026-01-01']);
 	});
 
 	it('finds locations with at least one attempt when canvassed is yes', () => {
@@ -224,8 +228,32 @@ describe('canvassing filters', () => {
 			group('AND', contact({ from: '2026-01-01' }), f('last_canvassed', 'greater_than', '2026-02-01'), f('city', 'equals', 'Austin'))
 		);
 
-		expect(query.params).toEqual(['2026-01-01', true, '2026-02-01', 'Austin']);
-		expect(query.sql).toContain('lower(vl.city) = lower($4)');
+		// The organization is one parameter, shared by every subquery.
+		expect(query.params).toEqual([ORG, '2026-01-01', true, '2026-02-01', 'Austin']);
+		expect(query.sql).toContain('lower(vl.city) = lower($5)');
+	});
+
+	it('scopes every org-scoped table the attempts subquery joins to the organization', () => {
+		const sql = flat(loc(group('AND', contact({ bucketId: BUCKET, listId: LIST }))).sql);
+
+		for (const alias of ['tla', 'tl', 'tol', 'tt', 'tli']) {
+			expect(sql).toContain(`${alias}.org_id = $1::uuid`);
+		}
+		// Public locations are shared by every organization.
+		expect(sql).not.toContain('tpl.org_id');
+	});
+
+	it('registers the organization again after the branch that first used it is discarded', () => {
+		// The OR holds an always-true group, so it is dropped with the attempt filter inside it.
+		const query = loc(group('AND', group('OR', contact(), group('AND')), contact({ contacted: false })));
+
+		expect(query.params).toEqual([ORG, false]);
+		expect(flat(query.sql)).toContain('tla.org_id = $1::uuid');
+		expect(flat(query.sql)).toContain('tla.contact_made = $2');
+	});
+
+	it('adds no organization parameter to a filter without a subquery', () => {
+		expect(loc(group('AND', f('city', 'equals', 'Austin'))).params).toEqual(['Austin']);
 	});
 
 	it('only applies to locations', () => {
@@ -307,7 +335,7 @@ describe('survey response filters', () => {
 		const query = loc(group('AND', answer('not_answered', '')));
 
 		expect(flat(query.sql)).toContain('NOT EXISTS (SELECT 1 FROM universe.survey_question_response sqr');
-		expect(query.params).toEqual([Q]);
+		expect(query.params).toEqual([ORG, Q]);
 	});
 
 	it('finds locations that gave the response to the question, on any attempt', () => {
@@ -315,15 +343,16 @@ describe('survey response filters', () => {
 
 		expect(flat(query.sql)).toContain(
 			'EXISTS (SELECT 1 FROM universe.survey_question_response sqr' +
-				' JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id' +
-				' JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id' +
-				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id' +
+				' JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = $2::uuid' +
+				' JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = $2::uuid' +
+				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $2::uuid' +
 				' LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id' +
-				' LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id' +
-				' WHERE sqr.survey_question_id = $2::uuid' +
+				' LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $2::uuid' +
+				' WHERE sqr.org_id = $2::uuid' +
+				' AND sqr.survey_question_id = $3::uuid' +
 				' AND COALESCE(tpl.entity_id, tol.entity_id) = vl.entity_id AND '
 		);
-		expect(query.params).toEqual(['Yes', Q]);
+		expect(query.params).toEqual(['Yes', ORG, Q]);
 	});
 
 	it('matches the whole answer, ignoring case, for a question with one answer', () => {
@@ -354,21 +383,32 @@ describe('survey response filters', () => {
 		const query = loc(group('AND', answer('contains', '50%_off')));
 
 		expect(flat(query.sql)).toContain('sqr.response_value ILIKE $1');
-		expect(query.params).toEqual(['%50\\%\\_off%', Q]);
+		expect(query.params).toEqual(['%50\\%\\_off%', ORG, Q]);
 	});
 
 	it('uses only the question, since it already belongs to its survey and bucket', () => {
 		const query = loc(group('AND', answer('equals', 'Yes')));
 
-		expect(query.params).toEqual(['Yes', Q]);
+		expect(query.params).toEqual(['Yes', ORG, Q]);
 		expect(query.sql).not.toContain('bucket');
 	});
 
 	it('combines with other filters, numbering parameters in order', () => {
 		const query = loc(group('AND', f('city', 'equals', 'Austin'), answer('equals', 'Yes'), f('state', 'equals', 'TX')));
 
-		expect(query.params).toEqual(['Austin', 'Yes', Q, 'TX']);
-		expect(query.sql).toContain('lower(vl.state_or_region) = lower($4)');
+		expect(query.params).toEqual(['Austin', 'Yes', ORG, Q, 'TX']);
+		expect(query.sql).toContain('lower(vl.state_or_region) = lower($5)');
+	});
+
+	it('scopes every org-scoped table the response subquery joins to the organization', () => {
+		const query = loc(group('AND', answer('equals', 'Yes')));
+		const sql = flat(query.sql);
+
+		for (const alias of ['sqr', 'sq', 'tla', 'tl', 'tol']) {
+			expect(sql).toContain(`${alias}.org_id = $2::uuid`);
+		}
+		expect(sql).not.toContain('tpl.org_id');
+		expect(query.params[1]).toBe(ORG);
 	});
 
 	it('works inside an inverted group, so locations without the response can be found', () => {
@@ -472,18 +512,18 @@ describe('inverted groups', () => {
 
 describe('selected columns', () => {
 	it('selects only what is asked for, from the entity view', () => {
-		expect(buildFilterQuery('locations', group('AND'), { columns: ['id', 'name', 'city'] }).sql).toBe(
+		expect(buildFilterQuery('locations', group('AND'), { orgId: ORG, columns: ['id', 'name', 'city'] }).sql).toBe(
 			'SELECT vl.id, vl.name, vl.city FROM universe.v_locations vl'
 		);
-		expect(buildFilterQuery('people', group('AND'), { columns: ['id', 'last_name'] }).sql).toBe(
+		expect(buildFilterQuery('people', group('AND'), { orgId: ORG, columns: ['id', 'last_name'] }).sql).toBe(
 			'SELECT vp.id, vp.last_name FROM universe.v_people vp'
 		);
 	});
 
 	it('refuses a column the entity does not have', () => {
-		expect(() => buildFilterQuery('people', group('AND'), { columns: ['city'] })).toThrow(/Unknown people columns: city/);
+		expect(() => buildFilterQuery('people', group('AND'), { orgId: ORG, columns: ['city'] })).toThrow(/Unknown people columns: city/);
 		expect(() =>
-			buildFilterQuery('locations', group('AND'), { columns: ['id; DROP TABLE x'] })
+			buildFilterQuery('locations', group('AND'), { orgId: ORG, columns: ['id; DROP TABLE x'] })
 		).toThrow();
 	});
 });
@@ -742,7 +782,7 @@ describe('legacy bucket filters', () => {
 				locations('NONE', ['city', 'is', 'Austin'], ['zip_code', 'starts_with', '787'])
 			);
 
-			const query = buildFilterQuery('locations', doc.locations);
+			const query = buildFilterQuery('locations', doc.locations, { orgId: ORG });
 
 			expect(query.sql).toContain('NOT (');
 			expect(query.params).toEqual(['Austin', '787%']);
@@ -751,7 +791,7 @@ describe('legacy bucket filters', () => {
 		it('compiles a converted person filter', () => {
 			const doc = convertInput(people('ALL', ['age', 'gte', '18'], ['has_email', '', '']));
 
-			expect(() => buildFilterQuery('people', doc.people)).not.toThrow();
+			expect(() => buildFilterQuery('people', doc.people, { orgId: ORG })).not.toThrow();
 		});
 	});
 });

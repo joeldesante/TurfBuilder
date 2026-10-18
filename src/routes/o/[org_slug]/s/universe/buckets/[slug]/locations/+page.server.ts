@@ -24,7 +24,7 @@ export async function load({ parent, locals, url }) {
 	}
 
 	return withOrgTransaction(locals.organization!.id, async (client) => {
-		const result = await queryBucketEntitiesPage(client, 'locations', group, requestedPage(url));
+		const result = await queryBucketEntitiesPage(client, locals.organization!.id, 'locations', group, requestedPage(url));
 		return {
 			locations: result.items as unknown as LocationRow[],
 			enabled: true,

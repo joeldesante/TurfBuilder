@@ -17,6 +17,9 @@
 
 	const { input }: Props = $props();
 
+	/** Stands in for the organization a real query runs for. */
+	const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000';
+
 	const off = { enabled: false, matchType: 'ONE_OR_MORE' as const, conditions: [] };
 	const condition = (filterId: string, qualifierId: string, value = '') => ({
 		filterId,
@@ -130,7 +133,7 @@
 			.filter((entity) => converted[entity] !== null)
 			.map((entity) => {
 				try {
-					return { entity, query: buildFilterQuery(entity, converted[entity]), problem: null };
+					return { entity, query: buildFilterQuery(entity, converted[entity], { orgId: DEMO_ORG_ID }), problem: null };
 				} catch (e) {
 					const body = (e as { body?: { message?: string } }).body;
 					return { entity, query: null, problem: body?.message ?? 'The filter could not be compiled.' };
