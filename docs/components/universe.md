@@ -205,3 +205,23 @@ it was never configured. Read once, when the row is created. |
 | `onchange` | `(value: SurveyResponseValue) => void` | **required** |  |
 
 ---
+
+## LocationResponseDetail
+
+**Import:** `$components/universe/location-response-detail/LocationResponseDetail.svelte`
+
+---
+
+## MetricsWorkflowSidebar
+
+**Import:** `$components/universe/metrics-workflow-sidebar/MetricsWorkflowSidebar.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `orgSlug` | `string` | **required** |  |
+| `buckets` | `MetricsBucket[]` | **required** |  |
+| `onGenerate` | `(selection: MetricsWorkflowSelection) => void` | **required** |  |
+
+---
