@@ -903,6 +903,9 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE INDEX IF NOT EXISTS org_location_entity_id_idx        ON universe.org_location (entity_id)`,
 			`CREATE INDEX IF NOT EXISTS org_location_entity_current_idx   ON universe.org_location (entity_id) WHERE valid_to IS NULL`,
 			`CREATE INDEX IF NOT EXISTS org_location_coordinates_idx      ON universe.org_location USING GIST (coordinates)`,
+			// The radius filter measures with ST_DWithin on coordinates::geography, which
+			// cannot use the geometry index above; the cast needs its own (#229).
+			`CREATE INDEX IF NOT EXISTS org_location_geography_idx        ON universe.org_location USING GIST ((coordinates::geography))`,
 			`CREATE INDEX IF NOT EXISTS org_location_city_idx             ON universe.org_location (org_id, city)`,
 			`CREATE INDEX IF NOT EXISTS org_location_postal_code_idx      ON universe.org_location (org_id, postal_code)`,
 			`CREATE INDEX IF NOT EXISTS org_location_fts_idx              ON universe.org_location USING GIN (
