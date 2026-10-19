@@ -1498,6 +1498,12 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Removing the public entity pool',
 		statements: [
+			// Views some local databases carry that read public_location. Nothing
+			// in the app uses them, and they block dropping the columns below.
+			// v_location_survey_response reads v_location_attempt, so it goes first.
+			`DROP VIEW IF EXISTS universe.v_location_survey_response`,
+			`DROP VIEW IF EXISTS universe.v_location_attempt`,
+
 			// Rows that reference a public entity, version, or record
 			`DELETE FROM universe.list_entry WHERE record_source IN ('public_person', 'public_location')`,
 			...[
