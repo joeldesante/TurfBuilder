@@ -49,6 +49,8 @@ erDiagram
     org_entity ||--o{ org_person : ""
     org_entity ||--o{ org_organization : ""
     org_entity ||--o{ org_location : ""
+    org_entity ||--o{ org_address : ""
+    org_entity ||--o| org_address_unit : ""
     organization_type |o--o{ org_organization : ""
 
     %% universe: relationships and tags
@@ -277,13 +279,15 @@ erDiagram
 
 People, organizations, and locations. Each entity is a row in `org_entity`, private to one org, and its data lives in version rows. Nothing is shared between orgs. An edit closes the current version (`valid_to = now()`) and inserts a new one; the current version is the one with `valid_to IS NULL`. A trigger stamps the entity's `type_id` from the first version inserted and rejects versions of a different type.
 
+Addresses follow the UPU S42 address elements for physical places (no addressee, no PO boxes). An address is versioned like the other entities, with one point of coordinates. A unit (apartment, suite, floor) is an entity with a single unversioned row in `org_address_unit`: it points at its address entity, not a version, so it survives address edits and is canvassed from the address's current point. A unit is soft-deleted with `deleted_at`. Locations link to an address, or a unit, through a `located_at` relationship (written by `scripts/backfill-addresses.ts`), and an address split off another keeps a `split_from` relationship to it. Locations still carry their own address columns until a later contract step removes them.
+
 Two views read current versions only: `v_people` (`org_person`) and `v_locations` (`org_location`, hiding tentative location suggestions). Both are filtered by `app.current_org_id`.
 
 ```mermaid
 erDiagram
     entity_type {
         uuid id PK
-        text slug UK "person, organization, location, asset"
+        text slug UK "person, organization, location, asset, address, unit"
         text name
         text description
         timestamptz created_at
@@ -367,6 +371,39 @@ erDiagram
         text source
         timestamptz created_at
     }
+    org_address {
+        uuid id PK "version"
+        uuid org_id FK
+        uuid entity_id FK
+        text premises_name "one of name or number"
+        text premises_number "one of name or number"
+        text thoroughfare_name
+        text thoroughfare_type
+        text thoroughfare_pre_qualifier
+        text thoroughfare_post_qualifier
+        text dependent_locality
+        text locality
+        text region
+        text postcode
+        char country_code "required"
+        geometry coordinates "point, 4326, required"
+        timestamptz valid_from
+        timestamptz valid_to "null = current"
+        uuid authored_by FK "auth_user"
+        text source
+        timestamptz created_at
+    }
+    org_address_unit {
+        uuid entity_id PK,FK "org_entity, type unit"
+        uuid org_id FK
+        uuid address_entity_id FK "org_entity, type address"
+        text unit_type
+        text unit_identifier "unique per address while live"
+        text floor
+        timestamptz created_at
+        timestamptz deleted_at "null = live"
+        uuid deleted_by FK "auth_user"
+    }
     org_relationship {
         uuid id PK
         uuid org_id FK
@@ -401,6 +438,9 @@ erDiagram
     org_entity ||--o{ org_person : "versions"
     org_entity ||--o{ org_organization : "versions"
     org_entity ||--o{ org_location : "versions"
+    org_entity ||--o{ org_address : "versions"
+    org_entity ||--o| org_address_unit : "unit row"
+    org_entity ||--o{ org_address_unit : "units of address"
     organization_type |o--o{ org_organization : "types"
     relationship_type ||--o{ org_relationship : "types"
     org_entity |o--o{ org_relationship : "from / to"

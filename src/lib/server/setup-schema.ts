@@ -1552,5 +1552,110 @@ export const SETUP_STEPS: SetupStep[] = [
 			`DROP TABLE IF EXISTS universe.public_location`,
 			`DROP TABLE IF EXISTS universe.public_entity`
 		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 41. Addresses and units (expand step)
+	//
+	// A structured, physical address following the UPU S42 address elements,
+	// without the addressee and without postal delivery services (PO boxes
+	// cannot be canvassed). An address is versioned like a location: a new
+	// version on every change, so a moved pin keeps its history.
+	//
+	// A unit (apartment, suite, floor) belongs to one base address and has no
+	// coordinates of its own: every unit in a building canvasses from the
+	// address's point. Units are entities, so org_relationship can later tie
+	// them to people and businesses, but they are not versioned; a unit that
+	// changes is soft-deleted and replaced. A unit references the address
+	// entity, not a version, so it survives the address being edited.
+	//
+	// Locations are linked to addresses (or units) through a located_at
+	// org_relationship, written by scripts/backfill-addresses.ts. The contract
+	// step that drops org_location's own address columns comes later.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating addresses and units',
+		statements: [
+			`INSERT INTO universe.entity_type (slug, name, description) VALUES
+				('address', 'Address', 'A physical postal address with one point of coordinates'),
+				('unit',    'Unit',    'An apartment, suite, or floor within an address')
+			ON CONFLICT (slug) DO NOTHING`,
+			`INSERT INTO universe.relationship_type (slug, name, inverse_slug, inverse_name, description) VALUES
+				('split_from', 'Split From', 'split_into', 'Split Into', 'An address was created by splitting another address')
+			ON CONFLICT (slug) DO NOTHING`,
+
+			`CREATE TABLE IF NOT EXISTS universe.org_address (
+				id                          UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id                      UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				entity_id                   UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				premises_name               TEXT,
+				premises_number             TEXT,
+				thoroughfare_name           TEXT,
+				thoroughfare_type           TEXT,
+				thoroughfare_pre_qualifier  TEXT,
+				thoroughfare_post_qualifier TEXT,
+				dependent_locality          TEXT,
+				locality                    TEXT,
+				region                      TEXT,
+				postcode                    TEXT,
+				country_code                CHAR(2) NOT NULL,
+				coordinates                 geometry(point, 4326) NOT NULL,
+				valid_from                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+				valid_to                    TIMESTAMPTZ,
+				authored_by                 UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				source                      TEXT NOT NULL,
+				created_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			// A canvassable address has to identify a building, by number or by name.
+			`DO $$ BEGIN
+				ALTER TABLE universe.org_address ADD CONSTRAINT org_address_premises_check
+					CHECK (premises_number IS NOT NULL OR premises_name IS NOT NULL);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`DROP TRIGGER IF EXISTS set_entity_type ON universe.org_address`,
+			`CREATE TRIGGER set_entity_type
+				BEFORE INSERT ON universe.org_address
+				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('address')`,
+
+			`CREATE TABLE IF NOT EXISTS universe.org_address_unit (
+				entity_id         UUID PRIMARY KEY REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				org_id            UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				address_entity_id UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				unit_type         TEXT,
+				unit_identifier   TEXT NOT NULL,
+				floor             TEXT,
+				created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+				deleted_at        TIMESTAMPTZ,
+				deleted_by        UUID REFERENCES auth.user(id) ON DELETE SET NULL
+			)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS org_address_unit_live_unique
+				ON universe.org_address_unit (address_entity_id, lower(coalesce(unit_type, '')), lower(unit_identifier))
+				WHERE deleted_at IS NULL`,
+
+			`CREATE INDEX IF NOT EXISTS org_address_org_id_idx         ON universe.org_address (org_id)`,
+			`CREATE INDEX IF NOT EXISTS org_address_entity_id_idx      ON universe.org_address (entity_id)`,
+			`CREATE INDEX IF NOT EXISTS org_address_entity_current_idx ON universe.org_address (entity_id) WHERE valid_to IS NULL`,
+			`CREATE INDEX IF NOT EXISTS org_address_coordinates_idx    ON universe.org_address USING GIST (coordinates)`,
+			`CREATE INDEX IF NOT EXISTS org_address_postcode_idx       ON universe.org_address (org_id, postcode)`,
+			`CREATE INDEX IF NOT EXISTS org_address_fts_idx            ON universe.org_address USING GIN (
+				to_tsvector('simple',
+					COALESCE(premises_name, '') || ' ' ||
+					COALESCE(premises_number, '') || ' ' ||
+					COALESCE(thoroughfare_name, '') || ' ' ||
+					COALESCE(locality, '') || ' ' ||
+					COALESCE(postcode, '')
+				)
+			)`,
+			`CREATE INDEX IF NOT EXISTS org_address_unit_org_id_idx  ON universe.org_address_unit (org_id)`,
+			`CREATE INDEX IF NOT EXISTS org_address_unit_address_idx ON universe.org_address_unit (address_entity_id)`,
+
+			...['universe.org_address', 'universe.org_address_unit'].flatMap((table) => [
+				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
+				`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`,
+				`DROP POLICY IF EXISTS org_isolation ON ${table}`,
+				`CREATE POLICY org_isolation ON ${table}
+					USING (org_id = ${safe})
+					WITH CHECK (org_id = ${safe})`
+			])
+		]
 	}
 ];
