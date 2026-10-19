@@ -14,8 +14,8 @@ import { validateContactMetadata } from '$lib/shared/contact-types';
 
 export interface ContactFields {
 	type: string;
+	/** The address entity, which may be a unit. */
 	addressEntityId: string;
-	unitEntityId?: string | null;
 	metadata: unknown;
 	photoKeys?: string[];
 }
@@ -23,8 +23,9 @@ export interface ContactFields {
 export class ContactError extends Error {}
 
 /**
- * Checks what the database cannot: the metadata fits its type, the address is
- * live, and the unit (when given) is a live unit of that address.
+ * Checks what the database cannot: the metadata fits its type, and the
+ * address is a live address in this org (the foreign key only proves it is
+ * some entity).
  */
 async function checkFields(
 	client: PoolClient,
@@ -34,19 +35,13 @@ async function checkFields(
 	const checked = validateContactMetadata(fields.type, fields.metadata);
 	if (!checked.ok) throw new ContactError(checked.error);
 
-	const target = await client.query(
-		`SELECT 1
-		   FROM universe.org_address a
-		  WHERE a.entity_id = $1 AND a.org_id = $2 AND a.valid_to IS NULL
-		    AND ($3::uuid IS NULL OR EXISTS (
-		      SELECT 1 FROM universe.org_address_unit u
-		       WHERE u.entity_id = $3 AND u.org_id = $2
-		         AND u.address_entity_id = a.entity_id AND u.deleted_at IS NULL
-		    ))`,
-		[fields.addressEntityId, orgId, fields.unitEntityId ?? null]
+	const address = await client.query(
+		`SELECT 1 FROM universe.org_address
+		  WHERE entity_id = $1 AND org_id = $2 AND valid_to IS NULL`,
+		[fields.addressEntityId, orgId]
 	);
-	if (target.rows.length === 0) {
-		throw new ContactError('The address or unit for this contact no longer exists.');
+	if (address.rows.length === 0) {
+		throw new ContactError('The address for this contact no longer exists.');
 	}
 
 	return checked.metadata;
@@ -63,15 +58,14 @@ async function insertVersion(
 ): Promise<string> {
 	const version = await client.query<{ id: string }>(
 		`INSERT INTO universe.org_contact
-			(org_id, entity_id, type, address_entity_id, unit_entity_id, metadata, photo_keys, authored_by, source)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			(org_id, entity_id, type, address_entity_id, metadata, photo_keys, authored_by, source)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		 RETURNING id`,
 		[
 			orgId,
 			entityId,
 			fields.type,
 			fields.addressEntityId,
-			fields.unitEntityId ?? null,
 			JSON.stringify(metadata),
 			fields.photoKeys ?? [],
 			authoredBy,
@@ -163,7 +157,6 @@ export interface CurrentContact {
 	entity_id: string;
 	type: string;
 	address_entity_id: string;
-	unit_entity_id: string | null;
 	metadata: Record<string, unknown>;
 	photo_keys: string[];
 }
@@ -175,7 +168,7 @@ export async function readCurrentContact(
 	entityId: string
 ): Promise<CurrentContact | null> {
 	const result = await client.query<CurrentContact>(
-		`SELECT id, entity_id, type, address_entity_id, unit_entity_id, metadata, photo_keys
+		`SELECT id, entity_id, type, address_entity_id, metadata, photo_keys
 		   FROM universe.org_contact
 		  WHERE entity_id = $1 AND org_id = $2 AND valid_to IS NULL`,
 		[entityId, orgId]

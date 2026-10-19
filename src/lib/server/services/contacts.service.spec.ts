@@ -12,13 +12,11 @@ import {
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const ENTITY = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const ADDRESS = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const UNIT = 'd1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const USER = 'e1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
 const fields: ContactFields = {
 	type: 'business',
 	addressEntityId: ADDRESS,
-	unitEntityId: UNIT,
 	metadata: { name: 'Green Market' },
 	photoKeys: ['p.jpg']
 };
@@ -42,24 +40,23 @@ beforeEach(() => {
 });
 
 describe('insertContact', () => {
-	it('checks the address and unit, then writes a version with the validated metadata', async () => {
+	it('checks the address, then writes a version with the validated metadata', async () => {
 		query
-			.mockResolvedValueOnce({ rows: [{}] }) // address and unit are live
+			.mockResolvedValueOnce({ rows: [{}] }) // address is live
 			.mockResolvedValueOnce({ rows: [{ id: ENTITY }] }) // entity
 			.mockResolvedValueOnce({ rows: [{ id: 'v1' }] }); // version
 
 		const result = await insertContact(client, ORG, fields, USER, 'manual');
 
 		expect(result).toEqual({ entityId: ENTITY, versionId: 'v1' });
-		const check = find('FROM universe.org_address a')!;
-		expect(check.sql).toContain('u.address_entity_id = a.entity_id');
-		expect(check.params).toEqual([ADDRESS, ORG, UNIT]);
+		const check = find('FROM universe.org_address')!;
+		expect(check.sql).toContain('valid_to IS NULL');
+		expect(check.params).toEqual([ADDRESS, ORG]);
 		expect(find('INSERT INTO universe.org_contact')!.params).toEqual([
 			ORG,
 			ENTITY,
 			'business',
 			ADDRESS,
-			UNIT,
 			'{"name":"Green Market"}',
 			['p.jpg'],
 			USER,
@@ -83,9 +80,9 @@ describe('insertContact', () => {
 		expect(query).not.toHaveBeenCalled();
 	});
 
-	it('rejects an address or unit that is not live', async () => {
+	it('rejects an address that is not live', async () => {
 		await expect(insertContact(client, ORG, fields, USER, 'manual')).rejects.toThrow(
-			'The address or unit for this contact no longer exists.'
+			'The address for this contact no longer exists.'
 		);
 		expect(issued().some((q) => q.includes('INSERT'))).toBe(false);
 	});

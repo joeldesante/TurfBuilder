@@ -1,8 +1,8 @@
 import type { PoolClient } from 'pg';
-import type { AddressFields, UnitFields } from '$lib/schemas/address';
+import type { AddressFields } from '$lib/schemas/address';
 
 /**
- * Address and unit writes.
+ * Address writes.
  *
  * An address is versioned like a location: universe.org_entity holds the
  * identity, universe.org_address one row per version, and the current version
@@ -10,12 +10,11 @@ import type { AddressFields, UnitFields } from '$lib/schemas/address';
  * Nothing points at an address version yet, so unlike createLocationVersion
  * there is nothing to repoint.
  *
- * A unit is an entity with a single, unversioned row in
- * universe.org_address_unit. It points at the address entity, so it survives
- * address edits and always reads the address's current coordinates.
+ * A unit (apartment, suite, floor) is an address of its own, with the unit
+ * fields set and its own point.
  *
- * Every function expects to run inside withOrgTransaction (RLS is forced on
- * both tables) and still filters by org_id, as every org-scoped query must.
+ * Every function expects to run inside withOrgTransaction (RLS is forced) and
+ * still filters by org_id, as every org-scoped query must.
  */
 
 /** Column list shared by both version inserts, in parameter order. */
@@ -23,12 +22,13 @@ const VERSION_COLUMNS = `
 	org_id, entity_id, premises_name, premises_number,
 	thoroughfare_name, thoroughfare_type, thoroughfare_pre_qualifier, thoroughfare_post_qualifier,
 	dependent_locality, locality, region, postcode, country_code,
+	unit_type, unit_identifier, floor,
 	coordinates, authored_by, source`;
 
 const VERSION_VALUES = `
-	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-	ST_SetSRID(ST_MakePoint($14::float8, $15::float8), 4326),
-	$16, $17`;
+	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+	ST_SetSRID(ST_MakePoint($17::float8, $18::float8), 4326),
+	$19, $20`;
 
 function versionParams(
 	orgId: string,
@@ -51,6 +51,9 @@ function versionParams(
 		fields.region ?? null,
 		fields.postcode ?? null,
 		fields.country_code,
+		fields.unit_type ?? null,
+		fields.unit_identifier ?? null,
+		fields.floor ?? null,
 		fields.longitude,
 		fields.latitude,
 		authoredBy,
@@ -121,16 +124,15 @@ export async function createAddressVersion(
 }
 
 /**
- * Soft-deletes an address by closing its current version with no successor,
- * and soft-deletes its live units with it. Every version row survives.
+ * Soft-deletes an address by closing its current version with no successor.
+ * Every version row survives.
  *
  * @returns the closed version id, or null if the address had no live version
  */
 export async function softDeleteAddress(
 	client: PoolClient,
 	orgId: string,
-	entityId: string,
-	deletedBy: string | null
+	entityId: string
 ): Promise<string | null> {
 	const result = await client.query<{ id: string }>(
 		`UPDATE universe.org_address SET valid_to = now()
@@ -138,13 +140,6 @@ export async function softDeleteAddress(
 		  RETURNING id`,
 		[entityId, orgId]
 	);
-
-	await client.query(
-		`UPDATE universe.org_address_unit SET deleted_at = now(), deleted_by = $3
-		  WHERE address_entity_id = $1 AND org_id = $2 AND deleted_at IS NULL`,
-		[entityId, orgId, deletedBy]
-	);
-
 	return result.rows[0]?.id ?? null;
 }
 
@@ -168,6 +163,7 @@ export async function readCurrentAddress(
 		        thoroughfare_name, thoroughfare_type,
 		        thoroughfare_pre_qualifier, thoroughfare_post_qualifier,
 		        dependent_locality, locality, region, postcode, country_code,
+		        unit_type, unit_identifier, floor,
 		        ST_Y(coordinates) AS latitude,
 		        ST_X(coordinates) AS longitude
 		   FROM universe.org_address
@@ -179,9 +175,8 @@ export async function readCurrentAddress(
 
 /**
  * Splits one address into several, for example when a building is divided.
- * The old address is soft-deleted (with its units), each new address gets a
- * split_from relationship back to it so the lineage stays queryable. Units are
- * not moved; the caller adds them under the new addresses.
+ * The old address is soft-deleted, and each new address gets a split_from
+ * relationship back to it so the lineage stays queryable.
  *
  * @returns the new address entity ids, in the order given; null when the old
  *   address has no live version
@@ -194,7 +189,7 @@ export async function splitAddress(
 	authoredBy: string | null,
 	source: string
 ): Promise<string[] | null> {
-	const closed = await softDeleteAddress(client, orgId, oldEntityId, authoredBy);
+	const closed = await softDeleteAddress(client, orgId, oldEntityId);
 	if (!closed) return null;
 
 	const created: string[] = [];
@@ -204,97 +199,6 @@ export async function splitAddress(
 		created.push(entityId);
 	}
 	return created;
-}
-
-/**
- * Adds a unit under an address. The parent must be a live address in this
- * org; a foreign key alone cannot check that, as every entity type shares
- * org_entity.
- *
- * @returns the unit's entity id, or null when the parent is not a live address
- */
-export async function addUnit(
-	client: PoolClient,
-	orgId: string,
-	addressEntityId: string,
-	fields: UnitFields
-): Promise<string | null> {
-	const parent = await client.query(
-		`SELECT 1 FROM universe.org_address
-		  WHERE entity_id = $1 AND org_id = $2 AND valid_to IS NULL`,
-		[addressEntityId, orgId]
-	);
-	if (parent.rows.length === 0) return null;
-
-	// A unit has no version table for the set_entity_type trigger to fire on,
-	// so the type is stamped here.
-	const entity = await client.query<{ id: string }>(
-		`INSERT INTO universe.org_entity (org_id, type_id)
-		 SELECT $1, id FROM universe.entity_type WHERE slug = 'unit'
-		 RETURNING id`,
-		[orgId]
-	);
-	const entityId = entity.rows[0].id;
-
-	await client.query(
-		`INSERT INTO universe.org_address_unit
-			(entity_id, org_id, address_entity_id, unit_type, unit_identifier, floor)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		[
-			entityId,
-			orgId,
-			addressEntityId,
-			fields.unit_type ?? null,
-			fields.unit_identifier,
-			fields.floor ?? null
-		]
-	);
-
-	return entityId;
-}
-
-/** Soft-deletes a unit. @returns whether a live unit was deleted */
-export async function softDeleteUnit(
-	client: PoolClient,
-	orgId: string,
-	unitEntityId: string,
-	deletedBy: string | null
-): Promise<boolean> {
-	const result = await client.query(
-		`UPDATE universe.org_address_unit SET deleted_at = now(), deleted_by = $3
-		  WHERE entity_id = $1 AND org_id = $2 AND deleted_at IS NULL`,
-		[unitEntityId, orgId, deletedBy]
-	);
-	return (result.rowCount ?? 0) > 0;
-}
-
-export interface UnitRow {
-	entity_id: string;
-	unit_type: string | null;
-	unit_identifier: string;
-	floor: string | null;
-	latitude: number;
-	longitude: number;
-}
-
-/** The live units of an address, each with the address's current coordinates. */
-export async function listUnits(
-	client: PoolClient,
-	orgId: string,
-	addressEntityId: string
-): Promise<UnitRow[]> {
-	const result = await client.query<UnitRow>(
-		`SELECT u.entity_id, u.unit_type, u.unit_identifier, u.floor,
-		        ST_Y(a.coordinates) AS latitude,
-		        ST_X(a.coordinates) AS longitude
-		   FROM universe.org_address_unit u
-		   JOIN universe.org_address a
-		     ON a.entity_id = u.address_entity_id AND a.org_id = $2 AND a.valid_to IS NULL
-		  WHERE u.address_entity_id = $1 AND u.org_id = $2 AND u.deleted_at IS NULL
-		  ORDER BY u.unit_type NULLS FIRST, u.unit_identifier`,
-		[addressEntityId, orgId]
-	);
-	return result.rows;
 }
 
 async function insertRelationship(

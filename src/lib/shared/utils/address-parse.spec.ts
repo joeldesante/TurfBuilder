@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-	buildingText,
+	addressText,
 	dedupeKeys,
 	groupBySharedKey,
 	recoverCase,
@@ -97,18 +97,34 @@ describe('toAddressFields', () => {
 	});
 });
 
-describe('buildingText', () => {
-	it('leaves the unit out, so units in one building share an address', () => {
+describe('addressText', () => {
+	it('keeps the unit, so apartments in one building stay separate addresses', () => {
+		const at = (unit: string) =>
+			addressText(
+				toAddressFields(
+					[
+						{ label: 'house_number', value: '10' },
+						{ label: 'road', value: 'main st' },
+						{ label: 'unit', value: unit }
+					],
+					`10 Main St, ${unit}`,
+					'10 Main St'
+				)
+			);
+		expect(at('Apt 2')).toBe('10 Main St Apt 2');
+		expect(at('Apt 3')).not.toBe(at('Apt 2'));
+	});
+
+	it('is the building alone when there is no unit', () => {
 		const parsed = toAddressFields(
 			[
 				{ label: 'house_number', value: '10' },
-				{ label: 'road', value: 'main st' },
-				{ label: 'unit', value: 'apt 2' }
+				{ label: 'road', value: 'main st' }
 			],
-			'10 Main St, Apt 2',
+			'10 Main St',
 			'10 Main St'
 		);
-		expect(buildingText(parsed)).toBe('10 Main St');
+		expect(addressText(parsed)).toBe('10 Main St');
 	});
 });
 

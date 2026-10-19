@@ -4,10 +4,7 @@ import {
 	insertAddress,
 	createAddressVersion,
 	softDeleteAddress,
-	splitAddress,
-	addUnit,
-	softDeleteUnit,
-	listUnits
+	splitAddress
 } from './addresses.service';
 import type { AddressFields } from '$lib/schemas/address';
 
@@ -16,7 +13,6 @@ const ENTITY = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const OLD_VERSION = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const NEW_VERSION = 'd1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const USER = 'e1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const UNIT = 'f1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
 const fields: AddressFields = {
 	premises_number: '2445',
@@ -62,8 +58,19 @@ describe('insertAddress', () => {
 		const version = find('INSERT INTO universe.org_address')!;
 		expect(version.params.slice(0, 4)).toEqual([ORG, ENTITY, null, '2445']);
 		expect(version.params[12]).toBe('US');
-		expect(version.params.slice(13, 15)).toEqual([-75.18, 39.98]);
-		expect(version.params.slice(15)).toEqual([USER, 'manual']);
+		expect(version.params.slice(13, 16)).toEqual([null, null, null]);
+		expect(version.params.slice(16, 18)).toEqual([-75.18, 39.98]);
+		expect(version.params.slice(18)).toEqual([USER, 'manual']);
+	});
+
+	it('stores a unit as an address of its own', async () => {
+		query
+			.mockResolvedValueOnce({ rows: [{ id: ENTITY }] })
+			.mockResolvedValueOnce({ rows: [{ id: NEW_VERSION }] });
+
+		await insertAddress(client, ORG, { ...fields, unit_type: 'Apt', unit_identifier: '4B', floor: '4' }, USER, 'manual');
+
+		expect(find('INSERT INTO universe.org_address')!.params.slice(13, 16)).toEqual(['Apt', '4B', '4']);
 	});
 });
 
@@ -83,16 +90,14 @@ describe('createAddressVersion', () => {
 });
 
 describe('softDeleteAddress', () => {
-	it('closes the version without a successor and soft-deletes the units', async () => {
+	it('closes the version without a successor', async () => {
 		query.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] });
 
-		const closed = await softDeleteAddress(client, ORG, ENTITY, USER);
+		const closed = await softDeleteAddress(client, ORG, ENTITY);
 
 		expect(closed).toBe(OLD_VERSION);
-		expect(issued().some((q) => q.includes('INSERT'))).toBe(false);
-		const units = find('UPDATE universe.org_address_unit SET deleted_at')!;
-		expect(units.sql).toContain('org_id = $2');
-		expect(units.params).toEqual([ENTITY, ORG, USER]);
+		expect(issued()).toHaveLength(1);
+		expect(find('UPDATE universe.org_address SET valid_to')!.params).toEqual([ENTITY, ORG]);
 	});
 });
 
@@ -100,7 +105,6 @@ describe('splitAddress', () => {
 	it('closes the old address and links each new one back to it', async () => {
 		query
 			.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] }) // close old version
-			.mockResolvedValueOnce({ rows: [] }) // soft-delete units
 			.mockResolvedValueOnce({ rows: [{ id: 'new-a' }] }) // entity
 			.mockResolvedValueOnce({ rows: [{ id: 'ver-a' }] }) // version
 			.mockResolvedValueOnce({ rows: [] }) // relationship
@@ -130,56 +134,5 @@ describe('splitAddress', () => {
 	it('creates nothing when the old address is not live', async () => {
 		expect(await splitAddress(client, ORG, ENTITY, [fields], USER, 'manual')).toBeNull();
 		expect(issued().some((q) => q.includes('INSERT'))).toBe(false);
-	});
-});
-
-describe('addUnit', () => {
-	it('stamps the unit type and stores the unit under the address entity', async () => {
-		query
-			.mockResolvedValueOnce({ rows: [{}] }) // live address
-			.mockResolvedValueOnce({ rows: [{ id: UNIT }] }) // entity
-			.mockResolvedValueOnce({ rows: [] }); // unit row
-
-		const unit = await addUnit(client, ORG, ENTITY, { unit_type: 'Apt', unit_identifier: '4B' });
-
-		expect(unit).toBe(UNIT);
-		expect(find('INSERT INTO universe.org_entity')!.sql).toContain("slug = 'unit'");
-		expect(find('INSERT INTO universe.org_address_unit')!.params).toEqual([
-			UNIT,
-			ORG,
-			ENTITY,
-			'Apt',
-			'4B',
-			null
-		]);
-	});
-
-	it('rejects a parent that is not a live address in the org', async () => {
-		const unit = await addUnit(client, ORG, ENTITY, { unit_identifier: '4B' });
-
-		expect(unit).toBeNull();
-		expect(issued()[0]).toContain('FROM universe.org_address');
-		expect(issued()[0]).toContain('valid_to IS NULL');
-		expect(issued().some((q) => q.includes('INSERT'))).toBe(false);
-	});
-});
-
-describe('softDeleteUnit', () => {
-	it('reports whether a live unit was deleted', async () => {
-		query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-		expect(await softDeleteUnit(client, ORG, UNIT, USER)).toBe(true);
-		expect(await softDeleteUnit(client, ORG, UNIT, USER)).toBe(false);
-	});
-});
-
-describe('listUnits', () => {
-	it("reads coordinates from the address's current version", async () => {
-		await listUnits(client, ORG, ENTITY);
-
-		const sql = issued()[0];
-		expect(sql).toContain('JOIN universe.org_address a');
-		expect(sql).toContain('a.valid_to IS NULL');
-		expect(sql).toContain('u.deleted_at IS NULL');
-		expect(sql).toContain('u.org_id = $2');
 	});
 });

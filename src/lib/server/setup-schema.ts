@@ -1555,30 +1555,28 @@ export const SETUP_STEPS: SetupStep[] = [
 	},
 
 	// -------------------------------------------------------------------------
-	// 41. Addresses and units (expand step)
+	// 41. Addresses (expand step)
 	//
 	// A structured, physical address following the UPU S42 address elements,
 	// without the addressee and without postal delivery services (PO boxes
 	// cannot be canvassed). An address is versioned like a location: a new
 	// version on every change, so a moved pin keeps its history.
 	//
-	// A unit (apartment, suite, floor) belongs to one base address and has no
-	// coordinates of its own: every unit in a building canvasses from the
-	// address's point. Units are entities, so org_relationship can later tie
-	// them to people and businesses, but they are not versioned; a unit that
-	// changes is soft-deleted and replaced. A unit references the address
-	// entity, not a version, so it survives the address being edited.
+	// A unit (apartment, suite, floor) is an address of its own: a complete
+	// row with the unit columns filled in and its own point, as the NENA and
+	// OGC address standards model subaddresses. Nothing ties a unit to its
+	// building's row; units at one building share its street fields and sit at
+	// (or near) its point.
 	//
 	// Locations move onto addresses as contacts (step 42), written by
 	// scripts/backfill-addresses.ts. The contract step that retires
 	// org_location comes later.
 	// -------------------------------------------------------------------------
 	{
-		label: 'Creating addresses and units',
+		label: 'Creating addresses',
 		statements: [
 			`INSERT INTO universe.entity_type (slug, name, description) VALUES
-				('address', 'Address', 'A physical postal address with one point of coordinates'),
-				('unit',    'Unit',    'An apartment, suite, or floor within an address')
+				('address', 'Address', 'A physical postal address, or a unit within one, with one point of coordinates')
 			ON CONFLICT (slug) DO NOTHING`,
 			`INSERT INTO universe.relationship_type (slug, name, inverse_slug, inverse_name, description) VALUES
 				('split_from', 'Split From', 'split_into', 'Split Into', 'An address was created by splitting another address')
@@ -1599,6 +1597,9 @@ export const SETUP_STEPS: SetupStep[] = [
 				region                      TEXT,
 				postcode                    TEXT,
 				country_code                CHAR(2) NOT NULL,
+				unit_type                   TEXT,
+				unit_identifier             TEXT,
+				floor                       TEXT,
 				coordinates                 geometry(point, 4326) NOT NULL,
 				valid_from                  TIMESTAMPTZ NOT NULL DEFAULT now(),
 				valid_to                    TIMESTAMPTZ,
@@ -1615,21 +1616,11 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE TRIGGER set_entity_type
 				BEFORE INSERT ON universe.org_address
 				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('address')`,
-
-			`CREATE TABLE IF NOT EXISTS universe.org_address_unit (
-				entity_id         UUID PRIMARY KEY REFERENCES universe.org_entity(id) ON DELETE CASCADE,
-				org_id            UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				address_entity_id UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
-				unit_type         TEXT,
-				unit_identifier   TEXT NOT NULL,
-				floor             TEXT,
-				created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-				deleted_at        TIMESTAMPTZ,
-				deleted_by        UUID REFERENCES auth.user(id) ON DELETE SET NULL
-			)`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS org_address_unit_live_unique
-				ON universe.org_address_unit (address_entity_id, lower(coalesce(unit_type, '')), lower(unit_identifier))
-				WHERE deleted_at IS NULL`,
+			// A unit type ("Apt") means nothing without the unit it names ("4B").
+			`DO $$ BEGIN
+				ALTER TABLE universe.org_address ADD CONSTRAINT org_address_unit_check
+					CHECK (unit_type IS NULL OR unit_identifier IS NOT NULL);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
 
 			`CREATE INDEX IF NOT EXISTS org_address_org_id_idx         ON universe.org_address (org_id)`,
 			`CREATE INDEX IF NOT EXISTS org_address_entity_id_idx      ON universe.org_address (entity_id)`,
@@ -1645,17 +1636,13 @@ export const SETUP_STEPS: SetupStep[] = [
 					COALESCE(postcode, '')
 				)
 			)`,
-			`CREATE INDEX IF NOT EXISTS org_address_unit_org_id_idx  ON universe.org_address_unit (org_id)`,
-			`CREATE INDEX IF NOT EXISTS org_address_unit_address_idx ON universe.org_address_unit (address_entity_id)`,
 
-			...['universe.org_address', 'universe.org_address_unit'].flatMap((table) => [
-				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
-				`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`,
-				`DROP POLICY IF EXISTS org_isolation ON ${table}`,
-				`CREATE POLICY org_isolation ON ${table}
-					USING (org_id = ${safe})
-					WITH CHECK (org_id = ${safe})`
-			])
+			`ALTER TABLE universe.org_address ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.org_address FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.org_address`,
+			`CREATE POLICY org_isolation ON universe.org_address
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
 		]
 	},
 
@@ -1667,9 +1654,8 @@ export const SETUP_STEPS: SetupStep[] = [
 	// one versioned table, and each kind's metadata shape is a schema in
 	// $lib/shared/contact-types rather than a table of its own.
 	//
-	// A contact points at its address entity, and optionally a unit of it, with
-	// real foreign keys; both are entity ids, so a contact survives the address
-	// being edited.
+	// A contact points at one address entity (which may be a unit); it is an
+	// entity id, so a contact survives the address being edited.
 	//
 	// While locations are migrated, a contact reuses its location's entity id:
 	// the location becomes the contact, so lists, turfs, attempts, and
@@ -1680,17 +1666,15 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Creating contacts',
 		statements: [
-			// The address and unit keys are plain (NO ACTION) rather than RESTRICT:
-			// an address cannot be removed under a contact, but NO ACTION is checked
-			// at the end of the statement, so deleting an organization still
-			// cascades through both.
+			// The address key is plain (NO ACTION) rather than RESTRICT: an address
+			// cannot be removed under a contact, but NO ACTION is checked at the end
+			// of the statement, so deleting an organization still cascades.
 			`CREATE TABLE IF NOT EXISTS universe.org_contact (
 				id                UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 				org_id            UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
 				entity_id         UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
 				type              TEXT NOT NULL,
 				address_entity_id UUID NOT NULL REFERENCES universe.org_entity(id),
-				unit_entity_id    UUID REFERENCES universe.org_address_unit(entity_id),
 				metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
 				photo_keys        TEXT[] NOT NULL DEFAULT '{}',
 				valid_from        TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -1714,7 +1698,6 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE INDEX IF NOT EXISTS org_contact_org_id_idx   ON universe.org_contact (org_id)`,
 			`CREATE INDEX IF NOT EXISTS org_contact_entity_idx   ON universe.org_contact (entity_id)`,
 			`CREATE INDEX IF NOT EXISTS org_contact_address_idx  ON universe.org_contact (address_entity_id)`,
-			`CREATE INDEX IF NOT EXISTS org_contact_unit_idx     ON universe.org_contact (unit_entity_id) WHERE unit_entity_id IS NOT NULL`,
 			`CREATE INDEX IF NOT EXISTS org_contact_type_idx     ON universe.org_contact (org_id, type) WHERE valid_to IS NULL`,
 			`CREATE INDEX IF NOT EXISTS org_contact_metadata_idx ON universe.org_contact USING GIN (metadata jsonb_path_ops)`,
 

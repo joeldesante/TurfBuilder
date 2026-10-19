@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AddressFieldsSchema, UnitFieldsSchema } from './address';
+import { AddressFieldsSchema } from './address';
 
 const valid = {
 	premises_number: '2445',
@@ -34,12 +34,12 @@ describe('AddressFieldsSchema', () => {
 		expect(AddressFieldsSchema.safeParse({ ...valid, country_code: 'us' }).success).toBe(false);
 		expect(AddressFieldsSchema.safeParse({ ...valid, country_code: 'USA' }).success).toBe(false);
 	});
-});
 
-describe('UnitFieldsSchema', () => {
-	it('requires an identifier and allows the type and floor to be missing', () => {
-		expect(UnitFieldsSchema.safeParse({ unit_identifier: '4B' }).success).toBe(true);
-		expect(UnitFieldsSchema.safeParse({ unit_type: 'Apt' }).success).toBe(false);
-		expect(UnitFieldsSchema.safeParse({ unit_identifier: '   ' }).success).toBe(false);
+	it('accepts a unit, and rejects a unit type without the unit it names', () => {
+		expect(
+			AddressFieldsSchema.safeParse({ ...valid, unit_type: 'Apt', unit_identifier: '4B', floor: '4' }).success
+		).toBe(true);
+		expect(AddressFieldsSchema.safeParse({ ...valid, unit_identifier: '4B' }).success).toBe(true);
+		expect(AddressFieldsSchema.safeParse({ ...valid, unit_type: 'Apt' }).success).toBe(false);
 	});
 });

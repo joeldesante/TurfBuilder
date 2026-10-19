@@ -136,17 +136,19 @@ export function toAddressFields(
 }
 
 /**
- * The building-level text libpostal should expand to compare addresses: the
- * premises and the thoroughfare, without the unit, so units in one building
- * share an address.
+ * The text libpostal should expand to compare addresses: the premises, the
+ * thoroughfare, and the unit. A unit is an address of its own, so two
+ * apartments in one building stay two addresses.
  */
-export function buildingText(parsed: ParsedAddress): string {
+export function addressText(parsed: ParsedAddress): string {
 	return [
 		parsed.premises_number ?? parsed.premises_name,
 		parsed.thoroughfare_pre_qualifier,
 		parsed.thoroughfare_name,
 		parsed.thoroughfare_type,
-		parsed.thoroughfare_post_qualifier
+		parsed.thoroughfare_post_qualifier,
+		parsed.unit?.unit_type,
+		parsed.unit?.unit_identifier
 	]
 		.filter(Boolean)
 		.join(' ');
@@ -154,7 +156,7 @@ export function buildingText(parsed: ParsedAddress): string {
 
 /**
  * Keys under which an address can match another. Each libpostal expansion of
- * the building text ("2445 harlan street", ...) is scoped by postcode (or
+ * the address text ("2445 harlan street", ...) is scoped by postcode (or
  * locality) and country, so the same street in two towns never merges.
  */
 export function dedupeKeys(
