@@ -32,7 +32,7 @@
 		entries: [
 			{ record_id: 'a', record_source: 'org_person', entity_id: 'ent-a', first_name: 'Alice', last_name: 'Nguyen', email: 'alice@example.com', phone: '555-1234' },
 			{ record_id: 'b', record_source: 'org_person', entity_id: 'ent-b', first_name: 'Bob', last_name: 'Smith', email: null, phone: '555-5678' },
-			{ record_id: 'c', record_source: 'public_person', entity_id: 'ent-c', first_name: 'Carol', last_name: 'Lee', email: 'carol@example.com', phone: null }
+			{ record_id: 'c', record_source: 'org_person', entity_id: 'ent-c', first_name: 'Carol', last_name: 'Lee', email: 'carol@example.com', phone: null }
 		],
 		turfs: []
 	}}

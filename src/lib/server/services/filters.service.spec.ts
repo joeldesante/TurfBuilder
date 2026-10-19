@@ -148,10 +148,9 @@ describe('canvassing filters', () => {
 		expect(flat(query.sql)).toContain(
 			'EXISTS (SELECT tla.contact_made FROM universe.turf_location_attempt tla' +
 				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $1::uuid' +
-				' LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id' +
-				' LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $1::uuid' +
+				' JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $1::uuid' +
 				' WHERE tla.org_id = $1::uuid' +
-				' AND COALESCE(tpl.entity_id, tol.entity_id) = vl.entity_id AND tla.contact_made = $2)'
+				' AND tol.entity_id = vl.entity_id AND tla.contact_made = $2)'
 		);
 		expect(query.params).toEqual([ORG, true]);
 	});
@@ -239,8 +238,6 @@ describe('canvassing filters', () => {
 		for (const alias of ['tla', 'tl', 'tol', 'tt', 'tli']) {
 			expect(sql).toContain(`${alias}.org_id = $1::uuid`);
 		}
-		// Public locations are shared by every organization.
-		expect(sql).not.toContain('tpl.org_id');
 	});
 
 	it('registers the organization again after the branch that first used it is discarded', () => {
@@ -346,11 +343,10 @@ describe('survey response filters', () => {
 				' JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = $2::uuid' +
 				' JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = $2::uuid' +
 				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $2::uuid' +
-				' LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id' +
-				' LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $2::uuid' +
+				' JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $2::uuid' +
 				' WHERE sqr.org_id = $2::uuid' +
 				' AND sqr.survey_question_id = $3::uuid' +
-				' AND COALESCE(tpl.entity_id, tol.entity_id) = vl.entity_id AND '
+				' AND tol.entity_id = vl.entity_id AND '
 		);
 		expect(query.params).toEqual(['Yes', ORG, Q]);
 	});
@@ -427,7 +423,6 @@ describe('survey response filters', () => {
 		for (const alias of ['sqr', 'sq', 'tla', 'tl', 'tol']) {
 			expect(sql).toContain(`${alias}.org_id = $2::uuid`);
 		}
-		expect(sql).not.toContain('tpl.org_id');
 		expect(query.params[1]).toBe(ORG);
 	});
 

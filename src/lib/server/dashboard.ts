@@ -77,13 +77,12 @@ function scopeSql(
 			SELECT DISTINCT ON (entity_id) * FROM (${sql}) s
 		),
 		attempts AS (
-			SELECT COALESCE(pl.entity_id, ol.entity_id) AS entity_id, a.contact_made, a.created_at
+			SELECT ol.entity_id, a.contact_made, a.created_at
 			FROM universe.turf_location_attempt a
 			JOIN universe.turf_location tl ON tl.id = a.turf_location_id AND tl.org_id = ${org}
 			JOIN universe.turf t ON t.id = tl.turf_id AND t.org_id = ${org}
 			JOIN universe.list l ON l.id = t.list_id AND l.org_id = ${org}
-			LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
-			LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id AND ol.org_id = ${org}
+			JOIN universe.org_location ol ON ol.id = tl.org_location_id AND ol.org_id = ${org}
 			WHERE a.org_id = ${org}
 				AND (${bucketId}::uuid IS NULL OR l.bucket = ${bucketId}::uuid)
 				AND (${since}::interval IS NULL OR a.created_at > now() - ${since}::interval)

@@ -20,7 +20,6 @@
 		email: string | null;
 		gender: string | null;
 		valid_to: string | null;
-		source: 'public' | 'org';
 	}
 
 	// ---------------------------------------------------------------------------
@@ -39,7 +38,6 @@
 		postal_code: string | null;
 		country_code: string | null;
 		valid_to: string | null;
-		source: 'public' | 'org';
 	}
 
 	interface Props {
@@ -107,11 +105,7 @@
 						},
 						{ label: 'Phone', value: p.phone },
 						{ label: 'Email', value: p.email },
-						{ label: 'Gender', value: p.gender },
-						{
-							label: 'Data Source',
-							value: p.source === 'public' ? 'Public record' : 'Organization record'
-						}
+						{ label: 'Gender', value: p.gender }
 					].filter((f) => f.value != null && f.value !== '') as Field[];
 				})()
 			: (() => {
@@ -124,11 +118,7 @@
 						{ label: 'City', value: l.city },
 						{ label: 'State / Region', value: l.state_or_region },
 						{ label: 'Postal Code', value: l.postal_code },
-						{ label: 'Country', value: l.country_code },
-						{
-							label: 'Data Source',
-							value: l.source === 'public' ? 'Public record' : 'Organization record'
-						}
+						{ label: 'Country', value: l.country_code }
 					].filter((f) => f.value != null && f.value !== '') as Field[];
 				})()
 	);

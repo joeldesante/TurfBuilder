@@ -15,6 +15,7 @@ TB-194: Fix CI and run tests on pull requests before merging
 ```
 
 - Open an issue first if there isn't one. Branches are named `<number>-<slug>`, e.g. `194-fix-ci-tests-on-prs`
+- Always branch from `staging` and open pull requests into `staging`, never from or into `main`. `staging` is the integration branch; `main` only receives staging when releasing. Update first: `git fetch origin && git switch -c <number>-<slug> origin/staging`
 - No other prefixes (`feat:`, `fix:`, ...)
 - Enforced locally by `.githooks/commit-msg` (`npm install` sets `core.hooksPath` to `.githooks`) and on pull requests by the required "Commit Format" check (`.github/workflows/commit-format.yml`). Merge commits are exempt
 

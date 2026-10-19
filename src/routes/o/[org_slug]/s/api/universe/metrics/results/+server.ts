@@ -82,15 +82,12 @@ export async function GET({ locals, url }) {
 
 			const result = await client.query<ResponseRow>(
 				`SELECT
-					CASE
-						WHEN tl.public_location_id IS NOT NULL THEN 'public:' || tl.public_location_id
-						ELSE 'org:' || tl.org_location_id
-					END AS location_key,
-					COALESCE(pl.name, ol.name) AS name,
-					COALESCE(pl.address_line_1, ol.address_line_1) AS address_line_1,
-					COALESCE(pl.city, ol.city) AS city,
-					ST_Y(COALESCE(pl.coordinates, ol.coordinates)) AS latitude,
-					ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
+					'org:' || tl.org_location_id AS location_key,
+					ol.name AS name,
+					ol.address_line_1 AS address_line_1,
+					ol.city AS city,
+					ST_Y(ol.coordinates) AS latitude,
+					ST_X(ol.coordinates) AS longitude,
 					sq.id AS question_id,
 					sq.question_text,
 					sq.question_type,
@@ -106,8 +103,7 @@ export async function GET({ locals, url }) {
 				JOIN universe.survey_question_response sqr ON sqr.turf_location_attempt_id = tla.id
 				JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id
 				LEFT JOIN auth."user" u ON u.id = tla.user_id
-				LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
-				LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
+				JOIN universe.org_location ol ON ol.id = tl.org_location_id
 				WHERE t.org_id = $1
 					AND l.bucket = $2
 					AND t.survey_id = $3

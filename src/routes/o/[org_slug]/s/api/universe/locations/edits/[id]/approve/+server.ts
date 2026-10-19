@@ -7,12 +7,10 @@ import { findPendingProposal, applyApprovedProposal } from '$lib/server/location
  * Accepts a canvasser's correction into the official dataset.
  *
  * The correction becomes a new version of the location, so the values it
- * replaces stay recoverable. Where the door came from the shared public pool,
- * which no organization may write to, this forks an org-private copy instead
- * and repoints the turf assignments onto it.
+ * replaces stay recoverable.
  *
  * @auth location.update
- * @returns { entity_id, forked }
+ * @returns { entity_id }
  */
 export async function POST({ params, locals }) {
 	if (!can(locals.organization, 'location', 'update')) {
@@ -40,6 +38,6 @@ export async function POST({ params, locals }) {
 			[reviewerId, params.id, orgId]
 		);
 
-		return json({ entity_id: applied.entityId, forked: applied.forked });
+		return json({ entity_id: applied.entityId });
 	});
 }

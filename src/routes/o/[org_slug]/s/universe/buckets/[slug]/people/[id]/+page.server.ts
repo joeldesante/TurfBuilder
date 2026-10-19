@@ -6,24 +6,6 @@ export async function load({ params, locals }) {
 	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await client.query<PersonProfile>(
 			`SELECT
-				pp.id,
-				pp.first_name,
-				pp.middle_name,
-				pp.last_name,
-				pp.suffix,
-				pp.preferred_name,
-				pp.dob,
-				pp.phone,
-				pp.email,
-				pp.gender,
-				'public'::text AS source
-			FROM universe.public_person pp
-			WHERE pp.id = $1
-			  AND pp.valid_to IS NULL
-
-			UNION ALL
-
-			SELECT
 				op.id,
 				op.first_name,
 				op.middle_name,
@@ -33,14 +15,11 @@ export async function load({ params, locals }) {
 				op.dob,
 				op.phone,
 				op.email,
-				op.gender,
-				'org'::text AS source
+				op.gender
 			FROM universe.org_person op
 			WHERE op.id = $1
 			  AND op.org_id = $2
-			  AND op.valid_to IS NULL
-
-			LIMIT 1`,
+			  AND op.valid_to IS NULL`,
 			[params.id, locals.organization!.id]
 		);
 

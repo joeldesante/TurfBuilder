@@ -22,8 +22,7 @@
 			city: 'Springfield',
 			state_or_region: 'IL',
 			postal_code: '62701',
-			country_code: 'US',
-			source: 'public'
+			country_code: 'US'
 		}
 	}}
 />
@@ -41,8 +40,7 @@
 			city: 'Springfield',
 			state_or_region: 'IL',
 			postal_code: '62702',
-			country_code: 'US',
-			source: 'org'
+			country_code: 'US'
 		}
 	}}
 />
