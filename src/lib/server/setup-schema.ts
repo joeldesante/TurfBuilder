@@ -1626,6 +1626,10 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE INDEX IF NOT EXISTS org_address_entity_id_idx      ON universe.org_address (entity_id)`,
 			`CREATE INDEX IF NOT EXISTS org_address_entity_current_idx ON universe.org_address (entity_id) WHERE valid_to IS NULL`,
 			`CREATE INDEX IF NOT EXISTS org_address_coordinates_idx    ON universe.org_address USING GIST (coordinates)`,
+			// Radius searches measure in metres with ST_DWithin on coordinates::geography.
+			// A condition on a cast cannot use the geometry index above, so the cast has
+			// its own index; without it every radius query reads the whole table.
+			`CREATE INDEX IF NOT EXISTS org_address_geography_idx      ON universe.org_address USING GIST ((coordinates::geography))`,
 			`CREATE INDEX IF NOT EXISTS org_address_postcode_idx       ON universe.org_address (org_id, postcode)`,
 			`CREATE INDEX IF NOT EXISTS org_address_fts_idx            ON universe.org_address USING GIN (
 				to_tsvector('simple',
