@@ -18,9 +18,26 @@
 
 	const byKey = $derived(Object.fromEntries(tables.map((t) => [t.key, t])));
 
-	/** Foreign keys to or from the focused table. */
+	const fkById = $derived(new Map(fks.map((f) => [f.id, f])));
+
+	/** A key plus the keys that complete its bridge through org_entity. */
+	const withBridge = (f: GraphFk) => [f, ...(f.alsoLights ?? []).flatMap((id) => fkById.get(id) ?? [])];
+
+	/**
+	 * Foreign keys to or from the focused table, and the keys that bridge them,
+	 * so focusing a contact also shows the address's own link to org_entity.
+	 */
 	const focusFks = $derived(
-		focused ? fks.filter((f) => f.from === focused || f.to === focused) : []
+		focused
+			? [
+					...new Map(
+						fks
+							.filter((f) => f.from === focused || f.to === focused)
+							.flatMap(withBridge)
+							.map((f) => [f.id, f])
+					).values()
+				]
+			: []
 	);
 	const neighborhood = $derived(
 		new Set(focused ? [focused, ...focusFks.flatMap((f) => [f.from, f.to])] : [])
@@ -51,7 +68,7 @@
 		for (const f of fks) {
 			for (const col of f.cols) {
 				const key = `${f.from}.${col}`;
-				map.set(key, [...(map.get(key) ?? []), f.id]);
+				map.set(key, [...(map.get(key) ?? []), f.id, ...(f.alsoLights ?? [])]);
 			}
 		}
 		return map;
@@ -85,11 +102,7 @@
 
 					if (f.from === f.to) {
 						const x = a.x + NODE_W;
-						return {
-							id: f.id,
-							inferred: f.inferred,
-							d: `M${x},${y1} C${x + 70},${y1} ${x + 70},${y2} ${x},${y2}`
-						};
+						return { id: f.id, d: `M${x},${y1} C${x + 70},${y1} ${x + 70},${y2} ${x},${y2}` };
 					}
 
 					const leftOfTarget = a.x + NODE_W / 2 < b.x + NODE_W / 2;
@@ -98,7 +111,6 @@
 					const bend = leftOfTarget ? 60 : -60;
 					return {
 						id: f.id,
-						inferred: f.inferred,
 						d: `M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`
 					};
 				})
@@ -219,11 +231,6 @@
 <div class="wrap">
 	{#if error}<p class="error">{error}</p>{/if}
 	<div class="tools">
-		{#if fks.some((f) => f.inferred)}
-			<span class="legend" title="Drawn from a column like address_entity_id, which the database only links to org_entity">
-				dashed = by entity id
-			</span>
-		{/if}
 		<button onclick={fit}>fit</button>
 		{#if focused && !isolated}<button onclick={isolate}>isolate</button>{/if}
 		{#if isolated}<button onclick={leave}>show all</button>{/if}
@@ -253,7 +260,6 @@
 				<path
 					d={e.d}
 					class="edge"
-					class:inferred={e.inferred}
 					class:on={litFks.has(e.id)}
 					class:dim={anySelected && !litFks.has(e.id)}
 				/>
@@ -334,14 +340,6 @@
 		stroke-width: 1;
 		vector-effect: non-scaling-stroke;
 		opacity: 0.7;
-	}
-	.edge.inferred {
-		stroke-dasharray: 5 4;
-	}
-	.legend {
-		font-size: 12px;
-		color: var(--faint);
-		align-self: center;
 	}
 	.edge.dim {
 		opacity: 0.06;

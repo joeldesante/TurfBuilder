@@ -8,43 +8,28 @@ const PAGE_SIZE = 50;
 const quote = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
 /**
- * Entity references are foreign keys to the shared org_entity table, so the
- * schema alone shows no line from, say, a contact to its address. A column
- * named `<kind>_entity_id` that references org_entity really points at the
- * entity whose versions live in `org_<kind>` (address_entity_id ->
- * org_address.entity_id), so those are drawn as inferred edges. The inferred
- * edge needs both tables to exist; columns with no matching table (such as
- * from_org_entity_id) are left alone. Ids are negative so they cannot collide
- * with constraint ids.
+ * Entity references all go through the shared org_entity table, so a contact's
+ * `address_entity_id` and an address's `entity_id` meet at org_entity rather
+ * than at each other. A column named `<kind>_entity_id` that references
+ * org_entity is the entity whose versions live in `org_<kind>`, so its
+ * foreign key is tagged with `alsoLights`: the id of that table's own
+ * `entity_id` foreign key. The viewer lights both together, which shows the
+ * two tables bridged by org_entity. Columns with no matching table (such as
+ * from_org_entity_id) are left alone.
  */
-function inferEntityLinks(
-	tables: Map<string, { columns: { name: string }[] }>,
-	fks: { from: string; to: string; cols: string[] }[]
-) {
-	const inferred: {
-		id: number;
-		from: string;
-		to: string;
-		cols: string[];
-		refCols: string[];
-		inferred: true;
-	}[] = [];
+function linkEntityBridges<
+	F extends { id: number; from: string; to: string; cols: string[]; alsoLights?: number[] }
+>(tables: Map<string, { columns: { name: string }[] }>, fks: F[]): F[] {
 	for (const f of fks) {
 		if (!f.to.endsWith('.org_entity') || f.cols.length !== 1) continue;
 		const match = /^(.+)_entity_id$/.exec(f.cols[0]);
 		if (!match) continue;
 		const target = `${f.to.slice(0, f.to.indexOf('.'))}.org_${match[1]}`;
-		if (!tables.get(target)?.columns.some((c) => c.name === 'entity_id')) continue;
-		inferred.push({
-			id: -(inferred.length + 1),
-			from: f.from,
-			to: target,
-			cols: f.cols,
-			refCols: ['entity_id'],
-			inferred: true
-		});
+		if (!tables.has(target)) continue;
+		const sibling = fks.find((g) => g.from === target && g.to === f.to && g.cols[0] === 'entity_id');
+		if (sibling) f.alsoLights = [sibling.id];
 	}
-	return inferred;
+	return fks;
 }
 
 function createPool(): Pool {
@@ -309,7 +294,7 @@ export function dbApi(): Plugin {
 							}));
 						return send(res, 200, {
 							tables: [...tables.values()],
-							fks: [...fks, ...inferEntityLinks(tables, fks)]
+							fks: linkEntityBridges(tables, fks)
 						});
 					}
 
