@@ -29,7 +29,8 @@
     "docs:dev": "npm run docs && vitepress dev docs",
     "docs:build": "npm run docs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "deploy:functions": "doctl serverless deploy cloud-functions --verbose-build --remote-build"
+    "deploy:functions": "doctl serverless deploy cloud-functions --verbose-build --remote-build",
+    "db:browse": "vite --config tools/db-browser/vite.config.ts"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.3",
