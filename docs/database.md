@@ -51,6 +51,8 @@ erDiagram
     org_entity ||--o{ org_location : ""
     org_entity ||--o{ org_address : ""
     org_entity ||--o| org_address_unit : ""
+    org_entity ||--o{ org_contact : ""
+    org_address_unit |o--o{ org_contact : ""
     organization_type |o--o{ org_organization : ""
 
     %% universe: relationships and tags
@@ -279,7 +281,9 @@ erDiagram
 
 People, organizations, and locations. Each entity is a row in `org_entity`, private to one org, and its data lives in version rows. Nothing is shared between orgs. An edit closes the current version (`valid_to = now()`) and inserts a new one; the current version is the one with `valid_to IS NULL`. A trigger stamps the entity's `type_id` from the first version inserted and rejects versions of a different type.
 
-Addresses follow the UPU S42 address elements for physical places (no addressee, no PO boxes). An address is versioned like the other entities, with one point of coordinates. A unit (apartment, suite, floor) is an entity with a single unversioned row in `org_address_unit`: it points at its address entity, not a version, so it survives address edits and is canvassed from the address's current point. A unit is soft-deleted with `deleted_at`. Locations link to an address, or a unit, through a `located_at` relationship (written by `scripts/backfill-addresses.ts`), and an address split off another keeps a `split_from` relationship to it. Locations still carry their own address columns until a later contract step removes them.
+Addresses follow the UPU S42 address elements for physical places (no addressee, no PO boxes). An address is versioned like the other entities, with one point of coordinates. A unit (apartment, suite, floor) is an entity with a single unversioned row in `org_address_unit`: it points at its address entity, not a version, so it survives address edits and is canvassed from the address's current point. A unit is soft-deleted with `deleted_at`. An address split off another keeps a `split_from` relationship to it.
+
+A contact is anything canvassed at an address: a business today, a resident later. The kinds share one versioned table, `org_contact`, and differ only in `metadata`, whose shape each kind declares in `$lib/shared/contact-types` (the database only checks that it is a JSON object). A contact points at its address entity, and optionally one of its units, with foreign keys. Existing locations are being moved onto contacts (`scripts/backfill-addresses.ts`): each contact reuses its location's entity id, so the contract step can repoint lists and turfs by entity. Until then the app still reads `org_location`.
 
 Two views read current versions only: `v_people` (`org_person`) and `v_locations` (`org_location`, hiding tentative location suggestions). Both are filtered by `app.current_org_id`.
 
@@ -404,6 +408,21 @@ erDiagram
         timestamptz deleted_at "null = live"
         uuid deleted_by FK "auth_user"
     }
+    org_contact {
+        uuid id PK "version"
+        uuid org_id FK
+        uuid entity_id FK "one current version"
+        text type "slug in contact-types"
+        uuid address_entity_id FK "org_entity, type address"
+        uuid unit_entity_id FK "org_address_unit, optional"
+        jsonb metadata "shape set by type"
+        text[] photo_keys
+        timestamptz valid_from
+        timestamptz valid_to "null = current"
+        uuid authored_by FK "auth_user"
+        text source
+        timestamptz created_at
+    }
     org_relationship {
         uuid id PK
         uuid org_id FK
@@ -441,6 +460,8 @@ erDiagram
     org_entity ||--o{ org_address : "versions"
     org_entity ||--o| org_address_unit : "unit row"
     org_entity ||--o{ org_address_unit : "units of address"
+    org_entity ||--o{ org_contact : "versions; address"
+    org_address_unit |o--o{ org_contact : "unit"
     organization_type |o--o{ org_organization : "types"
     relationship_type ||--o{ org_relationship : "types"
     org_entity |o--o{ org_relationship : "from / to"

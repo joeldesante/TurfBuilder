@@ -1,18 +1,25 @@
 #!/usr/bin/env tsx
 /**
- * Links every location to a structured address (expand step of the address
- * migration, see step 41 in src/lib/server/setup-schema.ts).
+ * Moves locations onto structured addresses as contacts (expand step of the
+ * address migration, see steps 41 and 42 in src/lib/server/setup-schema.ts).
  *
- * For each current location that has no located_at relationship yet, the
- * address text is parsed into S42 fields with libpostal, spelling variants of
- * one building are merged into a single address, a unit is added when the
- * location has one, and the location is linked to the unit or the address.
- * Locations already linked are left alone, so the script can be rerun (it is
- * rerun right before the contract step) and new locations join the addresses
- * that already exist.
+ * Every current location without a contact becomes a 'business' contact that
+ * reuses the location's entity id, keeps its photos, and takes its name (an
+ * empty string when it has none). The address comes from one of two places:
  *
- * libpostal runs as an HTTP service, not inside the app:
- *   docker run -d -p 4400:4400 pelias/libpostal-service
+ *   - A location an earlier run of this script already matched to an address
+ *     (a located_at relationship) is converted in one set-based statement;
+ *     those relationship rows are then removed. No libpostal needed.
+ *   - Any other location's address text is parsed into S42 fields with
+ *     libpostal, spelling variants of one building are merged into a single
+ *     address, and a unit is added when the location has one.
+ *
+ * Locations that already have a contact are left alone, so the script can be
+ * rerun (it is rerun right before the contract step).
+ *
+ * libpostal is only contacted when a location needs parsing. It runs as an
+ * HTTP service and holds about 2 GB in memory, so cap it:
+ *   docker run -d --name libpostal --memory 3g -p 4400:4400 pelias/libpostal-service
  *
  * Usage:
  *   tsx scripts/backfill-addresses.ts           # dry run: report, write nothing
@@ -23,11 +30,8 @@
 
 import pg from 'pg';
 import dotenv from 'dotenv';
-import {
-	addUnit,
-	insertAddress,
-	linkLocation
-} from '../src/lib/server/services/addresses.service.ts';
+import { addUnit, insertAddress } from '$lib/server/services/addresses.service';
+import { insertContact } from '$lib/server/services/contacts.service';
 import {
 	buildingText,
 	dedupeKeys,
@@ -35,13 +39,14 @@ import {
 	toAddressFields,
 	type ParsedAddress,
 	type ParsedComponent
-} from '../src/lib/shared/utils/address-parse.ts';
+} from '$lib/shared/utils/address-parse';
 
 dotenv.config();
 
 const APPLY = process.argv.includes('--apply');
 const LIBPOSTAL_URL = (process.env.LIBPOSTAL_URL ?? 'http://localhost:4400').replace(/\/$/, '');
 const SOURCE = 'backfill';
+const CONTACT_TYPE = 'business';
 
 async function libpostal<T>(endpoint: 'parse' | 'expand', address: string): Promise<T> {
 	const res = await fetch(`${LIBPOSTAL_URL}/${endpoint}?address=${encodeURIComponent(address)}`);
@@ -51,6 +56,8 @@ async function libpostal<T>(endpoint: 'parse' | 'expand', address: string): Prom
 
 interface LocationRow {
 	entity_id: string;
+	name: string | null;
+	photo_keys: string[];
 	address_line_1: string | null;
 	address_line_2: string | null;
 	address_line_3: string | null;
@@ -75,54 +82,95 @@ interface ExistingAddressRow {
 	country_code: string;
 }
 
-/** A location to link, or an address that already exists and can be matched. */
+/** A location to move, or an address that already exists and can be matched. */
 type Item =
 	| { kind: 'location'; row: LocationRow; text: string; parsed: ParsedAddress; keys: string[] }
 	| { kind: 'address'; entityId: string; text: string; keys: string[] };
 
 interface Report {
 	org: string;
-	considered: number;
+	converted: number;
+	relationshipsRemoved: number;
+	parsed: number;
 	skipped: string[];
 	needsReview: string[];
 	addressesCreated: number;
 	addressesMatched: number;
 	unitsCreated: number;
-	linked: number;
 	merged: string[][];
+}
+
+/**
+ * Converts locations an earlier run linked with located_at into contacts, in
+ * one statement, then removes those links. A link to a unit gives the
+ * contact that unit and the unit's address.
+ */
+async function convertLinkedLocations(client: pg.PoolClient, orgId: string, report: Report) {
+	const converted = await client.query(
+		`INSERT INTO universe.org_contact
+			(org_id, entity_id, type, address_entity_id, unit_entity_id, metadata, photo_keys, source)
+		 SELECT ol.org_id, ol.entity_id, $2,
+		        COALESCE(u.address_entity_id, r.to_org_entity_id),
+		        u.entity_id,
+		        jsonb_build_object('name', COALESCE(ol.name, '')),
+		        ol.photo_keys, $3
+		   FROM universe.org_location ol
+		   JOIN universe.org_relationship r
+		     ON r.from_org_entity_id = ol.entity_id AND r.org_id = $1 AND r.valid_to IS NULL
+		   JOIN universe.relationship_type rt ON rt.id = r.relationship_type_id AND rt.slug = 'located_at'
+		   LEFT JOIN universe.org_address_unit u ON u.entity_id = r.to_org_entity_id AND u.org_id = $1
+		  WHERE ol.org_id = $1 AND ol.valid_to IS NULL
+		    AND NOT EXISTS (
+		      SELECT 1 FROM universe.org_contact c
+		       WHERE c.entity_id = ol.entity_id AND c.org_id = $1 AND c.valid_to IS NULL
+		    )`,
+		[orgId, CONTACT_TYPE, SOURCE]
+	);
+	report.converted = converted.rowCount ?? 0;
+
+	// The links were only ever written by this script; contacts replace them.
+	const removed = await client.query(
+		`DELETE FROM universe.org_relationship r
+		  USING universe.relationship_type rt
+		  WHERE rt.id = r.relationship_type_id AND rt.slug = 'located_at'
+		    AND r.org_id = $1 AND r.source = $2`,
+		[orgId, SOURCE]
+	);
+	report.relationshipsRemoved = removed.rowCount ?? 0;
 }
 
 async function backfillOrg(client: pg.PoolClient, orgId: string, orgName: string): Promise<Report> {
 	const report: Report = {
 		org: orgName,
-		considered: 0,
+		converted: 0,
+		relationshipsRemoved: 0,
+		parsed: 0,
 		skipped: [],
 		needsReview: [],
 		addressesCreated: 0,
 		addressesMatched: 0,
 		unitsCreated: 0,
-		linked: 0,
 		merged: []
 	};
 
+	await convertLinkedLocations(client, orgId, report);
+
 	const locations = await client.query<LocationRow>(
-		`SELECT ol.entity_id, ol.address_line_1, ol.address_line_2, ol.address_line_3,
+		`SELECT ol.entity_id, ol.name, ol.photo_keys,
+		        ol.address_line_1, ol.address_line_2, ol.address_line_3,
 		        ol.city, ol.state_or_region, ol.postal_code, ol.country_code,
 		        ST_Y(ol.coordinates) AS latitude, ST_X(ol.coordinates) AS longitude
 		   FROM universe.org_location ol
 		  WHERE ol.org_id = $1 AND ol.valid_to IS NULL
 		    AND NOT EXISTS (
-		      SELECT 1 FROM universe.org_relationship r
-		        JOIN universe.relationship_type rt ON rt.id = r.relationship_type_id
-		       WHERE rt.slug = 'located_at'
-		         AND r.org_id = $1
-		         AND r.from_org_entity_id = ol.entity_id
-		         AND r.valid_to IS NULL
+		      SELECT 1 FROM universe.org_contact c
+		       WHERE c.entity_id = ol.entity_id AND c.org_id = $1 AND c.valid_to IS NULL
 		    )
 		  ORDER BY ol.valid_from, ol.id`,
 		[orgId]
 	);
-	report.considered = locations.rows.length;
+	report.parsed = locations.rows.length;
+	// Nothing left to parse, so libpostal is never contacted.
 	if (locations.rows.length === 0) return report;
 
 	const items: Item[] = [];
@@ -233,12 +281,23 @@ async function backfillOrg(client: pg.PoolClient, orgId: string, orgName: string
 		if (group.length > 1) report.merged.push(group.map((item) => item.text));
 
 		for (const member of members) {
-			let target = addressEntityId;
-			if (member.parsed.unit) {
-				target = await findOrAddUnit(client, orgId, addressEntityId, member.parsed, report);
-			}
-			await linkLocation(client, orgId, member.row.entity_id, target, null, SOURCE);
-			report.linked++;
+			const unitEntityId = member.parsed.unit
+				? await findOrAddUnit(client, orgId, addressEntityId, member.parsed, report)
+				: null;
+			await insertContact(
+				client,
+				orgId,
+				{
+					type: CONTACT_TYPE,
+					addressEntityId,
+					unitEntityId,
+					metadata: { name: member.row.name ?? '' },
+					photoKeys: member.row.photo_keys
+				},
+				null,
+				SOURCE,
+				member.row.entity_id
+			);
 		}
 	}
 
@@ -275,12 +334,13 @@ async function findOrAddUnit(
 
 function print(report: Report) {
 	console.log(`\n${report.org}`);
-	console.log(`  locations to link:  ${report.considered}`);
-	console.log(`  linked:             ${report.linked}`);
-	console.log(`  addresses created:  ${report.addressesCreated}`);
-	console.log(`  existing matched:   ${report.addressesMatched}`);
-	console.log(`  units created:      ${report.unitsCreated}`);
-	console.log(`  skipped:            ${report.skipped.length}`);
+	console.log(`  converted from earlier links: ${report.converted}`);
+	console.log(`  earlier links removed:        ${report.relationshipsRemoved}`);
+	console.log(`  parsed with libpostal:        ${report.parsed}`);
+	console.log(`  addresses created:            ${report.addressesCreated}`);
+	console.log(`  existing addresses matched:   ${report.addressesMatched}`);
+	console.log(`  units created:                ${report.unitsCreated}`);
+	console.log(`  skipped:                      ${report.skipped.length}`);
 	for (const line of report.skipped) console.log(`    ${line}`);
 	console.log(`  needs review (no building number or name found): ${report.needsReview.length}`);
 	for (const line of report.needsReview) console.log(`    ${line}`);
@@ -289,7 +349,7 @@ function print(report: Report) {
 }
 
 async function main() {
-	const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+	const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 	try {
 		const orgs = await pool.query<{ id: string; name: string }>(
 			`SELECT id, name FROM auth.organization ORDER BY name`

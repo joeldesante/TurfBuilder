@@ -1569,9 +1569,9 @@ export const SETUP_STEPS: SetupStep[] = [
 	// changes is soft-deleted and replaced. A unit references the address
 	// entity, not a version, so it survives the address being edited.
 	//
-	// Locations are linked to addresses (or units) through a located_at
-	// org_relationship, written by scripts/backfill-addresses.ts. The contract
-	// step that drops org_location's own address columns comes later.
+	// Locations move onto addresses as contacts (step 42), written by
+	// scripts/backfill-addresses.ts. The contract step that retires
+	// org_location comes later.
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating addresses and units',
@@ -1656,6 +1656,74 @@ export const SETUP_STEPS: SetupStep[] = [
 					USING (org_id = ${safe})
 					WITH CHECK (org_id = ${safe})`
 			])
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 42. Contacts (expand step)
+	//
+	// A contact is anything canvassed at an address: a business today, a
+	// resident later. The kinds differ only in their metadata, so they share
+	// one versioned table, and each kind's metadata shape is a schema in
+	// $lib/shared/contact-types rather than a table of its own.
+	//
+	// A contact points at its address entity, and optionally a unit of it, with
+	// real foreign keys; both are entity ids, so a contact survives the address
+	// being edited.
+	//
+	// While locations are migrated, a contact reuses its location's entity id:
+	// the location becomes the contact, so lists, turfs, attempts, and
+	// suggestions that key on the entity carry over in the contract step. Those
+	// entities are typed 'location', so the type trigger is bound with that
+	// slug for now; the contract step retypes them.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating contacts',
+		statements: [
+			// The address and unit keys are plain (NO ACTION) rather than RESTRICT:
+			// an address cannot be removed under a contact, but NO ACTION is checked
+			// at the end of the statement, so deleting an organization still
+			// cascades through both.
+			`CREATE TABLE IF NOT EXISTS universe.org_contact (
+				id                UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id            UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				entity_id         UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				type              TEXT NOT NULL,
+				address_entity_id UUID NOT NULL REFERENCES universe.org_entity(id),
+				unit_entity_id    UUID REFERENCES universe.org_address_unit(entity_id),
+				metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
+				photo_keys        TEXT[] NOT NULL DEFAULT '{}',
+				valid_from        TIMESTAMPTZ NOT NULL DEFAULT now(),
+				valid_to          TIMESTAMPTZ,
+				authored_by       UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				source            TEXT NOT NULL,
+				created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.org_contact ADD CONSTRAINT org_contact_metadata_object
+					CHECK (jsonb_typeof(metadata) = 'object');
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`DROP TRIGGER IF EXISTS set_entity_type ON universe.org_contact`,
+			`CREATE TRIGGER set_entity_type
+				BEFORE INSERT ON universe.org_contact
+				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('location')`,
+
+			// One current version per contact.
+			`CREATE UNIQUE INDEX IF NOT EXISTS org_contact_entity_current_unique
+				ON universe.org_contact (entity_id) WHERE valid_to IS NULL`,
+			`CREATE INDEX IF NOT EXISTS org_contact_org_id_idx   ON universe.org_contact (org_id)`,
+			`CREATE INDEX IF NOT EXISTS org_contact_entity_idx   ON universe.org_contact (entity_id)`,
+			`CREATE INDEX IF NOT EXISTS org_contact_address_idx  ON universe.org_contact (address_entity_id)`,
+			`CREATE INDEX IF NOT EXISTS org_contact_unit_idx     ON universe.org_contact (unit_entity_id) WHERE unit_entity_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS org_contact_type_idx     ON universe.org_contact (org_id, type) WHERE valid_to IS NULL`,
+			`CREATE INDEX IF NOT EXISTS org_contact_metadata_idx ON universe.org_contact USING GIN (metadata jsonb_path_ops)`,
+
+			`ALTER TABLE universe.org_contact ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.org_contact FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.org_contact`,
+			`CREATE POLICY org_isolation ON universe.org_contact
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
 		]
 	}
 ];

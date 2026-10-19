@@ -7,8 +7,7 @@ import {
 	splitAddress,
 	addUnit,
 	softDeleteUnit,
-	listUnits,
-	linkLocation
+	listUnits
 } from './addresses.service';
 import type { AddressFields } from '$lib/schemas/address';
 
@@ -182,20 +181,5 @@ describe('listUnits', () => {
 		expect(sql).toContain('a.valid_to IS NULL');
 		expect(sql).toContain('u.deleted_at IS NULL');
 		expect(sql).toContain('u.org_id = $2');
-	});
-});
-
-describe('linkLocation', () => {
-	it('writes a located_at relationship from the location to the target', async () => {
-		await linkLocation(client, ORG, 'loc', UNIT, null, 'backfill');
-
-		expect(find('INSERT INTO universe.org_relationship')!.params).toEqual([
-			ORG,
-			'loc',
-			UNIT,
-			'located_at',
-			null,
-			'backfill'
-		]);
 	});
 });

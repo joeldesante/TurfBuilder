@@ -297,30 +297,6 @@ export async function listUnits(
 	return result.rows;
 }
 
-/**
- * Records that a location is at an address, or at a unit within one, as a
- * located_at relationship. Locations still carry their own address columns
- * until the contract step; this link is what that step will read.
- */
-export async function linkLocation(
-	client: PoolClient,
-	orgId: string,
-	locationEntityId: string,
-	targetEntityId: string,
-	authoredBy: string | null,
-	source: string
-): Promise<void> {
-	await insertRelationship(
-		client,
-		orgId,
-		locationEntityId,
-		targetEntityId,
-		'located_at',
-		authoredBy,
-		source
-	);
-}
-
 async function insertRelationship(
 	client: PoolClient,
 	orgId: string,
