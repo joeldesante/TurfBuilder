@@ -38,6 +38,8 @@ export interface GraphFk {
 	to: string;
 	cols: string[];
 	refCols: string[];
+	/** Not a database constraint: drawn from a `<kind>_entity_id` column naming its target table. */
+	inferred?: boolean;
 }
 
 export interface SchemaGraph {

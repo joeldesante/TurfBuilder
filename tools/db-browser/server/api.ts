@@ -7,6 +7,46 @@ const PAGE_SIZE = 50;
 
 const quote = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
+/**
+ * Entity references are foreign keys to the shared org_entity table, so the
+ * schema alone shows no line from, say, a contact to its address. A column
+ * named `<kind>_entity_id` that references org_entity really points at the
+ * entity whose versions live in `org_<kind>` (address_entity_id ->
+ * org_address.entity_id), so those are drawn as inferred edges. The inferred
+ * edge needs both tables to exist; columns with no matching table (such as
+ * from_org_entity_id) are left alone. Ids are negative so they cannot collide
+ * with constraint ids.
+ */
+function inferEntityLinks(
+	tables: Map<string, { columns: { name: string }[] }>,
+	fks: { from: string; to: string; cols: string[] }[]
+) {
+	const inferred: {
+		id: number;
+		from: string;
+		to: string;
+		cols: string[];
+		refCols: string[];
+		inferred: true;
+	}[] = [];
+	for (const f of fks) {
+		if (!f.to.endsWith('.org_entity') || f.cols.length !== 1) continue;
+		const match = /^(.+)_entity_id$/.exec(f.cols[0]);
+		if (!match) continue;
+		const target = `${f.to.slice(0, f.to.indexOf('.'))}.org_${match[1]}`;
+		if (!tables.get(target)?.columns.some((c) => c.name === 'entity_id')) continue;
+		inferred.push({
+			id: -(inferred.length + 1),
+			from: f.from,
+			to: target,
+			cols: f.cols,
+			refCols: ['entity_id'],
+			inferred: true
+		});
+	}
+	return inferred;
+}
+
 function createPool(): Pool {
 	const url = process.env.DATABASE_URL;
 	if (!url) throw new Error('DATABASE_URL is not set');
@@ -267,7 +307,10 @@ export function dbApi(): Plugin {
 								cols: f.cols,
 								refCols: f.ref_cols
 							}));
-						return send(res, 200, { tables: [...tables.values()], fks });
+						return send(res, 200, {
+							tables: [...tables.values()],
+							fks: [...fks, ...inferEntityLinks(tables, fks)]
+						});
 					}
 
 					if (url.pathname === '/api/rows') {
