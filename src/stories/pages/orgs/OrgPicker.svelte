@@ -11,6 +11,10 @@
 
 	const { allowCreation = false, onSelect }: Props = $props();
 	const organizations = authClient.useListOrganizations();
+	// Organizations deleted from the infra panel stay in the table but not here.
+	const visibleOrgs = $derived(
+		($organizations.data ?? []).filter((org) => !(org as { deletedAt?: unknown }).deletedAt)
+	);
 </script>
 
 <div class="px-4">
@@ -32,7 +36,7 @@
 	<div class="flex flex-col lg:flex-row gap-3 lg:gap-3">
 		{#if $organizations.isPending}
 			<p>Loading...</p>
-		{:else if !$organizations.data?.length}
+		{:else if !visibleOrgs.length}
 			<div class="w-full h-32 flex justify-center items-center">
 				<div class="flex flex-col items-center justify-center">
 					<p class="font-semibold">You haven't joined an organization yet.</p>
@@ -41,7 +45,7 @@
 				</div>
 			</div>
 		{:else}
-			{#each $organizations.data as organization}
+			{#each visibleOrgs as organization}
 				<div
 					class="flex items-center gap-4 p-4 border lg:aspect-1 rounded-sm cursor-pointer transition-colors hover:bg-surface-container-high hover:border-primary active:bg-surface-container-high active:border-primary"
 					role="button"

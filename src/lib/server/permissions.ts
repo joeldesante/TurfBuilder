@@ -1,5 +1,7 @@
+import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { POOL } from './database';
+import type { InfraPermission } from '$lib/shared/types/infra';
 
 /**
  * Resolves the effective organization-scoped permissions for a user.
@@ -111,6 +113,15 @@ export async function resolveInfraPermissions(userId: string): Promise<string[]>
 export async function canInfra(userId: string, permission: string): Promise<boolean> {
 	const permissions = await resolveInfraPermissions(userId);
 	return permissions.includes(permission);
+}
+
+/**
+ * Throws 403 unless the user has the given infrastructure permission. Infra
+ * services call it first, the way org services call canOrg, so every endpoint
+ * and page load that reaches them is checked.
+ */
+export async function requireInfraPermission(userId: string, permission: InfraPermission): Promise<void> {
+	if (!(await canInfra(userId, permission))) throw error(403, 'Forbidden');
 }
 
 /**

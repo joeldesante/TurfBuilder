@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { POOL } from '$lib/server/database';
+import { fillTemplate } from '$lib/shared/utils/email-template';
 
 interface MailSettings {
 	transport: string;
@@ -9,7 +10,7 @@ interface MailSettings {
 	sesRegion: string;
 }
 
-interface EmailTemplate {
+export interface EmailTemplate {
 	subject: string;
 	html_body: string;
 }
@@ -38,10 +39,6 @@ async function loadTemplate(key: string): Promise<EmailTemplate> {
 		throw new Error(`Email template not found: ${key}`);
 	}
 	return result.rows[0];
-}
-
-function interpolate(text: string, variables: Record<string, string>): string {
-	return text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? '');
 }
 
 function fromAddress(settings: MailSettings): string {
@@ -101,20 +98,83 @@ async function sendSES(
 	return true;
 }
 
+/** Whether outgoing mail is set up well enough to try sending. */
+export async function isMailConfigured(): Promise<boolean> {
+	const settings = await loadMailSettings();
+	if (!settings.domain) return false;
+	return settings.transport !== 'ses' || Boolean(settings.sesRegion);
+}
+
+async function logEmail(
+	recipient: string,
+	template: string,
+	subject: string | null,
+	status: 'sent' | 'skipped' | 'failed',
+	error: string | null = null
+): Promise<void> {
+	try {
+		await POOL.query(
+			`INSERT INTO email_log (recipient, template, subject, status, error) VALUES ($1, $2, $3, $4, $5)`,
+			[recipient, template, subject, status, error]
+		);
+	} catch (e) {
+		console.error('[mail] Could not write the email log:', e);
+	}
+}
+
+/**
+ * Sends an already rendered email and records the attempt in email_log as
+ * sent, skipped (mail is not configured), or failed. Rethrows a transport
+ * error after logging it.
+ */
+export async function deliverEmail(
+	to: string,
+	template: string,
+	subject: string,
+	html: string
+): Promise<'sent' | 'skipped'> {
+	const settings = await loadMailSettings();
+	const send = settings.transport === 'ses' ? sendSES : sendDirect;
+
+	let sent: boolean;
+	try {
+		sent = await send(settings, to, subject, html);
+	} catch (e) {
+		await logEmail(to, template, subject, 'failed', e instanceof Error ? e.message : String(e));
+		throw e;
+	}
+
+	await logEmail(to, template, subject, sent ? 'sent' : 'skipped', sent ? null : 'Mail is not configured.');
+	if (sent) {
+		console.log(`[mail] Sent "${subject}" (template: ${template}) to ${to}`);
+	}
+	return sent ? 'sent' : 'skipped';
+}
+
+/** Fills a template's {{variables}}. Unknown variables become empty. */
+export function renderTemplate(
+	template: EmailTemplate,
+	variables: Record<string, string>
+): { subject: string; html: string } {
+	return {
+		subject: fillTemplate(template.subject, variables),
+		html: fillTemplate(template.html_body, variables)
+	};
+}
+
 export async function sendEmail(
 	to: string,
 	template: string,
 	variables: Record<string, string>
 ): Promise<void> {
-	const [settings, tmpl] = await Promise.all([loadMailSettings(), loadTemplate(template)]);
-
-	const subject = interpolate(tmpl.subject, variables);
-	const html = interpolate(tmpl.html_body, variables);
-
-	const send = settings.transport === 'ses' ? sendSES : sendDirect;
-	const sent = await send(settings, to, subject, html);
-
-	if (sent) {
-		console.log(`[mail] Sent "${subject}" (template: ${template}) to ${to}`);
+	let tmpl: EmailTemplate;
+	try {
+		tmpl = await loadTemplate(template);
+	} catch (e) {
+		await logEmail(to, template, null, 'failed', e instanceof Error ? e.message : String(e));
+		throw e;
 	}
+
+	const { subject, html } = renderTemplate(tmpl, variables);
+	await deliverEmail(to, template, subject, html);
 }

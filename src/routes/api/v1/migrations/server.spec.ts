@@ -4,9 +4,12 @@ vi.mock('$env/dynamic/private', () => ({
 	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
 }));
 
-const { client, convertAllBucketFilters } = vi.hoisted(() => ({
+const { client, convertAllBucketFilters, backfillActivity, pruneActivity, recordSchemaFingerprint } = vi.hoisted(() => ({
 	client: { query: vi.fn(), release: vi.fn() },
-	convertAllBucketFilters: vi.fn()
+	convertAllBucketFilters: vi.fn(),
+	backfillActivity: vi.fn(),
+	pruneActivity: vi.fn(),
+	recordSchemaFingerprint: vi.fn()
 }));
 
 vi.mock('$lib/server/database', () => ({
@@ -22,6 +25,8 @@ vi.mock('$lib/server/permissions', () => ({
 	resolveInfraPermissions: vi.fn(async () => ['settings.manage'])
 }));
 vi.mock('$lib/server/services/buckets.service', () => ({ convertAllBucketFilters }));
+vi.mock('$lib/server/services/activity.service', () => ({ backfillActivity, pruneActivity }));
+vi.mock('$lib/server/services/migrations.service', () => ({ recordSchemaFingerprint }));
 
 import { POST } from './+server';
 
@@ -39,35 +44,64 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	client.query.mockResolvedValue({});
 	convertAllBucketFilters.mockResolvedValue({ converted: 3, alreadyDone: 1, failed: [] });
+	backfillActivity.mockResolvedValue({ inserted: { 'user.signed_up': 4, 'canvass.visit': 6 }, activeDays: 7 });
+	pruneActivity.mockResolvedValue(2);
+	recordSchemaFingerprint.mockResolvedValue(undefined);
 });
 
-describe('POST /infra/migrate/api', () => {
+describe('POST /api/v1/migrations', () => {
 	it('answers 401 when signed out', async () => {
 		await expect(POST({ locals: {} } as never)).rejects.toMatchObject({ status: 401 });
 	});
 
-	it('runs the schema steps and then converts the legacy bucket filters', async () => {
+	it('runs the schema steps and then the data steps', async () => {
 		const events = await run();
 
 		expect(events.filter((e) => e.status === 'done').map((e) => e.label)).toEqual([
 			'First',
 			'Second',
-			'Converting legacy bucket filters'
+			'Converting legacy bucket filters',
+			'Backfilling activity history',
+			'Removing activity past its retention'
 		]);
 		expect(events.at(-1)).toEqual({ done: true });
 	});
 
-	it('counts the conversion as a step of the total', async () => {
+	it('counts each data step as a step of the total', async () => {
 		const events = await run();
 
-		const conversion = events.find((e) => e.label === 'Converting legacy bucket filters' && e.status === 'done');
-		expect(conversion).toMatchObject({ step: 3, total: 3 });
+		const done = (label: string) => events.find((e) => e.label === label && e.status === 'done');
+		expect(done('Converting legacy bucket filters')).toMatchObject({ step: 3, total: 5 });
+		expect(done('Backfilling activity history')).toMatchObject({ step: 4, total: 5 });
+		expect(done('Removing activity past its retention')).toMatchObject({ step: 5, total: 5 });
 	});
 
 	it('reports how many were converted', async () => {
 		const events = await run();
 
 		expect(events.find((e) => e.detail)?.detail).toEqual(['3 converted, 1 already converted.']);
+	});
+
+	it('reports what the backfill and pruning did', async () => {
+		const events = await run();
+
+		const detail = (label: string) => events.find((e) => e.label === label && e.detail)?.detail;
+		expect(detail('Backfilling activity history')).toEqual(['10 events and 7 active days added.']);
+		expect(detail('Removing activity past its retention')).toEqual(['2 old events removed.']);
+	});
+
+	it('records the schema fingerprint only after every step succeeds', async () => {
+		await run();
+		expect(recordSchemaFingerprint).toHaveBeenCalledOnce();
+
+		vi.clearAllMocks();
+		client.query.mockResolvedValue({});
+		convertAllBucketFilters.mockResolvedValue({ converted: 0, alreadyDone: 0, failed: [] });
+		backfillActivity.mockRejectedValue(new Error('db down'));
+
+		const events = await run();
+		expect(events.at(-1)).toMatchObject({ label: 'Backfilling activity history', status: 'error' });
+		expect(recordSchemaFingerprint).not.toHaveBeenCalled();
 	});
 
 	it('lists the buckets that could not be converted without failing the migration', async () => {
