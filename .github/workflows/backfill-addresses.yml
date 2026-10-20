@@ -45,11 +45,16 @@ jobs:
       packages: write
 
     steps:
-      # The code deployed to each environment: staging from the staging branch,
-      # production from main.
+      # The Job manifest comes from the branch this run was started on, so a
+      # manifest fix can be used before it is merged.
+      - uses: actions/checkout@v4
+
+      # The code that is backfilled is the code deployed to the environment:
+      # staging from the staging branch, production from main.
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.environment == 'production' && 'main' || 'staging' }}
+          path: app
 
       - name: Set environment
         run: |
@@ -59,7 +64,7 @@ jobs:
             echo "SECRET=turfbuilder-secrets-staging" >> $GITHUB_ENV
           fi
           echo "JOB=backfill-addresses-${{ inputs.environment }}" >> $GITHUB_ENV
-          echo "SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "SHA=$(git -C app rev-parse HEAD)" >> $GITHUB_ENV
           if [ "${{ inputs.apply }}" = "true" ]; then
             echo 'ARGS=["--apply"]' >> $GITHUB_ENV
           else
@@ -79,7 +84,7 @@ jobs:
       - name: Build and push the backfill image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: app
           target: backfill
           push: true
           tags: ${{ env.IMAGE }}:${{ env.SHA }}
