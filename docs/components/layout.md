@@ -69,7 +69,6 @@
 | `mobileOpen` | `boolean | undefined` | `$bindable(false)` |  |
 | `username` | `string | undefined` | `'User'` |  |
 | `applicationName` | `string | undefined` | `'TurfBuilder'` |  |
-| `infraAccess` | `boolean | undefined` | `false` |  |
 | `theme` | `Theme | undefined` | `'system'` |  |
 | `panelTitle` | `string | undefined` | — |  |
 | `onpanelback` | `(() => void) | undefined` | — |  |
@@ -200,5 +199,20 @@
 | `onAdd` | `() => void` | **required** |  |
 | `onClose` | `(id: string) => void` | **required** |  |
 | `onReorder` | `(tabs: Tab[]) => void` | **required** |  |
+
+---
+
+## Tabs
+
+**Import:** `$components/layout/tabs/Tabs.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tabs` | `Tab[]` | **required** |  |
+| `active` | `string` | **required** | The id of the tab being shown. |
+| `label` | `string` | **required** | Names the tab list for screen readers. |
+| `class` | `string | undefined` | `''` |  |
 
 ---

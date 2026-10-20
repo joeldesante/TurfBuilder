@@ -6,7 +6,23 @@
 	import DropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import type { DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import Toaster from '$components/feedback/toaster/Toaster.svelte';
+	import InfraQuickMenu from '$components/actions/infra-quick-menu/InfraQuickMenu.svelte';
+	import ImpersonationBanner from '$components/feedback/impersonation-banner/ImpersonationBanner.svelte';
+	import { page } from '$app/state';
+	import { api } from '$lib/client/api';
 	let { children, data } = $props();
+
+	async function stopImpersonating() {
+		const { userId } = await api<{ userId: string }>('/impersonations/current', { method: 'DELETE' });
+		// A full load, so every layout picks up the admin's own session again.
+		location.href = `/infra/users/${userId}`;
+	}
+
+	// data.infraMenu is only sent to infra admins. The infra panel has its own
+	// sidebar, and auth, setup, and print pages stay uncluttered.
+	const showInfraMenu = $derived(
+		!/^\/(infra|auth|setup)(\/|$)/.test(page.url.pathname) && !page.url.pathname.includes('/print')
+	);
 
 	onMount(() => {
 		document.body.dataset.hydrated = 'true';
@@ -67,6 +83,14 @@
 {/if}
 -->
 
+{#if data.impersonating}
+	<ImpersonationBanner userName={data.impersonating.userName} onstop={stopImpersonating} />
+{/if}
+
 {@render children()}
+
+{#if data.infraMenu && showInfraMenu}
+	<InfraQuickMenu groups={data.infraMenu.groups} currentOrg={page.data.organization ?? null} />
+{/if}
 
 <Toaster />

@@ -26,6 +26,18 @@ describe('SidebarItem', () => {
 			const label = screen.getByText('Dashboard');
 			await expect.element(label).toBeVisible();
 		});
+
+		it('opens an external item in a new tab', async () => {
+			const screen = render(SidebarItem, { item: { label: 'Analytics', href: 'https://a.example.com', external: true } });
+			const link = screen.getByRole('link', { name: /Analytics/ });
+			await expect.element(link).toHaveAttribute('target', '_blank');
+			await expect.element(link).toHaveAttribute('rel', 'noopener noreferrer');
+		});
+
+		it('keeps an internal item in the same tab', async () => {
+			const screen = render(SidebarItem, { item: testItem });
+			await expect.element(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('target');
+		});
 	});
 
 	describe('active state', () => {
