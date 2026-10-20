@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '$env/dynamic/private';
 import { POOL } from '$lib/server/database';
@@ -74,6 +74,28 @@ async function getClient(): Promise<{ client: S3Client; bucket: string }> {
 	});
 
 	return { client, bucket: settings.bucket };
+}
+
+/** Whether the settings and credentials needed to reach the bucket are all present. */
+export async function isStorageConfigured(): Promise<boolean> {
+	const settings = await loadSpacesSettings();
+	return Boolean(settings.endpoint && settings.bucket && env.SPACES_ACCESS_KEY_ID && env.SPACES_SECRET_ACCESS_KEY);
+}
+
+/** Which storage credentials the environment provides, without their values. */
+export function storageCredentialsPresent(): { accessKeyId: boolean; secretAccessKey: boolean } {
+	return { accessKeyId: Boolean(env.SPACES_ACCESS_KEY_ID), secretAccessKey: Boolean(env.SPACES_SECRET_ACCESS_KEY) };
+}
+
+/**
+ * Writes a small probe object and removes it, to prove the bucket is reachable
+ * with the current settings. Throws StorageNotConfiguredError, or the S3 error.
+ */
+export async function testStorage(): Promise<void> {
+	const { client, bucket } = await getClient();
+	const key = `health/probe-${crypto.randomUUID()}.txt`;
+	await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: 'ok', ContentType: 'text/plain' }));
+	await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
 /**

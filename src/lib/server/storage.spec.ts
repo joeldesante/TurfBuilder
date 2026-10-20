@@ -39,6 +39,9 @@ vi.mock('@aws-sdk/client-s3', () => ({
 	}),
 	GetObjectCommand: vi.fn(function (input: unknown) {
 		return { input };
+	}),
+	DeleteObjectCommand: vi.fn(function (input: unknown) {
+		return { input, delete: true };
 	})
 }));
 
@@ -51,7 +54,9 @@ import {
 	listDocumentKey,
 	uploadObject,
 	keyBelongsToOrg,
-	StorageNotConfiguredError
+	StorageNotConfiguredError,
+	isStorageConfigured,
+	testStorage
 } from './storage';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -219,6 +224,28 @@ describe('presignDocumentDownload', () => {
 		stubSettings([]);
 
 		await expect(presignDocumentDownload('k', 'f.pdf')).rejects.toThrow(StorageNotConfiguredError);
+	});
+});
+
+describe('health checks', () => {
+	it('isStorageConfigured needs every setting and the credentials', async () => {
+		expect(await isStorageConfigured()).toBe(true);
+
+		stubSettings(configured.filter((s) => s.key !== 'spaces.bucket'));
+		expect(await isStorageConfigured()).toBe(false);
+	});
+
+	it('testStorage writes a probe object and removes it', async () => {
+		await testStorage();
+
+		const [put, del] = send.mock.calls.map((c) => c[0]);
+		expect(put.input.Key).toMatch(/^health\/probe-/);
+		expect(del).toMatchObject({ delete: true, input: { Bucket: 'deice-photos', Key: put.input.Key } });
+	});
+
+	it('testStorage fails clearly when storage is not set up', async () => {
+		stubSettings([]);
+		await expect(testStorage()).rejects.toThrow(StorageNotConfiguredError);
 	});
 });
 
