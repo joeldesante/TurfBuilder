@@ -33,6 +33,24 @@ EXPOSE 5173
 
 CMD ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
 
+# --- Backfill stage ---
+# Kept above the production stage: builds without a --target use the last
+# stage, so production must stay last.
+# One-off data jobs run from source with tsx (scripts/), which the production
+# stage prunes away. Built and run by .github/workflows/backfill-addresses.yml;
+# svelte-kit sync generates the tsconfig paths tsx resolves $lib through.
+FROM node:22-alpine AS backfill
+WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run prepare
+
+CMD ["npx", "tsx", "scripts/backfill-addresses.ts"]
+
 # --- Production stage ---
 FROM node:22-alpine AS production
 WORKDIR /app
