@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
 	addressText,
 	dedupeKeys,
-	groupBySharedKey,
 	recoverCase,
 	splitThoroughfare,
 	splitUnit,
@@ -143,20 +142,5 @@ describe('dedupeKeys', () => {
 			'US|19121|10 main street',
 			'US|19121|10 main saint'
 		]);
-	});
-});
-
-describe('groupBySharedKey', () => {
-	it('groups items that share any key, transitively', () => {
-		const items = [
-			{ id: 'a', keys: ['1', '2'] },
-			{ id: 'b', keys: ['3'] },
-			{ id: 'c', keys: ['2', '4'] },
-			{ id: 'd', keys: ['4'] }
-		];
-
-		const groups = groupBySharedKey(items, (i) => i.keys).map((g) => g.map((i) => i.id));
-
-		expect(groups).toEqual([['a', 'c', 'd'], ['b']]);
 	});
 });

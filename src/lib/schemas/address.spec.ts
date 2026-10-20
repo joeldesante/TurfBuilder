@@ -13,24 +13,29 @@ const valid = {
 	longitude: -75.18
 };
 
+/** The valid address without one field. */
+function without(field: keyof typeof valid) {
+	return Object.fromEntries(Object.entries(valid).filter(([key]) => key !== field));
+}
+
 describe('AddressFieldsSchema', () => {
 	it('accepts an address with a building number', () => {
 		expect(AddressFieldsSchema.safeParse(valid).success).toBe(true);
 	});
 
 	it('accepts a building name instead of a number', () => {
-		const { premises_number: _, ...rest } = valid;
-		expect(AddressFieldsSchema.safeParse({ ...rest, premises_name: 'Empire State Building' }).success).toBe(true);
+		expect(
+			AddressFieldsSchema.safeParse({ ...without('premises_number'), premises_name: 'Empire State Building' })
+				.success
+		).toBe(true);
 	});
 
 	it('rejects an address with neither a building number nor a name', () => {
-		const { premises_number: _, ...rest } = valid;
-		expect(AddressFieldsSchema.safeParse(rest).success).toBe(false);
+		expect(AddressFieldsSchema.safeParse(without('premises_number')).success).toBe(false);
 	});
 
 	it('requires coordinates and an uppercase two-letter country code', () => {
-		const { latitude: _, ...noLatitude } = valid;
-		expect(AddressFieldsSchema.safeParse(noLatitude).success).toBe(false);
+		expect(AddressFieldsSchema.safeParse(without('latitude')).success).toBe(false);
 		expect(AddressFieldsSchema.safeParse({ ...valid, country_code: 'us' }).success).toBe(false);
 		expect(AddressFieldsSchema.safeParse({ ...valid, country_code: 'USA' }).success).toBe(false);
 	});

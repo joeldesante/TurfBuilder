@@ -167,30 +167,3 @@ export function dedupeKeys(
 	const area = (parsed.postcode ?? parsed.locality ?? '').toLowerCase().replace(/\s+/g, '');
 	return expansions.map((e) => `${countryCode}|${area}|${e.toLowerCase()}`);
 }
-
-/**
- * Groups items that share any key, transitively (union-find). Two spellings
- * of one address share at least one libpostal expansion, so they end up in
- * the same group. Groups keep the input order of their first member.
- */
-export function groupBySharedKey<T>(items: T[], keysOf: (item: T) => string[]): T[][] {
-	const parent = items.map((_, i) => i);
-	const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
-
-	const owner = new Map<string, number>();
-	items.forEach((item, i) => {
-		for (const key of keysOf(item)) {
-			const other = owner.get(key);
-			if (other === undefined) owner.set(key, i);
-			else parent[find(i)] = find(other);
-		}
-	});
-
-	const groups = new Map<number, T[]>();
-	items.forEach((item, i) => {
-		const root = find(i);
-		if (!groups.has(root)) groups.set(root, []);
-		groups.get(root)!.push(item);
-	});
-	return [...groups.values()];
-}
