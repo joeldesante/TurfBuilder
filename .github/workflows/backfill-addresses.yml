@@ -10,6 +10,9 @@ name: Backfill Addresses
 #        doctl kubernetes cluster node-pool create turfbuilder-k8s \
 #          --name backfill --size s-2vcpu-4gb --count 1 \
 #          --taint workload=backfill:NoSchedule
+#      If the region has no capacity for that size, any size with 4 GB or more
+#      works (the Job matches the pool by name): s-2vcpu-4gb-amd,
+#      s-2vcpu-4gb-intel, or s-4vcpu-8gb.
 # After the apply run finishes, delete it again:
 #        doctl kubernetes cluster node-pool delete turfbuilder-k8s backfill
 #
@@ -93,13 +96,9 @@ jobs:
         with:
           base64-kube-config: ${{ secrets.K8S_CONFIG }}
 
-      - name: Check the node pool exists
-        run: |
-          if ! kubectl get nodes -l doks.digitalocean.com/node-pool=backfill -o name | grep -q .; then
-            echo "::error::No 'backfill' node pool. Create it first (see the top of this workflow file)."
-            exit 1
-          fi
-
+      # No node pool check here: the deploy account is scoped to the namespace and
+      # cannot list nodes. A missing pool shows up below as a pod that cannot be
+      # scheduled.
       - name: Start the Job
         run: |
           # A Job's pod template cannot be changed, so replace any earlier run.
@@ -114,6 +113,7 @@ jobs:
         run: |
           if ! kubectl wait pod -l job-name="$JOB" -n turfbuilder --for=condition=Ready --timeout=15m; then
             kubectl describe pod -l job-name="$JOB" -n turfbuilder
+            echo "::error::The backfill pod did not start. If the events above say no node matched, create the 'backfill' node pool (see the top of this workflow file)."
             exit 1
           fi
 
