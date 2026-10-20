@@ -13,18 +13,17 @@ export async function load({ locals, params }) {
 			        tl.id AS turf_location_id,
 			        t.survey_id,
 			        sc.contents AS script_contents,
-			        COALESCE(pl.name, ol.name) AS location_name,
-			        COALESCE(pl.address_line_1, ol.address_line_1) AS street,
-			        COALESCE(pl.city, ol.city) AS locality,
-			        COALESCE(pl.postal_code, ol.postal_code) AS postcode,
-			        COALESCE(pl.state_or_region, ol.state_or_region) AS region
+			        ol.name AS location_name,
+			        ol.address_line_1 AS street,
+			        ol.city AS locality,
+			        ol.postal_code AS postcode,
+			        ol.state_or_region AS region
 			 FROM universe.turf_location tl
 			 JOIN universe.turf t ON t.id = tl.turf_id
 			 LEFT JOIN universe.script sc ON sc.id = t.script_id
-			 LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
-			 LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
+			 JOIN universe.org_location ol ON ol.id = tl.org_location_id
 			 WHERE tl.id = $1 AND tl.turf_id = $2 AND tl.org_id = $3
-			   AND COALESCE(pl.valid_to, ol.valid_to) IS NULL`,
+			   AND ol.valid_to IS NULL`,
 			[locationId, turfId, orgId]
 		);
 

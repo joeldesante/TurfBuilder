@@ -23,8 +23,7 @@
 			dob: new Date('1985-04-12'),
 			phone: '555-0101',
 			email: 'alice@example.com',
-			gender: 'Female',
-			source: 'public'
+			gender: 'Female'
 		}
 	}}
 />
@@ -43,8 +42,7 @@
 			dob: null,
 			phone: null,
 			email: null,
-			gender: null,
-			source: 'org'
+			gender: null
 		}
 	}}
 />

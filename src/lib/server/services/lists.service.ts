@@ -90,22 +90,17 @@ export async function queryListEntriesPage(
 					`SELECT
 						le.record_id,
 						le.record_source,
-						COALESCE(pp.entity_id, op.entity_id)::text AS entity_id,
-						COALESCE(pp.first_name, op.first_name) AS first_name,
-						COALESCE(pp.last_name,  op.last_name)  AS last_name,
-						COALESCE(pp.email,      op.email)      AS email,
-						COALESCE(pp.phone,      op.phone)      AS phone
+						op.entity_id::text AS entity_id,
+						op.first_name,
+						op.last_name,
+						op.email,
+						op.phone
 					FROM universe.list_entry le
 					JOIN universe.list l ON l.id = le.list_id AND l.org_id = $2
-					LEFT JOIN universe.public_person pp
-						ON le.record_source = 'public_person' AND pp.id = le.record_id
 					LEFT JOIN universe.org_person op
-						ON le.record_source = 'org_person'    AND op.id = le.record_id
+						ON le.record_source = 'org_person' AND op.id = le.record_id
 					WHERE le.list_id = $1
-					ORDER BY
-						COALESCE(pp.last_name,  op.last_name),
-						COALESCE(pp.first_name, op.first_name),
-						le.id
+					ORDER BY op.last_name, op.first_name, le.id
 					LIMIT $3 OFFSET $4`,
 					params
 				)
@@ -113,23 +108,18 @@ export async function queryListEntriesPage(
 					`SELECT
 						le.record_id,
 						le.record_source,
-						COALESCE(pl.entity_id, ol.entity_id)::text AS entity_id,
-						COALESCE(pl.name,           ol.name)           AS name,
-						COALESCE(pl.address_line_1, ol.address_line_1) AS address_line_1,
-						COALESCE(pl.city,           ol.city)           AS city,
-						COALESCE(pl.state_or_region,ol.state_or_region)AS state_or_region,
-						COALESCE(pl.postal_code,    ol.postal_code)    AS postal_code
+						ol.entity_id::text AS entity_id,
+						ol.name,
+						ol.address_line_1,
+						ol.city,
+						ol.state_or_region,
+						ol.postal_code
 					FROM universe.list_entry le
 					JOIN universe.list l ON l.id = le.list_id AND l.org_id = $2
-					LEFT JOIN universe.public_location pl
-						ON le.record_source = 'public_location' AND pl.id = le.record_id
 					LEFT JOIN universe.org_location ol
-						ON le.record_source = 'org_location'    AND ol.id = le.record_id
+						ON le.record_source = 'org_location' AND ol.id = le.record_id
 					WHERE le.list_id = $1
-					ORDER BY
-						COALESCE(pl.city,  ol.city),
-						COALESCE(pl.name,  ol.name),
-						le.id
+					ORDER BY ol.city, ol.name, le.id
 					LIMIT $3 OFFSET $4`,
 					params
 				);

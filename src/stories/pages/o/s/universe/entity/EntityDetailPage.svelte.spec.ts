@@ -14,8 +14,7 @@ const personRecord = {
 	phone: '555-1234',
 	email: 'alice@example.com',
 	gender: 'Female',
-	valid_to: null,
-	source: 'org' as const
+	valid_to: null
 };
 
 const locationRecord = {
@@ -29,8 +28,7 @@ const locationRecord = {
 	state_or_region: 'IL',
 	postal_code: '62701',
 	country_code: 'US',
-	valid_to: null,
-	source: 'org' as const
+	valid_to: null
 };
 
 test('renders person full name as heading', async () => {

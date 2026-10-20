@@ -22,15 +22,15 @@ export async function load({ locals, params }) {
 		const locationsRes = await client.query(
 			`SELECT
 			        tl.id AS id,
-			        COALESCE(pl.name, ol.name) AS location_name,
-			        ST_Y(COALESCE(pl.coordinates, ol.coordinates)) AS latitude,
-			        ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
-			        COALESCE(pl.address_line_1, ol.address_line_1) AS street,
-			        COALESCE(pl.city, ol.city) AS locality,
-			        COALESCE(pl.postal_code, ol.postal_code) AS postcode,
-			        COALESCE(pl.state_or_region, ol.state_or_region) AS region,
-			        COALESCE(pl.country_code, ol.country_code) AS country,
-			        COALESCE(pl.address_line_2, ol.address_line_2) AS street_2,
+			        ol.name AS location_name,
+			        ST_Y(ol.coordinates) AS latitude,
+			        ST_X(ol.coordinates) AS longitude,
+			        ol.address_line_1 AS street,
+			        ol.city AS locality,
+			        ol.postal_code AS postcode,
+			        ol.state_or_region AS region,
+			        ol.country_code AS country,
+			        ol.address_line_2 AS street_2,
 			        ol.entity_id AS entity_id,
 			        ls.status = 'tentative' AS is_tentative,
 			        (ls.status = 'tentative' AND ls.user_id = $3) AS is_mine,
@@ -43,26 +43,24 @@ export async function load({ locals, params }) {
 			        COUNT(tla.id) > 0 AS visited,
 			        (array_agg(tla.contact_made ORDER BY tla.updated_at DESC NULLS LAST))[1] AS contact_made
 			 FROM universe.turf_location tl
-			 LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
-			 LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
+			 JOIN universe.org_location ol ON ol.id = tl.org_location_id
 			 LEFT JOIN universe.location_suggestion ls ON ls.entity_id = ol.entity_id
 			 LEFT JOIN universe.turf_location_attempt tla ON tla.turf_location_id = tl.id
 			 WHERE tl.turf_id = $1 AND tl.org_id = $2
-			   AND COALESCE(pl.valid_to, ol.valid_to) IS NULL
-			 GROUP BY tl.id, pl.id, ol.id, ls.status, ls.user_id
+			   AND ol.valid_to IS NULL
+			 GROUP BY tl.id, ol.id, ls.status, ls.user_id
 			 LIMIT 500`,
 			[turfId, orgId, locals.user!.id]
 		);
 
 		const centerRes = await client.query(
 			`SELECT
-				ST_Y(ST_Centroid(ST_Collect(COALESCE(pl.coordinates, ol.coordinates)))) AS latitude,
-				ST_X(ST_Centroid(ST_Collect(COALESCE(pl.coordinates, ol.coordinates)))) AS longitude
+				ST_Y(ST_Centroid(ST_Collect(ol.coordinates))) AS latitude,
+				ST_X(ST_Centroid(ST_Collect(ol.coordinates))) AS longitude
 			 FROM universe.turf_location tl
-			 LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
-			 LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
+			 JOIN universe.org_location ol ON ol.id = tl.org_location_id
 			 WHERE tl.turf_id = $1 AND tl.org_id = $2
-			   AND COALESCE(pl.valid_to, ol.valid_to) IS NULL`,
+			   AND ol.valid_to IS NULL`,
 			[turfId, orgId]
 		);
 

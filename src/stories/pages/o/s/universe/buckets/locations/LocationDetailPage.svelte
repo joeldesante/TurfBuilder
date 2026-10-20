@@ -12,7 +12,6 @@
 		state_or_region: string | null;
 		postal_code: string | null;
 		country_code: string | null;
-		source: 'public' | 'org';
 	}
 
 	interface Props {
@@ -43,7 +42,6 @@
 		{ label: 'State / Region', value: location.state_or_region },
 		{ label: 'Postal Code', value: location.postal_code },
 		{ label: 'Country', value: location.country_code },
-		{ label: 'Data Source', value: location.source === 'public' ? 'Public record' : 'Organization record' },
 	].filter((f) => f.value));
 </script>
 

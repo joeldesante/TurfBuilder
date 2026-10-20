@@ -88,20 +88,14 @@ export async function POST({ request, locals }) {
 
 				// Assign locations from the list that fall within the polygon.
 				await client.query(
-					`INSERT INTO universe.turf_location (turf_id, public_location_id, org_location_id, org_id)
-					 SELECT
-						$1,
-						CASE WHEN le.record_source = 'public_location' THEN le.record_id END,
-						CASE WHEN le.record_source = 'org_location' THEN le.record_id END,
-						$3
+					`INSERT INTO universe.turf_location (turf_id, org_location_id, org_id)
+					 SELECT $1, le.record_id, $3
 					 FROM universe.list_entry le
-					 LEFT JOIN universe.public_location pl
-						ON le.record_source = 'public_location' AND pl.id = le.record_id
 					 LEFT JOIN universe.org_location ol
 						ON le.record_source = 'org_location' AND ol.id = le.record_id
 					 WHERE le.list_id = $4
-					   AND le.record_source IN ('public_location', 'org_location')
-					   AND ST_Contains(ST_GeomFromGeoJSON($2::text), COALESCE(pl.coordinates, ol.coordinates))
+					   AND le.record_source = 'org_location'
+					   AND ST_Contains(ST_GeomFromGeoJSON($2::text), ol.coordinates)
 					 ON CONFLICT DO NOTHING`,
 					[turfId, geojson, locals.organization!.id, list_id]
 				);

@@ -24,7 +24,6 @@
 		turf_code: string | null;
 		note: string | null;
 		photo_keys: string[];
-		is_public_location: boolean;
 		moves_pin: boolean;
 		latitude: number | null;
 		longitude: number | null;
@@ -275,14 +274,9 @@
 	{#each edits as edit (edit.id)}
 		<div class="flex flex-col gap-4 border-b border-outline-subtle px-4 py-4 sm:flex-row">
 			<div class="min-w-0 flex-1">
-				<div class="flex flex-wrap items-center gap-2">
-					<h3 class="text-sm font-semibold text-on-surface">
-						{edit.current_name ?? 'Unnamed location'}
-					</h3>
-					{#if edit.is_public_location}
-						<Badge variant="info" size="sm">Shared record</Badge>
-					{/if}
-				</div>
+				<h3 class="text-sm font-semibold text-on-surface">
+					{edit.current_name ?? 'Unnamed location'}
+				</h3>
 				<p class="mt-1 text-xs text-on-surface-subtle">{formatSubmitted(edit)}</p>
 
 				{#if edit.note}
@@ -313,13 +307,6 @@
 						</div>
 					{/if}
 				</dl>
-
-				{#if edit.is_public_location}
-					<p class="mt-2 text-xs text-on-surface-subtle">
-						This location comes from the shared dataset. Approving creates a copy owned by your
-						organization; other organizations keep the original.
-					</p>
-				{/if}
 
 				{#if edit.photo_keys.length > 0}
 					<ul class="mt-3 flex flex-wrap gap-2">

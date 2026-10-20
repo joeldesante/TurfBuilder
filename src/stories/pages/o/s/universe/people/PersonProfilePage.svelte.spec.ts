@@ -12,8 +12,7 @@ const fullPerson = {
 	dob: new Date('1985-04-12'),
 	phone: '555-0101',
 	email: 'alice@example.com',
-	gender: 'Female',
-	source: 'public' as const
+	gender: 'Female'
 };
 
 const minimalPerson = {
@@ -26,8 +25,7 @@ const minimalPerson = {
 	dob: null,
 	phone: null,
 	email: null,
-	gender: null,
-	source: 'org' as const
+	gender: null
 };
 
 test('renders full name as heading', async () => {

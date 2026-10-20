@@ -11,8 +11,7 @@ const namedLocation = {
 	city: 'Springfield',
 	state_or_region: 'IL',
 	postal_code: '62701',
-	country_code: 'US',
-	source: 'public' as const
+	country_code: 'US'
 };
 
 const unnamedLocation = {
@@ -24,8 +23,7 @@ const unnamedLocation = {
 	city: 'Springfield',
 	state_or_region: 'IL',
 	postal_code: '62702',
-	country_code: 'US',
-	source: 'org' as const
+	country_code: 'US'
 };
 
 test('renders location name as heading when present', async () => {

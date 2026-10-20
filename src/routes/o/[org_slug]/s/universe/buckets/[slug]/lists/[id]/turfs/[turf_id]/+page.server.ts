@@ -57,19 +57,18 @@ export async function load({ params, locals }) {
 		}>(
 			`SELECT
 				tl.id AS turf_location_id,
-				COALESCE(pl.name, ol.name) AS name,
-				COALESCE(pl.address_line_1, ol.address_line_1) AS address_line_1,
-				COALESCE(pl.city, ol.city) AS city,
-				COALESCE(pl.state_or_region, ol.state_or_region) AS state_or_region,
-				ST_Y(COALESCE(pl.coordinates, ol.coordinates)) AS latitude,
-				ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
+				ol.name AS name,
+				ol.address_line_1 AS address_line_1,
+				ol.city AS city,
+				ol.state_or_region AS state_or_region,
+				ST_Y(ol.coordinates) AS latitude,
+				ST_X(ol.coordinates) AS longitude,
 				tla.id AS attempt_id,
 				tla.contact_made,
 				tla.attempt_note,
 				tla.updated_at AS attempted_at
 			FROM universe.turf_location tl
-			LEFT JOIN universe.public_location pl ON tl.public_location_id = pl.id
-			LEFT JOIN universe.org_location ol ON tl.org_location_id = ol.id
+			JOIN universe.org_location ol ON tl.org_location_id = ol.id
 			LEFT JOIN LATERAL (
 				SELECT id, contact_made, attempt_note, updated_at
 				FROM universe.turf_location_attempt
@@ -78,8 +77,8 @@ export async function load({ params, locals }) {
 				LIMIT 1
 			) tla ON true
 			WHERE tl.turf_id = $1 AND tl.org_id = $2
-			  AND COALESCE(pl.valid_to, ol.valid_to) IS NULL
-			ORDER BY COALESCE(pl.name, ol.name)`,
+			  AND ol.valid_to IS NULL
+			ORDER BY ol.name`,
 			[params.turf_id, orgId]
 		);
 
