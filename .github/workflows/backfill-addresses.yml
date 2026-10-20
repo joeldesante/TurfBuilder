@@ -114,13 +114,24 @@ jobs:
               -e "s|__ARGS__|$ARGS|g" \
               .k8s/jobs/backfill-addresses.yaml | kubectl apply -f -
 
+      # Waits for the backfill to start: the pod running, or already finished
+      # (a short run can finish before a Ready check would see it).
       - name: Wait for libpostal to load
         run: |
-          if ! kubectl wait pod -l job-name="$JOB" -n turfbuilder --for=condition=Ready --timeout=15m; then
-            kubectl describe pod -l job-name="$JOB" -n turfbuilder
-            echo "::error::The backfill pod did not start. If the events above say no node matched, create the 'backfill' node pool (see the top of this workflow file)."
-            exit 1
-          fi
+          for i in $(seq 1 180); do
+            phase=$(kubectl get pod -l job-name="$JOB" -n turfbuilder -o jsonpath='{.items[0].status.phase}')
+            ready=$(kubectl get pod -l job-name="$JOB" -n turfbuilder -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
+            if [ "$phase" = "Succeeded" ] || { [ "$phase" = "Running" ] && [ "$ready" = "True" ]; }; then
+              exit 0
+            fi
+            if [ "$phase" = "Failed" ]; then
+              break
+            fi
+            sleep 5
+          done
+          kubectl describe pod -l job-name="$JOB" -n turfbuilder
+          echo "::error::The backfill pod did not start. If the events above say no node matched, create the 'backfill' node pool (see the top of this workflow file)."
+          exit 1
 
       - name: Follow the backfill
         run: kubectl logs -f "job/$JOB" -c backfill -n turfbuilder
