@@ -27,8 +27,7 @@
 			phone: '555-1234',
 			email: 'alice@example.com',
 			gender: 'Female',
-			valid_to: null,
-			source: 'org'
+			valid_to: null
 		},
 		isOutdated: false
 	}}
@@ -52,8 +51,7 @@
 			phone: '555-9999',
 			email: 'alice.smith@oldmail.com',
 			gender: null,
-			valid_to: new Date().toISOString(),
-			source: 'org'
+			valid_to: new Date().toISOString()
 		},
 		isOutdated: true
 	}}
@@ -76,8 +74,7 @@
 			state_or_region: 'IL',
 			postal_code: '62701',
 			country_code: 'US',
-			valid_to: null,
-			source: 'org'
+			valid_to: null
 		},
 		isOutdated: false
 	}}
@@ -100,8 +97,7 @@
 			state_or_region: 'IL',
 			postal_code: '62700',
 			country_code: 'US',
-			valid_to: new Date().toISOString(),
-			source: 'org'
+			valid_to: new Date().toISOString()
 		},
 		isOutdated: true
 	}}

@@ -20,21 +20,12 @@ export async function load({ params, locals, url }) {
 	}
 
 	return withOrgTransaction(locals.organization.id, async (client) => {
-		// Resolve the entity and its type, checking both public and org tables.
+		// Resolve the entity and its type.
 		const entityResult = await client.query<{ type_slug: string }>(
 			`SELECT et.slug AS type_slug
-			 FROM universe.public_entity pe
-			 JOIN universe.entity_type et ON et.id = pe.type_id
-			 WHERE pe.id = $1
-
-			 UNION ALL
-
-			 SELECT et.slug AS type_slug
 			 FROM universe.org_entity oe
 			 JOIN universe.entity_type et ON et.id = oe.type_id
-			 WHERE oe.id = $1 AND oe.org_id = $2
-
-			 LIMIT 1`,
+			 WHERE oe.id = $1 AND oe.org_id = $2`,
 			[params.entity_id, locals.organization!.id]
 		);
 
@@ -56,41 +47,20 @@ export async function load({ params, locals, url }) {
 				email: string | null;
 				gender: string | null;
 				valid_to: string | null;
-				source: 'public' | 'org';
 			}>(
 				versionId
 					? // Load the specific requested version (may be outdated).
-						`SELECT pp.id, pp.entity_id, pp.first_name, pp.middle_name, pp.last_name,
-						        pp.suffix, pp.preferred_name, pp.dob, pp.phone, pp.email, pp.gender,
-						        pp.valid_to, 'public'::text AS source
-						 FROM universe.public_person pp
-						 WHERE pp.id = $1 AND pp.entity_id = $2
-
-						 UNION ALL
-
-						 SELECT op.id, op.entity_id, op.first_name, op.middle_name, op.last_name,
+						`SELECT op.id, op.entity_id, op.first_name, op.middle_name, op.last_name,
 						        op.suffix, op.preferred_name, op.dob, op.phone, op.email, op.gender,
-						        op.valid_to, 'org'::text AS source
+						        op.valid_to
 						 FROM universe.org_person op
-						 WHERE op.id = $1 AND op.entity_id = $2 AND op.org_id = $3
-
-						 LIMIT 1`
+						 WHERE op.id = $1 AND op.entity_id = $2 AND op.org_id = $3`
 					: // Load the current version.
-						`SELECT pp.id, pp.entity_id, pp.first_name, pp.middle_name, pp.last_name,
-						        pp.suffix, pp.preferred_name, pp.dob, pp.phone, pp.email, pp.gender,
-						        pp.valid_to, 'public'::text AS source
-						 FROM universe.public_person pp
-						 WHERE pp.entity_id = $1 AND pp.valid_to IS NULL
-
-						 UNION ALL
-
-						 SELECT op.id, op.entity_id, op.first_name, op.middle_name, op.last_name,
+						`SELECT op.id, op.entity_id, op.first_name, op.middle_name, op.last_name,
 						        op.suffix, op.preferred_name, op.dob, op.phone, op.email, op.gender,
-						        op.valid_to, 'org'::text AS source
+						        op.valid_to
 						 FROM universe.org_person op
-						 WHERE op.entity_id = $1 AND op.valid_to IS NULL AND op.org_id = $2
-
-						 LIMIT 1`,
+						 WHERE op.entity_id = $1 AND op.valid_to IS NULL AND op.org_id = $2`,
 				versionId
 					? [versionId, params.entity_id, locals.organization!.id]
 					: [params.entity_id, locals.organization!.id]
@@ -121,39 +91,18 @@ export async function load({ params, locals, url }) {
 				postal_code: string | null;
 				country_code: string | null;
 				valid_to: string | null;
-				source: 'public' | 'org';
 			}>(
 				versionId
-					? `SELECT pl.id, pl.entity_id, pl.name, pl.address_line_1, pl.address_line_2,
-					          pl.address_line_3, pl.city, pl.state_or_region, pl.postal_code,
-					          pl.country_code, pl.valid_to, 'public'::text AS source
-					   FROM universe.public_location pl
-					   WHERE pl.id = $1 AND pl.entity_id = $2
-
-					   UNION ALL
-
-					   SELECT ol.id, ol.entity_id, ol.name, ol.address_line_1, ol.address_line_2,
+					? `SELECT ol.id, ol.entity_id, ol.name, ol.address_line_1, ol.address_line_2,
 					          ol.address_line_3, ol.city, ol.state_or_region, ol.postal_code,
-					          ol.country_code, ol.valid_to, 'org'::text AS source
+					          ol.country_code, ol.valid_to
 					   FROM universe.org_location ol
-					   WHERE ol.id = $1 AND ol.entity_id = $2 AND ol.org_id = $3
-
-					   LIMIT 1`
-					: `SELECT pl.id, pl.entity_id, pl.name, pl.address_line_1, pl.address_line_2,
-					          pl.address_line_3, pl.city, pl.state_or_region, pl.postal_code,
-					          pl.country_code, pl.valid_to, 'public'::text AS source
-					   FROM universe.public_location pl
-					   WHERE pl.entity_id = $1 AND pl.valid_to IS NULL
-
-					   UNION ALL
-
-					   SELECT ol.id, ol.entity_id, ol.name, ol.address_line_1, ol.address_line_2,
+					   WHERE ol.id = $1 AND ol.entity_id = $2 AND ol.org_id = $3`
+					: `SELECT ol.id, ol.entity_id, ol.name, ol.address_line_1, ol.address_line_2,
 					          ol.address_line_3, ol.city, ol.state_or_region, ol.postal_code,
-					          ol.country_code, ol.valid_to, 'org'::text AS source
+					          ol.country_code, ol.valid_to
 					   FROM universe.org_location ol
-					   WHERE ol.entity_id = $1 AND ol.valid_to IS NULL AND ol.org_id = $2
-
-					   LIMIT 1`,
+					   WHERE ol.entity_id = $1 AND ol.valid_to IS NULL AND ol.org_id = $2`,
 				versionId
 					? [versionId, params.entity_id, locals.organization!.id]
 					: [params.entity_id, locals.organization!.id]

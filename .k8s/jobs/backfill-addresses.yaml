@@ -1,0 +1,92 @@
+# One-off Job: moves locations onto addresses and contacts (scripts/backfill-addresses.ts).
+# Rendered and applied by .github/workflows/backfill-addresses.yml, which fills
+# in __ENV__, __SECRET__, __IMAGE__, and __ARGS__. Run /infra/migrate first.
+#
+# libpostal holds about 2 GB in memory, more than the app's nodes have free,
+# so the pod runs on a dedicated node pool named "backfill", tainted so that
+# nothing else is scheduled there. Create it before running and delete it
+# afterwards (see the workflow file for the doctl commands).
+#
+# The script commits in batches and skips finished locations, so a restart
+# resumes where it stopped.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backfill-addresses-__ENV__
+  namespace: turfbuilder
+  labels:
+    app: turfbuilder-backfill
+    env: __ENV__
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: turfbuilder-backfill
+        env: __ENV__
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        doks.digitalocean.com/node-pool: backfill
+      tolerations:
+        - key: workload
+          operator: Equal
+          value: backfill
+          effect: NoSchedule
+      initContainers:
+        # Native sidecar: starts first, keeps running beside the backfill, and is
+        # stopped when the backfill exits. The startup probe holds the backfill
+        # back until libpostal has loaded its models.
+        - name: libpostal
+          image: pelias/libpostal-service:latest
+          restartPolicy: Always
+          ports:
+            - containerPort: 4400
+          # Measured at about 1.9 GiB once its models are loaded. The request has
+          # to fit a 4 GB node after the system pods (about 2.5 GiB free).
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 250m
+            limits:
+              memory: 3Gi
+          startupProbe:
+            httpGet:
+              path: /parse?address=1%20Main%20St
+              port: 4400
+            periodSeconds: 5
+            failureThreshold: 60
+      containers:
+        - name: backfill
+          image: __IMAGE__
+          command: ["npx", "tsx", "scripts/backfill-addresses.ts"]
+          args: __ARGS__
+          env:
+            - name: LIBPOSTAL_URL
+              value: http://localhost:4400
+            # Only for orgs whose locations have no country at all; any other
+            # location missing one takes its org's most common country.
+            - name: BACKFILL_DEFAULT_COUNTRY
+              value: US
+            - name: BACKFILL_BATCH_SIZE
+              value: "500"
+            - name: BACKFILL_CONCURRENCY
+              value: "8"
+          envFrom:
+            - secretRef:
+                name: __SECRET__
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 250m
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: db-ca
+              mountPath: /etc/ssl/db-ca
+              readOnly: true
+      volumes:
+        - name: db-ca
+          secret:
+            secretName: turfbuilder-db-ca

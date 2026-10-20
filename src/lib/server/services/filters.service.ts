@@ -136,7 +136,7 @@ function attemptsAt(
 	const joins: string[] = [];
 	const where = [
 		`tla.org_id = ${org}`,
-		`COALESCE(tpl.entity_id, tol.entity_id) = ${ctx.alias}.entity_id`
+		`tol.entity_id = ${ctx.alias}.entity_id`
 	];
 
 	if (scope.bucketId || scope.listId) {
@@ -154,8 +154,7 @@ function attemptsAt(
 	return (
 		`SELECT ${select} FROM universe.turf_location_attempt tla` +
 		` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
-		` LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id` +
-		` LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
+				` JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
 		(joins.length ? ` ${joins.join(' ')}` : '') +
 		` WHERE ${where.join(' AND ')}`
 	);
@@ -206,11 +205,10 @@ function surveyResponse(filter: Filter, ctx: Context): string {
 			` JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = ${org}` +
 			` JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = ${org}` +
 			` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
-			` LEFT JOIN universe.public_location tpl ON tpl.id = tl.public_location_id` +
-			` LEFT JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
+						` JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
 			` WHERE sqr.org_id = ${org}` +
 			` AND sqr.survey_question_id = ${ctx.param(value.questionId)}::uuid` +
-			` AND COALESCE(tpl.entity_id, tol.entity_id) = ${ctx.alias}.entity_id` +
+			` AND tol.entity_id = ${ctx.alias}.entity_id` +
 			` AND ${condition})`
 		);
 	};

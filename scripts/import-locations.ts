@@ -139,73 +139,6 @@ function getValue(row: Row, mapping: FieldMapping, field: DestField): unknown {
 	return col !== undefined ? (row[col] ?? null) : null;
 }
 
-async function upsertPublicLocation(
-	client: pg.PoolClient,
-	row: Row,
-	mapping: FieldMapping,
-	source: string,
-	entityTypeId: string
-) {
-	const sourceRef = getValue(row, mapping, 'source_ref') as string | null;
-	const lat = getValue(row, mapping, 'latitude');
-	const lng = getValue(row, mapping, 'longitude');
-	const latNum = lat !== null ? parseFloat(String(lat)) : null;
-	const lngNum = lng !== null ? parseFloat(String(lng)) : null;
-
-	let entityId: string;
-
-	if (sourceRef) {
-		const existing = await client.query<{ id: string }>(
-			`SELECT id FROM universe.public_entity WHERE source_ref = $1 LIMIT 1`,
-			[sourceRef]
-		);
-		if (existing.rows[0]) {
-			entityId = existing.rows[0].id;
-			await client.query(
-				`UPDATE universe.public_location SET valid_to = now() WHERE entity_id = $1 AND valid_to IS NULL`,
-				[entityId]
-			);
-		} else {
-			const res = await client.query<{ id: string }>(
-				`INSERT INTO universe.public_entity (type_id, source_ref) VALUES ($1, $2) RETURNING id`,
-				[entityTypeId, sourceRef]
-			);
-			entityId = res.rows[0].id;
-		}
-	} else {
-		const res = await client.query<{ id: string }>(
-			`INSERT INTO universe.public_entity (type_id) VALUES ($1) RETURNING id`,
-			[entityTypeId]
-		);
-		entityId = res.rows[0].id;
-	}
-
-	await client.query(
-		`INSERT INTO universe.public_location
-		 (entity_id, name, address_line_1, address_line_2, address_line_3,
-		  city, state_or_region, postal_code, country_code, coordinates, source)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-		   CASE WHEN $10::float8 IS NOT NULL AND $11::float8 IS NOT NULL
-		        THEN ST_SetSRID(ST_MakePoint($11::float8, $10::float8), 4326)
-		        ELSE NULL END,
-		   $12)`,
-		[
-			entityId,
-			getValue(row, mapping, 'name'),
-			getValue(row, mapping, 'address_line_1'),
-			getValue(row, mapping, 'address_line_2'),
-			getValue(row, mapping, 'address_line_3'),
-			getValue(row, mapping, 'city'),
-			getValue(row, mapping, 'state_or_region'),
-			getValue(row, mapping, 'postal_code'),
-			getValue(row, mapping, 'country_code'),
-			latNum,
-			lngNum,
-			source
-		]
-	);
-}
-
 async function upsertOrgLocation(
 	client: pg.PoolClient,
 	row: Row,
@@ -333,22 +266,13 @@ async function main() {
 			process.exit(1);
 		}
 
-		const scopeAnswer = (
-			await iface.question('Entity scope — (p)ublic or (o)rg? [p]: ')
-		)
-			.trim()
-			.toLowerCase();
-		const isOrg = scopeAnswer === 'o' || scopeAnswer === 'org';
-		let orgId: string | null = null;
-		if (isOrg) {
-			orgId = (await iface.question('Organization ID (UUID): ')).trim();
-			if (!orgId) {
-				console.error('Organization ID is required for org scope.');
-				process.exit(1);
-			}
+		const orgId = (await iface.question('Organization ID (UUID): ')).trim();
+		if (!orgId) {
+			console.error('Organization ID is required.');
+			process.exit(1);
 		}
 
-		const confirm = await iface.question(`\nImport ${rows.length} records into ${isOrg ? 'org' : 'public'} tables? [y/N]: `);
+		const confirm = await iface.question(`\nImport ${rows.length} records into organization ${orgId}? [y/N]: `);
 		if (confirm.trim().toLowerCase() !== 'y') {
 			console.log('Aborted.');
 			process.exit(0);
@@ -374,11 +298,7 @@ async function main() {
 
 			for (let i = 0; i < rows.length; i++) {
 				try {
-					if (isOrg && orgId) {
-						await upsertOrgLocation(client, rows[i], mapping, source, orgId, entityTypeId);
-					} else {
-						await upsertPublicLocation(client, rows[i], mapping, source, entityTypeId);
-					}
+					await upsertOrgLocation(client, rows[i], mapping, source, orgId, entityTypeId);
 					imported++;
 					if (imported % 100 === 0) {
 						process.stdout.write(`\r  ${imported}/${rows.length}...`);

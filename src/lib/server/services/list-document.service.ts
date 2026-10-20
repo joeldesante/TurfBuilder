@@ -187,21 +187,19 @@ async function loadList(client: PoolClient, orgId: string, listId: string) {
 	// document shows the list as it was when it was created.
 	const entriesResult = await client.query<LocationRow>(
 		`SELECT
-			COALESCE(pl.name,            ol.name)            AS name,
-			COALESCE(pl.address_line_1,  ol.address_line_1)  AS address_line_1,
-			COALESCE(pl.city,            ol.city)            AS city,
-			COALESCE(pl.state_or_region, ol.state_or_region) AS state_or_region,
-			COALESCE(pl.postal_code,     ol.postal_code)     AS postal_code,
-			ST_Y(COALESCE(pl.coordinates, ol.coordinates))   AS latitude,
-			ST_X(COALESCE(pl.coordinates, ol.coordinates))   AS longitude
+			ol.name,
+			ol.address_line_1,
+			ol.city,
+			ol.state_or_region,
+			ol.postal_code,
+			ST_Y(ol.coordinates) AS latitude,
+			ST_X(ol.coordinates) AS longitude
 		 FROM universe.list_entry le
 		 JOIN universe.list l ON l.id = le.list_id AND l.org_id = $2
-		 LEFT JOIN universe.public_location pl
-			ON le.record_source = 'public_location' AND pl.id = le.record_id
 		 LEFT JOIN universe.org_location ol
-			ON le.record_source = 'org_location'    AND ol.id = le.record_id
+			ON le.record_source = 'org_location' AND ol.id = le.record_id
 		 WHERE le.list_id = $1
-		 ORDER BY COALESCE(pl.city, ol.city), COALESCE(pl.name, ol.name)`,
+		 ORDER BY ol.city, ol.name`,
 		[listId, orgId]
 	);
 
@@ -219,19 +217,18 @@ async function loadList(client: PoolClient, orgId: string, listId: string) {
 	const turfLocationsResult = await client.query<LocationRow & { turf_id: string }>(
 		`SELECT
 			tl.turf_id,
-			COALESCE(pl.name,            ol.name)            AS name,
-			COALESCE(pl.address_line_1,  ol.address_line_1)  AS address_line_1,
-			COALESCE(pl.city,            ol.city)            AS city,
-			COALESCE(pl.state_or_region, ol.state_or_region) AS state_or_region,
-			COALESCE(pl.postal_code,     ol.postal_code)     AS postal_code,
-			ST_Y(COALESCE(pl.coordinates, ol.coordinates))   AS latitude,
-			ST_X(COALESCE(pl.coordinates, ol.coordinates))   AS longitude
+			ol.name,
+			ol.address_line_1,
+			ol.city,
+			ol.state_or_region,
+			ol.postal_code,
+			ST_Y(ol.coordinates) AS latitude,
+			ST_X(ol.coordinates) AS longitude
 		 FROM universe.turf_location tl
-		 LEFT JOIN universe.public_location pl ON tl.public_location_id = pl.id
-		 LEFT JOIN universe.org_location ol    ON tl.org_location_id = ol.id
+		 JOIN universe.org_location ol ON tl.org_location_id = ol.id
 		 WHERE tl.turf_id = ANY($1) AND tl.org_id = $2
-		   AND COALESCE(pl.valid_to, ol.valid_to) IS NULL
-		 ORDER BY COALESCE(pl.name, ol.name)`,
+		   AND ol.valid_to IS NULL
+		 ORDER BY ol.name`,
 		[turfsResult.rows.map((t) => t.id), orgId]
 	);
 

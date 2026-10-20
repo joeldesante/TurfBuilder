@@ -35,14 +35,13 @@ export async function load({ locals }) {
 			`SELECT les.id, les.created_at, les.note, les.photo_keys,
 			        u.name AS submitted_by,
 			        t.code AS turf_code,
-			        les.public_entity_id IS NOT NULL AS is_public_location,
-			        COALESCE(cur_ol.name, cur_pl.name) AS current_name,
-			        COALESCE(cur_ol.address_line_1, cur_pl.address_line_1) AS current_address_line_1,
-			        COALESCE(cur_ol.address_line_2, cur_pl.address_line_2) AS current_address_line_2,
-			        COALESCE(cur_ol.city, cur_pl.city) AS current_city,
-			        COALESCE(cur_ol.state_or_region, cur_pl.state_or_region) AS current_state_or_region,
-			        COALESCE(cur_ol.postal_code, cur_pl.postal_code) AS current_postal_code,
-			        COALESCE(cur_ol.country_code, cur_pl.country_code) AS current_country_code,
+			        cur_ol.name AS current_name,
+			        cur_ol.address_line_1 AS current_address_line_1,
+			        cur_ol.address_line_2 AS current_address_line_2,
+			        cur_ol.city AS current_city,
+			        cur_ol.state_or_region AS current_state_or_region,
+			        cur_ol.postal_code AS current_postal_code,
+			        cur_ol.country_code AS current_country_code,
 			        les.name, les.address_line_1, les.address_line_2,
 			        les.city, les.state_or_region, les.postal_code, les.country_code,
 			        les.coordinates IS NOT NULL AS moves_pin,
@@ -53,8 +52,6 @@ export async function load({ locals }) {
 			   LEFT JOIN universe.turf t ON t.id = les.turf_id
 			   LEFT JOIN universe.org_location cur_ol
 			          ON cur_ol.entity_id = les.org_entity_id AND cur_ol.valid_to IS NULL
-			   LEFT JOIN universe.public_location cur_pl
-			          ON cur_pl.entity_id = les.public_entity_id AND cur_pl.valid_to IS NULL
 			  WHERE les.org_id = $1 AND les.status = 'pending'
 			  ORDER BY les.created_at DESC`,
 			[orgId]

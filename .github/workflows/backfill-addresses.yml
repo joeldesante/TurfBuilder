@@ -1,0 +1,129 @@
+name: Backfill Addresses
+
+# Moves locations onto addresses and contacts in one environment, as a
+# Kubernetes Job (.k8s/jobs/backfill-addresses.yaml). Run by hand from the
+# Actions tab: first as a dry run, then with "apply" checked.
+#
+# Before running:
+#   1. Deploy the release and run /infra/migrate in that environment.
+#   2. Create the node pool the Job runs on (libpostal needs about 2 GB):
+#        doctl kubernetes cluster node-pool create turfbuilder-k8s \
+#          --name backfill --size s-2vcpu-4gb --count 1 \
+#          --taint workload=backfill:NoSchedule
+#      If the region has no capacity for that size, any size with 4 GB or more
+#      works (the Job matches the pool by name): s-2vcpu-4gb-amd,
+#      s-2vcpu-4gb-intel, or s-4vcpu-8gb.
+# After the apply run finishes, delete it again:
+#        doctl kubernetes cluster node-pool delete turfbuilder-k8s backfill
+#
+# This workflow follows the Job's logs for up to 6 hours. A longer run keeps
+# going in the cluster; follow it with
+#   kubectl logs -f job/backfill-addresses-<env> -c backfill -n turfbuilder
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to backfill
+        type: choice
+        options: [staging, production]
+        required: true
+      apply:
+        description: Write changes (unchecked = dry run, writes nothing)
+        type: boolean
+        default: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/turfbuilder-backfill
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # The Job manifest comes from the branch this run was started on, so a
+      # manifest fix can be used before it is merged.
+      - uses: actions/checkout@v4
+
+      # The code that is backfilled is the code deployed to the environment:
+      # staging from the staging branch, production from main.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.environment == 'production' && 'main' || 'staging' }}
+          path: app
+
+      - name: Set environment
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "SECRET=turfbuilder-secrets" >> $GITHUB_ENV
+          else
+            echo "SECRET=turfbuilder-secrets-staging" >> $GITHUB_ENV
+          fi
+          echo "JOB=backfill-addresses-${{ inputs.environment }}" >> $GITHUB_ENV
+          echo "SHA=$(git -C app rev-parse HEAD)" >> $GITHUB_ENV
+          if [ "${{ inputs.apply }}" = "true" ]; then
+            echo 'ARGS=["--apply"]' >> $GITHUB_ENV
+          else
+            echo 'ARGS=[]' >> $GITHUB_ENV
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push the backfill image
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          target: backfill
+          push: true
+          tags: ${{ env.IMAGE }}:${{ env.SHA }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Connect to Kubernetes
+        uses: tale/kubectl-action@v1
+        with:
+          base64-kube-config: ${{ secrets.K8S_CONFIG }}
+
+      # No node pool check here: the deploy account is scoped to the namespace and
+      # cannot list nodes. A missing pool shows up below as a pod that cannot be
+      # scheduled.
+      - name: Start the Job
+        run: |
+          # A Job's pod template cannot be changed, so replace any earlier run.
+          kubectl delete job "$JOB" -n turfbuilder --ignore-not-found --wait
+          sed -e "s|__ENV__|${{ inputs.environment }}|g" \
+              -e "s|__SECRET__|$SECRET|g" \
+              -e "s|__IMAGE__|$IMAGE:$SHA|g" \
+              -e "s|__ARGS__|$ARGS|g" \
+              .k8s/jobs/backfill-addresses.yaml | kubectl apply -f -
+
+      - name: Wait for libpostal to load
+        run: |
+          if ! kubectl wait pod -l job-name="$JOB" -n turfbuilder --for=condition=Ready --timeout=15m; then
+            kubectl describe pod -l job-name="$JOB" -n turfbuilder
+            echo "::error::The backfill pod did not start. If the events above say no node matched, create the 'backfill' node pool (see the top of this workflow file)."
+            exit 1
+          fi
+
+      - name: Follow the backfill
+        run: kubectl logs -f "job/$JOB" -c backfill -n turfbuilder
+
+      - name: Check the result
+        run: kubectl wait "job/$JOB" -n turfbuilder --for=condition=complete --timeout=2m

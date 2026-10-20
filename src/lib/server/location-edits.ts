@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { createLocationVersion, insertLocation } from './locations.js';
+import { createLocationVersion } from './locations.js';
 import type { LocationFields } from '$lib/schemas/location.js';
 
 /**
@@ -15,9 +15,7 @@ import type { LocationFields } from '$lib/schemas/location.js';
 export interface EditTarget {
 	/** The turf assignment the canvasser was looking at. */
 	turfLocationId: string;
-	orgEntityId: string | null;
-	publicLocationId: string | null;
-	publicEntityId: string | null;
+	orgEntityId: string;
 }
 
 /**
@@ -34,17 +32,12 @@ export async function findEditTarget(
 ): Promise<EditTarget | null> {
 	const result = await client.query<{
 		turf_location_id: string;
-		org_entity_id: string | null;
-		public_location_id: string | null;
-		public_entity_id: string | null;
+		org_entity_id: string;
 	}>(
 		`SELECT tl.id AS turf_location_id,
-		        ol.entity_id AS org_entity_id,
-		        tl.public_location_id,
-		        pl.entity_id AS public_entity_id
+		        ol.entity_id AS org_entity_id
 		   FROM universe.turf_location tl
-		   LEFT JOIN universe.org_location ol ON ol.id = tl.org_location_id
-		   LEFT JOIN universe.public_location pl ON pl.id = tl.public_location_id
+		   JOIN universe.org_location ol ON ol.id = tl.org_location_id
 		  WHERE tl.id = $1 AND tl.turf_id = $2 AND tl.org_id = $3`,
 		[turfLocationId, turfId, orgId]
 	);
@@ -54,9 +47,7 @@ export async function findEditTarget(
 
 	return {
 		turfLocationId: row.turf_location_id,
-		orgEntityId: row.org_entity_id,
-		publicLocationId: row.public_location_id,
-		publicEntityId: row.public_entity_id
+		orgEntityId: row.org_entity_id
 	};
 }
 
@@ -86,22 +77,21 @@ export async function insertEditProposal(
 ): Promise<string> {
 	const result = await client.query<{ id: string }>(
 		`INSERT INTO universe.location_edit_suggestion (
-			org_id, org_entity_id, public_entity_id, turf_id, turf_location_id, user_id,
+			org_id, org_entity_id, turf_id, turf_location_id, user_id,
 			name, address_line_1, address_line_2, address_line_3,
 			city, state_or_region, postal_code, country_code,
 			coordinates, photo_keys, note
 		 ) VALUES (
-			$1, $2, $3, $4, $5, $6,
-			$7, $8, $9, $10, $11, $12, $13, $14,
-			CASE WHEN $15::float8 IS NULL THEN NULL
-			     ELSE ST_SetSRID(ST_MakePoint($15::float8, $16::float8), 4326) END,
-			$17, $18
+			$1, $2, $3, $4, $5,
+			$6, $7, $8, $9, $10, $11, $12, $13,
+			CASE WHEN $14::float8 IS NULL THEN NULL
+			     ELSE ST_SetSRID(ST_MakePoint($14::float8, $15::float8), 4326) END,
+			$16, $17
 		 )
 		 RETURNING id`,
 		[
 			orgId,
 			target.orgEntityId,
-			target.orgEntityId ? null : target.publicEntityId,
 			turfId,
 			target.turfLocationId,
 			userId,
@@ -124,8 +114,7 @@ export async function insertEditProposal(
 
 export interface PendingProposal {
 	id: string;
-	org_entity_id: string | null;
-	public_entity_id: string | null;
+	org_entity_id: string;
 	turf_location_id: string | null;
 	name: string | null;
 	address_line_1: string | null;
@@ -147,7 +136,7 @@ export async function findPendingProposal(
 	orgId: string
 ): Promise<PendingProposal | null> {
 	const result = await client.query<PendingProposal>(
-		`SELECT id, org_entity_id, public_entity_id, turf_location_id,
+		`SELECT id, org_entity_id, turf_location_id,
 		        name, address_line_1, address_line_2, address_line_3,
 		        city, state_or_region, postal_code, country_code,
 		        ST_Y(coordinates) AS latitude,
@@ -212,78 +201,29 @@ export async function readOrgLocationFields(
 	return result.rows[0] ?? null;
 }
 
-/** Reads the live version of a public location as a field set. */
-export async function readPublicLocationFields(
-	client: PoolClient,
-	entityId: string
-): Promise<LocationFields | null> {
-	const result = await client.query<LocationFields>(
-		`SELECT name, address_line_1, address_line_2, address_line_3,
-		        city, state_or_region, postal_code, country_code,
-		        ST_Y(coordinates) AS latitude, ST_X(coordinates) AS longitude,
-		        ARRAY[]::text[] AS photo_keys
-		   FROM universe.public_location
-		  WHERE entity_id = $1 AND valid_to IS NULL`,
-		[entityId]
-	);
-	return result.rows[0] ?? null;
-}
-
 /**
- * Applies an approved correction.
+ * Applies an approved correction as a new version of the location, so the
+ * values it replaces stay recoverable.
  *
- * For an org location this is an ordinary new version. For a public one it is
- * a fork: the shared pool is read-only and belongs to every org, so the
- * correction becomes an org-private copy and the turf assignment is repointed
- * onto it. Other organizations keep seeing the original.
- *
- * @returns the entity that now carries the corrected values
+ * @returns the entity that now carries the corrected values, or null when the
+ *   location no longer has a live version
  */
 export async function applyApprovedProposal(
 	client: PoolClient,
 	orgId: string,
 	proposal: PendingProposal,
 	reviewerId: string
-): Promise<{ entityId: string; forked: boolean } | null> {
-	if (proposal.org_entity_id) {
-		const current = await readOrgLocationFields(client, orgId, proposal.org_entity_id);
-		if (!current) return null;
-
-		await createLocationVersion(
-			client,
-			orgId,
-			proposal.org_entity_id,
-			applyProposal(current, proposal),
-			reviewerId,
-			'field_correction'
-		);
-		return { entityId: proposal.org_entity_id, forked: false };
-	}
-
-	if (!proposal.public_entity_id) return null;
-
-	const current = await readPublicLocationFields(client, proposal.public_entity_id);
+): Promise<{ entityId: string } | null> {
+	const current = await readOrgLocationFields(client, orgId, proposal.org_entity_id);
 	if (!current) return null;
 
-	const { entityId, versionId } = await insertLocation(
+	await createLocationVersion(
 		client,
 		orgId,
+		proposal.org_entity_id,
 		applyProposal(current, proposal),
 		reviewerId,
 		'field_correction'
 	);
-
-	// Move every assignment in this org off the shared record and onto the
-	// org-private copy, so canvassers see the correction from now on.
-	await client.query(
-		`UPDATE universe.turf_location tl
-		    SET public_location_id = NULL, org_location_id = $1
-		   FROM universe.public_location pl
-		  WHERE pl.id = tl.public_location_id
-		    AND pl.entity_id = $2
-		    AND tl.org_id = $3`,
-		[versionId, proposal.public_entity_id, orgId]
-	);
-
-	return { entityId, forked: true };
+	return { entityId: proposal.org_entity_id };
 }

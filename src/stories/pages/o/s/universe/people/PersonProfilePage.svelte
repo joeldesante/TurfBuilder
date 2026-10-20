@@ -13,7 +13,6 @@
 		phone: string | null;
 		email: string | null;
 		gender: string | null;
-		source: 'public' | 'org';
 	}
 
 	interface Props {
@@ -62,7 +61,6 @@
 		{ label: 'Phone', value: person.phone },
 		{ label: 'Email', value: person.email },
 		{ label: 'Gender', value: person.gender },
-		{ label: 'Data Source', value: person.source === 'public' ? 'Public record' : 'Organization record' },
 	].filter((f) => f.value));
 </script>
 

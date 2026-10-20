@@ -200,15 +200,13 @@ the operational queries, which filter on valid_to.
 Accepts a canvasser's correction into the official dataset.
 
 The correction becomes a new version of the location, so the values it
-replaces stay recoverable. Where the door came from the shared public pool,
-which no organization may write to, this forks an org-private copy instead
-and repoints the turf assignments onto it.
+replaces stay recoverable.
 
 **Auth:** location.update  
 
 **Response**
 
-&#123; entity_id, forked &#125;
+&#123; entity_id &#125;
 
 ---
 

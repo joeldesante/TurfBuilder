@@ -45,25 +45,18 @@ erDiagram
     email_template { text key PK }
 
     %% universe: entities and versions
-    entity_type |o--o{ public_entity : ""
     entity_type |o--o{ org_entity : ""
-    public_entity ||--o{ public_person : ""
-    public_entity ||--o{ public_organization : ""
-    public_entity ||--o{ public_location : ""
     org_entity ||--o{ org_person : ""
     org_entity ||--o{ org_organization : ""
     org_entity ||--o{ org_location : ""
-    organization_type |o--o{ public_organization : ""
+    org_entity ||--o{ org_address : ""
+    org_entity ||--o{ org_contact : ""
     organization_type |o--o{ org_organization : ""
 
     %% universe: relationships and tags
-    relationship_type ||--o{ public_relationship : ""
     relationship_type ||--o{ org_relationship : ""
-    public_entity ||--o{ public_relationship : ""
-    public_entity |o--o{ org_relationship : ""
     org_entity |o--o{ org_relationship : ""
     tag ||--o{ entity_tag : ""
-    public_entity |o--o{ entity_tag : ""
     org_entity |o--o{ entity_tag : ""
 
     %% universe: buckets, lists, surveys, turfs
@@ -71,9 +64,7 @@ erDiagram
     bucket ||--o{ list : ""
     bucket ||--o{ survey : ""
     list ||--o{ list_entry : ""
-    public_person |o..o{ list_entry : ""
     org_person |o..o{ list_entry : ""
-    public_location |o..o{ list_entry : ""
     org_location |o..o{ list_entry : ""
     list ||--o{ list_document : ""
     list_document |o--o{ list_document : ""
@@ -83,7 +74,6 @@ erDiagram
     script |o--o{ turf : ""
     turf ||--o{ turf_user : ""
     turf ||--o{ turf_location : ""
-    public_location |o--o{ turf_location : ""
     org_location |o--o{ turf_location : ""
     turf_location ||--o{ turf_location_attempt : ""
     turf_location_attempt ||--o{ survey_question_response : ""
@@ -93,7 +83,6 @@ erDiagram
     org_entity ||--o| location_suggestion : ""
     turf |o--o{ location_suggestion : ""
     org_entity |o--o{ location_edit_suggestion : ""
-    public_entity |o--o{ location_edit_suggestion : ""
     turf |o--o{ location_edit_suggestion : ""
     turf_location |o--o{ location_edit_suggestion : ""
 ```
@@ -288,15 +277,19 @@ erDiagram
 
 ## Universe entities
 
-People, organizations, and locations. Each entity is a row in `public_entity` (the shared pool, readable by every org) or `org_entity` (private to one org), and its data lives in version rows. An edit closes the current version (`valid_to = now()`) and inserts a new one; the current version is the one with `valid_to IS NULL`. A trigger stamps the entity's `type_id` from the first version inserted and rejects versions of a different type.
+People, organizations, and locations. Each entity is a row in `org_entity`, private to one org, and its data lives in version rows. Nothing is shared between orgs. An edit closes the current version (`valid_to = now()`) and inserts a new one; the current version is the one with `valid_to IS NULL`. A trigger stamps the entity's `type_id` from the first version inserted and rejects versions of a different type.
 
-Two views read current versions only: `v_people` (`public_person` + `org_person`) and `v_locations` (`public_location` + `org_location`, hiding tentative location suggestions). Org rows in both are filtered by `app.current_org_id`.
+Addresses follow the UPU S42 address elements for physical places (no addressee, no PO boxes). An address is versioned like the other entities, with one point of coordinates. A unit (apartment, suite, floor) is an address of its own, a complete row with the unit columns set and its own point, as the NENA and OGC address standards model subaddresses; nothing ties it to its building's row. An address split off another keeps a `split_from` relationship to it.
+
+A contact is anything canvassed at an address: a business today, a resident later. The kinds share one versioned table, `org_contact`, and differ only in `metadata`, whose shape each kind declares in `$lib/shared/contact-types` (the database only checks that it is a JSON object). A contact points at one address entity, which may be a unit. Existing locations are being moved onto contacts (`scripts/backfill-addresses.ts`): each contact reuses its location's entity id, so the contract step can repoint lists and turfs by entity. Until then the app still reads `org_location`.
+
+Two views read current versions only: `v_people` (`org_person`) and `v_locations` (`org_location`, hiding tentative location suggestions). Both are filtered by `app.current_org_id`.
 
 ```mermaid
 erDiagram
     entity_type {
         uuid id PK
-        text slug UK "person, organization, location, asset"
+        text slug UK "person, organization, location, asset, address"
         text name
         text description
         timestamptz created_at
@@ -317,36 +310,11 @@ erDiagram
         text description
         timestamptz created_at
     }
-    public_entity {
-        uuid id PK
-        uuid type_id FK
-        text source_ref
-        timestamptz created_at
-    }
     org_entity {
         uuid id PK
         uuid org_id FK
         uuid type_id FK
         text source_ref
-        timestamptz created_at
-    }
-    public_person {
-        uuid id PK "version"
-        uuid entity_id FK
-        text first_name
-        text middle_name
-        text last_name
-        text suffix
-        text preferred_name
-        date dob
-        text phone
-        text email
-        text gender
-        jsonb attributes
-        timestamptz valid_from
-        timestamptz valid_to "null = current"
-        uuid authored_by FK "auth_user"
-        text source
         timestamptz created_at
     }
     org_person {
@@ -369,21 +337,6 @@ erDiagram
         text source
         timestamptz created_at
     }
-    public_organization {
-        uuid id PK "version"
-        uuid entity_id FK
-        uuid type_id FK
-        text name
-        text phone
-        text email
-        text website
-        jsonb attributes
-        timestamptz valid_from
-        timestamptz valid_to "null = current"
-        uuid authored_by FK "auth_user"
-        text source
-        timestamptz created_at
-    }
     org_organization {
         uuid id PK "version"
         uuid org_id FK
@@ -394,24 +347,6 @@ erDiagram
         text email
         text website
         jsonb attributes
-        timestamptz valid_from
-        timestamptz valid_to "null = current"
-        uuid authored_by FK "auth_user"
-        text source
-        timestamptz created_at
-    }
-    public_location {
-        uuid id PK "version"
-        uuid entity_id FK
-        text name
-        text address_line_1
-        text address_line_2
-        text address_line_3
-        text city
-        text state_or_region
-        text postal_code
-        text country_code
-        geometry coordinates "point, 4326"
         timestamptz valid_from
         timestamptz valid_to "null = current"
         uuid authored_by FK "auth_user"
@@ -438,13 +373,41 @@ erDiagram
         text source
         timestamptz created_at
     }
-    public_relationship {
-        uuid id PK
-        uuid from_entity_id FK
-        uuid to_entity_id FK
-        uuid relationship_type_id FK
+    org_address {
+        uuid id PK "version"
+        uuid org_id FK
+        uuid entity_id FK
+        text premises_name "one of name or number"
+        text premises_number "one of name or number"
+        text thoroughfare_name
+        text thoroughfare_type
+        text thoroughfare_pre_qualifier
+        text thoroughfare_post_qualifier
+        text dependent_locality
+        text locality
+        text region
+        text postcode
+        char country_code "required"
+        text unit_type "Apt, Suite; needs unit_identifier"
+        text unit_identifier "set on a unit"
+        text floor
+        geometry coordinates "point, 4326, required"
         timestamptz valid_from
-        timestamptz valid_to
+        timestamptz valid_to "null = current"
+        uuid authored_by FK "auth_user"
+        text source
+        timestamptz created_at
+    }
+    org_contact {
+        uuid id PK "version"
+        uuid org_id FK
+        uuid entity_id FK "one current version"
+        text type "slug in contact-types"
+        uuid address_entity_id FK "org_entity, type address (may be a unit)"
+        jsonb metadata "shape set by type"
+        text[] photo_keys
+        timestamptz valid_from
+        timestamptz valid_to "null = current"
         uuid authored_by FK "auth_user"
         text source
         timestamptz created_at
@@ -452,10 +415,8 @@ erDiagram
     org_relationship {
         uuid id PK
         uuid org_id FK
-        uuid from_public_entity_id FK "one from_ set"
-        uuid from_org_entity_id FK "one from_ set"
-        uuid to_public_entity_id FK "one to_ set"
-        uuid to_org_entity_id FK "one to_ set"
+        uuid from_org_entity_id FK
+        uuid to_org_entity_id FK
         uuid relationship_type_id FK
         timestamptz valid_from
         timestamptz valid_to
@@ -475,31 +436,23 @@ erDiagram
         uuid id PK
         uuid tag_id FK
         uuid org_id FK
-        uuid public_entity_id FK "exactly one entity set"
-        uuid org_entity_id FK "exactly one entity set"
+        uuid org_entity_id FK
         uuid tagged_by FK "auth_user"
         timestamptz created_at
     }
 
     auth_organization ||--o{ org_entity : "owns"
-    entity_type |o--o{ public_entity : "types"
     entity_type |o--o{ org_entity : "types"
-    public_entity ||--o{ public_person : "versions"
-    public_entity ||--o{ public_organization : "versions"
-    public_entity ||--o{ public_location : "versions"
     org_entity ||--o{ org_person : "versions"
     org_entity ||--o{ org_organization : "versions"
     org_entity ||--o{ org_location : "versions"
-    organization_type |o--o{ public_organization : "types"
+    org_entity ||--o{ org_address : "versions"
+    org_entity ||--o{ org_contact : "versions; address"
     organization_type |o--o{ org_organization : "types"
-    relationship_type ||--o{ public_relationship : "types"
     relationship_type ||--o{ org_relationship : "types"
-    public_entity ||--o{ public_relationship : "from / to"
-    public_entity |o--o{ org_relationship : "from / to"
     org_entity |o--o{ org_relationship : "from / to"
     auth_organization ||--o{ tag : "owns"
     tag ||--o{ entity_tag : "applied as"
-    public_entity |o--o{ entity_tag : "tagged"
     org_entity |o--o{ entity_tag : "tagged"
 ```
 
@@ -600,8 +553,7 @@ erDiagram
         uuid id PK
         uuid org_id FK
         uuid turf_id FK
-        uuid public_location_id FK "exactly one set"
-        uuid org_location_id FK "exactly one set"
+        uuid org_location_id FK
         timestamptz created_at
     }
     turf_location_attempt {
@@ -628,9 +580,7 @@ erDiagram
     bucket ||--o{ list : "snapshotted as"
     bucket ||--o{ survey : "has"
     list ||--o{ list_entry : "contains"
-    public_person |o..o{ list_entry : "record_id"
     org_person |o..o{ list_entry : "record_id"
-    public_location |o..o{ list_entry : "record_id"
     org_location |o..o{ list_entry : "record_id"
     list ||--o{ list_document : "printed as"
     list_document |o--o{ list_document : "superseded_by"
@@ -641,7 +591,6 @@ erDiagram
     turf ||--o{ turf_user : "assigned"
     auth_user ||--o{ turf_user : "canvasses"
     turf ||--o{ turf_location : "covers"
-    public_location |o--o{ turf_location : "version"
     org_location |o--o{ turf_location : "version"
     turf_location ||--o{ turf_location_attempt : "visited in"
     auth_user ||--o{ turf_location_attempt : "makes"
@@ -651,7 +600,7 @@ erDiagram
 
 ## Field suggestions
 
-Canvassers can propose locations from the field. A new location is created as an `org_entity` with a `tentative` `location_suggestion` (at most one per entity), and stays out of `v_locations` until approved. A correction to an existing location goes in `location_edit_suggestion` with the proposed values; it targets an entity rather than a version, so it survives edits, and exactly one of `org_entity_id` and `public_entity_id` is set. Approving a correction to a public location forks an org-private copy.
+Canvassers can propose locations from the field. A new location is created as an `org_entity` with a `tentative` `location_suggestion` (at most one per entity), and stays out of `v_locations` until approved. A correction to an existing location goes in `location_edit_suggestion` with the proposed values; it targets an entity rather than a version, so it survives edits. Approving one writes a new version of the location.
 
 ```mermaid
 erDiagram
@@ -670,8 +619,7 @@ erDiagram
     location_edit_suggestion {
         uuid id PK
         uuid org_id FK
-        uuid org_entity_id FK "exactly one target set"
-        uuid public_entity_id FK "exactly one target set"
+        uuid org_entity_id FK
         uuid turf_id FK
         uuid turf_location_id FK
         uuid user_id FK "auth_user"
@@ -697,7 +645,6 @@ erDiagram
     turf |o--o{ location_suggestion : "found on"
     auth_user ||--o{ location_suggestion : "suggests"
     org_entity |o--o{ location_edit_suggestion : "target"
-    public_entity |o--o{ location_edit_suggestion : "target"
     turf |o--o{ location_edit_suggestion : "found on"
     turf_location |o--o{ location_edit_suggestion : "found at"
     auth_user ||--o{ location_edit_suggestion : "suggests"

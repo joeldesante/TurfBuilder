@@ -6,23 +6,6 @@ export async function load({ params, locals }) {
 	return withOrgTransaction(locals.organization!.id, async (client) => {
 		const result = await client.query<LocationDetail>(
 			`SELECT
-				pl.id,
-				pl.name,
-				pl.address_line_1,
-				pl.address_line_2,
-				pl.address_line_3,
-				pl.city,
-				pl.state_or_region,
-				pl.postal_code,
-				pl.country_code,
-				'public'::text AS source
-			FROM universe.public_location pl
-			WHERE pl.id = $1
-			  AND pl.valid_to IS NULL
-
-			UNION ALL
-
-			SELECT
 				ol.id,
 				ol.name,
 				ol.address_line_1,
@@ -31,14 +14,11 @@ export async function load({ params, locals }) {
 				ol.city,
 				ol.state_or_region,
 				ol.postal_code,
-				ol.country_code,
-				'org'::text AS source
+				ol.country_code
 			FROM universe.org_location ol
 			WHERE ol.id = $1
 			  AND ol.org_id = $2
-			  AND ol.valid_to IS NULL
-
-			LIMIT 1`,
+			  AND ol.valid_to IS NULL`,
 			[params.id, locals.organization!.id]
 		);
 

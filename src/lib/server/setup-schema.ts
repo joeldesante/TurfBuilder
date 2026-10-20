@@ -560,7 +560,6 @@ export const SETUP_STEPS: SetupStep[] = [
 			DECLARE
 				expected_slug TEXT := TG_ARGV[0];
 				type_record   RECORD;
-				entity_table  TEXT;
 				current_type  UUID;
 			BEGIN
 				-- Look up the entity type by slug
@@ -569,21 +568,12 @@ export const SETUP_STEPS: SetupStep[] = [
 					RAISE EXCEPTION 'Unknown entity type slug: %', expected_slug;
 				END IF;
 
-				-- Determine which entity table to update based on the version table name
-				IF TG_TABLE_NAME LIKE 'public_%' THEN
-					entity_table := 'universe.public_entity';
-				ELSE
-					entity_table := 'universe.org_entity';
-				END IF;
-
 				-- Read the current type_id from the parent entity row
-				EXECUTE format('SELECT type_id FROM %s WHERE id = $1', entity_table)
-					INTO current_type USING NEW.entity_id;
+				SELECT type_id INTO current_type FROM universe.org_entity WHERE id = NEW.entity_id;
 
 				IF current_type IS NULL THEN
 					-- First version insert — stamp the entity type
-					EXECUTE format('UPDATE %s SET type_id = $1 WHERE id = $2', entity_table)
-						USING type_record.id, NEW.entity_id;
+					UPDATE universe.org_entity SET type_id = type_record.id WHERE id = NEW.entity_id;
 				ELSIF current_type != type_record.id THEN
 					-- Entity already typed as something different — reject
 					RAISE EXCEPTION 'Entity % already has type_id %, cannot insert version of type %',
@@ -649,82 +639,12 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Creating universe entity tables',
 		statements: [
-			`CREATE TABLE IF NOT EXISTS universe.public_entity (
-				id         UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				type_id    UUID REFERENCES universe.entity_type(id) ON DELETE RESTRICT,
-				source_ref TEXT,
-				created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-			)`,
-
 			`CREATE TABLE IF NOT EXISTS universe.org_entity (
 				id         UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 				org_id     UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
 				type_id    UUID REFERENCES universe.entity_type(id) ON DELETE RESTRICT,
 				source_ref TEXT,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-			)`
-		]
-	},
-
-	// -------------------------------------------------------------------------
-	// 21. Universe public version tables
-	// -------------------------------------------------------------------------
-	{
-		label: 'Creating universe public version tables',
-		statements: [
-			`CREATE TABLE IF NOT EXISTS universe.public_person (
-				id             UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				entity_id      UUID NOT NULL REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				first_name     TEXT,
-				middle_name    TEXT,
-				last_name      TEXT,
-				suffix         TEXT,
-				preferred_name TEXT,
-				dob            DATE,
-				phone          TEXT,
-				email          TEXT,
-				gender         TEXT,
-				attributes     JSONB,
-				valid_from     TIMESTAMPTZ NOT NULL DEFAULT now(),
-				valid_to       TIMESTAMPTZ,
-				authored_by    UUID REFERENCES auth.user(id) ON DELETE SET NULL,
-				source         TEXT NOT NULL,
-				created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-			)`,
-
-			`CREATE TABLE IF NOT EXISTS universe.public_organization (
-				id          UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				entity_id   UUID NOT NULL REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				type_id     UUID REFERENCES universe.organization_type(id) ON DELETE RESTRICT,
-				name        TEXT NOT NULL,
-				phone       TEXT,
-				email       TEXT,
-				website     TEXT,
-				attributes  JSONB,
-				valid_from  TIMESTAMPTZ NOT NULL DEFAULT now(),
-				valid_to    TIMESTAMPTZ,
-				authored_by UUID REFERENCES auth.user(id) ON DELETE SET NULL,
-				source      TEXT NOT NULL,
-				created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-			)`,
-
-			`CREATE TABLE IF NOT EXISTS universe.public_location (
-				id              UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				entity_id       UUID NOT NULL REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				name            TEXT,
-				address_line_1  TEXT,
-				address_line_2  TEXT,
-				address_line_3  TEXT,
-				city            TEXT,
-				state_or_region TEXT,
-				postal_code     TEXT,
-				country_code    TEXT,
-				coordinates     geometry(point, 4326),
-				valid_from      TIMESTAMPTZ NOT NULL DEFAULT now(),
-				valid_to        TIMESTAMPTZ,
-				authored_by     UUID REFERENCES auth.user(id) ON DELETE SET NULL,
-				source          TEXT NOT NULL,
-				created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 			)`
 		]
 	},
@@ -801,44 +721,18 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Creating universe relationship tables',
 		statements: [
-			`CREATE TABLE IF NOT EXISTS universe.public_relationship (
-				id                   UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				from_entity_id       UUID NOT NULL REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				to_entity_id         UUID NOT NULL REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				relationship_type_id UUID NOT NULL REFERENCES universe.relationship_type(id) ON DELETE RESTRICT,
-				valid_from           TIMESTAMPTZ NOT NULL DEFAULT now(),
-				valid_to             TIMESTAMPTZ,
-				authored_by          UUID REFERENCES auth.user(id) ON DELETE SET NULL,
-				source               TEXT NOT NULL,
-				created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
-			)`,
-
 			`CREATE TABLE IF NOT EXISTS universe.org_relationship (
 				id                    UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 				org_id                UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				from_public_entity_id UUID REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				from_org_entity_id    UUID REFERENCES universe.org_entity(id) ON DELETE CASCADE,
-				to_public_entity_id   UUID REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				to_org_entity_id      UUID REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				from_org_entity_id    UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				to_org_entity_id      UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
 				relationship_type_id  UUID NOT NULL REFERENCES universe.relationship_type(id) ON DELETE RESTRICT,
 				valid_from            TIMESTAMPTZ NOT NULL DEFAULT now(),
 				valid_to              TIMESTAMPTZ,
 				authored_by           UUID REFERENCES auth.user(id) ON DELETE SET NULL,
 				source                TEXT NOT NULL,
 				created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
-			)`,
-			`DO $$ BEGIN
-				ALTER TABLE universe.org_relationship ADD CONSTRAINT org_relationship_from_check CHECK (
-					(from_public_entity_id IS NOT NULL AND from_org_entity_id IS NULL) OR
-					(from_public_entity_id IS NULL AND from_org_entity_id IS NOT NULL)
-				);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`DO $$ BEGIN
-				ALTER TABLE universe.org_relationship ADD CONSTRAINT org_relationship_to_check CHECK (
-					(to_public_entity_id IS NOT NULL AND to_org_entity_id IS NULL) OR
-					(to_public_entity_id IS NULL AND to_org_entity_id IS NOT NULL)
-				);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`
+			)`
 		]
 	},
 
@@ -871,21 +765,12 @@ export const SETUP_STEPS: SetupStep[] = [
 				id               UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 				tag_id           UUID NOT NULL REFERENCES universe.tag(id) ON DELETE CASCADE,
 				org_id           UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				public_entity_id UUID REFERENCES universe.public_entity(id) ON DELETE CASCADE,
-				org_entity_id    UUID REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				org_entity_id    UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
 				tagged_by        UUID REFERENCES auth.user(id) ON DELETE SET NULL,
 				created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 			)`,
-			`DO $$ BEGIN
-				ALTER TABLE universe.entity_tag ADD CONSTRAINT entity_tag_entity_check CHECK (
-					(public_entity_id IS NOT NULL AND org_entity_id IS NULL) OR
-					(public_entity_id IS NULL AND org_entity_id IS NOT NULL)
-				);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS entity_tag_public_unique
-				ON universe.entity_tag (tag_id, public_entity_id) WHERE public_entity_id IS NOT NULL`,
 			`CREATE UNIQUE INDEX IF NOT EXISTS entity_tag_org_unique
-				ON universe.entity_tag (tag_id, org_entity_id) WHERE org_entity_id IS NOT NULL`
+				ON universe.entity_tag (tag_id, org_entity_id)`
 		]
 	},
 
@@ -895,21 +780,6 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Binding universe entity type triggers',
 		statements: [
-			`DROP TRIGGER IF EXISTS set_entity_type ON universe.public_person`,
-			`CREATE TRIGGER set_entity_type
-				BEFORE INSERT ON universe.public_person
-				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('person')`,
-
-			`DROP TRIGGER IF EXISTS set_entity_type ON universe.public_organization`,
-			`CREATE TRIGGER set_entity_type
-				BEFORE INSERT ON universe.public_organization
-				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('organization')`,
-
-			`DROP TRIGGER IF EXISTS set_entity_type ON universe.public_location`,
-			`CREATE TRIGGER set_entity_type
-				BEFORE INSERT ON universe.public_location
-				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('location')`,
-
 			`DROP TRIGGER IF EXISTS set_entity_type ON universe.org_person`,
 			`CREATE TRIGGER set_entity_type
 				BEFORE INSERT ON universe.org_person
@@ -944,19 +814,6 @@ export const SETUP_STEPS: SetupStep[] = [
 				`CREATE POLICY public_read ON ${table} FOR SELECT USING (true)`
 			]),
 
-			// Public entity + version tables — visible to all orgs
-			...[
-				'universe.public_entity',
-				'universe.public_person',
-				'universe.public_organization',
-				'universe.public_location',
-				'universe.public_relationship'
-			].flatMap((table) => [
-				`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`,
-				`DROP POLICY IF EXISTS public_read ON ${table}`,
-				`CREATE POLICY public_read ON ${table} FOR SELECT USING (true)`
-			]),
-
 			// Org-scoped tables — isolated to owning org
 			...[
 				'universe.org_entity',
@@ -980,8 +837,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	// -------------------------------------------------------------------------
 	// 26.5. Universe entity views
 	//
-	// These views combine public (shared across all orgs) and org-specific rows
-	// into a single queryable surface. Org rows are scoped by
+	// These views expose the current org-specific rows. Rows are scoped by
 	// current_setting('app.current_org_id'), which withOrgTransaction sets on
 	// every request. Because PostgreSQL views bypass underlying-table RLS by
 	// default, the org filter is applied explicitly in the view WHERE clause
@@ -996,17 +852,6 @@ export const SETUP_STEPS: SetupStep[] = [
 		label: 'Creating universe entity views',
 		statements: [
 			`CREATE OR REPLACE VIEW universe.v_people AS
-				SELECT
-					pp.id,
-					pp.first_name,
-					pp.last_name,
-					pp.email,
-					pp.phone,
-					pp.dob,
-					'public_person' AS source
-				FROM universe.public_person pp
-				WHERE pp.valid_to IS NULL
-				UNION ALL
 				SELECT
 					op.id,
 					op.first_name,
@@ -1027,48 +872,10 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Creating universe indexes',
 		statements: [
-			// public_entity
-			`CREATE INDEX IF NOT EXISTS public_entity_type_id_idx    ON universe.public_entity (type_id)`,
-			`CREATE INDEX IF NOT EXISTS public_entity_source_ref_idx ON universe.public_entity (source_ref)`,
-
 			// org_entity
 			`CREATE INDEX IF NOT EXISTS org_entity_org_id_idx     ON universe.org_entity (org_id)`,
 			`CREATE INDEX IF NOT EXISTS org_entity_type_id_idx    ON universe.org_entity (type_id)`,
 			`CREATE INDEX IF NOT EXISTS org_entity_source_ref_idx ON universe.org_entity (source_ref)`,
-
-			// public_person
-			`CREATE INDEX IF NOT EXISTS public_person_entity_id_idx         ON universe.public_person (entity_id)`,
-			`CREATE INDEX IF NOT EXISTS public_person_entity_current_idx     ON universe.public_person (entity_id) WHERE valid_to IS NULL`,
-			`CREATE INDEX IF NOT EXISTS public_person_name_idx               ON universe.public_person (last_name, first_name)`,
-			`CREATE INDEX IF NOT EXISTS public_person_fts_idx                ON universe.public_person USING GIN (
-				to_tsvector('simple',
-					COALESCE(first_name, '') || ' ' ||
-					COALESCE(middle_name, '') || ' ' ||
-					COALESCE(last_name, '') || ' ' ||
-					COALESCE(preferred_name, '')
-				)
-			)`,
-
-			// public_organization
-			`CREATE INDEX IF NOT EXISTS public_organization_entity_id_idx     ON universe.public_organization (entity_id)`,
-			`CREATE INDEX IF NOT EXISTS public_organization_entity_current_idx ON universe.public_organization (entity_id) WHERE valid_to IS NULL`,
-			`CREATE INDEX IF NOT EXISTS public_organization_name_idx           ON universe.public_organization (name)`,
-			`CREATE INDEX IF NOT EXISTS public_organization_fts_idx            ON universe.public_organization USING GIN (to_tsvector('simple', name))`,
-
-			// public_location
-			`CREATE INDEX IF NOT EXISTS public_location_entity_id_idx      ON universe.public_location (entity_id)`,
-			`CREATE INDEX IF NOT EXISTS public_location_entity_current_idx  ON universe.public_location (entity_id) WHERE valid_to IS NULL`,
-			`CREATE INDEX IF NOT EXISTS public_location_coordinates_idx     ON universe.public_location USING GIST (coordinates)`,
-			`CREATE INDEX IF NOT EXISTS public_location_city_idx            ON universe.public_location (city)`,
-			`CREATE INDEX IF NOT EXISTS public_location_postal_code_idx     ON universe.public_location (postal_code)`,
-			`CREATE INDEX IF NOT EXISTS public_location_fts_idx             ON universe.public_location USING GIN (
-				to_tsvector('simple',
-					COALESCE(name, '') || ' ' ||
-					COALESCE(address_line_1, '') || ' ' ||
-					COALESCE(city, '') || ' ' ||
-					COALESCE(postal_code, '')
-				)
-			)`,
 
 			// org_person
 			`CREATE INDEX IF NOT EXISTS org_person_org_id_idx          ON universe.org_person (org_id)`,
@@ -1096,6 +903,9 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE INDEX IF NOT EXISTS org_location_entity_id_idx        ON universe.org_location (entity_id)`,
 			`CREATE INDEX IF NOT EXISTS org_location_entity_current_idx   ON universe.org_location (entity_id) WHERE valid_to IS NULL`,
 			`CREATE INDEX IF NOT EXISTS org_location_coordinates_idx      ON universe.org_location USING GIST (coordinates)`,
+			// The radius filter measures with ST_DWithin on coordinates::geography, which
+			// cannot use the geometry index above; the cast needs its own (#229).
+			`CREATE INDEX IF NOT EXISTS org_location_geography_idx        ON universe.org_location USING GIST ((coordinates::geography))`,
 			`CREATE INDEX IF NOT EXISTS org_location_city_idx             ON universe.org_location (org_id, city)`,
 			`CREATE INDEX IF NOT EXISTS org_location_postal_code_idx      ON universe.org_location (org_id, postal_code)`,
 			`CREATE INDEX IF NOT EXISTS org_location_fts_idx              ON universe.org_location USING GIN (
@@ -1107,19 +917,10 @@ export const SETUP_STEPS: SetupStep[] = [
 				)
 			)`,
 
-			// public_relationship
-			`CREATE INDEX IF NOT EXISTS public_rel_from_idx         ON universe.public_relationship (from_entity_id)`,
-			`CREATE INDEX IF NOT EXISTS public_rel_to_idx           ON universe.public_relationship (to_entity_id)`,
-			`CREATE INDEX IF NOT EXISTS public_rel_from_active_idx  ON universe.public_relationship (from_entity_id) WHERE valid_to IS NULL`,
-			`CREATE INDEX IF NOT EXISTS public_rel_to_active_idx    ON universe.public_relationship (to_entity_id) WHERE valid_to IS NULL`,
-			`CREATE INDEX IF NOT EXISTS public_rel_type_idx         ON universe.public_relationship (relationship_type_id)`,
-
 			// org_relationship
 			`CREATE INDEX IF NOT EXISTS org_rel_org_id_idx              ON universe.org_relationship (org_id)`,
-			`CREATE INDEX IF NOT EXISTS org_rel_from_public_idx         ON universe.org_relationship (from_public_entity_id) WHERE from_public_entity_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS org_rel_from_org_idx            ON universe.org_relationship (from_org_entity_id) WHERE from_org_entity_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS org_rel_to_public_idx           ON universe.org_relationship (to_public_entity_id) WHERE to_public_entity_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS org_rel_to_org_idx              ON universe.org_relationship (to_org_entity_id) WHERE to_org_entity_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS org_rel_from_org_idx            ON universe.org_relationship (from_org_entity_id)`,
+			`CREATE INDEX IF NOT EXISTS org_rel_to_org_idx              ON universe.org_relationship (to_org_entity_id)`,
 			`CREATE INDEX IF NOT EXISTS org_rel_type_active_idx         ON universe.org_relationship (org_id, relationship_type_id) WHERE valid_to IS NULL`,
 
 			// tag
@@ -1128,8 +929,7 @@ export const SETUP_STEPS: SetupStep[] = [
 			// entity_tag
 			`CREATE INDEX IF NOT EXISTS entity_tag_org_id_idx        ON universe.entity_tag (org_id)`,
 			`CREATE INDEX IF NOT EXISTS entity_tag_tag_id_idx         ON universe.entity_tag (tag_id)`,
-			`CREATE INDEX IF NOT EXISTS entity_tag_public_entity_idx  ON universe.entity_tag (public_entity_id) WHERE public_entity_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS entity_tag_org_entity_idx     ON universe.entity_tag (org_entity_id) WHERE org_entity_id IS NOT NULL`
+			`CREATE INDEX IF NOT EXISTS entity_tag_org_entity_idx     ON universe.entity_tag (org_entity_id)`
 		]
 	},
 
@@ -1226,7 +1026,7 @@ export const SETUP_STEPS: SetupStep[] = [
 				list_id       UUID NOT NULL REFERENCES universe.list(id) ON DELETE CASCADE,
 				record_id     UUID NOT NULL,
 				record_source TEXT NOT NULL
-					CHECK (record_source IN ('public_person', 'org_person', 'public_location', 'org_location'))
+					CHECK (record_source IN ('org_person', 'org_location'))
 			)`,
 			`CREATE INDEX IF NOT EXISTS list_entry_list_id_idx ON universe.list_entry (list_id)`
 		]
@@ -1352,24 +1152,14 @@ export const SETUP_STEPS: SetupStep[] = [
 				id                 UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 				org_id             UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
 				turf_id            UUID NOT NULL REFERENCES universe.turf(id) ON DELETE CASCADE,
-				public_location_id UUID REFERENCES universe.public_location(id) ON DELETE CASCADE,
-				org_location_id    UUID REFERENCES universe.org_location(id) ON DELETE CASCADE,
+				org_location_id    UUID NOT NULL REFERENCES universe.org_location(id) ON DELETE CASCADE,
 				created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 			)`,
-			`DO $$ BEGIN
-				ALTER TABLE universe.turf_location ADD CONSTRAINT turf_location_source_check CHECK (
-					(public_location_id IS NOT NULL AND org_location_id IS NULL) OR
-					(public_location_id IS NULL AND org_location_id IS NOT NULL)
-				);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_public_unique
-				ON universe.turf_location (turf_id, public_location_id) WHERE public_location_id IS NOT NULL`,
 			`CREATE UNIQUE INDEX IF NOT EXISTS turf_location_org_unique
-				ON universe.turf_location (turf_id, org_location_id) WHERE org_location_id IS NOT NULL`,
+				ON universe.turf_location (turf_id, org_location_id)`,
 			`CREATE INDEX IF NOT EXISTS turf_location_org_id_idx          ON universe.turf_location (org_id)`,
 			`CREATE INDEX IF NOT EXISTS turf_location_turf_id_idx         ON universe.turf_location (turf_id)`,
-			`CREATE INDEX IF NOT EXISTS turf_location_public_location_idx ON universe.turf_location (public_location_id) WHERE public_location_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS turf_location_org_location_idx    ON universe.turf_location (org_location_id) WHERE org_location_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS turf_location_org_location_idx    ON universe.turf_location (org_location_id)`,
 
 			`CREATE TABLE IF NOT EXISTS universe.turf_location_attempt (
 				id               UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -1522,23 +1312,6 @@ export const SETUP_STEPS: SetupStep[] = [
 			`DROP VIEW IF EXISTS universe.v_locations`,
 			`CREATE VIEW universe.v_locations AS
 				SELECT
-					pl.id,
-					pl.name,
-					pl.address_line_1,
-					pl.address_line_2,
-					pl.address_line_3,
-					pl.city,
-					pl.state_or_region,
-					pl.postal_code,
-					pl.country_code,
-					pl.coordinates,
-					'public_location' AS source,
-					pl.entity_id,
-					ARRAY[]::text[] AS photo_keys
-				FROM universe.public_location pl
-				WHERE pl.valid_to IS NULL
-				UNION ALL
-				SELECT
 					ol.id,
 					ol.name,
 					ol.address_line_1,
@@ -1574,10 +1347,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	// evidence the organizer reviews.
 	//
 	// The target is an entity rather than a version row so a proposal survives
-	// the location being edited underneath it. Exactly one of the two entity
-	// columns is set: public locations belong to the shared pool and cannot be
-	// written, so approving a correction against one forks an org-private copy
-	// instead.
+	// the location being edited underneath it.
 	// -------------------------------------------------------------------------
 	{
 		label: 'Creating location correction proposals',
@@ -1585,8 +1355,7 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE TABLE IF NOT EXISTS universe.location_edit_suggestion (
 				id                UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 				org_id            UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
-				org_entity_id     UUID REFERENCES universe.org_entity(id) ON DELETE CASCADE,
-				public_entity_id  UUID REFERENCES universe.public_entity(id) ON DELETE CASCADE,
+				org_entity_id     UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
 				turf_id           UUID REFERENCES universe.turf(id) ON DELETE SET NULL,
 				turf_location_id  UUID REFERENCES universe.turf_location(id) ON DELETE SET NULL,
 				user_id           UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE,
@@ -1608,20 +1377,10 @@ export const SETUP_STEPS: SetupStep[] = [
 				created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
 				updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 			)`,
-			`DO $$ BEGIN
-				ALTER TABLE universe.location_edit_suggestion
-					ADD CONSTRAINT location_edit_suggestion_target_check CHECK (
-						(org_entity_id IS NOT NULL AND public_entity_id IS NULL) OR
-						(org_entity_id IS NULL AND public_entity_id IS NOT NULL)
-					);
-			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-
 			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_org_id_idx
 				ON universe.location_edit_suggestion (org_id)`,
 			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_org_entity_idx
-				ON universe.location_edit_suggestion (org_entity_id) WHERE org_entity_id IS NOT NULL`,
-			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_public_entity_idx
-				ON universe.location_edit_suggestion (public_entity_id) WHERE public_entity_id IS NOT NULL`,
+				ON universe.location_edit_suggestion (org_entity_id)`,
 			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_turf_location_idx
 				ON universe.location_edit_suggestion (turf_location_id)`,
 			`CREATE INDEX IF NOT EXISTS location_edit_suggestion_user_id_idx
@@ -1726,6 +1485,235 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE TRIGGER list_filters_immutable
 				BEFORE UPDATE OF filters ON universe.list
 				FOR EACH ROW EXECUTE FUNCTION universe.lock_list_filters()`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 40. Remove the public entity pool
+	//
+	// Every entity belongs to one organization; nothing is shared between orgs.
+	// Databases created before this step carry the public_* tables and the
+	// columns that pointed at them. Rows that referenced a public entity are
+	// deleted first (the entity they pointed at is going away), then the
+	// columns and tables. Every statement checks for what it removes, so the
+	// step does nothing on a database that never had the pool.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Removing the public entity pool',
+		statements: [
+			// Views some local databases carry that read public_location. Nothing
+			// in the app uses them, and they block dropping the columns below.
+			// v_location_survey_response reads v_location_attempt, so it goes first.
+			`DROP VIEW IF EXISTS universe.v_location_survey_response`,
+			`DROP VIEW IF EXISTS universe.v_location_attempt`,
+
+			// Rows that reference a public entity, version, or record
+			`DELETE FROM universe.list_entry WHERE record_source IN ('public_person', 'public_location')`,
+			...[
+				['universe.turf_location', 'public_location_id'],
+				['universe.location_edit_suggestion', 'public_entity_id'],
+				['universe.org_relationship', 'from_public_entity_id'],
+				['universe.org_relationship', 'to_public_entity_id'],
+				['universe.entity_tag', 'public_entity_id']
+			].map(
+				([table, column]) =>
+					`DO $$ BEGIN
+						IF EXISTS (
+							SELECT 1 FROM information_schema.columns
+							WHERE table_schema = 'universe'
+							  AND table_name = '${table.split('.')[1]}'
+							  AND column_name = '${column}'
+						) THEN
+							DELETE FROM ${table} WHERE ${column} IS NOT NULL;
+						END IF;
+					END $$`
+			),
+
+			// list_entry no longer accepts public sources
+			`ALTER TABLE universe.list_entry DROP CONSTRAINT IF EXISTS list_entry_record_source_check`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.list_entry ADD CONSTRAINT list_entry_record_source_check
+					CHECK (record_source IN ('org_person', 'org_location'));
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+
+			// Columns (dropping a column also drops the checks and indexes on it)
+			`ALTER TABLE universe.turf_location DROP COLUMN IF EXISTS public_location_id`,
+			`ALTER TABLE universe.turf_location ALTER COLUMN org_location_id SET NOT NULL`,
+			`ALTER TABLE universe.location_edit_suggestion DROP COLUMN IF EXISTS public_entity_id`,
+			`ALTER TABLE universe.location_edit_suggestion ALTER COLUMN org_entity_id SET NOT NULL`,
+			`ALTER TABLE universe.org_relationship DROP COLUMN IF EXISTS from_public_entity_id`,
+			`ALTER TABLE universe.org_relationship DROP COLUMN IF EXISTS to_public_entity_id`,
+			`ALTER TABLE universe.org_relationship ALTER COLUMN from_org_entity_id SET NOT NULL`,
+			`ALTER TABLE universe.org_relationship ALTER COLUMN to_org_entity_id SET NOT NULL`,
+			`ALTER TABLE universe.entity_tag DROP COLUMN IF EXISTS public_entity_id`,
+			`ALTER TABLE universe.entity_tag ALTER COLUMN org_entity_id SET NOT NULL`,
+
+			// Tables, children before the entity table they reference
+			`DROP TABLE IF EXISTS universe.public_relationship`,
+			`DROP TABLE IF EXISTS universe.public_person`,
+			`DROP TABLE IF EXISTS universe.public_organization`,
+			`DROP TABLE IF EXISTS universe.public_location`,
+			`DROP TABLE IF EXISTS universe.public_entity`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 41. Addresses (expand step)
+	//
+	// A structured, physical address following the UPU S42 address elements,
+	// without the addressee and without postal delivery services (PO boxes
+	// cannot be canvassed). An address is versioned like a location: a new
+	// version on every change, so a moved pin keeps its history.
+	//
+	// A unit (apartment, suite, floor) is an address of its own: a complete
+	// row with the unit columns filled in and its own point, as the NENA and
+	// OGC address standards model subaddresses. Nothing ties a unit to its
+	// building's row; units at one building share its street fields and sit at
+	// (or near) its point.
+	//
+	// Locations move onto addresses as contacts (step 42), written by
+	// scripts/backfill-addresses.ts. The contract step that retires
+	// org_location comes later.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating addresses',
+		statements: [
+			`INSERT INTO universe.entity_type (slug, name, description) VALUES
+				('address', 'Address', 'A physical postal address, or a unit within one, with one point of coordinates')
+			ON CONFLICT (slug) DO NOTHING`,
+			`INSERT INTO universe.relationship_type (slug, name, inverse_slug, inverse_name, description) VALUES
+				('split_from', 'Split From', 'split_into', 'Split Into', 'An address was created by splitting another address')
+			ON CONFLICT (slug) DO NOTHING`,
+
+			`CREATE TABLE IF NOT EXISTS universe.org_address (
+				id                          UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id                      UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				entity_id                   UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				premises_name               TEXT,
+				premises_number             TEXT,
+				thoroughfare_name           TEXT,
+				thoroughfare_type           TEXT,
+				thoroughfare_pre_qualifier  TEXT,
+				thoroughfare_post_qualifier TEXT,
+				dependent_locality          TEXT,
+				locality                    TEXT,
+				region                      TEXT,
+				postcode                    TEXT,
+				country_code                CHAR(2) NOT NULL,
+				unit_type                   TEXT,
+				unit_identifier             TEXT,
+				floor                       TEXT,
+				coordinates                 geometry(point, 4326) NOT NULL,
+				valid_from                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+				valid_to                    TIMESTAMPTZ,
+				authored_by                 UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				source                      TEXT NOT NULL,
+				created_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			// A canvassable address has to identify a building, by number or by name.
+			`DO $$ BEGIN
+				ALTER TABLE universe.org_address ADD CONSTRAINT org_address_premises_check
+					CHECK (premises_number IS NOT NULL OR premises_name IS NOT NULL);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`DROP TRIGGER IF EXISTS set_entity_type ON universe.org_address`,
+			`CREATE TRIGGER set_entity_type
+				BEFORE INSERT ON universe.org_address
+				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('address')`,
+			// A unit type ("Apt") means nothing without the unit it names ("4B").
+			`DO $$ BEGIN
+				ALTER TABLE universe.org_address ADD CONSTRAINT org_address_unit_check
+					CHECK (unit_type IS NULL OR unit_identifier IS NOT NULL);
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+
+			`CREATE INDEX IF NOT EXISTS org_address_org_id_idx         ON universe.org_address (org_id)`,
+			`CREATE INDEX IF NOT EXISTS org_address_entity_id_idx      ON universe.org_address (entity_id)`,
+			`CREATE INDEX IF NOT EXISTS org_address_entity_current_idx ON universe.org_address (entity_id) WHERE valid_to IS NULL`,
+			`CREATE INDEX IF NOT EXISTS org_address_coordinates_idx    ON universe.org_address USING GIST (coordinates)`,
+			// Radius searches measure in metres with ST_DWithin on coordinates::geography.
+			// A condition on a cast cannot use the geometry index above, so the cast has
+			// its own index; without it every radius query reads the whole table.
+			`CREATE INDEX IF NOT EXISTS org_address_geography_idx      ON universe.org_address USING GIST ((coordinates::geography))`,
+			`CREATE INDEX IF NOT EXISTS org_address_postcode_idx       ON universe.org_address (org_id, postcode)`,
+			`CREATE INDEX IF NOT EXISTS org_address_fts_idx            ON universe.org_address USING GIN (
+				to_tsvector('simple',
+					COALESCE(premises_name, '') || ' ' ||
+					COALESCE(premises_number, '') || ' ' ||
+					COALESCE(thoroughfare_name, '') || ' ' ||
+					COALESCE(locality, '') || ' ' ||
+					COALESCE(postcode, '')
+				)
+			)`,
+
+			`ALTER TABLE universe.org_address ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.org_address FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.org_address`,
+			`CREATE POLICY org_isolation ON universe.org_address
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// 42. Contacts (expand step)
+	//
+	// A contact is anything canvassed at an address: a business today, a
+	// resident later. The kinds differ only in their metadata, so they share
+	// one versioned table, and each kind's metadata shape is a schema in
+	// $lib/shared/contact-types rather than a table of its own.
+	//
+	// A contact points at one address entity (which may be a unit); it is an
+	// entity id, so a contact survives the address being edited.
+	//
+	// While locations are migrated, a contact reuses its location's entity id:
+	// the location becomes the contact, so lists, turfs, attempts, and
+	// suggestions that key on the entity carry over in the contract step. Those
+	// entities are typed 'location', so the type trigger is bound with that
+	// slug for now; the contract step retypes them.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating contacts',
+		statements: [
+			// The address key is plain (NO ACTION) rather than RESTRICT: an address
+			// cannot be removed under a contact, but NO ACTION is checked at the end
+			// of the statement, so deleting an organization still cascades.
+			`CREATE TABLE IF NOT EXISTS universe.org_contact (
+				id                UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+				org_id            UUID NOT NULL REFERENCES auth.organization(id) ON DELETE CASCADE,
+				entity_id         UUID NOT NULL REFERENCES universe.org_entity(id) ON DELETE CASCADE,
+				type              TEXT NOT NULL,
+				address_entity_id UUID NOT NULL REFERENCES universe.org_entity(id),
+				metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
+				photo_keys        TEXT[] NOT NULL DEFAULT '{}',
+				valid_from        TIMESTAMPTZ NOT NULL DEFAULT now(),
+				valid_to          TIMESTAMPTZ,
+				authored_by       UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				source            TEXT NOT NULL,
+				created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`DO $$ BEGIN
+				ALTER TABLE universe.org_contact ADD CONSTRAINT org_contact_metadata_object
+					CHECK (jsonb_typeof(metadata) = 'object');
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+			`DROP TRIGGER IF EXISTS set_entity_type ON universe.org_contact`,
+			`CREATE TRIGGER set_entity_type
+				BEFORE INSERT ON universe.org_contact
+				FOR EACH ROW EXECUTE FUNCTION universe.set_entity_type('location')`,
+
+			// One current version per contact.
+			`CREATE UNIQUE INDEX IF NOT EXISTS org_contact_entity_current_unique
+				ON universe.org_contact (entity_id) WHERE valid_to IS NULL`,
+			`CREATE INDEX IF NOT EXISTS org_contact_org_id_idx   ON universe.org_contact (org_id)`,
+			`CREATE INDEX IF NOT EXISTS org_contact_entity_idx   ON universe.org_contact (entity_id)`,
+			`CREATE INDEX IF NOT EXISTS org_contact_address_idx  ON universe.org_contact (address_entity_id)`,
+			`CREATE INDEX IF NOT EXISTS org_contact_type_idx     ON universe.org_contact (org_id, type) WHERE valid_to IS NULL`,
+			`CREATE INDEX IF NOT EXISTS org_contact_metadata_idx ON universe.org_contact USING GIN (metadata jsonb_path_ops)`,
+
+			`ALTER TABLE universe.org_contact ENABLE ROW LEVEL SECURITY`,
+			`ALTER TABLE universe.org_contact FORCE ROW LEVEL SECURITY`,
+			`DROP POLICY IF EXISTS org_isolation ON universe.org_contact`,
+			`CREATE POLICY org_isolation ON universe.org_contact
+				USING (org_id = ${safe})
+				WITH CHECK (org_id = ${safe})`
 		]
 	}
 ];

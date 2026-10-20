@@ -44,32 +44,27 @@ export async function GET({ params, locals }) {
 				`SELECT
 					le.record_id,
 					le.record_source,
-					COALESCE(pl.name, ol.name) AS name,
-					COALESCE(pl.address_line_1, ol.address_line_1) AS address_line_1,
-					COALESCE(pl.city, ol.city) AS city,
-					COALESCE(pl.state_or_region, ol.state_or_region) AS state_or_region,
-					COALESCE(pl.postal_code, ol.postal_code) AS postal_code,
-					ST_Y(COALESCE(pl.coordinates, ol.coordinates)) AS latitude,
-					ST_X(COALESCE(pl.coordinates, ol.coordinates)) AS longitude,
+					ol.name AS name,
+					ol.address_line_1 AS address_line_1,
+					ol.city AS city,
+					ol.state_or_region AS state_or_region,
+					ol.postal_code AS postal_code,
+					ST_Y(ol.coordinates) AS latitude,
+					ST_X(ol.coordinates) AS longitude,
 					(
 						SELECT tla.contact_made
 						FROM universe.turf_location tl
 						JOIN universe.turf t ON t.id = tl.turf_id AND t.list_id = le.list_id
 						JOIN universe.turf_location_attempt tla ON tla.turf_location_id = tl.id
-						WHERE (
-							(le.record_source = 'public_location' AND tl.public_location_id = le.record_id)
-							OR (le.record_source = 'org_location' AND tl.org_location_id = le.record_id)
-						)
+						WHERE le.record_source = 'org_location' AND tl.org_location_id = le.record_id
 						ORDER BY tla.updated_at DESC
 						LIMIT 1
 					) AS contact_made
 				FROM universe.list_entry le
-				LEFT JOIN universe.public_location pl
-					ON le.record_source = 'public_location' AND pl.id = le.record_id
 				LEFT JOIN universe.org_location ol
 					ON le.record_source = 'org_location' AND ol.id = le.record_id
 				WHERE le.list_id = $1
-				AND COALESCE(pl.coordinates, ol.coordinates) IS NOT NULL`,
+				AND ol.coordinates IS NOT NULL`,
 				[list.id]
 			);
 

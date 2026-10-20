@@ -133,7 +133,7 @@ describe('GET /api/universe/metrics/results', () => {
 			{
 				rows: [
 					{
-						location_key: 'public:loc-1',
+						location_key: 'org:loc-1',
 						name: 'Community Center',
 						address_line_1: '100 Main St',
 						city: 'Philadelphia',
@@ -149,7 +149,7 @@ describe('GET /api/universe/metrics/results', () => {
 						responded_by: 'alice'
 					},
 					{
-						location_key: 'public:loc-1',
+						location_key: 'org:loc-1',
 						name: 'Community Center',
 						address_line_1: '100 Main St',
 						city: 'Philadelphia',
@@ -176,7 +176,7 @@ describe('GET /api/universe/metrics/results', () => {
 
 		expect(response.status).toBe(200);
 		expect(body).toHaveLength(1);
-		expect(body[0].id).toBe('public:loc-1');
+		expect(body[0].id).toBe('org:loc-1');
 		expect(body[0].questions).toHaveLength(2);
 		expect(body[0].questions[0].responses).toEqual([
 			{ value: 'Yes', respondedAt: '2026-06-01T12:00:00.000Z', respondedBy: 'alice' }
@@ -191,7 +191,7 @@ describe('GET /api/universe/metrics/results', () => {
 			{
 				rows: [
 					{
-						location_key: 'public:loc-2',
+						location_key: 'org:loc-2',
 						name: 'No Coordinates',
 						address_line_1: null,
 						city: null,
