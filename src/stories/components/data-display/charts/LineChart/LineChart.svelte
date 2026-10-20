@@ -1,232 +1,300 @@
 <script lang="ts">
 	import * as d3 from 'd3';
-	import ChartTooltip from '$components/data-display/charts/ChartTooltip/ChartTooltip.svelte';
-
-	export type Granularity = 'day' | 'week' | 'month';
-
-	export interface DataPoint {
-		date: Date;
-		qty: number;
-	}
-
-	export interface Series {
-		name: string;
-		color: string;
-		showArea?: boolean;
-		data: DataPoint[];
-	}
+	import ChartFrame from '../ChartFrame/ChartFrame.svelte';
+	import ChartTooltip from '../ChartTooltip/ChartTooltip.svelte';
+	import Legend from '../Legend/Legend.svelte';
+	import { bucketDate, seriesColor, spreadLabels } from '../chart-utils';
+	import { seriesToCsv } from '$lib/shared/utils/chart-series';
+	import { formatBucket, formatValue } from '$lib/shared/utils/chart-format';
+	import type { Granularity, TimeSeries, ValueFormat } from '$lib/shared/types/charts';
 
 	interface Props {
-		title?: string;
+		title: string;
 		subtitle?: string;
-		series: Series[];
+		series: TimeSeries[];
 		granularity?: Granularity;
+		format?: ValueFormat;
+		/** Plot height in px. */
+		height?: number;
+		/** Fills under each line. With one series this is a soft area; with several, use `stacked`. */
+		area?: boolean;
+		/** Stacks the series as areas, for parts of a whole over time. */
+		stacked?: boolean;
+		/** Curved lines instead of straight segments. */
+		smooth?: boolean;
+		loading?: boolean;
+		error?: string | null;
+		emptyText?: string;
+		/** Adds a CSV download named this. */
+		csvFilename?: string;
+		/** Classes for the chart card, such as a grid span. */
+		class?: string;
 	}
 
-	let { title: _title, subtitle: _subtitle, series = [], granularity }: Props = $props();
+	let {
+		title,
+		subtitle,
+		series,
+		granularity = 'day',
+		format = 'number',
+		height = 240,
+		area = false,
+		stacked = false,
+		smooth = false,
+		loading = false,
+		error = null,
+		emptyText,
+		csvFilename,
+		class: className = ''
+	}: Props = $props();
 
-	const margin = { top: 20, right: 20, bottom: 40, left: 50 };
-	const totalWidth = 700;
-	const totalHeight = 300;
-	const width = totalWidth - margin.left - margin.right;
-	const height = totalHeight - margin.top - margin.bottom;
+	let hidden = $state<string[]>([]);
+	let active = $state<number | null>(null);
 
-	let allPoints = $derived(series.flatMap((s) => s.data));
+	const colored = $derived(series.map((s, i) => ({ ...s, color: seriesColor(i, s.color) })));
+	const visible = $derived(colored.filter((s) => !hidden.includes(s.key)));
+	const dates = $derived([...new Set(series.flatMap((s) => s.points.map((p) => p.date)))].sort());
+	const empty = $derived(dates.length === 0 || series.every((s) => s.points.every((p) => p.value === 0)));
 
-	let x = $derived(
-		d3
-			.scaleUtc()
-			.domain([
-				d3.min(allPoints, (d) => d.date) ?? new Date(),
-				d3.utcDay.floor(d3.max([d3.max(allPoints, (d) => d.date) ?? new Date(), new Date()])!)
-			])
-			.range([0, width])
-	);
+	// Direct labels at line ends for up to four lines; a legend for two or more.
+	const directLabels = $derived(!stacked && visible.length > 1 && visible.length <= 4);
+	const margin = $derived({ top: 8, right: directLabels ? 96 : 12, bottom: 24, left: 44 });
 
-	let y = $derived(
-		d3
-			.scaleLinear()
-			.domain([0, ((d3.max(allPoints, (d) => d.qty) as number) ?? 0) * 1.1])
-			.range([height, 0])
-			.nice()
-	);
-
-	let spanDays = $derived(
-		allPoints.length > 1
-			? (d3.max(allPoints, (d) => d.date)!.getTime() -
-					d3.min(allPoints, (d) => d.date)!.getTime()) /
-					86_400_000
-			: 0
-	);
-
-	let resolvedGranularity = $derived<Granularity>(
-		granularity ?? (spanDays > 60 ? 'month' : spanDays > 7 ? 'week' : 'day')
-	);
-
-	function tickInterval(g: Granularity): d3.TimeInterval {
-		switch (g) {
-			case 'day':
-				return d3.utcDay.every(1)!;
-			case 'week':
-				return d3.utcWeek.every(1)!;
-			case 'month':
-				return d3.utcMonth.every(1)!;
-		}
+	function valueAt(s: TimeSeries, date: string): number {
+		return s.points.find((p) => p.date === date)?.value ?? 0;
 	}
 
-	function formatTick(date: Date, g: Granularity): string {
-		switch (g) {
-			case 'day':
-				return new Intl.DateTimeFormat('en-US', {
-					month: '2-digit',
-					day: '2-digit',
-					timeZone: 'UTC'
-				}).format(date);
-			case 'week':
-				return new Intl.DateTimeFormat('en-US', {
-					month: 'short',
-					day: 'numeric',
-					timeZone: 'UTC'
-				}).format(date);
-			case 'month':
-				return new Intl.DateTimeFormat('en-US', {
-					month: 'short',
-					year: 'numeric',
-					timeZone: 'UTC'
-				}).format(date);
-		}
+	function toggle(key: string) {
+		hidden = hidden.includes(key) ? hidden.filter((k) => k !== key) : [...hidden, key];
 	}
 
-	let xTicks = $derived(x.ticks(tickInterval(resolvedGranularity)));
-	let yTicks = $derived(y.ticks(5));
-	let tickWidth = $derived(xTicks.length > 1 ? x(xTicks[1]) - x(xTicks[0]) : width);
-
-	let hoveredTick = $state<Date | null>(null);
-
-	// For each series, find the data point whose date is nearest to the given tick.
-	function nearestQty(data: DataPoint[], tick: Date): number | null {
-		if (data.length === 0) return null;
-		const t = tick.getTime();
-		return data.reduce((best, d) =>
-			Math.abs(d.date.getTime() - t) < Math.abs(best.date.getTime() - t) ? d : best
-		).qty;
-	}
-
-	// Tooltip x in figure-relative pixels (accounts for SVG margin).
-	let tooltipX = $derived(hoveredTick !== null ? margin.left + x(hoveredTick) : 0);
-	// Flip to the left when we're past the midpoint so it doesn't overflow.
-	let tooltipFlip = $derived(tooltipX > totalWidth / 2);
-
-	function buildLinePath(data: DataPoint[]): string | null {
-		return d3
-			.line<DataPoint>()
-			.x((d) => x(d.date))
-			.y((d) => y(d.qty))
-			.curve(d3.curveLinear)(data);
-	}
-
-	function buildAreaPath(data: DataPoint[]): string | null {
-		return d3
-			.area<DataPoint>()
-			.x((d) => x(d.date))
-			.y0(height)
-			.y1((d) => y(d.qty))
-			.curve(d3.curveLinear)(data);
+	function summary(): string {
+		if (empty) return `${title}: no data.`;
+		const parts = visible.map((s) => {
+			const values = s.points.map((p) => p.value);
+			const last = values.at(-1) ?? 0;
+			return `${s.label} ends at ${formatValue(last, format)}, peaking at ${formatValue(Math.max(...values), format)}`;
+		});
+		return `${title}, ${formatBucket(dates[0], granularity, true)} to ${formatBucket(dates.at(-1)!, granularity, true)}. ${parts.join('. ')}.`;
 	}
 </script>
 
-<figure>
-	<svg width={totalWidth} height={totalHeight}>
-		<g transform={`translate(${margin.left}, ${margin.top})`}>
-			<defs>
-				<clipPath id="chart-area">
-					<rect x={0} y={0} {width} {height} />
-				</clipPath>
-			</defs>
+<ChartFrame
+	class={className}
+	{title}
+	{subtitle}
+	{height}
+	{loading}
+	{error}
+	{empty}
+	{emptyText}
+	csv={() => seriesToCsv(series)}
+	{csvFilename}
+>
+	{#snippet legend()}
+		{#if colored.length > 1}
+			<Legend
+				items={colored.map((s) => ({ key: s.key, label: s.label, color: s.color, dashed: s.dashed }))}
+				{hidden}
+				ontoggle={toggle}
+			/>
+		{/if}
+	{/snippet}
 
-			<g>
-				<!-- Y Axis -->
-				{#each yTicks as tick}
-					<g transform={`translate(0, ${y(tick)})`}>
-						<line x2={width} stroke="var(--outline-subtle)" stroke-linecap="butt" />
-						<text x="-10" dy="0.35em" text-anchor="end" font-size="11" fill="#999">{tick}</text>
-					</g>
-				{/each}
-			</g>
+	{#snippet children(width: number)}
+		{@const innerW = Math.max(10, width - margin.left - margin.right)}
+		{@const innerH = Math.max(10, height - margin.top - margin.bottom)}
+		{@const x = d3
+			.scaleUtc()
+			.domain([bucketDate(dates[0]), bucketDate(dates.at(-1)!)])
+			.range(dates.length === 1 ? [innerW / 2, innerW / 2] : [0, innerW])}
+		{@const stackData = stacked
+			? d3
+					.stack<string>()
+					.keys(visible.map((s) => s.key))
+					.value((date, key) => valueAt(visible.find((s) => s.key === key)!, date))(dates)
+			: null}
+		{@const maxY = stackData
+			? (d3.max(stackData.at(-1) ?? [], (d) => d[1]) ?? 0)
+			: (d3.max(visible.flatMap((s) => s.points.map((p) => p.value))) ?? 0)}
+		{@const y = d3
+			.scaleLinear()
+			.domain([0, maxY > 0 ? maxY : 1])
+			.nice(4)
+			.range([innerH, 0])}
+		{@const curve = smooth ? d3.curveMonotoneX : d3.curveLinear}
+		{@const xTicks = x.ticks(Math.max(2, Math.floor(innerW / 90)))}
+		{@const yTicks = y.ticks(4)}
+		{@const line = d3
+			.line<{ date: string; value: number }>()
+			.x((d) => x(bucketDate(d.date)))
+			.y((d) => y(d.value))
+			.curve(curve)}
+		{@const fill = d3
+			.area<{ date: string; value: number }>()
+			.x((d) => x(bucketDate(d.date)))
+			.y0(innerH)
+			.y1((d) => y(d.value))
+			.curve(curve)}
+		{@const ends = directLabels
+			? spreadLabels(
+					visible.map((s) => ({
+						key: s.key,
+						label: s.label,
+						color: s.color,
+						y: y(valueAt(s, dates.at(-1)!))
+					})),
+					13,
+					innerH
+				)
+			: []}
+		{@const activeDate = active !== null ? dates[active] : null}
+		{@const activeX = activeDate ? x(bucketDate(activeDate)) : 0}
 
-			<g clip-path="url(#chart-area)">
-				<!-- Areas rendered first so lines appear on top -->
-				{#each series as s}
-					{#if s.showArea}
-						<path d={buildAreaPath(s.data)} fill={s.color} opacity="0.15" stroke="none" />
-					{/if}
-				{/each}
-				{#each series as s}
-					<path
-						d={buildLinePath(s.data)}
-						fill="none"
-						stroke={s.color}
-						stroke-width="4"
-						stroke-linecap="butt"
-					/>
-				{/each}
-			</g>
-
-			<g>
-				<!-- X Axis -->
-				{#each xTicks as tick}
-					<g
-						role="presentation"
-						transform={`translate(${x(tick)}, ${height})`}
-						onmouseenter={() => (hoveredTick = tick)}
-						onmouseleave={() => (hoveredTick = null)}
-					>
-						<rect
-							x={tickWidth / -2}
-							y={-height}
-							width={tickWidth}
-							height={height + 20}
-							fill="transparent"
-						/>
-						<line y2={-5} stroke="var(--outline-subtle)" stroke-linecap="round" />
-						<text x="0" y="15" dy="0.35em" font-size="11" fill="#999" text-anchor="middle">
-							{formatTick(tick, resolvedGranularity)}
+		<!-- Focusable so keyboard users can step the crosshair with the arrow keys; the
+		     summary label and the hidden table carry the same values for screen readers. -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+		<svg
+			{width}
+			{height}
+			role="img"
+			aria-label={summary()}
+			tabindex="0"
+			class="overflow-visible outline-none focus-visible:outline-2 focus-visible:outline-primary"
+			onkeydown={(event) => {
+				if (event.key === 'ArrowRight') active = Math.min(dates.length - 1, (active ?? -1) + 1);
+				else if (event.key === 'ArrowLeft') active = Math.max(0, (active ?? dates.length) - 1);
+				else if (event.key === 'Escape') active = null;
+				else return;
+				event.preventDefault();
+			}}
+			onblur={() => (active = null)}
+		>
+			<g transform={`translate(${margin.left},${margin.top})`}>
+				{#each yTicks as tick (tick)}
+					<g transform={`translate(0,${y(tick)})`}>
+						<line x2={innerW} stroke="var(--chart-grid)" stroke-width="1" />
+						<text x="-8" dy="0.32em" text-anchor="end" font-size="11" fill="var(--chart-ink-muted)" class="tabular-nums">
+							{formatValue(tick, format === 'number' ? 'compact' : format)}
 						</text>
 					</g>
 				{/each}
-			</g>
+				<line y1={innerH} y2={innerH} x2={innerW} stroke="var(--chart-axis)" stroke-width="1" />
+				{#each xTicks as tick (tick.getTime())}
+					<text
+						x={x(tick)}
+						y={innerH + 16}
+						text-anchor="middle"
+						font-size="11"
+						fill="var(--chart-ink-muted)"
+					>
+						{formatBucket(tick.toISOString(), granularity === 'month' ? 'month' : 'day')}
+					</text>
+				{/each}
 
-			{#if hoveredTick !== null}
-				<line
-					x1={x(hoveredTick)}
-					x2={x(hoveredTick)}
-					y1={0}
-					y2={height}
-					stroke="var(--secondary)"
-					stroke-width="1"
-					stroke-dasharray="1 4"
+				{#if stackData}
+					{#each stackData as layer, i (layer.key)}
+						{@const s = visible[i]}
+						<path
+							d={d3
+								.area<d3.SeriesPoint<string>>()
+								.x((d) => x(bucketDate(d.data)))
+								.y0((d) => y(d[0]))
+								.y1((d) => y(d[1]))
+								.curve(curve)(layer) ?? ''}
+							fill={s.color}
+							fill-opacity="0.85"
+							stroke="var(--surface)"
+							stroke-width="1"
+						/>
+					{/each}
+				{:else}
+					{#each visible as s (s.key)}
+						{#if area}
+							<path d={fill(s.points) ?? ''} fill={s.color} fill-opacity={visible.length === 1 ? 0.12 : 0.06} />
+						{/if}
+						<path
+							d={line(s.points) ?? ''}
+							fill="none"
+							stroke={s.color}
+							stroke-width="2"
+							stroke-linejoin="round"
+							stroke-linecap="round"
+							stroke-dasharray={s.dashed ? '4 4' : undefined}
+						/>
+						{#if s.points.length === 1}
+							<circle cx={x(bucketDate(s.points[0].date))} cy={y(s.points[0].value)} r="4" fill={s.color} />
+						{/if}
+					{/each}
+				{/if}
+
+				{#each ends as label (label.key)}
+					<text x={innerW + 8} y={label.labelY} dy="0.32em" font-size="11" fill="var(--on-surface-subtle)">
+						{label.label.length > 14 ? `${label.label.slice(0, 13)}…` : label.label}
+					</text>
+				{/each}
+
+				{#if activeDate}
+					<line x1={activeX} x2={activeX} y2={innerH} stroke="var(--chart-axis)" stroke-width="1" />
+					{#each visible as s, i (s.key)}
+						{@const v = stackData ? stackData[i].find((d) => d.data === activeDate)?.[1] ?? 0 : valueAt(s, activeDate)}
+						<circle cx={activeX} cy={y(v)} r="4" fill={s.color} stroke="var(--surface)" stroke-width="2" />
+					{/each}
+				{/if}
+
+				<!-- Hover target over the whole plot; the nearest bucket wins. -->
+				<rect
+					width={innerW}
+					height={innerH}
+					fill="transparent"
+					role="presentation"
+					onpointermove={(event) => {
+						const px = event.clientX - event.currentTarget.getBoundingClientRect().left;
+						const t = x.invert(px).getTime();
+						let best = 0;
+						for (let i = 1; i < dates.length; i++) {
+							if (Math.abs(bucketDate(dates[i]).getTime() - t) < Math.abs(bucketDate(dates[best]).getTime() - t)) best = i;
+						}
+						active = best;
+					}}
+					onpointerleave={() => (active = null)}
 				/>
-			{/if}
-		</g>
-	</svg>
+			</g>
+		</svg>
 
-	{#if hoveredTick !== null}
-		<ChartTooltip
-			heading={formatTick(hoveredTick, resolvedGranularity)}
-			x={tooltipX}
-			y={margin.top}
-			flip={tooltipFlip}
-			rows={series
-				.map((s) => ({ color: s.color, label: s.name, qty: nearestQty(s.data, hoveredTick!) }))
-				.filter((r) => r.qty !== null)
-				.map((r) => ({ color: r.color, label: r.label, value: r.qty!.toLocaleString() }))}
-		/>
-	{/if}
-</figure>
+		{#if activeDate}
+			<ChartTooltip
+				heading={formatBucket(activeDate, granularity, true)}
+				x={margin.left + activeX}
+				y={margin.top}
+				containerWidth={width}
+				rows={visible.map((s) => ({ color: s.color, label: s.label, value: formatValue(valueAt(s, activeDate), format) }))}
+			/>
+			<p class="sr-only" aria-live="polite">
+				{formatBucket(activeDate, granularity, true)}: {visible
+					.map((s) => `${s.label} ${formatValue(valueAt(s, activeDate), format)}`)
+					.join(', ')}
+			</p>
+		{/if}
+	{/snippet}
 
-<style>
-	figure {
-		position: relative;
-		cursor: crosshair;
-	}
-</style>
+	{#snippet table()}
+		<table>
+			<caption>{title}</caption>
+			<thead>
+				<tr>
+					<th scope="col">Date</th>
+					{#each series as s (s.key)}<th scope="col">{s.label}</th>{/each}
+				</tr>
+			</thead>
+			<tbody>
+				{#each dates as date (date)}
+					<tr>
+						<th scope="row">{formatBucket(date, granularity, true)}</th>
+						{#each series as s (s.key)}<td>{formatValue(valueAt(s, date), format)}</td>{/each}
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	{/snippet}
+</ChartFrame>

@@ -1,0 +1,82 @@
+/*
+ * Colors for the D3 chart library (src/stories/components/data-display/charts).
+ * Charts reference these roles, never raw hex, so light and dark swap here.
+ *
+ * The categorical order is the CVD-validated reference palette from the
+ * dataviz method: assign slots in order, never cycled. Past eight series, fold
+ * the rest into "Other". Scatter-like charts, where every pair can touch, use
+ * at most the first three.
+ */
+:root {
+	--chart-1: #2a78d6;
+	--chart-2: #eb6834;
+	--chart-3: #1baf7a;
+	--chart-4: #eda100;
+	--chart-5: #e87ba4;
+	--chart-6: #008300;
+	--chart-7: #6250d6;
+	--chart-8: #e34948;
+	/* "Other" and other non-series marks. */
+	--chart-other: #a9a8a1;
+
+	/* Sequential: one hue, light to dark, for magnitude (heatmaps). */
+	--chart-seq-100: #cde2fb;
+	--chart-seq-200: #9ec5f4;
+	--chart-seq-300: #6da7ec;
+	--chart-seq-400: #3987e5;
+	--chart-seq-500: #256abf;
+	--chart-seq-600: #184f95;
+	--chart-seq-700: #0d366b;
+	/* The empty cell: no data at all, distinct from zero. */
+	--chart-seq-empty: #f0efec;
+	/* Text on each ramp step, at least 4.5:1 against it. Light and dark flip the ramp, so the ink flips too. */
+	--chart-seq-ink-100: #0b0b0b;
+	--chart-seq-ink-200: #0b0b0b;
+	--chart-seq-ink-300: #0b0b0b;
+	--chart-seq-ink-400: #0b0b0b;
+	--chart-seq-ink-500: #ffffff;
+	--chart-seq-ink-600: #ffffff;
+	--chart-seq-ink-700: #ffffff;
+
+	--chart-grid: #e1e0d9;
+	--chart-axis: #c3c2b7;
+	--chart-ink-muted: #898781;
+	--chart-delta-good: #006300;
+	--chart-delta-bad: #b42318;
+}
+
+:root[data-theme='dark'] {
+	--chart-1: #3987e5;
+	--chart-2: #d95926;
+	--chart-3: #199e70;
+	--chart-4: #c98500;
+	--chart-5: #d55181;
+	--chart-6: #008300;
+	--chart-7: #9085e9;
+	--chart-8: #e66767;
+	--chart-other: #6f6e69;
+
+	/* Dark ramps run the other way: near-zero recedes toward the dark surface. */
+	--chart-seq-100: #104281;
+	--chart-seq-200: #184f95;
+	--chart-seq-300: #1c5cab;
+	--chart-seq-400: #2a78d6;
+	--chart-seq-500: #5598e7;
+	--chart-seq-600: #86b6ef;
+	--chart-seq-700: #b7d3f6;
+	--chart-seq-empty: #2c2c2a;
+	/* Text on each ramp step, at least 4.5:1 against it. Light and dark flip the ramp, so the ink flips too. */
+	--chart-seq-ink-100: #ffffff;
+	--chart-seq-ink-200: #ffffff;
+	--chart-seq-ink-300: #ffffff;
+	--chart-seq-ink-400: #0b0b0b;
+	--chart-seq-ink-500: #0b0b0b;
+	--chart-seq-ink-600: #0b0b0b;
+	--chart-seq-ink-700: #0b0b0b;
+
+	--chart-grid: #2c2c2a;
+	--chart-axis: #383835;
+	--chart-ink-muted: #898781;
+	--chart-delta-good: #0ca30c;
+	--chart-delta-bad: #f97066;
+}

@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import './fonts.css';
+@import './lib/chart-tokens.css';
 
 @utility no-scrollbar {
   scrollbar-width: none; /* Firefox */
