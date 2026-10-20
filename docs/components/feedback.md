@@ -22,6 +22,19 @@
 
 ---
 
+## ImpersonationBanner
+
+**Import:** `$components/feedback/impersonation-banner/ImpersonationBanner.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `userName` | `string` | **required** | The user being impersonated. |
+| `onstop` | `() => Promise<void>` | **required** | Ends the impersonation; rejects with a message safe to show. |
+
+---
+
 ## Spinner
 
 **Import:** `$components/feedback/spinner/Spinner.svelte`

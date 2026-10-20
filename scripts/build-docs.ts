@@ -911,6 +911,7 @@ async function main() {
       collapsed: false,
       items: [
         { text: 'List PDFs', link: '/guides/list-documents' },
+        { text: 'Infrastructure panel', link: '/guides/infrastructure' },
       ],
     },
     {
@@ -942,6 +943,7 @@ async function main() {
           text: capitalize(c),
           link: `/components/${c}`,
         })),
+        { text: 'Charts', link: '/components/charts' },
       ],
     },
     {

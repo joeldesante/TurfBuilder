@@ -42,6 +42,24 @@
 
 ---
 
+## CodeEditor
+
+**Import:** `$components/data-inputs/code-editor/CodeEditor.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string | undefined` | `$bindable('')` |  |
+| `label` | `string` | **required** | Names the editor for screen readers. |
+| `language` | `"html" | "plain" | undefined` | `'html'` |  |
+| `minHeight` | `number | undefined` | `240` | Minimum height of the editing area in px. |
+| `readonly` | `boolean | undefined` | `false` |  |
+| `onchange` | `((value: string) => void) | undefined` | — |  |
+| `class` | `string | undefined` | `''` |  |
+
+---
+
 ## DatePicker
 
 **Import:** `$components/data-inputs/date-picker/DatePicker.svelte`
@@ -209,6 +227,12 @@ can move the pin while the form is open and have it follow. |
 | `name` | `string | undefined` | — |  |
 | `loop` | `boolean | undefined` | `false` |  |
 | `class` | `string | undefined` | `''` |  |
+
+---
+
+## RangePicker
+
+**Import:** `$components/data-inputs/range-picker/RangePicker.svelte`
 
 ---
 
