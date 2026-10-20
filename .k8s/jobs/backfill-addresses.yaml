@@ -65,6 +65,10 @@ spec:
           env:
             - name: LIBPOSTAL_URL
               value: http://localhost:4400
+            # Only for orgs whose locations have no country at all; any other
+            # location missing one takes its org's most common country.
+            - name: BACKFILL_DEFAULT_COUNTRY
+              value: US
             - name: BACKFILL_BATCH_SIZE
               value: "500"
             - name: BACKFILL_CONCURRENCY
