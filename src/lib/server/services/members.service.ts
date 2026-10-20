@@ -1,15 +1,23 @@
 import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { requireOrgPermission } from '$lib/server/list-access';
+import { canInfra } from '$lib/server/permissions';
 import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
 import type { Page } from '$lib/shared/utils/pagination';
 
 export interface MemberRow {
+	/** The user's id. */
 	id: string;
 	name: string;
 	email: string;
 	role_id: string | null;
 	role_name: string | null;
+	member_id: string;
+	/** better-auth's member role: owner, admin, or member. */
+	member_role: string;
+	joined_at: Date;
+	/** The last day the member used this org (YYYY-MM-DD), or null. */
+	last_active_day: string | null;
 }
 
 /**
@@ -34,7 +42,10 @@ export async function queryMembersPage(
 	// an id tiebreak so pages cannot repeat or skip a member.
 	const rows = await client.query<MemberRow>(
 		`SELECT * FROM (
-			SELECT DISTINCT ON (u.id) u.id, u.name, u.email, pr.id AS role_id, pr.name AS role_name
+			SELECT DISTINCT ON (u.id) u.id, u.name, u.email, pr.id AS role_id, pr.name AS role_name,
+			       m.id AS member_id, m.role AS member_role, m.created_at AS joined_at,
+			       (SELECT to_char(max(d.day), 'YYYY-MM-DD') FROM user_activity_day d
+			        WHERE d.user_id = m.user_id AND d.org_key = m.organization_id::text) AS last_active_day
 			  FROM auth.member m
 			  JOIN auth."user" u ON u.id = m.user_id
 			  LEFT JOIN user_role_membership urm ON urm.user_id = m.user_id
@@ -54,13 +65,16 @@ export async function queryMembersPage(
 	return { items: rows.rows, totalCount, page, pageSize: PAGE_SIZE };
 }
 
-/** One page of the org's members. 404 unless the caller is a member, 403 without `member.read`. */
+/**
+ * One page of the org's members. Infra admins with `access` may read any org's;
+ * anyone else must be a member (404 otherwise) with `member.read` (403).
+ */
 export async function listMembers(
 	userId: string,
 	orgId: string,
 	requested: number
 ): Promise<Page<MemberRow>> {
-	await requireOrgPermission(userId, orgId, 'member.read');
+	if (!(await canInfra(userId, 'access'))) await requireOrgPermission(userId, orgId, 'member.read');
 
 	return withOrgTransaction(orgId, (client) => queryMembersPage(client, orgId, requested));
 }

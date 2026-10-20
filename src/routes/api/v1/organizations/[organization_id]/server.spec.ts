@@ -22,6 +22,7 @@ vi.mock('$lib/server/services/organizations.service', () => ({
 	replaceOrganization,
 	updateOrganization
 }));
+vi.mock('$lib/server/services/platform-organizations.service', () => ({ deleteOrg: vi.fn() }));
 
 import { GET, PUT, PATCH } from './+server';
 

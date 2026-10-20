@@ -21,7 +21,8 @@ vi.mock('pg', () => ({
 	})
 }));
 
-vi.mock('$lib/server/permissions', () => ({ canOrg }));
+const { canInfra } = vi.hoisted(() => ({ canInfra: vi.fn(async () => false) }));
+vi.mock('$lib/server/permissions', () => ({ canOrg, canInfra }));
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const rows = [{ id: 'r1' }];
@@ -78,6 +79,14 @@ describe('listMembers', () => {
 		await listMembers('u1', ORG, 1);
 
 		expect(canOrg).toHaveBeenCalledWith(expect.anything(), 'u1', ORG, 'member.read');
+	});
+
+	it('lets an infra admin read any organization without member.read', async () => {
+		canInfra.mockResolvedValueOnce(true);
+		canOrg.mockResolvedValue(false);
+
+		expect(await listMembers('u1', ORG, 1)).toMatchObject({ totalCount: 250 });
+		expect(canOrg).not.toHaveBeenCalled();
 	});
 
 	it('answers 403 without member.read and reads nothing', async () => {

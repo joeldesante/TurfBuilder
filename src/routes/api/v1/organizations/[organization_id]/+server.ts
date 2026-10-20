@@ -7,6 +7,9 @@ import {
 	replaceOrganization,
 	updateOrganization
 } from '$lib/server/services/organizations.service';
+import { deleteOrg } from '$lib/server/services/platform-organizations.service';
+import { parseBody } from '$lib/server/request';
+import { deleteOrgSchema } from '$lib/shared/schemas/platform-organizations';
 
 const slugSchema = z
 	.string()
@@ -24,7 +27,7 @@ const patchSchema = putSchema.partial();
  * One organization.
  *
  * @auth user
- * @returns `{ id, name, slug, created_at }`. 400 for an invalid id, 401 when signed out, 404 when the caller is not a member
+ * @returns `{ id, name, slug, created_at }`, plus `platform` (PlatformOrgDetail) for infra admins, who can read any organization. 400 for an invalid id, 401 when signed out, 404 when the caller is not a member
  */
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const userId = requireUser(locals);
@@ -67,4 +70,19 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if (!body.success) throw error(400, body.error.issues[0].message);
 
 	return json(await updateOrganization(userId, orgId, body.data));
+};
+
+/**
+ * Soft-deletes the organization. Members lose it; its data stays and an infra admin can restore it.
+ *
+ * @auth infra orgs.manage
+ * @body confirmSlug {string} - The organization's slug, typed to confirm
+ * @returns 204. 400 when the slug does not match, 403 without orgs.manage, 404 for an unknown org, 409 when already deleted
+ */
+export const DELETE: RequestHandler = async ({ params, locals, request }) => {
+	const userId = requireUser(locals);
+	const orgId = parseId(params.organization_id, 'organization');
+	const { confirmSlug } = await parseBody(request, deleteOrgSchema);
+	await deleteOrg(userId, orgId, confirmSlug);
+	return new Response(null, { status: 204 });
 };

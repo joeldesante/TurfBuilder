@@ -1,6 +1,9 @@
 import { error } from '@sveltejs/kit';
 import { getAuth } from '$lib/auth';
 import { POOL } from '$lib/server/database';
+import { canInfra } from '$lib/server/permissions';
+import { getOrg } from './platform-organizations.service';
+import type { PlatformOrgDetail } from '$lib/shared/types/platform-organizations';
 
 export interface OrganizationInput {
 	name: string;
@@ -70,16 +73,24 @@ export async function createOrganization(
 	};
 }
 
-/** One organization. 404 unless the caller is a member. */
-export async function getOrganization(userId: string, orgId: string): Promise<Organization> {
-	await requireMember(userId, orgId);
+/**
+ * One organization. 404 unless the caller is a member. Infra admins with
+ * `access` can read any organization, and theirs carries `platform`: who runs
+ * it, its size, activity, and plugins.
+ */
+export async function getOrganization(
+	userId: string,
+	orgId: string
+): Promise<Organization & { platform?: PlatformOrgDetail }> {
+	const infra = await canInfra(userId, 'access');
+	if (!infra) await requireMember(userId, orgId);
 
 	const result = await POOL.query<Organization>(
 		`SELECT ${COLUMNS} FROM auth.organization o WHERE o.id = $1`,
 		[orgId]
 	);
 	if (result.rowCount === 0) throw error(404, 'Organization not found');
-	return result.rows[0];
+	return infra ? { ...result.rows[0], platform: await getOrg(userId, orgId) } : result.rows[0];
 }
 
 /** Replaces an organization's name and slug. Owners only. 409 when the slug is taken. */
