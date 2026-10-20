@@ -157,13 +157,18 @@ export function addressText(parsed: ParsedAddress): string {
 /**
  * Keys under which an address can match another. Each libpostal expansion of
  * the address text ("2445 harlan street", ...) is scoped by postcode (or
- * locality) and country, so the same street in two towns never merges.
+ * locality) and country, so the same street in two towns never merges. An
+ * address with neither is scoped by its pin rounded to two decimal places
+ * (about a kilometre): stricter, since two spellings either side of a cell
+ * edge stay apart, but it never merges different towns.
  */
 export function dedupeKeys(
 	expansions: string[],
 	parsed: ParsedAddress,
-	countryCode: string
+	countryCode: string,
+	point: { latitude: number; longitude: number }
 ): string[] {
-	const area = (parsed.postcode ?? parsed.locality ?? '').toLowerCase().replace(/\s+/g, '');
+	const named = (parsed.postcode ?? parsed.locality ?? '').toLowerCase().replace(/\s+/g, '');
+	const area = named || `@${point.latitude.toFixed(2)},${point.longitude.toFixed(2)}`;
 	return expansions.map((e) => `${countryCode}|${area}|${e.toLowerCase()}`);
 }

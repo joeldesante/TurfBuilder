@@ -138,9 +138,25 @@ describe('dedupeKeys', () => {
 			'10 Main St 19121',
 			'10 Main St'
 		);
-		expect(dedupeKeys(['10 main street', '10 main saint'], parsed, 'US')).toEqual([
-			'US|19121|10 main street',
-			'US|19121|10 main saint'
-		]);
+		expect(
+			dedupeKeys(['10 main street', '10 main saint'], parsed, 'US', { latitude: 39.98, longitude: -75.18 })
+		).toEqual(['US|19121|10 main street', 'US|19121|10 main saint']);
+	});
+
+	it('scopes by the rounded pin when there is no postcode or locality', () => {
+		const parsed = toAddressFields(
+			[
+				{ label: 'house_number', value: '911' },
+				{ label: 'road', value: 'lincoln ave' }
+			],
+			'911 Lincoln Ave',
+			'911 Lincoln Ave'
+		);
+		const at = (latitude: number, longitude: number) =>
+			dedupeKeys(['911 lincoln avenue'], parsed, 'US', { latitude, longitude });
+
+		expect(at(42.8143, -73.9396)).toEqual(['US|@42.81,-73.94|911 lincoln avenue']);
+		// The same street address in another town gets a different key.
+		expect(at(40.7128, -74.006)).not.toEqual(at(42.8143, -73.9396));
 	});
 });
