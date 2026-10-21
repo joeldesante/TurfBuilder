@@ -1,0 +1,23 @@
+name: Main Source Branch
+
+# Pull requests into main may only come from staging. The "Main Source Branch"
+# check is required by the Main Rules ruleset.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  main-source-branch:
+    name: Main Source Branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require staging as the head branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" != "staging" ]; then
+            echo "::error::Pull requests into main must come from staging. Got: $HEAD_REF"
+            exit 1
+          fi

@@ -1,0 +1,28 @@
+name: Code Analysis
+
+# Scans pull requests with SonarQube. Draft PRs are skipped; the scan runs
+# when a PR is opened ready for review, when a draft is marked ready, and on
+# every new push to a ready PR.
+on:
+  pull_request:
+    branches: [main, staging]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Build and analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+      - uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
