@@ -6,7 +6,7 @@ import { isMailConfigured } from '$lib/server/mail';
 import { audit, listAuditEventsFor } from './audit.service';
 import { queryActivityPage } from './activity.service';
 import { queryEmailLogPage } from './email-log.service';
-import { requireNotLastAdmin } from './infra-admins.service';
+import { requireNotLastAdmin, requireNotStronger } from './infra-admins.service';
 import { clampPage, pageOffset, PAGE_SIZE, type Page } from '$lib/shared/utils/pagination';
 import type {
 	PlatformUserDetail,
@@ -324,6 +324,7 @@ async function findChangeable(targetId: string): Promise<PlatformUserDetail> {
 export async function revokeUserSessions(userId: string, targetId: string, keepSessionId?: string): Promise<number> {
 	await requireInfraPermission(userId, 'users.manage');
 	await findUser(targetId);
+	await requireNotStronger(userId, targetId);
 
 	const result = await POOL.query(
 		`DELETE FROM auth.session WHERE user_id = $1 AND ($2::uuid IS NULL OR id <> $2::uuid)`,
@@ -336,6 +337,10 @@ export async function revokeUserSessions(userId: string, targetId: string, keepS
 /** Ends one session. 404 for an unknown session. */
 export async function revokeSession(userId: string, sessionId: string): Promise<void> {
 	await requireInfraPermission(userId, 'users.manage');
+
+	const owner = await POOL.query<{ user_id: string }>(`SELECT user_id FROM auth.session WHERE id = $1`, [sessionId]);
+	if (!owner.rowCount) throw error(404, 'Session not found.');
+	await requireNotStronger(userId, owner.rows[0].user_id);
 
 	const result = await POOL.query<{ user_id: string }>(`DELETE FROM auth.session WHERE id = $1 RETURNING user_id`, [
 		sessionId
@@ -352,6 +357,7 @@ export async function revokeSession(userId: string, sessionId: string): Promise<
 export async function updateUser(userId: string, targetId: string, input: UpdateUserInput): Promise<PlatformUserDetail> {
 	await requireInfraPermission(userId, 'users.manage');
 	const before = await findChangeable(targetId);
+	await requireNotStronger(userId, targetId);
 
 	const sets: string[] = [];
 	const params: unknown[] = [];
@@ -403,6 +409,7 @@ async function requireMail(): Promise<void> {
 export async function sendPasswordReset(userId: string, targetId: string): Promise<void> {
 	await requireInfraPermission(userId, 'users.manage');
 	const user = await findChangeable(targetId);
+	await requireNotStronger(userId, targetId);
 	await requireMail();
 
 	const auth = await getAuth();
@@ -414,6 +421,7 @@ export async function sendPasswordReset(userId: string, targetId: string): Promi
 export async function sendVerificationEmail(userId: string, targetId: string): Promise<void> {
 	await requireInfraPermission(userId, 'users.manage');
 	const user = await findChangeable(targetId);
+	await requireNotStronger(userId, targetId);
 	if (user.emailVerified) throw error(409, 'This email is already verified.');
 	await requireMail();
 
@@ -426,6 +434,7 @@ export async function sendVerificationEmail(userId: string, targetId: string): P
 export async function resetTwoFactor(userId: string, targetId: string): Promise<void> {
 	await requireInfraPermission(userId, 'users.manage');
 	const user = await findChangeable(targetId);
+	await requireNotStronger(userId, targetId);
 	if (!user.twoFactorEnabled) throw error(409, 'Two-factor sign-in is not on for this user.');
 
 	const client = await POOL.connect();
@@ -525,6 +534,8 @@ export async function deleteUser(userId: string, targetId: string, confirmEmail:
 	if (confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
 		throw error(400, 'Type the account email exactly to confirm.');
 	}
+
+	await requireNotStronger(userId, targetId);
 
 	const owned = await soleOwnedOrgs(targetId);
 	if (owned.length > 0) {

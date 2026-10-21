@@ -64,6 +64,18 @@ describe('InfraSettingsPage', () => {
 		await expect.element(getByRole('alert').first()).toHaveTextContent('Enter a domain');
 	});
 
+	test('drops unsaved edits when the tab changes, so they are not saved unseen', async () => {
+		const p = props();
+		const screen = render(InfraSettingsPage, { props: p });
+
+		await screen.getByRole('textbox', { name: 'Application name' }).fill('Not saved');
+		await screen.rerender({ ...p, tab: 'email' });
+		await screen.getByRole('textbox', { name: 'Sending domain' }).fill('mail.example.com');
+		await screen.getByRole('button', { name: 'Save changes' }).click();
+
+		expect(p.onsave).toHaveBeenCalledWith({ 'mail.domain': 'mail.example.com' });
+	});
+
 	test('discards edits', async () => {
 		const { getByRole } = render(InfraSettingsPage, { props: props() });
 

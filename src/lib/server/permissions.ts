@@ -11,6 +11,8 @@ import type { InfraPermission } from '$lib/shared/types/infra';
  *   2. Among roles the user belongs to, the heaviest role (lowest weight) wins per key
  *
  * Returns only the keys where the resolved value is true (effective grants).
+ * A suspended or deleted org grants nothing, so every canOrg check on it fails
+ * wherever it is made.
  * Must be called inside a withOrgTransaction so RLS is scoped to the correct org.
  */
 export async function resolveOrgPermissions(
@@ -50,7 +52,12 @@ export async function resolveOrgPermissions(
 			SELECT key, value FROM best_role
 			WHERE key NOT IN (SELECT key FROM user_direct)
 		)
-		SELECT key FROM resolved WHERE value = true`,
+		SELECT key FROM resolved
+		WHERE value = true
+		  AND EXISTS (
+		    SELECT 1 FROM auth.organization o
+		    WHERE o.id = $2 AND o.deleted_at IS NULL AND o.suspended_at IS NULL
+		  )`,
 		[userId, orgId]
 	);
 

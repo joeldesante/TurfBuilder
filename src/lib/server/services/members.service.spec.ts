@@ -34,9 +34,18 @@ const rows = [{ id: 'r1' }];
 function stub(
 	total: number,
 	rest: (sql: string) => unknown = () => ({ rowCount: rows.length, rows }),
-	member = true
+	member = true,
+	status: 'active' | 'suspended' | 'deleted' = 'active'
 ) {
 	mockClient.query.mockImplementation((sql: string) => {
+		// Membership with the org's status (requireActiveMembership, findInMemberOrgs).
+		if (sql.includes('JOIN auth.organization o ON o.id = m.organization_id')) {
+			return Promise.resolve(
+				member
+					? { rowCount: 1, rows: [{ organization_id: ORG, role: 'member', suspended: status === 'suspended', deleted: status === 'deleted' }] }
+					: { rowCount: 0, rows: [] }
+			);
+		}
 		if (sql.includes('FROM auth.member WHERE user_id')) {
 			return Promise.resolve(
 				member ? { rowCount: 1, rows: [{ organization_id: ORG }] } : { rowCount: 0, rows: [] }
@@ -94,6 +103,19 @@ describe('listMembers', () => {
 
 		await expect(listMembers('u1', ORG, 1)).rejects.toMatchObject({ status: 403 });
 		expect(sqlRun('LIMIT $2 OFFSET $3')).toBeUndefined();
+	});
+
+	it('answers 403 for a suspended org and reads nothing', async () => {
+		stub(250, undefined, true, 'suspended');
+
+		await expect(listMembers('u1', ORG, 1)).rejects.toMatchObject({ status: 403 });
+		expect(sqlRun('LIMIT $2 OFFSET $3')).toBeUndefined();
+	});
+
+	it('answers 404 for a deleted org, as if it did not exist', async () => {
+		stub(250, undefined, true, 'deleted');
+
+		await expect(listMembers('u1', ORG, 1)).rejects.toMatchObject({ status: 404 });
 	});
 
 	it('answers 404 for a non-member', async () => {

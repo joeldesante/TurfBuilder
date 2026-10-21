@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 	canInfra: vi.fn(),
 	audit: vi.fn(),
 	requireNotLastAdmin: vi.fn(),
+	requireNotStronger: vi.fn(),
 	isMailConfigured: vi.fn(),
 	requestPasswordReset: vi.fn(),
 	sendVerificationEmail: vi.fn()
@@ -33,7 +34,10 @@ vi.mock('$lib/auth', () => ({
 vi.mock('./audit.service', () => ({ audit: mocks.audit, listAuditEventsFor: vi.fn() }));
 vi.mock('./activity.service', () => ({ queryActivityPage: vi.fn() }));
 vi.mock('./email-log.service', () => ({ queryEmailLogPage: vi.fn() }));
-vi.mock('./infra-admins.service', () => ({ requireNotLastAdmin: mocks.requireNotLastAdmin }));
+vi.mock('./infra-admins.service', () => ({
+	requireNotLastAdmin: mocks.requireNotLastAdmin,
+	requireNotStronger: mocks.requireNotStronger
+}));
 
 import {
 	deleteUser,
@@ -93,6 +97,7 @@ beforeEach(() => {
 	mocks.requireInfraPermission.mockResolvedValue(undefined);
 	mocks.canInfra.mockResolvedValue(false);
 	mocks.requireNotLastAdmin.mockResolvedValue(undefined);
+	mocks.requireNotStronger.mockResolvedValue(undefined);
 	mocks.isMailConfigured.mockResolvedValue(true);
 	mocks.pool.connect.mockResolvedValue(mocks.client);
 	respond();
@@ -198,6 +203,29 @@ describe('sendPasswordReset', () => {
 		mocks.isMailConfigured.mockResolvedValue(false);
 		await expect(sendPasswordReset(ADMIN, TARGET)).rejects.toMatchObject({ status: 409 });
 		expect(mocks.requestPasswordReset).not.toHaveBeenCalled();
+	});
+});
+
+describe('changes to a stronger admin', () => {
+	// users.manage alone must not let an admin change the email of, reset, or
+	// sign out someone holding infra permissions they lack.
+	const refused = Object.assign(new Error('stronger'), { status: 403 });
+
+	it.each([
+		['updateUser', () => updateUser(ADMIN, TARGET, { email: 'mine@example.com' })],
+		['sendPasswordReset', () => sendPasswordReset(ADMIN, TARGET)],
+		['revokeUserSessions', () => revokeUserSessions(ADMIN, TARGET)],
+		['deleteUser', () => deleteUser(ADMIN, TARGET, 'grace@example.com')]
+	])('%s is refused and changes nothing', async (_name, call) => {
+		mocks.requireNotStronger.mockRejectedValue(refused);
+
+		await expect(call()).rejects.toMatchObject({ status: 403 });
+		expect(mocks.requireNotStronger).toHaveBeenCalledWith(ADMIN, TARGET);
+		const writes = mocks.pool.query.mock.calls.filter((c) => /^(UPDATE|DELETE)/.test(flat(c[0])));
+		expect(writes).toEqual([]);
+		expect(mocks.client.query).not.toHaveBeenCalled();
+		expect(mocks.requestPasswordReset).not.toHaveBeenCalled();
+		expect(mocks.audit).not.toHaveBeenCalled();
 	});
 });
 

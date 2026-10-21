@@ -10,6 +10,7 @@ import { ac, userRole } from '$lib/permissions';
 import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database';
 import { recordEvent, touchActiveDay } from '$lib/server/services/activity.service';
 import { infraImpersonation } from '$lib/server/infra-impersonation-plugin';
+import { organizationStatusGuard } from '$lib/server/organization-status-guard';
 
 // Derived from buildAuth's own inferred return type rather than
 // `ReturnType<typeof betterAuth>`, which loses the plugins (organization,
@@ -317,6 +318,9 @@ async function buildAuth() {
 			}),
 			infraImpersonation()
 		],
+
+		// Suspended and deleted organizations are closed to better-auth's organization endpoints too.
+		hooks: { before: organizationStatusGuard },
 
 		trustedOrigins: baseURLs,
 

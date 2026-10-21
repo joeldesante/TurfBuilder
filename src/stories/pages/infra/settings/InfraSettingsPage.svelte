@@ -85,6 +85,18 @@
 	let testing = $state<'mail' | 'storage' | null>(null);
 	let testResult = $state<{ kind: 'success' | 'error'; text: string } | null>(null);
 
+	// Switching tabs keeps this component, so edits made on the last tab would
+	// otherwise be saved, unseen, with this one. Each tab starts clean.
+	let shownTab = $state<SettingGroup | null>(null);
+	$effect.pre(() => {
+		if (tab === shownTab) return;
+		shownTab = tab;
+		edits = {};
+		errors = {};
+		notice = null;
+		testResult = null;
+	});
+
 	async function runTest(which: 'mail' | 'storage') {
 		testing = which;
 		testResult = null;

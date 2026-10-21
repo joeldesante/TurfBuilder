@@ -42,6 +42,30 @@ export async function requireNotLastAdmin(userId: string, what: string): Promise
 	}
 }
 
+/**
+ * Throws 403 unless the actor holds every infrastructure permission in
+ * `permissions`. Holding users.manage lets an admin change accounts and roles,
+ * so without this they could grant themselves more, or take over a stronger
+ * admin's account by changing its email and sending a reset.
+ */
+export async function requireHoldsAll(actorId: string, permissions: string[], message: string): Promise<void> {
+	if (permissions.length === 0) return;
+	const held = new Set(await resolveInfraPermissions(actorId));
+	if (permissions.some((p) => !held.has(p))) throw error(403, message);
+}
+
+/**
+ * Throws 403 when the target has infrastructure permissions the actor lacks,
+ * for any change to how the target signs in or what they can do.
+ */
+export async function requireNotStronger(actorId: string, targetId: string): Promise<void> {
+	await requireHoldsAll(
+		actorId,
+		await resolveInfraPermissions(targetId),
+		'This account has infrastructure permissions you do not have, so you cannot change it.'
+	);
+}
+
 /** Every infrastructure role and the permissions it grants. 403 without `users.manage`. */
 export async function listInfraRoles(userId: string): Promise<InfraRole[]> {
 	await requireInfraPermission(userId, 'users.manage');
@@ -120,7 +144,18 @@ export async function listUserInfraRoles(userId: string, targetId: string): Prom
 	return result.rows;
 }
 
-/** Gives a user an infrastructure role. 403 without `users.manage`; 404 for an unknown user or role. */
+/** The permissions an infrastructure role grants. */
+async function rolePermissions(roleId: string): Promise<string[]> {
+	const result = await POOL.query<{ key: string }>(
+		`SELECT rp.key FROM permission_role_entry pre
+		 JOIN registered_permission rp ON rp.id = pre.registered_permission_id
+		 WHERE pre.role_id = $1 AND pre.value`,
+		[roleId]
+	);
+	return result.rows.map((r) => r.key);
+}
+
+/** Gives a user an infrastructure role. 403 without `users.manage`, or when the role grants a permission the giver lacks; 404 for an unknown user or role. */
 export async function grantInfraRole(userId: string, targetId: string, roleId: string): Promise<void> {
 	await requireInfraPermission(userId, 'users.manage');
 
@@ -131,6 +166,7 @@ export async function grantInfraRole(userId: string, targetId: string, roleId: s
 		[roleId]
 	);
 	if (!role.rowCount) throw error(404, 'Role not found.');
+	await requireHoldsAll(userId, await rolePermissions(roleId), 'You cannot give a role with permissions you do not have.');
 
 	const inserted = await POOL.query(
 		`INSERT INTO user_role_membership (user_id, member_id, role_id, granted_by)
@@ -143,7 +179,7 @@ export async function grantInfraRole(userId: string, targetId: string, roleId: s
 	}
 }
 
-/** Takes an infrastructure role away. 409 when it would leave no admin who can manage users. */
+/** Takes an infrastructure role away. 403 when the holder has permissions the remover lacks; 409 when it would leave no admin who can manage users. */
 export async function revokeInfraRole(userId: string, targetId: string, roleId: string): Promise<void> {
 	await requireInfraPermission(userId, 'users.manage');
 
@@ -154,6 +190,7 @@ export async function revokeInfraRole(userId: string, targetId: string, roleId: 
 		[targetId, roleId]
 	);
 	if (!membership.rowCount) throw error(404, 'The user does not have that role.');
+	await requireNotStronger(userId, targetId);
 
 	// Permissions resolve through roles, direct grants, and weights, so the
 	// simplest exact check is to remove the role, resolve again, and put it back
