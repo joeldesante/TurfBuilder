@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
 	audit: vi.fn()
 }));
 
-vi.mock('$lib/server/database', () => ({ POOL: mocks.pool }));
+vi.mock('$lib/server/database', () => ({
+	POOL: mocks.pool,
+	withTransaction: async (fn: (c: unknown) => unknown) => fn(mocks.pool)
+}));
 vi.mock('$lib/server/permissions', () => ({
 	requireInfraPermission: mocks.requireInfraPermission,
 	resolveInfraPermissions: mocks.resolveInfraPermissions
@@ -82,7 +85,7 @@ describe('grantInfraRole', () => {
 		await grantInfraRole(ACTOR, TARGET, ROLE);
 
 		expect(writes()).toHaveLength(1);
-		expect(mocks.audit).toHaveBeenCalledWith(ACTOR, 'infra_role.grant', { type: 'user', id: TARGET }, expect.anything());
+		expect(mocks.audit).toHaveBeenCalledWith(ACTOR, 'infra_role.grant', { type: 'user', id: TARGET }, expect.anything(), mocks.pool);
 	});
 });
 
@@ -93,5 +96,23 @@ describe('revokeInfraRole', () => {
 
 		await expect(revokeInfraRole(ACTOR, TARGET, ROLE)).rejects.toMatchObject({ status: 403 });
 		expect(writes()).toEqual([]);
+	});
+
+	it('removes the role under the admin lock and refuses when no admin who can manage users is left', async () => {
+		holds({ [ACTOR]: ['access', 'users.manage'], [TARGET]: ['access', 'users.manage'] });
+		stubPool([]);
+		// After the delete, nobody resolves to an admin who can manage users.
+		mocks.resolveInfraPermissions.mockImplementation(async (id: string, db?: unknown) =>
+			db ? [] : ['access', 'users.manage']
+		);
+
+		await expect(revokeInfraRole(ACTOR, TARGET, ROLE)).rejects.toMatchObject({ status: 409 });
+
+		const sqls = mocks.pool.query.mock.calls.map((c) => String(c[0]));
+		const lock = sqls.findIndex((q) => q.includes('pg_advisory_xact_lock'));
+		const remove = sqls.findIndex((q) => q.startsWith('DELETE FROM user_role_membership'));
+		expect(lock).toBeGreaterThanOrEqual(0);
+		expect(remove).toBeGreaterThan(lock);
+		expect(mocks.audit).not.toHaveBeenCalled();
 	});
 });

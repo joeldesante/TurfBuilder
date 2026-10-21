@@ -1,4 +1,5 @@
 import { getRequestEvent } from '$app/server';
+import type { PoolClient } from 'pg';
 import { POOL } from '$lib/server/database';
 import { requireInfraPermission } from '$lib/server/permissions';
 import { clampPage, pageOffset, PAGE_SIZE, type Page } from '$lib/shared/utils/pagination';
@@ -21,18 +22,21 @@ function requestMeta(): { ip: string | null; userAgent: string | null } {
 }
 
 /**
- * Records a change an infra admin made. Called by infra services after the
- * change succeeds. Unlike activity events this one throws on failure, so a
- * change is never reported as done without a record of it.
+ * Records a change an infra admin made. Pass the transaction client the
+ * change was made on, so the change and its record commit together or not at
+ * all. Changes with effects outside the database (sending an email, starting a
+ * better-auth session) cannot share a transaction; those are recorded once the
+ * effect has happened, and a failure to record surfaces as an error.
  */
 export async function audit(
 	actorId: string,
 	action: string,
 	target: AuditTarget,
-	metadata: Record<string, unknown> = {}
+	metadata: Record<string, unknown> = {},
+	db: PoolClient | typeof POOL = POOL
 ): Promise<void> {
 	const { ip, userAgent } = requestMeta();
-	await POOL.query(
+	await db.query(
 		`INSERT INTO infra_audit_log (actor_id, action, target_type, target_id, metadata, ip, user_agent)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		[actorId, action, target.type, target.id ?? null, JSON.stringify(metadata), ip, userAgent]

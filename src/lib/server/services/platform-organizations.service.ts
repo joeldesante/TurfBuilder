@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { POOL, withOrgTransaction } from '$lib/server/database';
+import { POOL, withOrgTransaction, withTransaction } from '$lib/server/database';
 import { requireInfraPermission } from '$lib/server/permissions';
 import { audit, listAuditEventsFor } from './audit.service';
 import { queryActivityPage, recordEvent } from './activity.service';
@@ -101,12 +101,23 @@ function filterSql(filters: OrgFilters) {
 	return { where: `WHERE ${clauses.join(' AND ')}`, params };
 }
 
-const ORDER: Record<NonNullable<OrgFilters['sort']>, string> = {
-	newest: 'o.created_at DESC, o.id',
-	oldest: 'o.created_at ASC, o.id',
-	members: 'member_count DESC, o.created_at DESC, o.id',
-	recently_active: 'last_active_day DESC NULLS LAST, o.created_at DESC, o.id',
-	name: 'lower(o.name), o.id'
+/**
+ * How each sort orders the rows. `key` is computed for every matching org,
+ * since sorting needs it; the list's other columns are computed only for the
+ * page shown.
+ */
+const SORTS: Record<NonNullable<OrgFilters['sort']>, { key: string; order: string }> = {
+	newest: { key: 'NULL', order: 'p.created_at DESC, p.id' },
+	oldest: { key: 'NULL', order: 'p.created_at ASC, p.id' },
+	members: {
+		key: '(SELECT COUNT(*) FROM auth.member m WHERE m.organization_id = o.id)',
+		order: 'p.sort_key DESC, p.created_at DESC, p.id'
+	},
+	recently_active: {
+		key: '(SELECT max(d.day) FROM user_activity_day d WHERE d.org_key = o.id::text)',
+		order: 'p.sort_key DESC NULLS LAST, p.created_at DESC, p.id'
+	},
+	name: { key: 'lower(o.name)', order: 'p.sort_key, p.id' }
 };
 
 /** One page of organizations. No access check; callers have made one. */
@@ -121,12 +132,18 @@ export async function queryOrgsPage(
 	const totalCount = Number(count.rows[0]?.count ?? 0);
 	const page = clampPage(requested, totalCount, pageSize);
 
+	const sort = SORTS[filters.sort ?? 'newest'];
 	const result = await POOL.query<OrgRowRecord>(
-		`SELECT ${ROW_COLUMNS}
-		 FROM auth.organization o
-		 ${where}
-		 ORDER BY ${ORDER[filters.sort ?? 'newest']}
-		 LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+		`WITH p AS (
+		   SELECT o.id, o.created_at, ${sort.key} AS sort_key
+		   FROM auth.organization o
+		   ${where}
+		   ORDER BY ${sort.order.replace(/p\./g, '')}
+		   LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+		 )
+		 SELECT ${ROW_COLUMNS}
+		 FROM p JOIN auth.organization o ON o.id = p.id
+		 ORDER BY ${sort.order}`,
 		[...params, pageSize, pageOffset(page, pageSize)]
 	);
 
@@ -333,8 +350,10 @@ export async function suspendOrg(userId: string, orgId: string, reason: string):
 	if (org.deleted_at) throw error(409, 'This organization was deleted. Restore it first.');
 	if (org.suspended_at) throw error(409, 'This organization is already suspended.');
 
-	await POOL.query(`UPDATE auth.organization SET suspended_at = now(), suspended_reason = $2 WHERE id = $1`, [orgId, reason]);
-	await audit(userId, 'org.suspend', { type: 'organization', id: orgId }, { name: org.name, reason });
+	await withTransaction(async (client) => {
+		await client.query(`UPDATE auth.organization SET suspended_at = now(), suspended_reason = $2 WHERE id = $1`, [orgId, reason]);
+		await audit(userId, 'org.suspend', { type: 'organization', id: orgId }, { name: org.name, reason }, client);
+	});
 }
 
 export async function unsuspendOrg(userId: string, orgId: string): Promise<void> {
@@ -342,8 +361,10 @@ export async function unsuspendOrg(userId: string, orgId: string): Promise<void>
 	const org = await findOrg(orgId);
 	if (!org.suspended_at) throw error(409, 'This organization is not suspended.');
 
-	await POOL.query(`UPDATE auth.organization SET suspended_at = NULL, suspended_reason = NULL WHERE id = $1`, [orgId]);
-	await audit(userId, 'org.unsuspend', { type: 'organization', id: orgId }, { name: org.name });
+	await withTransaction(async (client) => {
+		await client.query(`UPDATE auth.organization SET suspended_at = NULL, suspended_reason = NULL WHERE id = $1`, [orgId]);
+		await audit(userId, 'org.unsuspend', { type: 'organization', id: orgId }, { name: org.name }, client);
+	});
 }
 
 /**
@@ -358,8 +379,10 @@ export async function deleteOrg(userId: string, orgId: string, confirmSlug: stri
 		throw error(400, 'Type the organization slug exactly to confirm.');
 	}
 
-	await POOL.query(`UPDATE auth.organization SET deleted_at = now() WHERE id = $1`, [orgId]);
-	await audit(userId, 'org.delete', { type: 'organization', id: orgId }, { name: org.name, slug: org.slug });
+	await withTransaction(async (client) => {
+		await client.query(`UPDATE auth.organization SET deleted_at = now() WHERE id = $1`, [orgId]);
+		await audit(userId, 'org.delete', { type: 'organization', id: orgId }, { name: org.name, slug: org.slug }, client);
+	});
 }
 
 export async function restoreOrg(userId: string, orgId: string): Promise<void> {
@@ -367,8 +390,10 @@ export async function restoreOrg(userId: string, orgId: string): Promise<void> {
 	const org = await findOrg(orgId);
 	if (!org.deleted_at) throw error(409, 'This organization is not deleted.');
 
-	await POOL.query(`UPDATE auth.organization SET deleted_at = NULL WHERE id = $1`, [orgId]);
-	await audit(userId, 'org.restore', { type: 'organization', id: orgId }, { name: org.name });
+	await withTransaction(async (client) => {
+		await client.query(`UPDATE auth.organization SET deleted_at = NULL WHERE id = $1`, [orgId]);
+		await audit(userId, 'org.restore', { type: 'organization', id: orgId }, { name: org.name }, client);
+	});
 }
 
 /**
@@ -381,7 +406,7 @@ export async function transferOwnership(userId: string, orgId: string, memberId:
 	const org = await findOrg(orgId);
 	if (org.deleted_at) throw error(409, 'This organization was deleted. Restore it first.');
 
-	const details = await withOrgTransaction(orgId, async (client) => {
+	await withOrgTransaction(orgId, async (client) => {
 		const member = await client.query<{ user_id: string; role: string; name: string }>(
 			`SELECT m.user_id, m.role, u.name FROM auth.member m JOIN auth.user u ON u.id = m.user_id
 			 WHERE m.id = $1 AND m.organization_id = $2`,
@@ -412,14 +437,13 @@ export async function transferOwnership(userId: string, orgId: string, memberId:
 				[target.user_id, memberId, adminRole.rows[0].id, userId]
 			);
 		}
-		return { newOwner: target, previous: previous.rows.map((r) => r.user_id) };
-	});
-
-	await audit(userId, 'org.ownership.transfer', { type: 'organization', id: orgId }, {
-		name: org.name,
-		newOwner: details.newOwner.user_id,
-		newOwnerName: details.newOwner.name,
-		previousOwners: details.previous
+		await audit(
+			userId,
+			'org.ownership.transfer',
+			{ type: 'organization', id: orgId },
+			{ name: org.name, newOwner: target.user_id, newOwnerName: target.name, previousOwners: previous.rows.map((r) => r.user_id) },
+			client
+		);
 	});
 }
 
@@ -435,18 +459,29 @@ export async function removeMember(userId: string, memberId: string): Promise<vo
 	const member = found.rows[0];
 	if (!member) throw error(404, 'Member not found.');
 
-	const owners = await POOL.query<{ count: string }>(
-		`SELECT COUNT(*) AS count FROM auth.member m WHERE m.organization_id = $1 AND ${isOwner('m')}`,
-		[member.organization_id]
-	);
 	const memberIsOwner = member.role.split(',').map((r) => r.trim()).includes('owner');
-	if (memberIsOwner && Number(owners.rows[0]?.count ?? 0) <= 1) {
-		throw error(409, 'This is the only owner. Transfer ownership to someone else first.');
-	}
 
 	await withOrgTransaction(member.organization_id, async (client) => {
+		if (memberIsOwner) {
+			// Locking the owner rows makes two removals of the last two owners
+			// take turns, so the second sees the first and is refused.
+			const owners = await client.query(
+				`SELECT m.id FROM auth.member m WHERE m.organization_id = $1 AND ${isOwner('m')} FOR UPDATE`,
+				[member.organization_id]
+			);
+			if ((owners.rowCount ?? 0) <= 1) {
+				throw error(409, 'This is the only owner. Transfer ownership to someone else first.');
+			}
+		}
 		await client.query(`DELETE FROM user_role_membership WHERE member_id = $1`, [memberId]);
 		await client.query(`DELETE FROM auth.member WHERE id = $1 AND organization_id = $2`, [memberId, member.organization_id]);
+		await audit(
+			userId,
+			'org.member.remove',
+			{ type: 'organization', id: member.organization_id },
+			{ userId: member.user_id, name: member.name },
+			client
+		);
 	});
 
 	await recordEvent('member.left', {
@@ -454,26 +489,28 @@ export async function removeMember(userId: string, memberId: string): Promise<vo
 		orgId: member.organization_id,
 		metadata: { removedBy: userId }
 	});
-	await audit(userId, 'org.member.remove', { type: 'organization', id: member.organization_id }, {
-		userId: member.user_id,
-		name: member.name
-	});
 }
 
 /** Cancels a pending invitation. */
 export async function cancelInvitation(userId: string, invitationId: string): Promise<void> {
 	await requireInfraPermission(userId, 'orgs.manage');
 
-	const result = await POOL.query<{ organization_id: string; email: string }>(
-		`UPDATE auth.invitation SET status = 'canceled', updated_at = now()
-		 WHERE id = $1 AND status = 'pending'
-		 RETURNING organization_id, email`,
-		[invitationId]
-	);
-	if (!result.rows[0]) throw error(404, 'No pending invitation with that id.');
+	await withTransaction(async (client) => {
+		const result = await client.query<{ organization_id: string; email: string }>(
+			`UPDATE auth.invitation SET status = 'canceled', updated_at = now()
+			 WHERE id = $1 AND status = 'pending'
+			 RETURNING organization_id, email`,
+			[invitationId]
+		);
+		if (!result.rows[0]) throw error(404, 'No pending invitation with that id.');
 
-	await audit(userId, 'org.invitation.cancel', { type: 'organization', id: result.rows[0].organization_id }, {
-		email: result.rows[0].email
+		await audit(
+			userId,
+			'org.invitation.cancel',
+			{ type: 'organization', id: result.rows[0].organization_id },
+			{ email: result.rows[0].email },
+			client
+		);
 	});
 }
 
@@ -481,13 +518,15 @@ export async function cancelInvitation(userId: string, invitationId: string): Pr
 export async function revokeInviteLink(userId: string, linkId: string): Promise<void> {
 	await requireInfraPermission(userId, 'orgs.manage');
 
-	const result = await POOL.query<{ org_id: string }>(
-		`UPDATE org_invite_link SET expires_at = now()
-		 WHERE id = $1 AND (expires_at IS NULL OR expires_at > now())
-		 RETURNING org_id`,
-		[linkId]
-	);
-	if (!result.rows[0]) throw error(404, 'No open invite link with that id.');
+	await withTransaction(async (client) => {
+		const result = await client.query<{ org_id: string }>(
+			`UPDATE org_invite_link SET expires_at = now()
+			 WHERE id = $1 AND (expires_at IS NULL OR expires_at > now())
+			 RETURNING org_id`,
+			[linkId]
+		);
+		if (!result.rows[0]) throw error(404, 'No open invite link with that id.');
 
-	await audit(userId, 'org.invite_link.revoke', { type: 'organization', id: result.rows[0].org_id }, { linkId });
+		await audit(userId, 'org.invite_link.revoke', { type: 'organization', id: result.rows[0].org_id }, { linkId }, client);
+	});
 }

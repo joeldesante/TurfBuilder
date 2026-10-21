@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
 	requireInfraPermission: vi.fn(),
 	canInfra: vi.fn(),
 	audit: vi.fn(),
-	requireNotLastAdmin: vi.fn(),
+	lockAdminChanges: vi.fn(),
+	requireAnAdminLeft: vi.fn(),
 	requireNotStronger: vi.fn(),
 	isMailConfigured: vi.fn(),
 	requestPasswordReset: vi.fn(),
@@ -19,7 +20,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('$lib/server/database', () => ({
 	POOL: mocks.pool,
-	withOrgTransaction: vi.fn(async (_org: string, fn: (c: unknown) => unknown) => fn(mocks.client))
+	withOrgTransaction: vi.fn(async (_org: string, fn: (c: unknown) => unknown) => fn(mocks.client)),
+	// Plain transactions run on the pool mock, so query assertions read one place.
+	withTransaction: vi.fn(async (fn: (c: unknown) => unknown) => fn(mocks.pool))
 }));
 vi.mock('$lib/server/permissions', () => ({
 	requireInfraPermission: mocks.requireInfraPermission,
@@ -35,7 +38,8 @@ vi.mock('./audit.service', () => ({ audit: mocks.audit, listAuditEventsFor: vi.f
 vi.mock('./activity.service', () => ({ queryActivityPage: vi.fn() }));
 vi.mock('./email-log.service', () => ({ queryEmailLogPage: vi.fn() }));
 vi.mock('./infra-admins.service', () => ({
-	requireNotLastAdmin: mocks.requireNotLastAdmin,
+	lockAdminChanges: mocks.lockAdminChanges,
+	requireAnAdminLeft: mocks.requireAnAdminLeft,
 	requireNotStronger: mocks.requireNotStronger
 }));
 
@@ -96,7 +100,8 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.requireInfraPermission.mockResolvedValue(undefined);
 	mocks.canInfra.mockResolvedValue(false);
-	mocks.requireNotLastAdmin.mockResolvedValue(undefined);
+	mocks.lockAdminChanges.mockResolvedValue(undefined);
+	mocks.requireAnAdminLeft.mockResolvedValue(undefined);
 	mocks.requireNotStronger.mockResolvedValue(undefined);
 	mocks.isMailConfigured.mockResolvedValue(true);
 	mocks.pool.connect.mockResolvedValue(mocks.client);
@@ -107,6 +112,17 @@ describe('listing users', () => {
 	it('requires access', async () => {
 		await listUsers(ADMIN, {}, 1);
 		expect(mocks.requireInfraPermission).toHaveBeenCalledWith(ADMIN, 'access');
+	});
+
+	it('picks the page first, then computes the costly columns for that page only', async () => {
+		await queryUsersPage({ sort: 'recently_active' }, 1);
+
+		const page = mocks.pool.query.mock.calls.map((c) => flat(c[0])).find((q) => q.startsWith('WITH p AS'))!;
+		const inner = page.slice(0, page.indexOf(') SELECT'));
+		expect(inner).toContain('AS sort_key');
+		expect(inner).toContain('LIMIT $1 OFFSET $2');
+		expect(inner).not.toContain('auth.member');
+		expect(page).toContain('FROM p JOIN auth.user u ON u.id = p.id');
 	});
 
 	it('maps rows to the shared shape', async () => {
@@ -167,7 +183,7 @@ describe('updateUser', () => {
 				email: { from: 'grace@example.com', to: 'new@example.com' },
 				emailVerified: { from: true, to: false }
 			}
-		});
+		}, mocks.pool);
 	});
 
 	it('answers 409 for a taken email', async () => {
@@ -260,15 +276,27 @@ describe('deleteUser', () => {
 		await expect(deleteUser(ADMIN, TARGET, 'wrong@example.com')).rejects.toMatchObject({ status: 400 });
 	});
 
-	it('refuses the only owner of an org', async () => {
-		respond((sql) => (sql.includes("'owner' = ANY") ? { rows: [{ id: 'o1', name: 'Riverside' }] } : undefined));
+	it('refuses the only owner of an org, checked under a lock in the delete transaction', async () => {
+		respond((sql) => (sql.includes("'owner' = ANY") && !sql.includes('FOR UPDATE') ? { rows: [{ id: 'o1', name: 'Riverside' }] } : undefined));
 		await expect(deleteUser(ADMIN, TARGET, 'grace@example.com')).rejects.toMatchObject({ status: 409 });
+
+		const sqls = mocks.client.query.mock.calls.map((c) => flat(c[0]));
+		expect(sqls[0]).toBe('BEGIN');
+		expect(sqls.some((s) => s.includes('FOR UPDATE'))).toBe(true);
+		expect(sqls).toContain('ROLLBACK');
 	});
 
-	it('guards the last admin', async () => {
+	it('guards the last admin inside the delete, under the admin lock, and rolls back', async () => {
 		mocks.canInfra.mockResolvedValue(true);
-		mocks.requireNotLastAdmin.mockRejectedValue(Object.assign(new Error('last'), { status: 409 }));
+		mocks.requireAnAdminLeft.mockRejectedValue(Object.assign(new Error('last'), { status: 409 }));
+
 		await expect(deleteUser(ADMIN, TARGET, 'grace@example.com')).rejects.toMatchObject({ status: 409 });
+		expect(mocks.lockAdminChanges).toHaveBeenCalledWith(mocks.client);
+		expect(mocks.requireAnAdminLeft).toHaveBeenCalledWith(mocks.client, expect.any(String));
+		const sqls = mocks.client.query.mock.calls.map((c) => flat(c[0]));
+		expect(sqls).toContain('ROLLBACK');
+		expect(sqls).not.toContain('COMMIT');
+		expect(mocks.audit).not.toHaveBeenCalled();
 	});
 
 	it('anonymizes rather than deleting the row', async () => {
@@ -279,6 +307,6 @@ describe('deleteUser', () => {
 		expect(sqls.some((s) => s.includes("name = 'Deleted user'"))).toBe(true);
 		expect(sqls.some((s) => s.startsWith('DELETE FROM auth.account'))).toBe(true);
 		expect(sqls.some((s) => s.startsWith('DELETE FROM auth.member'))).toBe(true);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'user.delete', { type: 'user', id: TARGET }, expect.anything());
+		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'user.delete', { type: 'user', id: TARGET }, expect.anything(), mocks.client);
 	});
 });

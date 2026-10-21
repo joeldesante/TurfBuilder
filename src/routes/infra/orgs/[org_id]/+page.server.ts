@@ -21,11 +21,10 @@ export async function load({ locals, params, url }) {
 
 	const org = await getOrg(userId, orgId);
 
-	// The overview also needs the first page of members, to choose a new owner from.
 	return {
 		org,
 		tab,
-		members: tab === 'overview' || tab === 'members' ? await listOrgMembers(userId, orgId, tab === 'members' ? page : 1) : null,
+		members: tab === 'members' ? await listOrgMembers(userId, orgId, page) : null,
 		invitations: tab === 'invitations' ? await listOrgInvitations(userId, orgId) : null,
 		activity: tab === 'activity' ? await listOrgActivity(userId, orgId, page) : null,
 		audit: tab === 'audit' ? await listOrgAudit(userId, orgId, page) : null,

@@ -14,19 +14,32 @@ type Db = PoolClient | typeof POOL;
  * every org. Universe tables are behind org RLS: count them inside
  * withOrgTransaction with `orgId` set.
  */
+/**
+ * A column callers may filter on, with its type. The parameter is cast to that
+ * type rather than the column to text, so the column's index still applies.
+ */
+interface Filter {
+	expr: string;
+	type: 'text' | 'uuid' | 'boolean';
+}
+
 export const TIME_SERIES_SOURCES = {
 	activity_events: {
 		table: 'activity_event',
 		timestamp: 'occurred_at',
 		orgColumn: 'org_id',
-		filters: { type: 'type', userId: 'user_id', contactMade: "(metadata->>'contact_made')" },
+		filters: {
+			type: { expr: 't.type', type: 'text' },
+			userId: { expr: 't.user_id', type: 'uuid' },
+			contactMade: { expr: "(t.metadata->>'contact_made')", type: 'text' }
+		},
 		distinct: { users: 'user_id', orgs: 'org_id' }
 	},
 	users: {
 		table: 'auth.user',
 		timestamp: 'created_at',
 		orgColumn: null,
-		filters: { emailVerified: 'email_verified' },
+		filters: { emailVerified: { expr: 't.email_verified', type: 'boolean' } },
 		distinct: {}
 	},
 	organizations: {
@@ -47,14 +60,17 @@ export const TIME_SERIES_SOURCES = {
 		table: 'email_log',
 		timestamp: 'created_at',
 		orgColumn: null,
-		filters: { status: 'status', template: 'template' },
+		filters: { status: { expr: 't.status', type: 'text' }, template: { expr: 't.template', type: 'text' } },
 		distinct: {}
 	},
 	canvass_visits: {
 		table: 'universe.turf_location_attempt',
 		timestamp: 'created_at',
 		orgColumn: 'org_id',
-		filters: { contactMade: 'contact_made', userId: 'user_id' },
+		filters: {
+			contactMade: { expr: 't.contact_made', type: 'boolean' },
+			userId: { expr: 't.user_id', type: 'uuid' }
+		},
 		distinct: { users: 'user_id' }
 	},
 	lists: {
@@ -77,7 +93,7 @@ export const TIME_SERIES_SOURCES = {
 		table: string;
 		timestamp: string;
 		orgColumn: string | null;
-		filters: Record<string, string>;
+		filters: Record<string, Filter>;
 		distinct: Record<string, string>;
 	}
 >;
@@ -125,11 +141,11 @@ export async function timeSeries<S extends TimeSeriesSource>(db: Db, query: Time
 		clauses.push(`t.${source.orgColumn} = $${params.length}`);
 	}
 	for (const [key, value] of Object.entries(query.where ?? {})) {
-		const column = (source.filters as Record<string, string>)[key];
-		if (!column) throw new Error(`Cannot filter ${String(query.source)} by ${key}`);
-		params.push(typeof value === 'boolean' ? String(value) : value);
-		// Compare as text so booleans, enums, and JSON fields share one form.
-		clauses.push(`${column.startsWith('(') ? column : `t.${column}`}::text = $${params.length}::text`);
+		const filter = (source.filters as Record<string, Filter>)[key];
+		if (!filter) throw new Error(`Cannot filter ${String(query.source)} by ${key}`);
+		// JSON fields are text, so a boolean compared against one is sent as 'true' or 'false'.
+		params.push(filter.type === 'text' && typeof value === 'boolean' ? String(value) : value);
+		clauses.push(`${filter.expr} = $${params.length}::${filter.type}`);
 	}
 
 	let measure = 'COUNT(*)';

@@ -197,7 +197,7 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 		key: 'activity.retention_days',
 		group: 'activity',
 		label: 'Keep activity for',
-		help: 'Activity events and the email log older than this are removed when migrations run. 0 keeps everything.',
+		help: 'Activity history and the email log older than this are removed when migrations run, and not copied in again. 0 keeps everything.',
 		input: { kind: 'number', min: 0, max: 36500, unit: 'days' },
 		defaultValue: '730',
 		schema: z

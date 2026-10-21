@@ -46,8 +46,26 @@ describe('timeSeries', () => {
 		});
 
 		const [sql, params] = db.query.mock.calls[0];
-		expect(flat(sql)).toContain('t.org_id = $4 AND t.type::text = $5::text');
+		expect(flat(sql)).toContain('t.org_id = $4 AND t.type = $5::text');
 		expect(params[4]).toBe("user.signed_in'; DROP TABLE x; --");
+	});
+
+	it('compares a uuid column as a uuid, so its index applies', async () => {
+		await timeSeries(db as never, { source: 'activity_events', from, to, granularity: 'week', where: { userId: 'u1' } });
+
+		const sql = flat(db.query.mock.calls[0][0]);
+		expect(sql).toContain('t.user_id = $4::uuid');
+		expect(sql).not.toContain('user_id::text');
+	});
+
+	it('compares a boolean column as a boolean and a JSON field as text', async () => {
+		await timeSeries(db as never, { source: 'canvass_visits', from, to, granularity: 'day', orgId: 'o', where: { contactMade: true } });
+		expect(flat(db.query.mock.calls[0][0])).toContain('t.contact_made = $5::boolean');
+		expect(db.query.mock.calls[0][1][4]).toBe(true);
+
+		await timeSeries(db as never, { source: 'activity_events', from, to, granularity: 'day', where: { contactMade: true } });
+		expect(flat(db.query.mock.calls[1][0])).toContain("(t.metadata->>'contact_made') = $4::text");
+		expect(db.query.mock.calls[1][1][3]).toBe('true');
 	});
 
 	it('counts distinct values when asked', async () => {

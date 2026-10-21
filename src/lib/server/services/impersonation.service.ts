@@ -31,7 +31,7 @@ export async function startImpersonation(
 	if (target.rows[0].deleted_at) throw error(409, 'This account was deleted.');
 
 	const auth = await getAuth();
-	let result: { userId: string; expiresAt: Date | string };
+	let result: { sessionId: string; userId: string; expiresAt: Date | string };
 	try {
 		result = await auth.api.infraImpersonateUser({ body: { userId: targetId }, headers });
 	} catch (e) {
@@ -41,10 +41,18 @@ export async function startImpersonation(
 		throw e;
 	}
 
-	await audit(userId, 'user.impersonate.start', { type: 'user', id: targetId }, {
-		name: target.rows[0].name,
-		email: target.rows[0].email
-	});
+	// The session already exists, so it cannot share a transaction with the
+	// record. If the record cannot be written, end the session: no
+	// impersonation runs unrecorded.
+	try {
+		await audit(userId, 'user.impersonate.start', { type: 'user', id: targetId }, {
+			name: target.rows[0].name,
+			email: target.rows[0].email
+		});
+	} catch (e) {
+		await POOL.query(`DELETE FROM auth.session WHERE id = $1`, [result.sessionId]).catch(() => {});
+		throw e;
+	}
 	return { userId: result.userId, expiresAt: new Date(result.expiresAt).toISOString() };
 }
 

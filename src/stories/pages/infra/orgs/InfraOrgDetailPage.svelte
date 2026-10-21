@@ -1,6 +1,13 @@
 <script lang="ts" module>
 	export type OrgTab = 'overview' | 'members' | 'invitations' | 'activity' | 'audit';
 
+	export interface OwnerCandidate {
+		memberId: string;
+		name: string;
+		email: string;
+		memberRole: string;
+	}
+
 	/**
 	 * What the page can ask the server to do. Each resolves when done and
 	 * rejects with an Error whose message is safe to show.
@@ -9,6 +16,8 @@
 		suspend: (reason: string) => Promise<void>;
 		unsuspend: () => Promise<void>;
 		transferOwnership: (memberId: string) => Promise<void>;
+		/** Members whose name or email contains the query, for choosing a new owner in an org of any size. */
+		searchMembers: (query: string) => Promise<OwnerCandidate[]>;
 		remove: (confirmSlug: string) => Promise<void>;
 		restore: () => Promise<void>;
 		removeMember: (memberId: string) => Promise<void>;
@@ -90,15 +99,35 @@
 	let newOwnerId = $state('');
 	let memberToRemove = $state<OrgMember | null>(null);
 
-	// Candidates for the new owner come from the loaded members page, so an org
-	// larger than a page picks from the members tab; the select is for the common case.
-	const ownerCandidates = $derived((members?.items ?? []).filter((m) => !m.memberRole.includes('owner')));
+	// The new owner is found by search, so any member of an org of any size can be chosen.
+	let ownerQuery = $state('');
+	let ownerResults = $state<OwnerCandidate[] | null>(null);
+	let searchingOwners = $state(false);
+	const ownerCandidates = $derived((ownerResults ?? []).filter((m) => !m.memberRole.includes('owner')));
+
+	async function searchOwners() {
+		if (!ownerQuery.trim()) return;
+		searchingOwners = true;
+		dialogError = null;
+		newOwnerId = '';
+		try {
+			ownerResults = await actions.searchMembers(ownerQuery.trim());
+		} catch (e) {
+			dialogError = e instanceof Error ? e.message : 'The search did not work. Try again.';
+		} finally {
+			searchingOwners = false;
+		}
+	}
 
 	function open(id: Exclude<DialogId, null>) {
 		dialogError = null;
 		if (id === 'suspend') suspendReason = '';
 		if (id === 'delete') deleteConfirm = '';
-		if (id === 'transfer') newOwnerId = '';
+		if (id === 'transfer') {
+			newOwnerId = '';
+			ownerQuery = '';
+			ownerResults = null;
+		}
 		dialog = id;
 	}
 
@@ -414,17 +443,31 @@
 		run(() => actions.transferOwnership(newOwnerId));
 	}}
 >
-	{#if ownerCandidates.length === 0}
-		<p class="text-sm text-on-surface-subtle">Members load on the Overview and Members tabs; reload if none appear.</p>
-	{:else}
-		<FormField label="New owner">
-			<Select
-				bind:value={newOwnerId}
-				placeholder="Choose a member"
-				items={ownerCandidates.map((m) => ({ value: m.memberId, label: `${m.name} (${m.email})` }))}
-			/>
-		</FormField>
-	{/if}
+	<div class="space-y-3">
+		<form
+			class="flex gap-2"
+			onsubmit={(event) => {
+				event.preventDefault();
+				searchOwners();
+			}}
+		>
+			<TextInput type="search" bind:value={ownerQuery} placeholder="Name or email" aria-label="Find a member" class="min-w-0 flex-1" />
+			<Button type="submit" variant="outline" loading={searchingOwners}>Search</Button>
+		</form>
+		{#if ownerResults !== null}
+			{#if ownerCandidates.length === 0}
+				<p class="text-sm text-on-surface-subtle">No member who is not already an owner matches.</p>
+			{:else}
+				<FormField label="New owner">
+					<Select
+						bind:value={newOwnerId}
+						placeholder="Choose a member"
+						items={ownerCandidates.map((m) => ({ value: m.memberId, label: `${m.name} (${m.email})` }))}
+					/>
+				</FormField>
+			{/if}
+		{/if}
+	</div>
 </ConfirmDialog>
 
 <ConfirmDialog

@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
 	isMailConfigured: vi.fn()
 }));
 
-vi.mock('$lib/server/database', () => ({ POOL: mocks.pool }));
+vi.mock('$lib/server/database', () => ({
+	POOL: mocks.pool,
+	withTransaction: async (fn: (c: unknown) => unknown) => fn(mocks.pool)
+}));
 vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
 vi.mock('$lib/server/mail', () => ({ deliverEmail: mocks.deliverEmail, isMailConfigured: mocks.isMailConfigured }));
 vi.mock('./audit.service', () => ({ audit: mocks.audit }));
@@ -93,7 +96,7 @@ describe('updateEmailTemplate', () => {
 		await updateEmailTemplate(ADMIN, KEY, { subject: 'New', htmlBody: '<p>x</p>' });
 
 		expect(mocks.pool.query.mock.calls[0][1]).toEqual([KEY, 'New', '<p>x</p>']);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'email_template.update', { type: 'email_template', id: KEY });
+		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'email_template.update', { type: 'email_template', id: KEY }, {}, mocks.pool);
 	});
 });
 
@@ -102,7 +105,7 @@ describe('resetEmailTemplate', () => {
 		await resetEmailTemplate(ADMIN, KEY);
 
 		expect(mocks.pool.query.mock.calls[0][1]).toEqual([KEY, fallback.subject, fallback.htmlBody]);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'email_template.reset', { type: 'email_template', id: KEY });
+		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'email_template.reset', { type: 'email_template', id: KEY }, {}, mocks.pool);
 	});
 
 	it('answers 404 for a template the app has no default for', async () => {

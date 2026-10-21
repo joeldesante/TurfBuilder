@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/client/api';
+	import type { Page } from '$lib/shared/utils/pagination';
 	import InfraOrgDetailPage, { type OrgActions } from '$pages/infra/orgs/InfraOrgDetailPage.svelte';
 
 	const { data } = $props();
@@ -20,6 +21,12 @@
 		unsuspend: () => act(() => api(`${base}/suspension`, { method: 'DELETE' }), 'Suspension lifted.'),
 		transferOwnership: (memberId) =>
 			act(() => api(`${base}/ownership`, { method: 'PUT', body: { memberId } }), 'Ownership transferred.'),
+		searchMembers: async (query) => {
+			const page = await api<Page<{ member_id: string; name: string; email: string; member_role: string }>>(
+				`${base}/members?q=${encodeURIComponent(query)}`
+			);
+			return page.items.map((m) => ({ memberId: m.member_id, name: m.name, email: m.email, memberRole: m.member_role }));
+		},
 		remove: async (confirmSlug) => {
 			await api(base, { method: 'DELETE', body: { confirmSlug } });
 			toast.success('Organization deleted.');

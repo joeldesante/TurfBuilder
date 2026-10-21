@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { POOL } from '$lib/server/database';
+import type { PoolClient } from 'pg';
+import { POOL, withTransaction } from '$lib/server/database';
 import { requireInfraPermission, resolveInfraPermissions } from '$lib/server/permissions';
 import { audit } from './audit.service';
 import type { InfraAdmin, InfraRole } from '$lib/shared/types/infra-admins';
@@ -8,8 +9,8 @@ import type { InfraAdmin, InfraRole } from '$lib/shared/types/infra-admins';
  * Users holding any infrastructure role or direct infrastructure grant. Infra
  * roles have no org, so RLS shows their rows without an org context.
  */
-async function candidateIds(): Promise<string[]> {
-	const result = await POOL.query<{ user_id: string }>(
+async function candidateIds(db: PoolClient | typeof POOL): Promise<string[]> {
+	const result = await db.query<{ user_id: string }>(
 		`SELECT urm.user_id
 		 FROM user_role_membership urm
 		 JOIN permission_role pr ON pr.id = urm.role_id
@@ -28,18 +29,30 @@ async function candidateIds(): Promise<string[]> {
  * `users.manage`, so they could grant the rest back. The panel never removes
  * the last of them.
  */
-export async function fullAdminIds(): Promise<string[]> {
-	const ids = await candidateIds();
-	const resolved = await Promise.all(ids.map(async (id) => ({ id, perms: await resolveInfraPermissions(id) })));
+export async function fullAdminIds(db: PoolClient | typeof POOL = POOL): Promise<string[]> {
+	const ids = await candidateIds(db);
+	// One at a time: a transaction client runs one query at a time.
+	const resolved: { id: string; perms: string[] }[] = [];
+	for (const id of ids) resolved.push({ id, perms: await resolveInfraPermissions(id, db) });
 	return resolved.filter((r) => r.perms.includes('access') && r.perms.includes('users.manage')).map((r) => r.id);
 }
 
-/** Throws 409 when removing `userId`'s admin rights would leave nobody who can manage the panel. */
-export async function requireNotLastAdmin(userId: string, what: string): Promise<void> {
-	const admins = await fullAdminIds();
-	if (admins.length === 1 && admins[0] === userId) {
-		throw error(409, `This is the last infrastructure admin who can manage users, so they cannot be ${what}.`);
-	}
+/**
+ * Serializes changes that could remove an infra admin, so two at once cannot
+ * each see the other admin and together remove both. Call inside a transaction;
+ * the lock is released when it ends.
+ */
+export async function lockAdminChanges(client: PoolClient): Promise<void> {
+	await client.query(`SELECT pg_advisory_xact_lock(hashtext('infra-admin-changes'))`);
+}
+
+/**
+ * Throws 409 when no admin who can manage users is left. Call inside the
+ * transaction that removed rights, after lockAdminChanges, so it sees that
+ * change and rolls it back by throwing.
+ */
+export async function requireAnAdminLeft(client: PoolClient, message: string): Promise<void> {
+	if ((await fullAdminIds(client)).length === 0) throw error(409, message);
 }
 
 /**
@@ -92,7 +105,7 @@ export async function listInfraRoles(userId: string): Promise<InfraRole[]> {
 /** Everyone with infrastructure rights, with their roles and resolved permissions. 403 without `users.manage`. */
 export async function listInfraAdmins(userId: string): Promise<InfraAdmin[]> {
 	await requireInfraPermission(userId, 'users.manage');
-	const ids = await candidateIds();
+	const ids = await candidateIds(POOL);
 	if (ids.length === 0) return [];
 
 	const users = await POOL.query<{
@@ -168,15 +181,17 @@ export async function grantInfraRole(userId: string, targetId: string, roleId: s
 	if (!role.rowCount) throw error(404, 'Role not found.');
 	await requireHoldsAll(userId, await rolePermissions(roleId), 'You cannot give a role with permissions you do not have.');
 
-	const inserted = await POOL.query(
-		`INSERT INTO user_role_membership (user_id, member_id, role_id, granted_by)
-		 VALUES ($1, NULL, $2, $3)
-		 ON CONFLICT (user_id, role_id) DO NOTHING`,
-		[targetId, roleId, userId]
-	);
-	if (inserted.rowCount) {
-		await audit(userId, 'infra_role.grant', { type: 'user', id: targetId }, { roleId, roleName: role.rows[0].name });
-	}
+	await withTransaction(async (client) => {
+		const inserted = await client.query(
+			`INSERT INTO user_role_membership (user_id, member_id, role_id, granted_by)
+			 VALUES ($1, NULL, $2, $3)
+			 ON CONFLICT (user_id, role_id) DO NOTHING`,
+			[targetId, roleId, userId]
+		);
+		if (inserted.rowCount) {
+			await audit(userId, 'infra_role.grant', { type: 'user', id: targetId }, { roleId, roleName: role.rows[0].name }, client);
+		}
+	});
 }
 
 /** Takes an infrastructure role away. 403 when the holder has permissions the remover lacks; 409 when it would leave no admin who can manage users. */
@@ -193,18 +208,12 @@ export async function revokeInfraRole(userId: string, targetId: string, roleId: 
 	await requireNotStronger(userId, targetId);
 
 	// Permissions resolve through roles, direct grants, and weights, so the
-	// simplest exact check is to remove the role, resolve again, and put it back
-	// if nobody could manage users any more.
-	await POOL.query(`DELETE FROM user_role_membership WHERE user_id = $1 AND role_id = $2`, [targetId, roleId]);
-
-	if ((await fullAdminIds()).length === 0) {
-		await POOL.query(
-			`INSERT INTO user_role_membership (user_id, member_id, role_id, granted_by) VALUES ($1, NULL, $2, $3)
-			 ON CONFLICT (user_id, role_id) DO NOTHING`,
-			[targetId, roleId, userId]
-		);
-		throw error(409, 'That would leave no infrastructure admin who can manage users.');
-	}
-
-	await audit(userId, 'infra_role.revoke', { type: 'user', id: targetId }, { roleId, roleName: membership.rows[0].name });
+	// exact check is to remove the role and resolve again in the same
+	// transaction, which rolls back when nobody could manage users any more.
+	await withTransaction(async (client) => {
+		await lockAdminChanges(client);
+		await client.query(`DELETE FROM user_role_membership WHERE user_id = $1 AND role_id = $2`, [targetId, roleId]);
+		await requireAnAdminLeft(client, 'That would leave no infrastructure admin who can manage users.');
+		await audit(userId, 'infra_role.revoke', { type: 'user', id: targetId }, { roleId, roleName: membership.rows[0].name }, client);
+	});
 }

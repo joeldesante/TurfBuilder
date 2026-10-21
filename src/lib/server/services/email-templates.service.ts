@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { POOL } from '$lib/server/database';
+import { POOL, withTransaction } from '$lib/server/database';
 import { deliverEmail, isMailConfigured } from '$lib/server/mail';
 import { requireInfraPermission } from '$lib/server/permissions';
 import { audit } from './audit.service';
@@ -61,15 +61,17 @@ export async function getEmailTemplate(userId: string, key: string): Promise<Ema
 /** Saves a template's subject and body. The variables a template offers are fixed by the code that sends it. */
 export async function updateEmailTemplate(userId: string, key: string, body: EmailTemplateBody): Promise<EmailTemplateDetail> {
 	await requireInfraPermission(userId, 'settings.manage');
-	const result = await POOL.query<TemplateRow>(
-		`UPDATE email_template SET subject = $2, html_body = $3, updated_at = now()
-		 WHERE key = $1
-		 RETURNING key, subject, html_body, variables, updated_at`,
-		[key, body.subject, body.htmlBody]
-	);
-	if (result.rowCount === 0) throw error(404, 'Email template not found.');
-	await audit(userId, 'email_template.update', { type: 'email_template', id: key });
-	return toDetail(result.rows[0]);
+	return withTransaction(async (client) => {
+		const result = await client.query<TemplateRow>(
+			`UPDATE email_template SET subject = $2, html_body = $3, updated_at = now()
+			 WHERE key = $1
+			 RETURNING key, subject, html_body, variables, updated_at`,
+			[key, body.subject, body.htmlBody]
+		);
+		if (result.rowCount === 0) throw error(404, 'Email template not found.');
+		await audit(userId, 'email_template.update', { type: 'email_template', id: key }, {}, client);
+		return toDetail(result.rows[0]);
+	});
 }
 
 /** Puts a template back to the text the app shipped with. 404 when the app has no default for it. */
@@ -78,15 +80,17 @@ export async function resetEmailTemplate(userId: string, key: string): Promise<E
 	const fallback = EMAIL_TEMPLATES_BY_KEY.get(key);
 	if (!fallback) throw error(404, 'This template has no default to go back to.');
 
-	const result = await POOL.query<TemplateRow>(
-		`UPDATE email_template SET subject = $2, html_body = $3, updated_at = now()
-		 WHERE key = $1
-		 RETURNING key, subject, html_body, variables, updated_at`,
-		[key, fallback.subject, fallback.htmlBody]
-	);
-	if (result.rowCount === 0) throw error(404, 'Email template not found.');
-	await audit(userId, 'email_template.reset', { type: 'email_template', id: key });
-	return toDetail(result.rows[0]);
+	return withTransaction(async (client) => {
+		const result = await client.query<TemplateRow>(
+			`UPDATE email_template SET subject = $2, html_body = $3, updated_at = now()
+			 WHERE key = $1
+			 RETURNING key, subject, html_body, variables, updated_at`,
+			[key, fallback.subject, fallback.htmlBody]
+		);
+		if (result.rowCount === 0) throw error(404, 'Email template not found.');
+		await audit(userId, 'email_template.reset', { type: 'email_template', id: key }, {}, client);
+		return toDetail(result.rows[0]);
+	});
 }
 
 /**

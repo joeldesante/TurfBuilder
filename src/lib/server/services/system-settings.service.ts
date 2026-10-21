@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { z } from 'zod';
 import { resetAuth } from '$lib/auth';
-import { POOL } from '$lib/server/database';
+import { POOL, withTransaction } from '$lib/server/database';
 import { requireInfraPermission } from '$lib/server/permissions';
 import { storageCredentialsPresent } from '$lib/server/storage';
 import { audit } from './audit.service';
@@ -57,20 +57,28 @@ export async function updateSystemSettings(
 	const changed = keys.filter((key) => before.get(key)?.value !== values[key]);
 	if (changed.length === 0) return { saved: [], restartRequired: false };
 
-	await POOL.query(
-		`INSERT INTO system_setting (key, value, description)
-		 SELECT k, v, d FROM unnest($1::text[], $2::text[], $3::text[]) AS t(k, v, d)
-		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
-		[changed, changed.map((key) => values[key]), changed.map((key) => SETTINGS_BY_KEY.get(key)!.help)]
-	);
+	await withTransaction(async (client) => {
+		await client.query(
+			`INSERT INTO system_setting (key, value, description)
+			 SELECT k, v, d FROM unnest($1::text[], $2::text[], $3::text[]) AS t(k, v, d)
+			 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+			[changed, changed.map((key) => values[key]), changed.map((key) => SETTINGS_BY_KEY.get(key)!.help)]
+		);
 
-	// Raw HTML is not copied into the log; it can be long and holds script tags.
-	await audit(userId, 'settings.update', { type: 'setting' }, {
-		changes: changed.map((key) => ({
-			key,
-			from: key === 'html.header_content' ? '(html)' : before.get(key)?.value ?? null,
-			to: key === 'html.header_content' ? '(html)' : values[key]
-		}))
+		// Raw HTML is not copied into the log; it can be long and holds script tags.
+		await audit(
+			userId,
+			'settings.update',
+			{ type: 'setting' },
+			{
+				changes: changed.map((key) => ({
+					key,
+					from: key === 'html.header_content' ? '(html)' : (before.get(key)?.value ?? null),
+					to: key === 'html.header_content' ? '(html)' : values[key]
+				}))
+			},
+			client
+		);
 	});
 
 	if (changed.includes('base_url')) resetAuth();

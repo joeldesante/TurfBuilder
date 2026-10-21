@@ -14,7 +14,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('$lib/server/database', () => ({
 	POOL: mocks.pool,
-	withOrgTransaction: vi.fn(async (_org: string, fn: (c: unknown) => unknown) => fn(mocks.client))
+	withOrgTransaction: vi.fn(async (_org: string, fn: (c: unknown) => unknown) => fn(mocks.client)),
+	withTransaction: vi.fn(async (fn: (c: unknown) => unknown) => fn(mocks.client))
 }));
 vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
 vi.mock('./audit.service', () => ({ audit: mocks.audit, listAuditEventsFor: vi.fn() }));
@@ -87,6 +88,21 @@ describe('listing organizations', () => {
 		expect(flat(mocks.pool.query.mock.calls[0][0])).toContain('WHERE o.deleted_at IS NOT NULL');
 	});
 
+	it('picks the page first, then computes the costly columns for that page only', async () => {
+		await queryOrgsPage({ sort: 'members' }, 2);
+
+		const page = mocks.pool.query.mock.calls.map((c) => flat(c[0])).find((q) => q.startsWith('WITH p AS'))!;
+		const [inner, outer] = page.split('SELECT o.id, o.name');
+		// Only the sort key is computed while choosing the page.
+		expect(inner).toContain('AS sort_key');
+		expect(inner).toContain('LIMIT $1 OFFSET $2');
+		expect(inner).not.toContain('activity_event');
+		// The 30-day event count is joined on to the chosen rows.
+		expect(outer).toContain('activity_event');
+		expect(outer).toContain('FROM p JOIN auth.organization o ON o.id = p.id');
+		expect(outer).toContain('ORDER BY p.sort_key DESC');
+	});
+
 	it('maps rows to the shared shape', async () => {
 		const page = await queryOrgsPage({}, 1);
 		expect(page.items[0]).toMatchObject({ memberCount: 12, pendingInvitations: 1, events30d: 40, suspended: false });
@@ -119,17 +135,18 @@ describe('changes', () => {
 	it('suspending requires orgs.manage and is audited', async () => {
 		await suspendOrg(ADMIN, ORG, 'Unpaid');
 		expect(mocks.requireInfraPermission).toHaveBeenCalledWith(ADMIN, 'orgs.manage');
+		// Written on the same transaction as the change.
 		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'org.suspend', { type: 'organization', id: ORG }, {
 			name: 'Riverside',
 			reason: 'Unpaid'
-		});
+		}, mocks.client);
 	});
 
 	it('deleting needs the slug typed back and only marks the row', async () => {
 		await expect(deleteOrg(ADMIN, ORG, 'wrong')).rejects.toMatchObject({ status: 400 });
 
 		await deleteOrg(ADMIN, ORG, 'Riverside');
-		const sqls = mocks.pool.query.mock.calls.map((c) => flat(c[0]));
+		const sqls = mocks.client.query.mock.calls.map((c) => flat(c[0]));
 		expect(sqls).toContain('UPDATE auth.organization SET deleted_at = now() WHERE id = $1');
 		expect(sqls.some((s) => s.startsWith('DELETE FROM auth.organization'))).toBe(false);
 	});
@@ -148,7 +165,7 @@ describe('changes', () => {
 		expect(sqls.some((s) => s.includes("UPDATE auth.member SET role = 'owner' WHERE id = $1"))).toBe(true);
 		const grant = mocks.client.query.mock.calls.find((c) => flat(c[0]).startsWith('INSERT INTO user_role_membership'));
 		expect(grant?.[1]).toEqual(['u2', MEMBER, 'role-admin', ADMIN]);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'org.ownership.transfer', { type: 'organization', id: ORG }, expect.objectContaining({ newOwner: 'u2', previousOwners: ['u1'] }));
+		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'org.ownership.transfer', { type: 'organization', id: ORG }, expect.objectContaining({ newOwner: 'u2', previousOwners: ['u1'] }), mocks.client);
 	});
 
 	it('will not remove the only owner', async () => {
@@ -156,12 +173,16 @@ describe('changes', () => {
 			if (sql.includes('FROM auth.member m JOIN auth.user u ON u.id = m.user_id WHERE m.id = $1')) {
 				return { rows: [{ organization_id: ORG, user_id: 'u1', role: 'owner', name: 'Grace' }] };
 			}
-			if (sql.includes('COUNT(*) AS count FROM auth.member')) return { rows: [{ count: '1' }] };
+			if (sql.includes('FOR UPDATE')) return { rowCount: 1, rows: [{ id: MEMBER }] };
 			return undefined;
 		});
 
 		await expect(removeMember(ADMIN, MEMBER)).rejects.toMatchObject({ status: 409 });
 		expect(mocks.recordEvent).not.toHaveBeenCalled();
+		// Counted under a lock, in the transaction that would remove them.
+		const sqls = mocks.client.query.mock.calls.map((c) => flat(c[0]));
+		expect(sqls.some((s) => s.includes('FOR UPDATE'))).toBe(true);
+		expect(sqls.some((s) => s.startsWith('DELETE FROM auth.member'))).toBe(false);
 	});
 
 	it('removing a member records that they left', async () => {

@@ -12,6 +12,7 @@
 		suspend: async () => {},
 		unsuspend: async () => {},
 		transferOwnership: async () => {},
+		searchMembers: async () => members.map((m) => ({ memberId: m.memberId, name: m.name, email: m.email, memberRole: m.memberRole })),
 		remove: async () => {},
 		restore: async () => {},
 		removeMember: async () => {},

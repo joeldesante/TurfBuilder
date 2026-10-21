@@ -1,12 +1,13 @@
 import { error } from '@sveltejs/kit';
 import { getAuth } from '$lib/auth';
-import { POOL, withOrgTransaction } from '$lib/server/database';
+import type { PoolClient } from 'pg';
+import { POOL, withOrgTransaction, withTransaction } from '$lib/server/database';
 import { canInfra, requireInfraPermission } from '$lib/server/permissions';
 import { isMailConfigured } from '$lib/server/mail';
 import { audit, listAuditEventsFor } from './audit.service';
 import { queryActivityPage } from './activity.service';
 import { queryEmailLogPage } from './email-log.service';
-import { requireNotLastAdmin, requireNotStronger } from './infra-admins.service';
+import { lockAdminChanges, requireAnAdminLeft, requireNotStronger } from './infra-admins.service';
 import { clampPage, pageOffset, PAGE_SIZE, type Page } from '$lib/shared/utils/pagination';
 import type {
 	PlatformUserDetail,
@@ -121,11 +122,19 @@ function filterSql(filters: UserFilters) {
 	return { where: `WHERE ${clauses.join(' AND ')}`, params };
 }
 
-const ORDER: Record<NonNullable<UserFilters['sort']>, string> = {
-	newest: 'u.created_at DESC, u.id',
-	oldest: 'u.created_at ASC, u.id',
-	recently_active: 'last_active_day DESC NULLS LAST, u.created_at DESC, u.id',
-	name: 'lower(u.name), u.id'
+/**
+ * How each sort orders the rows. `key` is computed for every matching user,
+ * since sorting needs it; the list's other columns are computed only for the
+ * page shown.
+ */
+const SORTS: Record<NonNullable<UserFilters['sort']>, { key: string; order: string }> = {
+	newest: { key: 'NULL', order: 'p.created_at DESC, p.id' },
+	oldest: { key: 'NULL', order: 'p.created_at ASC, p.id' },
+	recently_active: {
+		key: LAST_ACTIVE,
+		order: 'p.sort_key DESC NULLS LAST, p.created_at DESC, p.id'
+	},
+	name: { key: 'lower(u.name)', order: 'p.sort_key, p.id' }
 };
 
 /** One page of users. No access check; callers have made one. */
@@ -140,12 +149,18 @@ export async function queryUsersPage(
 	const totalCount = Number(count.rows[0]?.count ?? 0);
 	const page = clampPage(requested, totalCount, pageSize);
 
+	const sort = SORTS[filters.sort ?? 'newest'];
 	const result = await POOL.query<UserRowRecord>(
-		`SELECT ${ROW_COLUMNS}
-		 FROM auth.user u
-		 ${where}
-		 ORDER BY ${ORDER[filters.sort ?? 'newest']}
-		 LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+		`WITH p AS (
+		   SELECT u.id, u.created_at, ${sort.key} AS sort_key
+		   FROM auth.user u
+		   ${where}
+		   ORDER BY ${sort.order.replace(/p\./g, '')}
+		   LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+		 )
+		 SELECT ${ROW_COLUMNS}
+		 FROM p JOIN auth.user u ON u.id = p.id
+		 ORDER BY ${sort.order}`,
 		[...params, pageSize, pageOffset(page, pageSize)]
 	);
 
@@ -326,12 +341,14 @@ export async function revokeUserSessions(userId: string, targetId: string, keepS
 	await findUser(targetId);
 	await requireNotStronger(userId, targetId);
 
-	const result = await POOL.query(
-		`DELETE FROM auth.session WHERE user_id = $1 AND ($2::uuid IS NULL OR id <> $2::uuid)`,
-		[targetId, keepSessionId ?? null]
-	);
-	await audit(userId, 'user.sessions.revoke', { type: 'user', id: targetId }, { count: result.rowCount ?? 0 });
-	return result.rowCount ?? 0;
+	return withTransaction(async (client) => {
+		const result = await client.query(
+			`DELETE FROM auth.session WHERE user_id = $1 AND ($2::uuid IS NULL OR id <> $2::uuid)`,
+			[targetId, keepSessionId ?? null]
+		);
+		await audit(userId, 'user.sessions.revoke', { type: 'user', id: targetId }, { count: result.rowCount ?? 0 }, client);
+		return result.rowCount ?? 0;
+	});
 }
 
 /** Ends one session. 404 for an unknown session. */
@@ -342,11 +359,13 @@ export async function revokeSession(userId: string, sessionId: string): Promise<
 	if (!owner.rowCount) throw error(404, 'Session not found.');
 	await requireNotStronger(userId, owner.rows[0].user_id);
 
-	const result = await POOL.query<{ user_id: string }>(`DELETE FROM auth.session WHERE id = $1 RETURNING user_id`, [
-		sessionId
-	]);
-	if (!result.rowCount) throw error(404, 'Session not found.');
-	await audit(userId, 'user.session.revoke', { type: 'user', id: result.rows[0].user_id }, { sessionId });
+	await withTransaction(async (client) => {
+		const result = await client.query<{ user_id: string }>(`DELETE FROM auth.session WHERE id = $1 RETURNING user_id`, [
+			sessionId
+		]);
+		if (!result.rowCount) throw error(404, 'Session not found.');
+		await audit(userId, 'user.session.revoke', { type: 'user', id: result.rows[0].user_id }, { sessionId }, client);
+	});
 }
 
 /**
@@ -386,7 +405,10 @@ export async function updateUser(userId: string, targetId: string, input: Update
 
 	try {
 		params.push(targetId);
-		await POOL.query(`UPDATE auth.user SET ${sets.join(', ')}, updated_at = now() WHERE id = $${params.length}`, params);
+		await withTransaction(async (client) => {
+			await client.query(`UPDATE auth.user SET ${sets.join(', ')}, updated_at = now() WHERE id = $${params.length}`, params);
+			await audit(userId, 'user.update', { type: 'user', id: targetId }, { changes }, client);
+		});
 	} catch (e) {
 		if ((e as { code?: string }).code === UNIQUE_VIOLATION) {
 			const constraint = (e as { constraint?: string }).constraint ?? '';
@@ -395,7 +417,6 @@ export async function updateUser(userId: string, targetId: string, input: Update
 		throw e;
 	}
 
-	await audit(userId, 'user.update', { type: 'user', id: targetId }, { changes });
 	return findUser(targetId);
 }
 
@@ -442,6 +463,7 @@ export async function resetTwoFactor(userId: string, targetId: string): Promise<
 		await client.query('BEGIN');
 		await client.query(`UPDATE auth.user SET two_factor_enabled = false, updated_at = now() WHERE id = $1`, [targetId]);
 		await client.query(`DELETE FROM auth.two_factor WHERE user_id = $1`, [targetId]);
+		await audit(userId, 'user.two_factor.reset', { type: 'user', id: targetId }, {}, client);
 		await client.query('COMMIT');
 	} catch (e) {
 		await client.query('ROLLBACK');
@@ -449,7 +471,6 @@ export async function resetTwoFactor(userId: string, targetId: string): Promise<
 	} finally {
 		client.release();
 	}
-	await audit(userId, 'user.two_factor.reset', { type: 'user', id: targetId });
 }
 
 /**
@@ -473,6 +494,13 @@ export async function suspendUser(userId: string, targetId: string, input: Suspe
 			[targetId, input.reason, input.expiresAt ? new Date(input.expiresAt) : null]
 		);
 		await client.query(`DELETE FROM auth.session WHERE user_id = $1`, [targetId]);
+		await audit(
+			userId,
+			'user.suspend',
+			{ type: 'user', id: targetId },
+			{ reason: input.reason, expiresAt: input.expiresAt ?? null },
+			client
+		);
 		await client.query('COMMIT');
 	} catch (e) {
 		await client.query('ROLLBACK');
@@ -481,10 +509,6 @@ export async function suspendUser(userId: string, targetId: string, input: Suspe
 		client.release();
 	}
 
-	await audit(userId, 'user.suspend', { type: 'user', id: targetId }, {
-		reason: input.reason,
-		expiresAt: input.expiresAt ?? null
-	});
 	return findUser(targetId);
 }
 
@@ -494,18 +518,29 @@ export async function unsuspendUser(userId: string, targetId: string): Promise<P
 	const user = await findChangeable(targetId);
 	if (!user.suspended) throw error(409, 'This user is not suspended.');
 
-	await POOL.query(
-		`UPDATE auth.user SET banned = false, ban_reason = NULL, ban_expires = NULL, updated_at = now() WHERE id = $1`,
-		[targetId]
-	);
-	await audit(userId, 'user.unsuspend', { type: 'user', id: targetId });
+	await withTransaction(async (client) => {
+		await client.query(
+			`UPDATE auth.user SET banned = false, ban_reason = NULL, ban_expires = NULL, updated_at = now() WHERE id = $1`,
+			[targetId]
+		);
+		await audit(userId, 'user.unsuspend', { type: 'user', id: targetId }, {}, client);
+	});
 	return findUser(targetId);
 }
 
 /** Orgs where the user is the only owner, which deleting them would leave without one. */
-async function soleOwnedOrgs(targetId: string): Promise<{ id: string; name: string }[]> {
+async function soleOwnedOrgs(client: PoolClient, targetId: string): Promise<{ id: string; name: string }[]> {
 	const isOwner = (alias: string) => `'owner' = ANY(string_to_array(replace(${alias}.role, ' ', ''), ','))`;
-	const result = await POOL.query<{ id: string; name: string }>(
+	// Lock the owner rows of the user's orgs first, so an owner removed at the
+	// same moment elsewhere waits for this check instead of slipping past it.
+	await client.query(
+		`SELECT m2.id FROM auth.member m2
+		 WHERE m2.organization_id IN (SELECT organization_id FROM auth.member WHERE user_id = $1)
+		   AND ${isOwner('m2')}
+		 FOR UPDATE`,
+		[targetId]
+	);
+	const result = await client.query<{ id: string; name: string }>(
 		`SELECT o.id, o.name
 		 FROM auth.member m
 		 JOIN auth.organization o ON o.id = m.organization_id AND o.deleted_at IS NULL
@@ -537,19 +572,22 @@ export async function deleteUser(userId: string, targetId: string, confirmEmail:
 
 	await requireNotStronger(userId, targetId);
 
-	const owned = await soleOwnedOrgs(targetId);
-	if (owned.length > 0) {
-		throw error(
-			409,
-			`This user is the only owner of ${owned.map((o) => o.name).join(', ')}. Transfer ownership first.`
-		);
-	}
-	if (await canInfra(targetId, 'access')) await requireNotLastAdmin(targetId, 'deleted');
+	const wasAdmin = await canInfra(targetId, 'access');
 
 	const tag = targetId.replace(/-/g, '').slice(0, 16);
 	const client = await POOL.connect();
 	try {
 		await client.query('BEGIN');
+		// Both checks run inside the transaction that deletes, so a change made
+		// at the same moment cannot slip between the check and the delete.
+		const owned = await soleOwnedOrgs(client, targetId);
+		if (owned.length > 0) {
+			throw error(
+				409,
+				`This user is the only owner of ${owned.map((o) => o.name).join(', ')}. Transfer ownership first.`
+			);
+		}
+		if (wasAdmin) await lockAdminChanges(client);
 		await client.query(
 			`UPDATE auth.user SET
 			   name = 'Deleted user', email = $2, username = $3, display_username = $3, image = NULL,
@@ -566,6 +604,10 @@ export async function deleteUser(userId: string, targetId: string, confirmEmail:
 		await client.query(`DELETE FROM user_permission WHERE user_id = $1 AND organization_id IS NULL`, [targetId]);
 		// Org role memberships go with the member rows (ON DELETE CASCADE).
 		await client.query(`DELETE FROM auth.member WHERE user_id = $1`, [targetId]);
+		if (wasAdmin) {
+			await requireAnAdminLeft(client, 'This is the last infrastructure admin who can manage users, so they cannot be deleted.');
+		}
+		await audit(userId, 'user.delete', { type: 'user', id: targetId }, { name: user.name, email: user.email }, client);
 		await client.query('COMMIT');
 	} catch (e) {
 		await client.query('ROLLBACK');
@@ -574,5 +616,4 @@ export async function deleteUser(userId: string, targetId: string, confirmEmail:
 		client.release();
 	}
 
-	await audit(userId, 'user.delete', { type: 'user', id: targetId }, { name: user.name, email: user.email });
 }

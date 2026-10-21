@@ -8,6 +8,7 @@ function actions(): OrgActions {
 		suspend: vi.fn(async () => {}),
 		unsuspend: vi.fn(async () => {}),
 		transferOwnership: vi.fn(async () => {}),
+		searchMembers: vi.fn(async () => members.map((m) => ({ memberId: m.memberId, name: m.name, email: m.email, memberRole: m.memberRole }))),
 		remove: vi.fn(async () => {}),
 		restore: vi.fn(async () => {}),
 		removeMember: vi.fn(async () => {}),
@@ -55,6 +56,24 @@ describe('InfraOrgDetailPage', () => {
 		await getByRole('textbox', { name: `Type ${orgDetail.slug} to confirm` }).fill(orgDetail.slug);
 		await getByRole('button', { name: 'Delete organization' }).click();
 		expect(a.remove).toHaveBeenCalledWith(orgDetail.slug);
+	});
+
+	test('finds the new owner by search, leaving out current owners, then transfers', async () => {
+		const a = actions();
+		const { getByRole } = render(InfraOrgDetailPage, { props: { ...base, members: null, actions: a } });
+
+		await getByRole('button', { name: /Actions/ }).click();
+		await getByRole('menuitem', { name: 'Transfer ownership' }).click();
+		await getByRole('searchbox', { name: 'Find a member' }).fill('kath');
+		await getByRole('dialog').getByRole('button', { name: 'Search' }).click();
+		expect(a.searchMembers).toHaveBeenCalledWith('kath');
+
+		const select = getByRole('combobox', { name: 'New owner' });
+		await expect.element(select).not.toHaveTextContent('Grace Hopper');
+		await select.selectOptions(members[1].memberId);
+		await getByRole('button', { name: 'Transfer' }).click();
+
+		expect(a.transferOwnership).toHaveBeenCalledWith(members[1].memberId);
 	});
 
 	test('offers restore, not suspend or delete, for a deleted org', async () => {

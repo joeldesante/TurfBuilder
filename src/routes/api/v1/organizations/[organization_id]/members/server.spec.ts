@@ -45,12 +45,20 @@ describe('GET /api/v1/organizations/[organization_id]/members', () => {
 		expect(await res.json()).toEqual(page);
 	});
 
+	it('passes ?q= to the service as the search', async () => {
+		listMembers.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 100 });
+
+		await get('?q=kath&page=2');
+
+		expect(listMembers).toHaveBeenCalledWith('u1', ID, 2, 'kath');
+	});
+
 	it('passes ?page= to the service', async () => {
 		listMembers.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 100 });
 
 		await get('?page=3');
 
-		expect(listMembers).toHaveBeenCalledWith('u1', ID, 3);
+		expect(listMembers).toHaveBeenCalledWith('u1', ID, 3, undefined);
 	});
 
 	it('leaves a missing page for the service to clamp', async () => {
@@ -58,7 +66,7 @@ describe('GET /api/v1/organizations/[organization_id]/members', () => {
 
 		await get();
 
-		expect(listMembers).toHaveBeenCalledWith('u1', ID, 0);
+		expect(listMembers).toHaveBeenCalledWith('u1', ID, 0, undefined);
 	});
 
 	it('passes a service error through', async () => {

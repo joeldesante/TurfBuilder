@@ -87,6 +87,10 @@ export interface BackfillReport {
  */
 export async function backfillActivity(): Promise<BackfillReport> {
 	const inserted: BackfillReport['inserted'] = {};
+	// Nothing older than the retention window: pruning would remove it again,
+	// and every migration would pay for inserting and deleting all of history.
+	// Null keeps everything.
+	const since = await retentionCutoff();
 
 	async function run(
 		type: ActivityEventType,
@@ -105,29 +109,38 @@ export async function backfillActivity(): Promise<BackfillReport> {
 
 	await run(
 		'user.signed_up',
-		`SELECT 'user.signed_up', id, NULL, '{}'::jsonb, 'user.signed_up:' || id, created_at FROM auth.user`
+		`SELECT 'user.signed_up', id, NULL, '{}'::jsonb, 'user.signed_up:' || id, created_at FROM auth.user
+		 WHERE ($1::timestamptz IS NULL OR created_at >= $1)`,
+		[since]
 	);
 	await run(
 		'user.signed_in',
 		`SELECT 'user.signed_in', user_id, active_organization_id, '{}'::jsonb, 'session:' || id, created_at
-		 FROM auth.session WHERE impersonated_by IS NULL`
+		 FROM auth.session WHERE impersonated_by IS NULL AND ($1::timestamptz IS NULL OR created_at >= $1)`,
+		[since]
 	);
 	await run(
 		'org.created',
-		`SELECT 'org.created', NULL, id, '{}'::jsonb, 'org.created:' || id, created_at FROM auth.organization`
+		`SELECT 'org.created', NULL, id, '{}'::jsonb, 'org.created:' || id, created_at FROM auth.organization
+		 WHERE ($1::timestamptz IS NULL OR created_at >= $1)`,
+		[since]
 	);
 	await run(
 		'member.joined',
-		`SELECT 'member.joined', user_id, organization_id, '{}'::jsonb, 'member.joined:' || id, created_at FROM auth.member`
+		`SELECT 'member.joined', user_id, organization_id, '{}'::jsonb, 'member.joined:' || id, created_at FROM auth.member
+		 WHERE ($1::timestamptz IS NULL OR created_at >= $1)`,
+		[since]
 	);
 
 	const days = await POOL.query(
 		`INSERT INTO user_activity_day (day, user_id, org_key)
 		 SELECT DISTINCT created_at::date, user_id, '' FROM auth.session
+		 WHERE ($1::timestamptz IS NULL OR created_at >= $1)
 		 UNION
 		 SELECT DISTINCT created_at::date, user_id, active_organization_id::text
-		 FROM auth.session WHERE active_organization_id IS NOT NULL
-		 ON CONFLICT DO NOTHING`
+		 FROM auth.session WHERE active_organization_id IS NOT NULL AND ($1::timestamptz IS NULL OR created_at >= $1)
+		 ON CONFLICT DO NOTHING`,
+		[since]
 	);
 	let activeDays = days.rowCount ?? 0;
 
@@ -142,8 +155,8 @@ export async function backfillActivity(): Promise<BackfillReport> {
 				        jsonb_build_object('contact_made', COALESCE(a.contact_made, false)),
 				        'canvass.visit:' || a.id, a.created_at
 				 FROM universe.turf_location_attempt a
-				 WHERE a.org_id = $1`,
-				[orgId],
+				 WHERE a.org_id = $1 AND ($2::timestamptz IS NULL OR a.created_at >= $2)`,
+				[orgId, since],
 				client
 			);
 			await run(
@@ -151,10 +164,10 @@ export async function backfillActivity(): Promise<BackfillReport> {
 				`SELECT 'survey.submitted', a.user_id, a.org_id, '{}'::jsonb,
 				        'survey.submitted:' || a.id, a.created_at
 				 FROM universe.turf_location_attempt a
-				 WHERE a.org_id = $1
+				 WHERE a.org_id = $1 AND ($2::timestamptz IS NULL OR a.created_at >= $2)
 				   AND EXISTS (SELECT 1 FROM universe.survey_question_response r
 				               WHERE r.turf_location_attempt_id = a.id AND r.org_id = $1)`,
-				[orgId],
+				[orgId, since],
 				client
 			);
 
@@ -163,9 +176,9 @@ export async function backfillActivity(): Promise<BackfillReport> {
 				 SELECT DISTINCT a.created_at::date, a.user_id, k.key
 				 FROM universe.turf_location_attempt a
 				 CROSS JOIN (VALUES (''), ($2::text)) AS k(key)
-				 WHERE a.org_id = $1
+				 WHERE a.org_id = $1 AND ($3::timestamptz IS NULL OR a.created_at >= $3)
 				 ON CONFLICT DO NOTHING`,
-				[orgId, orgId]
+				[orgId, orgId, since]
 			);
 			activeDays += visitDays.rowCount ?? 0;
 		});
@@ -243,16 +256,21 @@ export async function queryActivityPage(
  * were removed.
  */
 export async function pruneActivity(): Promise<number> {
+	const cutoff = await retentionCutoff();
+	if (!cutoff) return 0;
+
+	const result = await POOL.query(`DELETE FROM activity_event WHERE occurred_at < $1`, [cutoff]);
+	await POOL.query(`DELETE FROM user_activity_day WHERE day < $1::date`, [cutoff]);
+	await POOL.query(`DELETE FROM email_log WHERE created_at < $1`, [cutoff]);
+	return result.rowCount ?? 0;
+}
+
+/** The oldest moment activity is kept from, by the retention setting; null keeps everything. */
+async function retentionCutoff(): Promise<Date | null> {
 	const setting = await POOL.query<{ value: string }>(
 		`SELECT value FROM system_setting WHERE key = 'activity.retention_days'`
 	);
 	const days = Number(setting.rows[0]?.value ?? 0);
-	if (!Number.isFinite(days) || days <= 0) return 0;
-
-	const result = await POOL.query(
-		`DELETE FROM activity_event WHERE occurred_at < now() - make_interval(days => $1)`,
-		[days]
-	);
-	await POOL.query(`DELETE FROM email_log WHERE created_at < now() - make_interval(days => $1)`, [days]);
-	return result.rowCount ?? 0;
+	if (!Number.isFinite(days) || days <= 0) return null;
+	return new Date(Date.now() - days * 86_400_000);
 }

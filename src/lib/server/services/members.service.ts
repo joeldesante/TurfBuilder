@@ -28,11 +28,17 @@ export interface MemberRow {
 export async function queryMembersPage(
 	client: PoolClient,
 	orgId: string,
-	requested: number
+	requested: number,
+	q?: string
 ): Promise<Page<MemberRow>> {
+	// An optional search by name or email, with LIKE's own wildcards escaped.
+	const pattern = q?.trim() ? `%${q.trim().toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+	const search = `($2::text IS NULL OR lower(u.name) LIKE $2 OR lower(u.email) LIKE $2)`;
+
 	const countResult = await client.query<{ count: string }>(
-		`SELECT COUNT(*)::text AS count FROM auth.member WHERE organization_id = $1`,
-		[orgId]
+		`SELECT COUNT(*)::text AS count FROM auth.member m JOIN auth."user" u ON u.id = m.user_id
+		 WHERE m.organization_id = $1 AND ${search}`,
+		[orgId, pattern]
 	);
 	const totalCount = parseInt(countResult.rows[0].count, 10);
 	const page = clampPage(requested, totalCount);
@@ -54,12 +60,12 @@ export async function queryMembersPage(
 			   AND pr.organization_id = m.organization_id
 			   AND pr.scope = 'organization'
 			   AND pr.is_default = false
-			 WHERE m.organization_id = $1
+			 WHERE m.organization_id = $1 AND ${search}
 			 ORDER BY u.id, pr.weight ASC NULLS LAST
 		) members
 		ORDER BY lower(name), id
-		LIMIT $2 OFFSET $3`,
-		[orgId, PAGE_SIZE, pageOffset(page)]
+		LIMIT $3 OFFSET $4`,
+		[orgId, pattern, PAGE_SIZE, pageOffset(page)]
 	);
 
 	return { items: rows.rows, totalCount, page, pageSize: PAGE_SIZE };
@@ -72,9 +78,10 @@ export async function queryMembersPage(
 export async function listMembers(
 	userId: string,
 	orgId: string,
-	requested: number
+	requested: number,
+	q?: string
 ): Promise<Page<MemberRow>> {
 	if (!(await canInfra(userId, 'access'))) await requireOrgPermission(userId, orgId, 'member.read');
 
-	return withOrgTransaction(orgId, (client) => queryMembersPage(client, orgId, requested));
+	return withOrgTransaction(orgId, (client) => queryMembersPage(client, orgId, requested, q));
 }

@@ -69,6 +69,7 @@ describe('touchActiveDay', () => {
 describe('backfillActivity', () => {
 	beforeEach(() => {
 		pool.query.mockImplementation((sql: string) => {
+			if (sql.includes('system_setting')) return Promise.resolve({ rows: [{ value: '0' }] });
 			if (sql.includes('SELECT id FROM auth.organization')) {
 				return Promise.resolve({ rows: [{ id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }] });
 			}
@@ -98,7 +99,26 @@ describe('backfillActivity', () => {
 
 		const visits = orgClient.query.mock.calls.find((c) => flat(c[0]).includes('canvass.visit'));
 		expect(flat(visits?.[0])).toContain('WHERE a.org_id = $1');
-		expect(visits?.[1]).toEqual(['a1b2c3d4-e5f6-7890-abcd-ef1234567890']);
+		expect(visits?.[1]).toEqual(['a1b2c3d4-e5f6-7890-abcd-ef1234567890', null]);
+	});
+
+	it('copies nothing older than the retention window, so pruning does not remove it again', async () => {
+		pool.query.mockImplementation((sql: string) => {
+			if (sql.includes('system_setting')) return Promise.resolve({ rows: [{ value: '30' }] });
+			if (sql.includes('SELECT id FROM auth.organization')) return Promise.resolve({ rows: [{ id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }] });
+			return Promise.resolve({ rowCount: 0, rows: [] });
+		});
+		const before = Date.now();
+
+		await backfillActivity();
+
+		const inserts = [...pool.query.mock.calls, ...orgClient.query.mock.calls].filter((c) => flat(c[0]).startsWith('INSERT'));
+		expect(inserts.length).toBe(8);
+		for (const [sql, params] of inserts) {
+			expect(flat(sql)).toMatch(/created_at >= \$\d/);
+			const cutoff = (params as unknown[]).find((p) => p instanceof Date) as Date;
+			expect(before - cutoff.getTime()).toBeGreaterThanOrEqual(30 * 86_400_000 - 1000);
+		}
 	});
 
 	it('reports what it added', async () => {
@@ -115,9 +135,15 @@ describe('pruneActivity', () => {
 			Promise.resolve(sql.includes('system_setting') ? { rows: [{ value: '30' }] } : { rowCount: 9, rows: [] })
 		);
 
+		const before = Date.now();
 		expect(await pruneActivity()).toBe(9);
 		const deletion = pool.query.mock.calls.find((c) => flat(c[0]).startsWith('DELETE FROM activity_event'));
-		expect(deletion?.[1]).toEqual([30]);
+		const cutoff = (deletion?.[1] as Date[])[0];
+		expect(before - cutoff.getTime()).toBeGreaterThanOrEqual(30 * 86_400_000 - 1000);
+		// Active days and the email log go too, so neither grows without end.
+		const sqls = pool.query.mock.calls.map((c) => flat(c[0]));
+		expect(sqls.some((q) => q.startsWith('DELETE FROM user_activity_day'))).toBe(true);
+		expect(sqls.some((q) => q.startsWith('DELETE FROM email_log'))).toBe(true);
 	});
 
 	it('keeps everything when retention is 0', async () => {

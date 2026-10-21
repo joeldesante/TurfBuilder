@@ -70,10 +70,11 @@ export async function resolveOrgPermissions(
  * Same resolution algorithm as resolveOrgPermissions but without an org context —
  * infra permissions use organization_id IS NULL.
  *
- * Can be called outside of a withOrgTransaction.
+ * Can be called outside of a withOrgTransaction. Pass a transaction client to
+ * see that transaction's uncommitted changes.
  */
-export async function resolveInfraPermissions(userId: string): Promise<string[]> {
-	const result = await POOL.query(
+export async function resolveInfraPermissions(userId: string, db: PoolClient | typeof POOL = POOL): Promise<string[]> {
+	const result = await db.query(
 		`WITH
 		user_direct AS (
 			SELECT rp.key, up.value

@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$env/dynamic/private', () => ({ env: mocks.env }));
-vi.mock('$lib/server/database', () => ({ POOL: mocks.pool }));
+vi.mock('$lib/server/database', () => ({
+	POOL: mocks.pool,
+	withTransaction: async (fn: (c: unknown) => unknown) => fn(mocks.pool)
+}));
 vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
 vi.mock('$lib/server/storage', () => ({ storageCredentialsPresent: mocks.storageCredentialsPresent }));
 vi.mock('$lib/auth', () => ({ resetAuth: mocks.resetAuth }));
@@ -69,7 +72,7 @@ describe('updateSystemSettings', () => {
 		const write = mocks.pool.query.mock.calls.find((c) => String(c[0]).startsWith('INSERT'))!;
 		expect(write[1][0]).toEqual(['application_name']);
 		expect(write[1][1]).toEqual(['New']);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'settings.update', { type: 'setting' }, { changes: [{ key: 'application_name', from: 'Old', to: 'New' }] });
+		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'settings.update', { type: 'setting' }, { changes: [{ key: 'application_name', from: 'Old', to: 'New' }] }, mocks.pool);
 	});
 
 	it('writes nothing when nothing changed', async () => {

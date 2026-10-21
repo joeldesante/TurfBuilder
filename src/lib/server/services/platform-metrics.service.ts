@@ -19,8 +19,12 @@ import type {
 	PlatformOverview
 } from '$lib/shared/types/metrics';
 import { PLATFORM_METRICS } from '$lib/shared/types/metrics';
+import { mapWithLimit } from '$lib/shared/utils/map-with-limit';
 
 const DAY_MS = 86_400_000;
+
+/** Charts computed at once for the metrics page. */
+const METRIC_CONCURRENCY = 3;
 
 interface Window {
 	from: Date;
@@ -368,7 +372,9 @@ export async function getPlatformMetrics(
 ): Promise<PlatformMetrics> {
 	await requireInfraPermission(userId, 'access');
 	const w = await resolveWindow(range, granularity);
-	const results = await Promise.all(PLATFORM_METRICS.map((key) => METRICS[key](w)));
+	// A few at a time: each chart may run several queries, and all of them at
+	// once would hold most of the pool through one page view.
+	const results = await mapWithLimit(PLATFORM_METRICS, METRIC_CONCURRENCY, (key) => METRICS[key](w));
 	return {
 		window: windowOut(range, w),
 		...(Object.fromEntries(PLATFORM_METRICS.map((key, i) => [key, results[i]])) as Record<PlatformMetricKey, MetricResult>)
