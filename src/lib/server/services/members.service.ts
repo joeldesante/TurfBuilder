@@ -1,15 +1,23 @@
 import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { requireOrgPermission } from '$lib/server/list-access';
+import { canInfra } from '$lib/server/permissions';
 import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
 import type { Page } from '$lib/shared/utils/pagination';
 
 export interface MemberRow {
+	/** The user's id. */
 	id: string;
 	name: string;
 	email: string;
 	role_id: string | null;
 	role_name: string | null;
+	member_id: string;
+	/** better-auth's member role: owner, admin, or member. */
+	member_role: string;
+	joined_at: Date;
+	/** The last day the member used this org (YYYY-MM-DD), or null. */
+	last_active_day: string | null;
 }
 
 /**
@@ -20,11 +28,17 @@ export interface MemberRow {
 export async function queryMembersPage(
 	client: PoolClient,
 	orgId: string,
-	requested: number
+	requested: number,
+	q?: string
 ): Promise<Page<MemberRow>> {
+	// An optional search by name or email, with LIKE's own wildcards escaped.
+	const pattern = q?.trim() ? `%${q.trim().toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+	const search = `($2::text IS NULL OR lower(u.name) LIKE $2 OR lower(u.email) LIKE $2)`;
+
 	const countResult = await client.query<{ count: string }>(
-		`SELECT COUNT(*)::text AS count FROM auth.member WHERE organization_id = $1`,
-		[orgId]
+		`SELECT COUNT(*)::text AS count FROM auth.member m JOIN auth."user" u ON u.id = m.user_id
+		 WHERE m.organization_id = $1 AND ${search}`,
+		[orgId, pattern]
 	);
 	const totalCount = parseInt(countResult.rows[0].count, 10);
 	const page = clampPage(requested, totalCount);
@@ -34,7 +48,10 @@ export async function queryMembersPage(
 	// an id tiebreak so pages cannot repeat or skip a member.
 	const rows = await client.query<MemberRow>(
 		`SELECT * FROM (
-			SELECT DISTINCT ON (u.id) u.id, u.name, u.email, pr.id AS role_id, pr.name AS role_name
+			SELECT DISTINCT ON (u.id) u.id, u.name, u.email, pr.id AS role_id, pr.name AS role_name,
+			       m.id AS member_id, m.role AS member_role, m.created_at AS joined_at,
+			       (SELECT to_char(max(d.day), 'YYYY-MM-DD') FROM user_activity_day d
+			        WHERE d.user_id = m.user_id AND d.org_key = m.organization_id::text) AS last_active_day
 			  FROM auth.member m
 			  JOIN auth."user" u ON u.id = m.user_id
 			  LEFT JOIN user_role_membership urm ON urm.user_id = m.user_id
@@ -43,24 +60,28 @@ export async function queryMembersPage(
 			   AND pr.organization_id = m.organization_id
 			   AND pr.scope = 'organization'
 			   AND pr.is_default = false
-			 WHERE m.organization_id = $1
+			 WHERE m.organization_id = $1 AND ${search}
 			 ORDER BY u.id, pr.weight ASC NULLS LAST
 		) members
 		ORDER BY lower(name), id
-		LIMIT $2 OFFSET $3`,
-		[orgId, PAGE_SIZE, pageOffset(page)]
+		LIMIT $3 OFFSET $4`,
+		[orgId, pattern, PAGE_SIZE, pageOffset(page)]
 	);
 
 	return { items: rows.rows, totalCount, page, pageSize: PAGE_SIZE };
 }
 
-/** One page of the org's members. 404 unless the caller is a member, 403 without `member.read`. */
+/**
+ * One page of the org's members. Infra admins with `access` may read any org's;
+ * anyone else must be a member (404 otherwise) with `member.read` (403).
+ */
 export async function listMembers(
 	userId: string,
 	orgId: string,
-	requested: number
+	requested: number,
+	q?: string
 ): Promise<Page<MemberRow>> {
-	await requireOrgPermission(userId, orgId, 'member.read');
+	if (!(await canInfra(userId, 'access'))) await requireOrgPermission(userId, orgId, 'member.read');
 
-	return withOrgTransaction(orgId, (client) => queryMembersPage(client, orgId, requested));
+	return withOrgTransaction(orgId, (client) => queryMembersPage(client, orgId, requested, q));
 }

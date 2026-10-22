@@ -1,24 +1,32 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import InfraSettingsPage from '$pages/infra/settings/InfraSettingsPage.svelte';
+	import { ApiError, api } from '$lib/client/api';
+	import InfraSettingsPage, { type SaveResult } from '$pages/infra/settings/InfraSettingsPage.svelte';
 
 	const { data } = $props();
 
-	async function save(key: string, value: string) {
-		const res = await fetch('/infra/settings/api', {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ key, value })
-		});
-		if (!res.ok) {
-			const body = await res.json().catch(() => ({}));
-			throw new Error(body.error ?? 'Failed to save setting.');
+	async function onsave(values: Record<string, string>): Promise<SaveResult> {
+		try {
+			const result = await api<{ restartRequired: boolean }>('/system-settings', { method: 'PATCH', body: values });
+			await invalidateAll();
+			return { ok: true, restartRequired: result.restartRequired };
+		} catch (e) {
+			if (e instanceof ApiError) return { ok: false, message: e.message, errors: e.errors ?? {} };
+			return { ok: false, message: 'The settings could not be saved.', errors: {} };
 		}
-		await invalidateAll();
 	}
 
-	const onToggle = (key: string, value: boolean) => save(key, String(value));
-	const onSave = (key: string, value: string) => save(key, value);
+	async function ontestmail() {
+		const { to } = await api<{ to: string }>('/mail-tests', { method: 'POST' });
+		return `Sent a test email to ${to}.`;
+	}
+
+	async function onteststorage() {
+		await api('/storage-tests', { method: 'POST' });
+		return 'The bucket accepted a test file.';
+	}
 </script>
 
-<InfraSettingsPage settings={data.settings} {onToggle} {onSave} />
+<svelte:head><title>Settings | Infrastructure</title></svelte:head>
+
+<InfraSettingsPage settings={data.settings} tab={data.tab} credentials={data.credentials} {onsave} {ontestmail} {onteststorage} />

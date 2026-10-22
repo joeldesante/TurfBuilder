@@ -1,90 +1,73 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import LineChart from './LineChart.svelte';
-	import type { Series } from './LineChart.svelte';
+	import { activeUsers, signups, wave } from '../fixtures';
+	import { cumulative } from '$lib/shared/utils/chart-series';
 
 	const { Story } = defineMeta({
 		title: 'Components/Data Display/Charts/LineChart',
 		component: LineChart,
-		tags: ['autodocs']
+		tags: ['autodocs'],
+		argTypes: {
+			series: { control: 'object', description: 'TimeSeries[] from $lib/shared/types/charts; dates are YYYY-MM-DD buckets.' },
+			granularity: { control: 'select', options: ['day', 'week', 'month'] },
+			format: { control: 'select', options: ['number', 'compact', 'percent', 'duration'] },
+			area: { control: 'boolean' },
+			stacked: { control: 'boolean' },
+			smooth: { control: 'boolean' },
+			loading: { control: 'boolean' },
+			error: { control: 'text' }
+		},
+		parameters: {
+			docs: {
+				subtitle:
+					'Change over time, for one or more series. Hover or use the arrow keys for a crosshair; the legend toggles series; up to four lines are labeled at their ends. Width follows its container.'
+			}
+		}
 	});
-
-	function weeklySeries(name: string, color: string, values: number[], showArea = false): Series {
-		return {
-			name,
-			color,
-			showArea,
-			data: values.map((qty, i) => ({
-				date: new Date(Date.UTC(2024, 0, 1 + i * 7)),
-				qty
-			}))
-		};
-	}
-
-	const numeric: Series[] = [weeklySeries('Doors Knocked', 'var(--primary)', [10, 40, 25, 60, 45, 80])];
-
-	const withArea: Series[] = [
-		weeklySeries('Doors Knocked', 'var(--primary)', [10, 40, 25, 60, 45, 80], true)
-	];
-
-	const multiSeries: Series[] = [
-		weeklySeries('Doors Knocked', 'var(--primary)', [10, 40, 25, 60, 45, 80]),
-		weeklySeries('Conversations', 'var(--secondary)', [5, 20, 15, 35, 30, 55])
-	];
-
-	const monthlySeries: Series[] = [
-		{
-			name: 'Responses',
-			color: 'var(--primary)',
-			data: [
-				{ date: new Date(Date.UTC(2024, 0, 1)), qty: 10 },
-				{ date: new Date(Date.UTC(2024, 1, 1)), qty: 40 },
-				{ date: new Date(Date.UTC(2024, 2, 1)), qty: 25 },
-				{ date: new Date(Date.UTC(2024, 3, 1)), qty: 60 },
-				{ date: new Date(Date.UTC(2024, 4, 1)), qty: 45 },
-				{ date: new Date(Date.UTC(2024, 5, 1)), qty: 80 }
-			]
-		}
-	];
-
-	const dailySeries: Series[] = [
-		{
-			name: 'Doors Knocked',
-			color: 'var(--primary)',
-			data: Array.from({ length: 7 }, (_, i) => ({
-				date: new Date(Date.UTC(2024, 0, 1 + i)),
-				qty: [10, 14, 9, 18, 22, 12, 25][i]
-			}))
-		}
-	];
-
-	const forecastSeries: Series[] = [
-		weeklySeries('Actual', 'var(--primary)', [10, 40, 25, 60, 45, 80]),
-		{
-			name: 'Forecast',
-			color: 'var(--outline)',
-			data: [5, 6, 7, 8].map((week) => ({
-				date: new Date(Date.UTC(2024, 0, 1 + week * 7)),
-				qty: [80, 90, 95, 110][week - 5]
-			}))
-		}
-	];
 </script>
 
-<Story name="Numeric" args={{ series: numeric }} />
+<Story name="One series" args={{ title: 'New accounts', subtitle: 'Last 60 days', series: signups, area: true }} />
 
-<Story name="With Title" args={{ title: 'Doors Knocked', subtitle: 'Last 6 weeks', series: numeric }} />
+<Story name="Several series" args={{ title: 'Active users', series: activeUsers }} />
 
-<Story name="With Area" args={{ title: 'Doors Knocked', series: withArea }} />
+<Story
+	name="Compared with the previous period"
+	args={{
+		title: 'Sign-ins',
+		series: [
+			{ key: 'now', label: 'This period', points: wave(30, 80, 20, 1) },
+			{ key: 'before', label: 'Previous period', points: wave(30, 70, 20, 4), dashed: true, color: 'var(--chart-other)' }
+		]
+	}}
+/>
 
-<Story name="Multi-Series" args={{ title: 'Field Activity', series: multiSeries }} />
+<Story
+	name="Stacked"
+	args={{
+		title: 'Visits by outcome',
+		stacked: true,
+		series: [
+			{ key: 'a', label: 'Talked to someone', points: wave(30, 30, 10, 1) },
+			{ key: 'b', label: 'No answer', points: wave(30, 60, 10, 2) }
+		]
+	}}
+/>
 
-<Story name="Daily Granularity" args={{ series: dailySeries, granularity: 'day' }} />
+<Story
+	name="Cumulative"
+	args={{ title: 'Total accounts', series: [{ key: 'total', label: 'Accounts', points: cumulative(signups[0].points, 4200) }], area: true }}
+/>
 
-<Story name="Weekly Granularity" args={{ series: numeric, granularity: 'week' }} />
+<Story
+	name="Large dataset"
+	args={{ title: 'Two years, by day', series: [{ key: 'x', label: 'Events', points: wave(730, 400, 150) }], smooth: true }}
+/>
 
-<Story name="Monthly Granularity" args={{ title: 'Responses', series: monthlySeries, granularity: 'month' }} />
+<Story name="Single point" args={{ title: 'First day', series: [{ key: 'x', label: 'Events', points: [{ date: '2026-10-20', value: 12 }] }] }} />
 
-<Story name="Forecast" args={{ title: 'Doors Knocked', subtitle: 'Actual vs. forecast', series: forecastSeries }} />
+<Story name="Empty" args={{ title: 'New accounts', series: [] }} />
 
-<Story name="Empty" args={{ title: 'No Data Yet', series: [] }} />
+<Story name="Loading" args={{ title: 'New accounts', series: [], loading: true }} />
+
+<Story name="Error" args={{ title: 'New accounts', series: [], error: 'The chart could not be loaded.' }} />

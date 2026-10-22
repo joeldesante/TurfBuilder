@@ -21,7 +21,8 @@ vi.mock('pg', () => ({
 	})
 }));
 
-vi.mock('$lib/server/permissions', () => ({ canOrg }));
+const { canInfra } = vi.hoisted(() => ({ canInfra: vi.fn(async () => false) }));
+vi.mock('$lib/server/permissions', () => ({ canOrg, canInfra }));
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const rows = [{ id: 'r1' }];
@@ -33,9 +34,18 @@ const rows = [{ id: 'r1' }];
 function stub(
 	total: number,
 	rest: (sql: string) => unknown = () => ({ rowCount: rows.length, rows }),
-	member = true
+	member = true,
+	status: 'active' | 'suspended' | 'deleted' = 'active'
 ) {
 	mockClient.query.mockImplementation((sql: string) => {
+		// Membership with the org's status (requireActiveMembership, findInMemberOrgs).
+		if (sql.includes('JOIN auth.organization o ON o.id = m.organization_id')) {
+			return Promise.resolve(
+				member
+					? { rowCount: 1, rows: [{ organization_id: ORG, role: 'member', suspended: status === 'suspended', deleted: status === 'deleted' }] }
+					: { rowCount: 0, rows: [] }
+			);
+		}
 		if (sql.includes('FROM auth.member WHERE user_id')) {
 			return Promise.resolve(
 				member ? { rowCount: 1, rows: [{ organization_id: ORG }] } : { rowCount: 0, rows: [] }
@@ -80,11 +90,32 @@ describe('listMembers', () => {
 		expect(canOrg).toHaveBeenCalledWith(expect.anything(), 'u1', ORG, 'member.read');
 	});
 
+	it('lets an infra admin read any organization without member.read', async () => {
+		canInfra.mockResolvedValueOnce(true);
+		canOrg.mockResolvedValue(false);
+
+		expect(await listMembers('u1', ORG, 1)).toMatchObject({ totalCount: 250 });
+		expect(canOrg).not.toHaveBeenCalled();
+	});
+
 	it('answers 403 without member.read and reads nothing', async () => {
 		canOrg.mockResolvedValue(false);
 
 		await expect(listMembers('u1', ORG, 1)).rejects.toMatchObject({ status: 403 });
-		expect(sqlRun('LIMIT $2 OFFSET $3')).toBeUndefined();
+		expect(sqlRun('LIMIT $3 OFFSET $4')).toBeUndefined();
+	});
+
+	it('answers 403 for a suspended org and reads nothing', async () => {
+		stub(250, undefined, true, 'suspended');
+
+		await expect(listMembers('u1', ORG, 1)).rejects.toMatchObject({ status: 403 });
+		expect(sqlRun('LIMIT $3 OFFSET $4')).toBeUndefined();
+	});
+
+	it('answers 404 for a deleted org, as if it did not exist', async () => {
+		stub(250, undefined, true, 'deleted');
+
+		await expect(listMembers('u1', ORG, 1)).rejects.toMatchObject({ status: 404 });
 	});
 
 	it('answers 404 for a non-member', async () => {
@@ -96,9 +127,17 @@ describe('listMembers', () => {
 	it('counts and pages within the org', async () => {
 		await listMembers('u1', ORG, 3);
 
-		expect(flat(sqlRun('COUNT(*)')![0])).toContain('auth.member WHERE organization_id');
-		expect(sqlRun('COUNT(*)')![1]).toEqual([ORG]);
-		expect(sqlRun('LIMIT $2 OFFSET $3')![1]).toEqual([ORG, 100, 200]);
+		expect(flat(sqlRun('COUNT(*)')![0])).toContain('WHERE m.organization_id = $1');
+		expect(sqlRun('COUNT(*)')![1]).toEqual([ORG, null]);
+		expect(sqlRun('LIMIT $3 OFFSET $4')![1]).toEqual([ORG, null, 100, 200]);
+	});
+
+	it('searches name and email, with LIKE wildcards escaped, in the count and the page alike', async () => {
+		await listMembers('u1', ORG, 1, ' Ka_th% ');
+
+		expect(sqlRun('COUNT(*)')![1]).toEqual([ORG, '%ka\\_th\\%%']);
+		expect(sqlRun('LIMIT $3 OFFSET $4')![1]).toEqual([ORG, '%ka\\_th\\%%', 100, 0]);
+		expect(flat(sqlRun('LIMIT $3 OFFSET $4')![0])).toContain('lower(u.email) LIKE $2');
 	});
 
 	it('clamps a page past the end', async () => {
@@ -108,6 +147,6 @@ describe('listMembers', () => {
 	it('orders with an id tiebreak, so pages cannot repeat or skip a row', async () => {
 		await listMembers('u1', ORG, 1);
 
-		expect(flat(sqlRun('LIMIT $2 OFFSET $3')![0])).toContain('ORDER BY lower(name), id LIMIT');
+		expect(flat(sqlRun('LIMIT $3 OFFSET $4')![0])).toContain('ORDER BY lower(name), id LIMIT');
 	});
 });

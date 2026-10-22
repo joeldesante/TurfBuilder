@@ -8,6 +8,8 @@ export interface SidebarNavItem {
 	badge?: number;
 	/** What the badge counts, read after the exact number by screen readers and shown in the tooltip, e.g. "locations matching the current filters". */
 	badgeLabel?: string;
+	/** Opens outside the app, in a new tab. */
+	external?: boolean;
 }
 
 export interface SidebarNavAccordion {

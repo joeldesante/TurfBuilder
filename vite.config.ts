@@ -52,6 +52,19 @@ export default defineConfig({
 			'import-in-the-middle'
 		]
 	},
+	// CodeEditor loads CodeMirror with dynamic imports. Left to be discovered, the
+	// first browser run re-bundles them mid-test and fails with "Failed to fetch
+	// dynamically imported module".
+	optimizeDeps: {
+		include: [
+			'codemirror',
+			'@codemirror/view',
+			'@codemirror/state',
+			'@codemirror/commands',
+			'@codemirror/lang-html',
+			'@codemirror/theme-one-dark'
+		]
+	},
 	// Use browser entry points when running Vitest (recommended by Svelte docs)
 	resolve: process.env.VITEST
 		? {

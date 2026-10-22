@@ -52,7 +52,7 @@ npm run storybook        # Storybook dev server
 - **Framework:** SvelteKit 5 with Svelte 5 runes, TypeScript strict mode
 - **Database:** PostgreSQL + PostGIS (geospatial), accessed via `pg` driver
 - **Auth:** better-auth (sessions, org membership) + custom RBAC + PostgreSQL RLS
-- **Migrations:** idempotent SQL in `src/lib/server/setup-schema.ts` (run via `/setup` or `/infra/migrate`)
+- **Migrations:** idempotent SQL in `src/lib/server/setup-schema.ts` (run via `/setup` or `/infra/migrate`, which calls `POST /api/v1/migrations`)
 - **Maps:** MapLibre GL + @geoman-io/maplibre-geoman-free
 - **Styling:** Tailwind CSS 4
 - **UI primitives:** Bits UI + Phosphor Svelte icons
@@ -77,6 +77,7 @@ Optional:
 | Variable | Description |
 |----------|-------------|
 | `SPACES_ACCESS_KEY_ID` / `SPACES_SECRET_ACCESS_KEY` | Object storage credentials. Endpoint, region, and bucket are system settings (`spaces.*`), never env vars. Without them, photo uploads and PDF generation report that storage is not set up. |
+| `GIT_SHA` | Commit of the running build, shown on `/infra/system`. |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium binary for Puppeteer. The Docker images set it to Alpine's `/usr/bin/chromium-browser` (Puppeteer's bundled Chrome is glibc-only); outside Docker, leave it unset and Puppeteer uses its own download. |
 
 ## Architecture Overview
@@ -184,18 +185,6 @@ toast.error('The PDF could not be generated.');
 - Messages must be safe to show a user: never pass a raw exception or server error through. Write the message, or use one the server wrote for users (such as a list document's `error`)
 - In component tests the root layout is absent: `render(Toaster)` alongside the component and assert with `page.getByText(...)` (toasts use `aria-live`, not `role="alert"`); call `toast.dismiss()` in `afterEach`
 
-### Toasts
-
-Show transient messages (errors, confirmations) with `toast` from `svelte-sonner`; the `Toaster` in `src/routes/+layout.svelte` displays them, so pages never mount their own.
-
-```ts
-import { toast } from 'svelte-sonner';
-toast.error('The PDF could not be generated.');
-```
-
-- Messages must be safe to show a user: never pass a raw exception or server error through. Write the message, or use one the server wrote for users (such as a list document's `error`)
-- In component tests the root layout is absent: `render(Toaster)` alongside the component and assert with `page.getByText(...)` (toasts use `aria-live`, not `role="alert"`); call `toast.dismiss()` in `afterEach`
-
 ---
 
 ## Route Architecture
@@ -205,10 +194,10 @@ toast.error('The PDF could not be generated.');
 - **Plugin pages (staff):** `/o/[org_slug]/s/plugins/[plugin_slug]/[...path]`
 - **Plugin pages (volunteer):** `/o/[org_slug]/plugins/[plugin_slug]/[...path]`
 - **Internal API:** `/o/[org_slug]/s/api/` — JSON endpoints consumed by fetch in route files
-- **Versioned API:** `/api/v1/organizations/[org_id]/...` — addressed by org id, outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`). Currently: list documents
-- **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Currently: list documents
+- **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Currently: list documents and the infrastructure panel
+- **All API lives in `/api/v1`:** there is no v2 and no `api/+server.ts` inside page routes. Handlers stay thin (`requireUser`, `parseId`, `parseBody` with a Zod schema, one service call). Page loads call services directly; everything else fetches `/api/v1` through `$lib/client/api`. Extend an existing endpoint rather than versioning it
 - **Global utilities:** `/join` (turf code entry), `/orgs` (org picker), `/orgs/create`, `/invite/[token]`
-- **Infrastructure:** `/infra/` — system dashboard, users, settings, migrations (requires infra permissions)
+- **Infrastructure:** `/infra/` — overview, metrics, organizations, users, admins, audit log, settings and email templates, system health, migrations (requires infra permissions). Admins also get a floating quick menu (`InfraQuickMenu`) on every other page
 - `/auth/**` — managed by better-auth; do not modify
 
 ### Layout Guards
@@ -279,7 +268,6 @@ if (!can(locals.organization, 'survey', 'create')) throw error(403, 'Forbidden')
 - Owners (`org.role.is_owner === true`) bypass all permission checks
 - Staff guard (any role = staff access): check `locals.organization?.role` exists
 - Permission keys use dot notation: `resource.action`
-- Outside `/o/[org_slug]` (the `/api/v1/organizations/[org_id]` routes) `locals.organization` is not set, so `can()` has nothing to read. Use `canOrg(client, userId, orgId, key)` from `$lib/server/permissions` inside `withOrgTransaction`, as `requireListAccess()` does
 - Outside `/o/[org_slug]` (the `/api/v1` routes) `locals.organization` is not set, so `can()` has nothing to read. Use `canOrg(client, userId, orgId, key)` from `$lib/server/permissions` inside `withOrgTransaction`, as `requireListAccess()` does
 
 ### Organization permission keys
@@ -303,9 +291,16 @@ Resolved by `resolveInfraPermissions()` from `$lib/server/permissions`. Required
 | Key | Description |
 |-----|-------------|
 | `access` | Access the infra dashboard |
-| `users.manage` | Manage all users |
-| `settings.manage` | Manage system settings and run migrations |
+| `users.manage` | Manage users and grant or revoke infrastructure roles |
+| `users.impersonate` | Sign in as another user |
+| `orgs.manage` | Suspend, delete, restore, and transfer organizations; remove members |
+| `settings.manage` | Manage system settings and email templates, read the email log, run migrations |
+| `audit.read` | Read the infra audit log |
 | `locations.overture_sync` | Run Overture data sync |
+
+Services check access themselves with `requireInfraPermission(userId, key)` (403 when missing); `hooks.server.ts` resolves `locals.infrastructure.permissions` once per request. Every infra change calls `audit()`. Full guide: `docs/guides/infrastructure.md`.
+
+Platform tables (no org RLS, on the schema spec's `RLS_EXEMPT` list): `activity_event`, `user_activity_day`, `infra_audit_log`, `email_log`. Orgs and users have soft-delete or suspension columns on `auth.organization` (`suspended_at`, `deleted_at`) and `auth.user` (`deleted_at`).
 
 ---
 
@@ -319,16 +314,15 @@ Database schema is managed via `src/lib/server/setup-schema.ts` as idempotent SQ
 
 ### System Settings
 
-Runtime configuration is stored in the `system_setting` table and managed at `/infra/settings`.
+Runtime configuration is stored in the `system_setting` table and managed at `/infra/settings`. The list of settings, their labels, validators, and defaults lives in `$lib/shared/registries/system-settings.ts`; the settings page and `PATCH /api/v1/system-settings` both read it, so add a setting there.
 
 | Key | Description |
 |-----|-------------|
 | `base_url` | Public URL of the instance. Used for auth callbacks. |
 | `application_name` | Display name shown in the UI and page title. |
 | `html.header_content` | Raw HTML injected into `<head>` on every page (e.g. analytics scripts). |
-| `spaces.endpoint` | Object storage endpoint, e.g. `https://nyc3.digitaloceanspaces.com`. |
-| `spaces.region` | Object storage region, e.g. `nyc3`. Empty means `us-east-1`. |
-| `spaces.bucket` | Bucket for location photos and generated PDFs. |
+| `links.analytics_url` / `links.tracing_url` / `links.custom` | External tool links shown in the infra sidebar and quick menu. |
+| `activity.retention_days` | Days of activity history kept; 0 keeps everything. |
 | `spaces.endpoint` | Object storage endpoint, e.g. `https://nyc3.digitaloceanspaces.com`. |
 | `spaces.region` | Object storage region, e.g. `nyc3`. Empty means `us-east-1`. |
 | `spaces.bucket` | Bucket for location photos and generated PDFs. |
@@ -337,19 +331,6 @@ Runtime configuration is stored in the `system_setting` table and managed at `/i
 ```bash
 kubectl rollout restart deployment/turfbuilder-production -n turfbuilder
 ```
-
----
-
-## List Documents (PDFs)
-
-Staff generate a printable PDF of a location list (master list, turf checkout sheet, one page per turf with numbered maps) from the list page. Full guide: `docs/guides/list-documents.md`; API: `docs/api/documents.md`.
-
-- **Flow:** `POST /api/v1/organizations/[org_id]/lists/[list_id]/documents` inserts a `pending` row in `universe.list_document`, soft-deletes the list's earlier documents (`deleted_at`, `superseded_by`), and starts `generateListDocument()` in the background (not awaited). The client (`$lib/client/list-document.ts`) polls `GET .../documents/[id]` and follows the presigned download link. `DELETE .../documents/[id]` soft-deletes.
-- **Rendering:** `list-document.service.ts` loads data (every query filtered by `org_id`), draws all maps with one `openMapRenderer()` browser, fills the Handlebars template, prints with `generatePDF()`, uploads with `uploadObject()`. At most two Chromes per document.
-- **Failure:** generation fails after `GENERATION_TIMEOUT_MS` (90s, under the client's 2 minute wait). On failure the documents it superseded are restored. Only `ListDocumentError` messages (and a storage-not-configured message) are stored in `error` and shown; everything else becomes a generic message and the real error is logged.
-- **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.
-- **Storage key:** `orgs/{org_id}/lists/{list_id}/documents/{document_id}.pdf` (from `listDocumentKey()`). Files are never hard-deleted by the app (retention: #174).
-- **Chromium:** Docker images install Alpine `chromium` + `mesa-egl` + fonts. Containers run as root, so Chrome runs with `--no-sandbox` (moving to a worker: #181). Map tiles come from `tiles.openfreemap.org` at render time.
 
 ---
 

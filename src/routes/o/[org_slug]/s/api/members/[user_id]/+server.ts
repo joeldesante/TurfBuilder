@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { recordEvent } from '$lib/server/services/activity.service';
 
 export async function PATCH({ params, request, locals }) {
 	if (!can(locals.organization, 'member', 'update')) {
@@ -86,13 +87,14 @@ export async function DELETE({ params, locals }) {
 		return json({ error: 'You cannot remove yourself from the organization.' }, { status: 400 });
 	}
 
-	return withOrgTransaction(locals.organization!.id, async (client) => {
+	const orgId = locals.organization!.id;
+	const response = await withOrgTransaction(orgId, async (client) => {
 		const memberResult = await client.query<{ id: string }>(
 			`SELECT id FROM auth.member WHERE user_id = $1 AND organization_id = $2`,
-			[params.user_id, locals.organization!.id]
+			[params.user_id, orgId]
 		);
 		if (memberResult.rows.length === 0) {
-			return json({ error: 'Member not found.' }, { status: 404 });
+			return null;
 		}
 		const memberId = memberResult.rows[0].id;
 
@@ -102,9 +104,19 @@ export async function DELETE({ params, locals }) {
 		);
 		await client.query(
 			`DELETE FROM auth.member WHERE organization_id = $1 AND user_id = $2`,
-			[locals.organization!.id, params.user_id]
+			[orgId, params.user_id]
 		);
 
-		return json({ ok: true });
+		return memberId;
 	});
+
+	if (response === null) {
+		return json({ error: 'Member not found.' }, { status: 404 });
+	}
+	await recordEvent('member.left', {
+		userId: params.user_id,
+		orgId,
+		metadata: { removedBy: locals.user?.id ?? null }
+	});
+	return json({ ok: true });
 }

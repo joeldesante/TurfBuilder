@@ -1,54 +1,67 @@
-import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { page, userEvent } from '@vitest/browser/context';
+import { describe, expect, test } from 'vitest';
 import LineChart from './LineChart.svelte';
-import type { Series } from './LineChart.svelte';
-
-const numericSeries: Series[] = [
-	{
-		name: 'Doors Knocked',
-		color: '#4f46e5',
-		data: [
-			{ date: new Date('2024-01-01T00:00:00Z'), qty: 10 },
-			{ date: new Date('2024-01-08T00:00:00Z'), qty: 40 },
-			{ date: new Date('2024-01-15T00:00:00Z'), qty: 25 }
-		]
-	}
-];
+import { activeUsers, signups } from '../fixtures';
 
 describe('LineChart', () => {
-	it('renders an svg element', async () => {
-		const { container } = render(LineChart, { series: numericSeries });
-		const svg = container.querySelector('svg');
-		expect(svg).not.toBeNull();
+	test('draws a line per series with a summary for screen readers', async () => {
+		const { container } = render(LineChart, { props: { title: 'Active users', series: activeUsers } });
+
+		const chart = page.getByRole('img', { name: /Active users, Aug 1, 2026 to Sep 29, 2026/ });
+		await expect.element(chart).toBeVisible();
+		expect(container.querySelectorAll('path[stroke-width="2"]')).toHaveLength(3);
 	});
 
-	it('renders a line path', async () => {
-		const { container } = render(LineChart, { series: numericSeries });
-		const path = container.querySelector('path');
-		expect(path).not.toBeNull();
+	test('has a data table for screen readers', async () => {
+		render(LineChart, { props: { title: 'New accounts', series: signups } });
+
+		await expect.element(page.getByRole('table', { name: 'New accounts' })).toBeInTheDocument();
+		await expect.element(page.getByRole('rowheader', { name: 'Aug 1, 2026' })).toBeInTheDocument();
 	});
 
-	it('renders with a time scale across a wider date range', async () => {
-		const timeSeries: Series[] = [
-			{
-				name: 'Responses',
-				color: '#16a34a',
-				data: [
-					{ date: new Date('2024-01-01T00:00:00Z'), qty: 10 },
-					{ date: new Date('2024-06-01T00:00:00Z'), qty: 40 }
-				]
-			}
-		];
-		const { container } = render(LineChart, { series: timeSeries, granularity: 'month' });
-		const svg = container.querySelector('svg');
-		expect(svg).not.toBeNull();
-		expect(container.textContent).toContain('Jan 2024');
+	test('the legend hides and shows a series', async () => {
+		const { container } = render(LineChart, { props: { title: 'Active users', series: activeUsers } });
+
+		const toggle = page.getByRole('button', { name: /Weekly active/ });
+		await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+		await toggle.click();
+		await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
+		expect(container.querySelectorAll('path[stroke-width="2"]')).toHaveLength(2);
 	});
 
-	it('applies the chart default width and height', async () => {
-		const { container } = render(LineChart, { series: numericSeries });
-		const svg = container.querySelector('svg');
-		expect(svg?.getAttribute('width')).toBe('700');
-		expect(svg?.getAttribute('height')).toBe('300');
+	test('a single series needs no legend', async () => {
+		render(LineChart, { props: { title: 'New accounts', series: signups } });
+
+		await expect.element(page.getByRole('button', { name: /^New accounts/ })).not.toBeInTheDocument();
+	});
+
+	test('arrow keys move a crosshair and announce the values', async () => {
+		render(LineChart, { props: { title: 'New accounts', series: signups } });
+
+		const chart = page.getByRole('img', { name: /New accounts/ });
+		// Focus rather than click: a click is also a hover, which moves the crosshair.
+		(chart.element() as SVGElement).focus();
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByText(/^Aug 1, 2026: New accounts \d+/)).toBeInTheDocument();
+	});
+
+	test('says so when there is nothing to draw', async () => {
+		render(LineChart, { props: { title: 'New accounts', series: [], emptyText: 'No sign-ups yet.' } });
+
+		await expect.element(page.getByText('No sign-ups yet.')).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /Download/ })).not.toBeInTheDocument();
+	});
+
+	test('shows an error in place of the chart', async () => {
+		render(LineChart, { props: { title: 'New accounts', series: signups, error: 'Could not load.' } });
+
+		await expect.element(page.getByRole('alert')).toHaveTextContent('Could not load.');
+	});
+
+	test('offers the data as CSV', async () => {
+		render(LineChart, { props: { title: 'New accounts', series: signups } });
+
+		await expect.element(page.getByRole('button', { name: 'Download New accounts as CSV' })).toBeVisible();
 	});
 });

@@ -15,9 +15,13 @@
 		noun?: string;
 		/** Extra text after the summary, such as a pointer to search. */
 		children?: Snippet;
+		/** The link for a page. Defaults to `?page=N`; pass one that keeps the page's other query parameters, such as a search. */
+		href?: (page: number) => string;
 	}
 
-	const { page, totalCount, pageSize, noun = 'records', children }: Props = $props();
+	const { page, totalCount, pageSize, noun = 'records', children, href }: Props = $props();
+
+	const pageHref = (target: number) => (href ? href(target) : `?page=${target}`);
 
 	const totalPages = $derived(Math.max(1, Math.ceil(totalCount / pageSize)));
 	const firstShown = $derived(totalCount === 0 ? 0 : (page - 1) * pageSize + 1);
@@ -44,7 +48,7 @@
 					iconOnly
 					aria-label="Previous page"
 					disabled={page <= 1}
-					href="?page={page - 1}"
+					href={pageHref(page - 1)}
 				>
 					<CaretLeftIcon />
 				</Button>
@@ -56,7 +60,7 @@
 						<Button
 							variant={target === page ? 'outline' : 'ghost'}
 							size="sm"
-							href="?page={target}"
+							href={pageHref(target)}
 							aria-label="Page {target}"
 							aria-current={target === page ? 'page' : undefined}
 						>
@@ -71,7 +75,7 @@
 					iconOnly
 					aria-label="Next page"
 					disabled={page >= totalPages}
-					href="?page={page + 1}"
+					href={pageHref(page + 1)}
 				>
 					<CaretRightIcon />
 				</Button>

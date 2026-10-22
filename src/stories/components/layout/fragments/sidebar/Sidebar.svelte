@@ -23,7 +23,6 @@
 		mobileOpen?: boolean;
 		username?: string;
 		applicationName?: string;
-		infraAccess?: boolean;
 		theme?: Theme;
 		panelTitle?: string;
 		onpanelback?: () => void;
@@ -40,7 +39,6 @@
 		mobileOpen = $bindable(false),
 		username = 'User',
 		applicationName = 'TurfBuilder',
-		infraAccess = false,
 		theme = 'system',
 		panelTitle,
 		onpanelback,
@@ -89,7 +87,7 @@
 
 	let sidebarClass = $derived(
 		[
-			'flex flex-col bg-surface-container-lowest h-dvh border-r border-outline-subtle overflow-hidden',
+			'relative flex flex-col bg-surface-container-lowest h-dvh border-r border-outline-subtle overflow-hidden',
 			// Mobile: fixed overlay, slide in/out
 			'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
 			mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
@@ -206,7 +204,7 @@
 	{/if}
 
 	<!-- Navigation items -->
-	<div class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1">
+	<div class="relative flex-1 overflow-y-auto overflow-x-hidden px-2 py-1">
 		<div class="flex flex-col gap-1">
 			{#each nav as entry}
 				{#if entry.kind === 'item'}
@@ -217,32 +215,6 @@
 			{/each}
 		</div>
 	</div>
-
-	<!-- Infra link -->
-	{#if infraAccess}
-		<div class="shrink-0 px-2 pb-1">
-			<a
-				href="/infra"
-				class="flex items-center gap-3 w-full px-3 h-9 rounded-lg text-sm
-					text-on-surface-subtle hover:bg-surface-container hover:text-on-surface transition-colors"
-				title={collapsed ? 'Infrastructure' : undefined}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="w-4 h-4 shrink-0"
-					viewBox="0 0 256 256"
-					fill="currentColor"
-				>
-					<path
-						d="M216,130.16q.06-2.16,0-4.32l14.92-18.49a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.59-25.59,8,8,0,0,0-6.3-3.93l-23.72-2.64q-1.56-1.56-3.18-3.06L186,42.38a8,8,0,0,0-3.93-6.3,107.29,107.29,0,0,0-25.59-10.6,8,8,0,0,0-7.06,1.49L131,42a92.26,92.26,0,0,0-4.32,0L108.54,27a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,75.89,36.1a8,8,0,0,0-3.93,6.3L69.32,66.13q-1.56,1.56-3.06,3.18L42.38,71a8,8,0,0,0-6.3,3.93,107.29,107.29,0,0,0-10.6,25.59,8,8,0,0,0,1.49,7.06L42,125.84q-.06,2.16,0,4.32L27.05,148.65a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.59,25.59,8,8,0,0,0,6.3,3.93l23.72,2.64q1.56,1.56,3.18,3.06L71,213.62a8,8,0,0,0,3.93,6.3,107.29,107.29,0,0,0,25.59,10.6,8,8,0,0,0,7.06-1.49L125,214a92.26,92.26,0,0,0,4.32,0l18.49,14.92a8,8,0,0,0,7.06,1.48,107.6,107.6,0,0,0,25.59-10.59,8,8,0,0,0,3.93-6.3l2.64-23.72q1.56-1.56,3.06-3.18l23.88-1.68a8,8,0,0,0,6.3-3.93,107.29,107.29,0,0,0,10.6-25.59,8,8,0,0,0-1.49-7.06ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"
-					/>
-				</svg>
-				{#if !collapsed}
-					<span>Infrastructure</span>
-				{/if}
-			</a>
-		</div>
-	{/if}
 
 	<!-- User menu -->
 	<div class="shrink-0 border-t border-outline-subtle px-2 py-3">

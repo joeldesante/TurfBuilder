@@ -29,6 +29,8 @@ declare global {
 			infrastructure?: {
 				permissions: string[]
 			}
+			/** The infra admin's user id while they are signed in as this user. */
+			impersonatedBy?: string | null;
 		}
 		interface PageData {
 			config?: AppSettings;

@@ -34,7 +34,7 @@
 		errorMessage = '';
 		progressItems = [];
 
-		const res = await fetch('/infra/migrate/api', { method: 'POST' });
+		const res = await fetch('/api/v1/migrations', { method: 'POST' });
 		if (!res.body) {
 			errorMessage = 'No response body';
 			return;

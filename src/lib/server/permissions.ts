@@ -1,5 +1,7 @@
+import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { POOL } from './database';
+import type { InfraPermission } from '$lib/shared/types/infra';
 
 /**
  * Resolves the effective organization-scoped permissions for a user.
@@ -9,6 +11,8 @@ import { POOL } from './database';
  *   2. Among roles the user belongs to, the heaviest role (lowest weight) wins per key
  *
  * Returns only the keys where the resolved value is true (effective grants).
+ * A suspended or deleted org grants nothing, so every canOrg check on it fails
+ * wherever it is made.
  * Must be called inside a withOrgTransaction so RLS is scoped to the correct org.
  */
 export async function resolveOrgPermissions(
@@ -48,7 +52,12 @@ export async function resolveOrgPermissions(
 			SELECT key, value FROM best_role
 			WHERE key NOT IN (SELECT key FROM user_direct)
 		)
-		SELECT key FROM resolved WHERE value = true`,
+		SELECT key FROM resolved
+		WHERE value = true
+		  AND EXISTS (
+		    SELECT 1 FROM auth.organization o
+		    WHERE o.id = $2 AND o.deleted_at IS NULL AND o.suspended_at IS NULL
+		  )`,
 		[userId, orgId]
 	);
 
@@ -61,10 +70,11 @@ export async function resolveOrgPermissions(
  * Same resolution algorithm as resolveOrgPermissions but without an org context —
  * infra permissions use organization_id IS NULL.
  *
- * Can be called outside of a withOrgTransaction.
+ * Can be called outside of a withOrgTransaction. Pass a transaction client to
+ * see that transaction's uncommitted changes.
  */
-export async function resolveInfraPermissions(userId: string): Promise<string[]> {
-	const result = await POOL.query(
+export async function resolveInfraPermissions(userId: string, db: PoolClient | typeof POOL = POOL): Promise<string[]> {
+	const result = await db.query(
 		`WITH
 		user_direct AS (
 			SELECT rp.key, up.value
@@ -111,6 +121,15 @@ export async function resolveInfraPermissions(userId: string): Promise<string[]>
 export async function canInfra(userId: string, permission: string): Promise<boolean> {
 	const permissions = await resolveInfraPermissions(userId);
 	return permissions.includes(permission);
+}
+
+/**
+ * Throws 403 unless the user has the given infrastructure permission. Infra
+ * services call it first, the way org services call canOrg, so every endpoint
+ * and page load that reaches them is checked.
+ */
+export async function requireInfraPermission(userId: string, permission: InfraPermission): Promise<void> {
+	if (!(await canInfra(userId, permission))) throw error(403, 'Forbidden');
 }
 
 /**

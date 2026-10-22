@@ -1,6 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { POOL } from '$lib/server/database.js';
+import { recordEvent } from '$lib/server/services/activity.service';
 
 async function resolveInvite(token: string, client: PoolClient) {
 	// Try token-based link first.
@@ -8,7 +9,7 @@ async function resolveInvite(token: string, client: PoolClient) {
 		`SELECT l.org_id, o.name AS org_name, o.slug AS org_slug
 		 FROM org_invite_link l
 		 JOIN auth.organization o ON o.id = l.org_id
-		 WHERE l.id = $1 AND (l.expires_at IS NULL OR l.expires_at > now())`,
+		 WHERE l.id = $1 AND (l.expires_at IS NULL OR l.expires_at > now()) AND o.deleted_at IS NULL`,
 		[token]
 	);
 	if (linkResult.rows.length > 0) {
@@ -20,7 +21,7 @@ async function resolveInvite(token: string, client: PoolClient) {
 		`SELECT o.id AS org_id, o.name AS org_name, o.slug AS org_slug
 		 FROM auth.organization o
 		 JOIN org_slug_invite si ON si.org_id = o.id
-		 WHERE o.slug = $1 AND si.enabled = true`,
+		 WHERE o.slug = $1 AND si.enabled = true AND o.deleted_at IS NULL`,
 		[token]
 	);
 	if (slugResult.rows.length > 0) {
@@ -84,10 +85,15 @@ export const actions = {
 			}
 
 			// Add as base member — no org_user_role entry (volunteer access only).
-			await client.query(
-				`INSERT INTO auth.member (user_id, organization_id, role) VALUES ($1, $2, 'member')`,
+			const member = await client.query<{ id: string }>(
+				`INSERT INTO auth.member (user_id, organization_id, role) VALUES ($1, $2, 'member') RETURNING id`,
 				[locals.user.id, invite.org_id]
 			);
+			await recordEvent('member.joined', {
+				userId: locals.user.id,
+				orgId: invite.org_id,
+				sourceKey: `member.joined:${member.rows[0].id}`
+			});
 
 			throw redirect(303, `/o/${invite.org_slug}`);
 		} finally {

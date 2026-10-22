@@ -1,6 +1,19 @@
+import { EMAIL_TEMPLATE_DEFAULTS } from '$lib/shared/registries/email-templates';
+
 export interface SetupStep {
 	label: string;
 	statements: string[];
+}
+
+/** Inserts the built-in email templates that are missing; edited ones are left as they are. */
+function emailTemplateSeed(): string {
+	const rows = EMAIL_TEMPLATE_DEFAULTS.map((t) => {
+		// Dollar quoting keeps the HTML's quotes intact; the tag must not occur in the text.
+		const text = [t.subject, t.htmlBody, ...t.variables].join('');
+		if (text.includes('$tpl$')) throw new Error(`Email template ${t.key} contains the quoting tag.`);
+		return `($tpl$${t.key}$tpl$, $tpl$${t.subject}$tpl$, $tpl$${t.htmlBody}$tpl$, $tpl$${JSON.stringify(t.variables)}$tpl$::jsonb)`;
+	});
+	return `INSERT INTO email_template (key, subject, html_body, variables) VALUES ${rows.join(', ')} ON CONFLICT (key) DO NOTHING`;
 }
 
 const safe = `NULLIF(current_setting('app.current_org_id', true), '')::uuid`;
@@ -525,20 +538,7 @@ export const SETUP_STEPS: SetupStep[] = [
 	{
 		label: 'Seeding email templates',
 		statements: [
-			`INSERT INTO email_template (key, subject, html_body, variables) VALUES
-				(
-					'auth.verify_email',
-					'Verify your email address',
-					'<p>Hi {{username}},</p><p>Click the link below to verify your email address:</p><p><a href="{{verification_url}}">Verify email</a></p><p>If you did not request this, you can ignore this email.</p>',
-					'["username", "verification_url"]'
-				),
-				(
-					'auth.reset_password',
-					'Reset your password',
-					'<p>Hi {{username}},</p><p>Click the link below to reset your password:</p><p><a href="{{reset_url}}">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>',
-					'["username", "reset_url"]'
-				)
-			ON CONFLICT (key) DO NOTHING`
+			emailTemplateSeed()
 		]
 	},
 
@@ -1714,6 +1714,136 @@ export const SETUP_STEPS: SetupStep[] = [
 			`CREATE POLICY org_isolation ON universe.org_contact
 				USING (org_id = ${safe})
 				WITH CHECK (org_id = ${safe})`
+		]
+	},
+
+	// -------------------------------------------------------------------------
+	// Infrastructure dashboard: platform activity, admin audit trail, email log,
+	// org suspension, and the indexes the cross-org infra pages search and
+	// chart with.
+	//
+	// The platform tables are written by server code and read only by infra
+	// admins across every org, so they carry no org RLS (see RLS_EXEMPT in
+	// e2e/schema.spec.ts). User and org keys are SET NULL on delete so history
+	// and metrics survive an account being removed.
+	// -------------------------------------------------------------------------
+	{
+		label: 'Creating infrastructure dashboard tables',
+		statements: [
+			`CREATE EXTENSION IF NOT EXISTS pg_trgm`,
+
+			// One row per thing that happened: sign-ups, sign-ins, visits, ...
+			// source_key is set by the backfill so rerunning it inserts nothing new.
+			`CREATE TABLE IF NOT EXISTS activity_event (
+				id          BIGSERIAL PRIMARY KEY,
+				occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+				type        TEXT NOT NULL,
+				user_id     UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				org_id      UUID REFERENCES auth.organization(id) ON DELETE SET NULL,
+				metadata    JSONB NOT NULL DEFAULT '{}'::jsonb,
+				source_key  TEXT
+			)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS activity_event_source_key_unique ON activity_event (source_key)`,
+			`CREATE INDEX IF NOT EXISTS activity_event_occurred_idx      ON activity_event (occurred_at)`,
+			`CREATE INDEX IF NOT EXISTS activity_event_type_occurred_idx ON activity_event (type, occurred_at)`,
+			`CREATE INDEX IF NOT EXISTS activity_event_org_occurred_idx  ON activity_event (org_id, occurred_at)`,
+			`CREATE INDEX IF NOT EXISTS activity_event_user_occurred_idx ON activity_event (user_id, occurred_at)`,
+
+			// One row per user per day they used the app; org_key is the org id for
+			// days spent in an org, '' for the platform-wide row. Feeds DAU/WAU/MAU,
+			// last active, and retention.
+			`CREATE TABLE IF NOT EXISTS user_activity_day (
+				day     DATE NOT NULL,
+				user_id UUID NOT NULL REFERENCES auth.user(id) ON DELETE CASCADE,
+				org_key TEXT NOT NULL DEFAULT '',
+				PRIMARY KEY (day, user_id, org_key)
+			)`,
+			`CREATE INDEX IF NOT EXISTS user_activity_day_user_idx ON user_activity_day (user_id, day)`,
+			`CREATE INDEX IF NOT EXISTS user_activity_day_org_idx  ON user_activity_day (org_key, day)`,
+
+			// Every change an infra admin makes.
+			`CREATE TABLE IF NOT EXISTS infra_audit_log (
+				id          BIGSERIAL PRIMARY KEY,
+				actor_id    UUID REFERENCES auth.user(id) ON DELETE SET NULL,
+				action      TEXT NOT NULL,
+				target_type TEXT NOT NULL,
+				target_id   TEXT,
+				metadata    JSONB NOT NULL DEFAULT '{}'::jsonb,
+				ip          TEXT,
+				user_agent  TEXT,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`CREATE INDEX IF NOT EXISTS infra_audit_log_created_idx ON infra_audit_log (created_at)`,
+			`CREATE INDEX IF NOT EXISTS infra_audit_log_target_idx  ON infra_audit_log (target_type, target_id, created_at)`,
+			`CREATE INDEX IF NOT EXISTS infra_audit_log_actor_idx   ON infra_audit_log (actor_id, created_at)`,
+
+			// Every email the app tried to send, so an admin can tell whether a
+			// reset or verification email went out.
+			`CREATE TABLE IF NOT EXISTS email_log (
+				id         BIGSERIAL PRIMARY KEY,
+				recipient  TEXT NOT NULL,
+				template   TEXT NOT NULL,
+				subject    TEXT,
+				status     TEXT NOT NULL CHECK (status IN ('sent', 'skipped', 'failed')),
+				error      TEXT,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+			)`,
+			`CREATE INDEX IF NOT EXISTS email_log_created_idx   ON email_log (created_at)`,
+			`CREATE INDEX IF NOT EXISTS email_log_recipient_idx ON email_log (lower(recipient), created_at)`,
+			`CREATE INDEX IF NOT EXISTS email_log_status_idx    ON email_log (status, created_at)`,
+
+			// Org suspension and soft deletion.
+			`ALTER TABLE auth.organization ADD COLUMN IF NOT EXISTS suspended_at     TIMESTAMPTZ`,
+			`ALTER TABLE auth.organization ADD COLUMN IF NOT EXISTS suspended_reason TEXT`,
+			`ALTER TABLE auth.organization ADD COLUMN IF NOT EXISTS deleted_at       TIMESTAMPTZ`,
+
+			// Deleting an account from the infra panel anonymizes it rather than
+			// removing the row: turfs and canvass visits reference the user with
+			// ON DELETE CASCADE, and an org's records must not vanish with one person.
+			`ALTER TABLE auth.user ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+
+			// The admin plugin records who started an impersonation session.
+			`ALTER TABLE auth.session ADD COLUMN IF NOT EXISTS impersonated_by UUID
+				REFERENCES auth.user(id) ON DELETE CASCADE`,
+
+			// Cross-org search, sorting, and charting.
+			`CREATE INDEX IF NOT EXISTS user_created_idx        ON auth.user (created_at)`,
+			`CREATE INDEX IF NOT EXISTS session_user_idx        ON auth.session (user_id)`,
+			`CREATE INDEX IF NOT EXISTS session_expires_idx     ON auth.session (expires_at)`,
+			`CREATE INDEX IF NOT EXISTS member_org_idx          ON auth.member (organization_id)`,
+			`CREATE INDEX IF NOT EXISTS member_user_idx         ON auth.member (user_id)`,
+			`CREATE INDEX IF NOT EXISTS invitation_org_idx      ON auth.invitation (organization_id)`,
+			`CREATE INDEX IF NOT EXISTS organization_created_idx ON auth.organization (created_at)`,
+			`CREATE INDEX IF NOT EXISTS user_email_trgm_idx     ON auth.user USING GIN (lower(email) gin_trgm_ops)`,
+			`CREATE INDEX IF NOT EXISTS user_name_trgm_idx      ON auth.user USING GIN (lower(name) gin_trgm_ops)`,
+			`CREATE INDEX IF NOT EXISTS user_username_trgm_idx  ON auth.user USING GIN (lower(username) gin_trgm_ops)`,
+			`CREATE INDEX IF NOT EXISTS organization_name_trgm_idx ON auth.organization USING GIN (lower(name) gin_trgm_ops)`,
+			`CREATE INDEX IF NOT EXISTS organization_slug_trgm_idx ON auth.organization USING GIN (lower(slug) gin_trgm_ops)`,
+
+			`INSERT INTO registered_permission (key, name, description, scope) VALUES
+				('orgs.manage',       'Manage Organizations', 'Allows suspending, deleting, and transferring organizations, and removing their members.', 'infrastructure'),
+				('users.impersonate', 'Impersonate Users',    'Allows signing in as another user to see what they see.',                                 'infrastructure'),
+				('audit.read',        'View Audit Log',       'Allows viewing the log of changes infrastructure admins have made.',                        'infrastructure')
+			ON CONFLICT (scope, key) DO NOTHING`,
+			`UPDATE registered_permission
+				SET name = 'Manage Users', description = 'Allows managing user accounts and granting and revoking infrastructure roles.'
+				WHERE scope = 'infrastructure' AND key = 'users.manage'`,
+
+			// The setup admin's role holds every infrastructure permission, including
+			// ones added after it was created.
+			`INSERT INTO permission_role_entry (role_id, registered_permission_id, value)
+				SELECT pr.id, rp.id, true
+				FROM permission_role pr
+				JOIN registered_permission rp ON rp.scope = 'infrastructure'
+				WHERE pr.scope = 'infrastructure' AND pr.name = 'Infrastructure Administrator'
+			ON CONFLICT DO NOTHING`,
+
+			`INSERT INTO system_setting (key, value, description) VALUES
+				('links.analytics_url', 'https://analytics.turfbuilder.org', 'Web analytics dashboard (Umami), linked from the infrastructure panel. Empty hides the link.'),
+				('links.tracing_url', '', 'Tracing UI (Jaeger), linked from the infrastructure panel. Empty hides the link.'),
+				('links.custom', '[]', 'More links for the infrastructure panel, as a JSON list of {"label", "url"}.'),
+				('activity.retention_days', '730', 'Days of activity history to keep. Older events are removed when migrations run. 0 keeps everything.')
+			ON CONFLICT (key) DO NOTHING`
 		]
 	}
 ];
