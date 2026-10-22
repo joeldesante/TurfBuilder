@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database';
 import type { RequestHandler } from './$types';
+import { logger } from '$lib/server/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const { mail_domain, mail_transport, ses_region } = await request.json();
@@ -24,6 +25,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		await client.query('COMMIT');
 	} catch (e) {
 		await client.query('ROLLBACK');
+		logger.error({ err: e }, 'Setup could not save the email settings');
 		throw error(500, `Failed to save email settings: ${String(e)}`);
 	} finally {
 		client.release();

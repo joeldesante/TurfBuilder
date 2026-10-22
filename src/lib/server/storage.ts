@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } fro
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '$env/dynamic/private';
 import { POOL } from '$lib/server/database';
+import { logger } from '$lib/server/logger';
 
 /**
  * Object storage for location photos and generated documents, backed by
@@ -158,8 +159,20 @@ export async function uploadObject(
 	contentType: string
 ): Promise<void> {
 	const { client, bucket } = await getClient();
+	const startedAt = performance.now();
 	await client.send(
 		new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType })
+	);
+	// The key is safe to log: server-built from opaque ids, with no names or
+	// user-supplied filenames. Keep it that way (see listDocumentKey).
+	logger.info(
+		{
+			key,
+			bytes: body.byteLength,
+			contentType,
+			durationMs: Math.round(performance.now() - startedAt)
+		},
+		'Object uploaded to storage'
 	);
 }
 

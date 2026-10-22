@@ -6,6 +6,7 @@ import { resolveInfraPermissions } from '$lib/server/permissions';
 import { backfillActivity, pruneActivity } from '$lib/server/services/activity.service';
 import { recordSchemaFingerprint } from '$lib/server/services/migrations.service';
 import type { RequestHandler } from './$types';
+import { logger } from '$lib/server/logger';
 
 /**
  * Runs every schema step, then the data steps (legacy bucket filter conversion,
@@ -27,6 +28,8 @@ export const POST: RequestHandler = async ({ locals }) => {
 	// The schema steps, then the data steps: converting legacy bucket filters,
 	// backfilling activity history, and pruning activity past its retention.
 	const total = SETUP_STEPS.length + 3;
+	const startedAt = performance.now();
+	logger.info({ userId: locals.user.id, total }, 'Migration run started');
 
 	const stream = new ReadableStream({
 		async start(controller) {
@@ -58,6 +61,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 					}
 					send({ step: i + 1, total, label: step.label, status: 'done' });
 				} catch (e) {
+					logger.error({ err: e, step: i + 1, total, label: step.label }, 'Migration schema step failed');
 					send({ step: i + 1, total, label: step.label, status: 'error', error: String(e) });
 					client.release();
 					controller.close();
@@ -81,6 +85,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 					]
 				});
 			} catch (e) {
+				logger.error({ err: e, step: conversion.step, label: conversion.label }, 'Migration data step failed');
 				send({ ...conversion, status: 'error', error: String(e) });
 				controller.close();
 				return;
@@ -99,6 +104,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 					detail: [`${added} events and ${report.activeDays} active days added.`]
 				});
 			} catch (e) {
+				logger.error({ err: e, step: backfill.step, label: backfill.label }, 'Migration data step failed');
 				send({ ...backfill, status: 'error', error: String(e) });
 				controller.close();
 				return;
@@ -111,11 +117,13 @@ export const POST: RequestHandler = async ({ locals }) => {
 				await recordSchemaFingerprint();
 				send({ ...prune, status: 'done', detail: [`${removed} old events removed.`] });
 			} catch (e) {
+				logger.error({ err: e, step: prune.step, label: prune.label }, 'Migration data step failed');
 				send({ ...prune, status: 'error', error: String(e) });
 				controller.close();
 				return;
 			}
 
+			logger.info({ total, durationMs: Math.round(performance.now() - startedAt) }, 'Migration run finished');
 			send({ done: true });
 			controller.close();
 		}

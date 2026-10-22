@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { runQueries } from '$lib/server/query-builder';
+import { logger } from '$lib/server/logger';
 
 export async function POST({ request, locals }) {
 	if (!locals.user || !locals.organization?.role) {
@@ -22,6 +23,8 @@ export async function POST({ request, locals }) {
 			}))
 		});
 	} catch (e) {
+		// Often the caller's own bad query, so a warning; the message is scrubbed by the serializer.
+		logger.warn({ err: e, organizationId: locals.organization?.id }, 'Query endpoint request failed');
 		throw error(400, e instanceof Error ? e.message : 'Query failed');
 	}
 }

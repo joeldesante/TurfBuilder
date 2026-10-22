@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { logger } from '$lib/server/logger';
 
 const dateString = z
 	.string()
@@ -185,7 +186,7 @@ export async function GET({ locals, url }) {
 			);
 		});
 	} catch (err) {
-		console.error('Error fetching metrics results:', err);
+		logger.error({ err, organizationId: locals.organization!.id }, 'Metrics query failed');
 		return json({ error: 'Failed to fetch metrics results' }, { status: 500 });
 	}
 }

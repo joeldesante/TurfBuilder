@@ -117,6 +117,7 @@
     "nodemailer": "^8.0.7",
     "papaparse": "^5.5.3",
     "pg": "^8.16.3",
+    "pino": "^10.4.0",
     "puppeteer": "^25.12.0",
     "qrcode": "^1.5.4",
     "remark-ins": "^1.2.4",

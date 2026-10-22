@@ -11,6 +11,7 @@ import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database';
 import { recordEvent, touchActiveDay } from '$lib/server/services/activity.service';
 import { infraImpersonation } from '$lib/server/infra-impersonation-plugin';
 import { organizationStatusGuard } from '$lib/server/organization-status-guard';
+import { logger } from '$lib/server/logger';
 
 // Derived from buildAuth's own inferred return type rather than
 // `ReturnType<typeof betterAuth>`, which loses the plugins (organization,
@@ -163,7 +164,6 @@ async function buildAuth() {
 			organization({
 				organizationHooks: {
 					afterCreateOrganization: async ({ organization, member }) => {
-						console.log('[afterCreateOrganization] fired for org', organization.id, 'member', member.id);
 						try {
 							await withOrgTransaction(organization.id, async (client) => {
 							async function insertPerms(roleId: string, keys: string[]) {
@@ -228,7 +228,7 @@ async function buildAuth() {
 							);
 						});
 						} catch (err) {
-							console.error('[afterCreateOrganization] error:', err);
+							logger.error({ err, organizationId: organization.id }, '[afterCreateOrganization] error');
 							throw err;
 						}
 
