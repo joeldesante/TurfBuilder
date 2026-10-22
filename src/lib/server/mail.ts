@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { POOL } from '$lib/server/database';
 import { fillTemplate } from '$lib/shared/utils/email-template';
+import { logger } from '$lib/server/logger';
 
 interface MailSettings {
 	transport: string;
@@ -53,10 +54,6 @@ async function sendDirect(
 	subject: string,
 	html: string
 ): Promise<boolean> {
-	if (!settings.domain) {
-		console.warn('[mail] No mail domain configured (mail.domain is empty). Emails will not be sent.');
-		return false;
-	}
 	// `direct: true` is a valid nodemailer transport option not reflected in @types/nodemailer
 	const transporter = nodemailer.createTransport(
 		{ direct: true } as Parameters<typeof nodemailer.createTransport>[0]
@@ -71,12 +68,8 @@ async function sendSES(
 	subject: string,
 	html: string
 ): Promise<boolean> {
-	if (!settings.domain) {
-		console.warn('[mail] No mail domain configured (mail.domain is empty). Emails will not be sent.');
-		return false;
-	}
 	if (!settings.sesRegion) {
-		console.warn('[mail] SES region not configured (mail.ses.region). Emails will not be sent.');
+		logger.warn('[mail] SES region is not configured (mail.ses.region), so the email was not sent');
 		return false;
 	}
 
@@ -118,7 +111,7 @@ async function logEmail(
 			[recipient, template, subject, status, error]
 		);
 	} catch (e) {
-		console.error('[mail] Could not write the email log:', e);
+		logger.error({ err: e }, '[mail] Could not write the email log');
 	}
 }
 
@@ -134,19 +127,37 @@ export async function deliverEmail(
 	html: string
 ): Promise<'sent' | 'skipped'> {
 	const settings = await loadMailSettings();
-	const send = settings.transport === 'ses' ? sendSES : sendDirect;
+	const transport = settings.transport === 'ses' ? 'ses' : 'direct';
+
+	// Checked once here for both transports, so one misconfiguration is one warning.
+	if (!settings.domain) {
+		logger.warn({ template, transport }, '[mail] mail.domain is empty, so the email was not sent');
+		await logEmail(to, template, subject, 'skipped', 'Mail is not configured.');
+		return 'skipped';
+	}
+
+	const send = transport === 'ses' ? sendSES : sendDirect;
+	const startedAt = performance.now();
 
 	let sent: boolean;
 	try {
 		sent = await send(settings, to, subject, html);
 	} catch (e) {
+		logger.error(
+			{ err: e, template, transport, durationMs: Math.round(performance.now() - startedAt) },
+			'[mail] Sending failed'
+		);
 		await logEmail(to, template, subject, 'failed', e instanceof Error ? e.message : String(e));
 		throw e;
 	}
 
 	await logEmail(to, template, subject, sent ? 'sent' : 'skipped', sent ? null : 'Mail is not configured.');
 	if (sent) {
-		console.log(`[mail] Sent "${subject}" (template: ${template}) to ${to}`);
+		// No recipient or subject: both are personal data. The email_log table has them.
+		logger.info(
+			{ template, transport, htmlBytes: html.length, durationMs: Math.round(performance.now() - startedAt) },
+			'[mail] Sent email'
+		);
 	}
 	return sent ? 'sent' : 'skipped';
 }

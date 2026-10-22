@@ -61,7 +61,7 @@ npm run storybook        # Storybook dev server
 - **Toasts:** svelte-sonner, through the `Toaster` component in the root layout
 - **Object storage:** DigitalOcean Spaces (S3 API) via `@aws-sdk/client-s3`, for location photos and generated PDFs
 - **PDF generation:** Puppeteer (headless Chromium) + Handlebars templates; MapLibre renders static maps in the same browser
-- **Observability:** OpenTelemetry → Jaeger
+- **Observability:** OpenTelemetry → Jaeger (optional); structured JSON logs via pino (`$lib/server/logger`), never `console.*` in server code
 
 ## Environment Variables
 
@@ -77,6 +77,11 @@ Optional:
 | Variable | Description |
 |----------|-------------|
 | `SPACES_ACCESS_KEY_ID` / `SPACES_SECRET_ACCESS_KEY` | Object storage credentials. Endpoint, region, and bucket are system settings (`spaces.*`), never env vars. Without them, photo uploads and PDF generation report that storage is not set up. |
+| `APP_ENV` | Deployment environment (`development`, `staging`, `production`), stamped on every log line as `env`. Set in `.k8s/*.yaml`; unset means `development`. |
+| `POD_NAME` / `NODE_NAME` | The pod and node name, set from the k8s downward API in `.k8s/*.yaml` and stamped on every log line as `pod` and `node`. Inside a cluster without them `pod` falls back to `HOSTNAME`; outside k8s neither is logged. |
+| `LOG_LEVEL` | Minimum log level (`trace` to `fatal`). Defaults to `info`. |
+| `LOG_METRICS_INTERVAL_MS` | Period of the process metrics line (CPU, memory, event loop, pools). Defaults to 30000; 0 turns it off. |
+| `LOG_SLOW_QUERY_MS` | Queries and connection waits slower than this are logged as warnings. Defaults to 500. |
 | `GIT_SHA` | Commit of the running build, shown on `/infra/system`. |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium binary for Puppeteer. The Docker images set it to Alpine's `/usr/bin/chromium-browser` (Puppeteer's bundled Chrome is glibc-only); outside Docker, leave it unset and Puppeteer uses its own download. |
 
@@ -344,6 +349,20 @@ Staff generate a printable PDF of a location list (master list, turf checkout sh
 - **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.
 - **Storage key:** `orgs/{org_id}/lists/{list_id}/documents/{document_id}.pdf` (from `listDocumentKey()`). Files are never hard-deleted by the app (retention: #174).
 - **Chromium:** Docker images install Alpine `chromium` + `mesa-egl` + fonts. Containers run as root, so Chrome runs with `--no-sandbox` (moving to a worker: #181). Map tiles come from `tiles.openfreemap.org` at render time.
+
+---
+
+## Logging
+
+Server code logs through `logger` from `$lib/server/logger` (pino, JSON on stdout), never `console.*`. Logs go to an aggregator and are used to find the cause of CPU spikes, memory spikes and other hard-to-trace problems, and they must never expose tenant data.
+
+- **Log ids, counts, sizes and durations.** `organizationId`, `documentId`, `rowCount`, `durationMs`. Never names, emails, addresses, subjects, survey answers, URLs with values, or request bodies.
+- **Errors go under `err`**: `logger.error({ err, organizationId }, 'What was being attempted and what happens next')`. The serializer drops database `detail` (it quotes row values), masks quoted values and emails in messages, and keeps only safe Postgres fields (`code`, `table`, `constraint`).
+- **Validation failures use `zodIssues(error)`**, which keeps paths and codes and drops received values.
+- **Request lines log the route pattern** (`/o/[org_slug]/s/turfs/[id]`), never the URL, because URLs carry org slugs, invite tokens and turf codes.
+- Every line carries `env` (`APP_ENV`), and `trace_id` and `span_id` when OpenTelemetry is running. The logger works without OpenTelemetry.
+- Already logged: one access line per request, a process metrics line every 30s, slow queries and connection waits, Chrome launches and closes with the live count, list document runs (phase timings, sizes, memory), storage uploads, mail sends, migrations, and import batches.
+- Scripts in `scripts/` are CLI tools and print to the console on purpose.
 
 ---
 

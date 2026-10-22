@@ -8,6 +8,7 @@ import { launchBrowser } from './browser.service';
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	launch.mockResolvedValue({ once: vi.fn() });
 });
 
 afterEach(() => {
@@ -30,5 +31,14 @@ describe('launchBrowser', () => {
 		await launchBrowser(['--flag']);
 
 		expect(launch).toHaveBeenCalledWith({ args: ['--no-sandbox', '--flag'] });
+	});
+
+	it('returns the launched browser and watches for it to disconnect', async () => {
+		const browser = { once: vi.fn() };
+		launch.mockResolvedValue(browser);
+
+		await expect(launchBrowser()).resolves.toBe(browser);
+
+		expect(browser.once).toHaveBeenCalledWith('disconnected', expect.any(Function));
 	});
 });

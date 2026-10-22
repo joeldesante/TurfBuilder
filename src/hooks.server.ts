@@ -1,21 +1,27 @@
 import { getAuth } from '$lib/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, isHttpError, isRedirect, type Handle } from '@sveltejs/kit';
 import { POOL, withOrgTransaction } from '$lib/server/database';
 import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
 import { isSetupComplete } from '$lib/server/setup';
 import { getSettings, SettingsMissingError } from '$lib/server/settings';
 import { touchActiveDay } from '$lib/server/services/activity.service';
 import { audit } from '$lib/server/services/audit.service';
+import { logger } from '$lib/server/logger';
+import { startRuntimeMetrics } from '$lib/server/runtime-metrics';
+
+if (!building) startRuntimeMetrics();
 
 export function handleError({ error: err, event, status, message }) {
-	console.error(`[${status}] ${event.request.method} ${event.url.pathname}`);
-	console.error(err);
+	logger.error(
+		{ err, status, method: event.request.method, route: event.route?.id ?? '(unmatched)' },
+		'Unhandled request error'
+	);
 	return { message: status === 500 ? 'Internal server error' : message };
 }
 
-export async function handle({ event, resolve }) {
+const handleRequest: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 	const isSetupRoute = pathname.startsWith('/setup');
 	const isAuthRoute = pathname.startsWith('/auth');
@@ -74,7 +80,7 @@ export async function handle({ event, resolve }) {
 				await audit(impersonatedBy, 'impersonation.request', { type: 'user', id: session.user.id }, {
 					method: event.request.method,
 					path: pathname
-				}).catch((e) => console.error('[audit] Could not record an impersonated request:', e));
+				}).catch((e) => logger.error({ err: e }, '[audit] Could not record an impersonated request'));
 			}
 		}
 
@@ -152,4 +158,52 @@ export async function handle({ event, resolve }) {
 	}
 
 	return svelteKitHandler({ event, resolve, auth, building });
+};
+
+// Static build assets are immutable and fetched in bursts; logging them is noise.
+const ACCESS_LOG_SKIP = ['/_app/', '/favicon'];
+
+/**
+ * One log line per request, written after the response is built. Redirects and
+ * errors thrown by the handlers below are read for their status, then rethrown
+ * so SvelteKit still turns them into responses.
+ */
+async function withAccessLog(input: Parameters<Handle>[0], next: Handle) {
+	const { event } = input;
+	const { pathname } = event.url;
+	if (building || ACCESS_LOG_SKIP.some((prefix) => pathname.startsWith(prefix))) {
+		return next(input);
+	}
+
+	const startedAt = performance.now();
+	const write = (status: number, response?: Response) => {
+		const length = response?.headers.get('content-length');
+		logger.info(
+			{
+				method: event.request.method,
+				// The route pattern, such as /o/[org_slug]/s/turfs/[id], never the URL:
+				// paths carry org slugs, invite tokens, turf codes and entity ids.
+				route: event.route?.id ?? '(unmatched)',
+				status,
+				responseBytes: length ? Number(length) : undefined,
+				durationMs: Math.round(performance.now() - startedAt),
+				userId: event.locals.user?.id,
+				organizationId: event.locals.organization?.id,
+				impersonatedBy: event.locals.impersonatedBy ?? undefined
+			},
+			'request'
+		);
+	};
+
+	try {
+		const response = await next(input);
+		write(response.status, response);
+		return response;
+	} catch (e) {
+		if (isRedirect(e) || isHttpError(e)) write(e.status);
+		else write(500);
+		throw e;
+	}
 }
+
+export const handle: Handle = (input) => withAccessLog(input, handleRequest);

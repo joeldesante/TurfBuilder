@@ -5,6 +5,7 @@ import {
 	StorageNotConfiguredError,
 	ALLOWED_PHOTO_TYPES
 } from '$lib/server/storage.js';
+import { logger } from '$lib/server/logger';
 
 /** 5 MB, comfortably above a compressed phone photo and well below a raw one. */
 const MAX_UPLOAD_BYTES = 5_000_000;
@@ -49,6 +50,7 @@ export async function POST({ request, locals }) {
 		return json(result);
 	} catch (e) {
 		if (e instanceof StorageNotConfiguredError) {
+			logger.warn({ organizationId: locals.organization.id }, 'Photo upload requested but storage is not configured');
 			return json({ error: e.message }, { status: 503 });
 		}
 		throw e;

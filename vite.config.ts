@@ -49,6 +49,7 @@ export default defineConfig({
 			'@opentelemetry/sdk-node',
 			'@opentelemetry/auto-instrumentations-node',
 			'@opentelemetry/exporter-trace-otlp-proto',
+			'pino',
 			'import-in-the-middle'
 		]
 	},

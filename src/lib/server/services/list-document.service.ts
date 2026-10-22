@@ -5,6 +5,7 @@ import { generatePDF } from './pdf-engine.service';
 import { recordEvent } from './activity.service';
 import { openMapRenderer, type MapRenderer } from './map-engine.service';
 import TEMPLATE from './templates/list-document.html?raw';
+import { logger } from '$lib/server/logger';
 
 // The template shows maps at the full 7.3in content width and up to 3.75in
 // tall; this size keeps that ratio and prints at roughly 190 dpi.
@@ -70,6 +71,21 @@ type ListDocumentData = {
 	turfs: { code: string; map?: string; locations: DocumentLocation[] }[];
 };
 
+/** What a run measured, logged with its outcome to show where time and memory went. */
+interface RunStats {
+	locations?: number;
+	turfs?: number;
+	maps?: number;
+	loadMs?: number;
+	mapsMs?: number;
+	pdfMs?: number;
+	uploadMs?: number;
+	pdfBytes?: number;
+}
+
+const elapsed = (since: number) => Math.round(performance.now() - since);
+const rssMb = () => Math.round(process.memoryUsage.rss() / 1024 / 1024);
+
 /**
  * Renders a list document, uploads it to its reserved key, and records the
  * outcome on the row. Never throws: it runs after the response has been sent,
@@ -77,6 +93,11 @@ type ListDocumentData = {
  */
 export async function generateListDocument(job: ListDocumentJob): Promise<void> {
 	const controller = new AbortController();
+	const startedAt = performance.now();
+	const stats: RunStats = {};
+	// Ids only: names, addresses and turf codes are the org's data.
+	const context = { documentId: job.documentId, organizationId: job.orgId, listId: job.listId };
+	logger.info({ ...context, rssMb: rssMb() }, 'List document generation started');
 	const timer = setTimeout(
 		() =>
 			controller.abort(
@@ -86,8 +107,12 @@ export async function generateListDocument(job: ListDocumentJob): Promise<void> 
 	);
 	try {
 		// The race makes the timeout win even if a render ignores the abort.
-		await Promise.race([render(job, controller.signal), whenAborted(controller.signal)]);
+		await Promise.race([render(job, controller.signal, stats), whenAborted(controller.signal)]);
 		await finish(job, 'ready', null);
+		logger.info(
+			{ ...context, ...stats, totalMs: elapsed(startedAt), rssMb: rssMb() },
+			'List document generated'
+		);
 		await recordEvent('document.generated', {
 			orgId: job.orgId,
 			metadata: { listId: job.listId },
@@ -95,9 +120,19 @@ export async function generateListDocument(job: ListDocumentJob): Promise<void> 
 		});
 	} catch (e) {
 		// The full error stays in the server log; the row gets a safe message.
-		console.error(`List document ${job.documentId} failed`, e);
+		logger.error(
+			{
+				err: e,
+				...context,
+				...stats,
+				timedOut: controller.signal.aborted,
+				totalMs: elapsed(startedAt),
+				rssMb: rssMb()
+			},
+			'List document failed'
+		);
 		await fail(job, userMessage(e)).catch((err) =>
-			console.error(`Could not record failure for list document ${job.documentId}`, err)
+			logger.error({ err, ...context }, 'List document failure could not be saved on its row; it will stay pending')
 		);
 		await recordEvent('document.failed', {
 			orgId: job.orgId,
@@ -109,12 +144,19 @@ export async function generateListDocument(job: ListDocumentJob): Promise<void> 
 	}
 }
 
-async function render(job: ListDocumentJob, signal: AbortSignal): Promise<void> {
-	const data = await buildDocumentData(job, signal);
+async function render(job: ListDocumentJob, signal: AbortSignal, stats: RunStats): Promise<void> {
+	const data = await buildDocumentData(job, signal, stats);
+
+	let phaseStart = performance.now();
 	const pdf = await generatePDF(TEMPLATE, data, { signal });
+	stats.pdfMs = elapsed(phaseStart);
+	stats.pdfBytes = pdf.byteLength;
+
 	// Past the deadline the row is already failed; do not leave a file behind.
 	signal.throwIfAborted();
+	phaseStart = performance.now();
 	await uploadObject(job.storageKey, pdf, 'application/pdf');
+	stats.uploadMs = elapsed(phaseStart);
 }
 
 /** The message safe to show for a failure; see ListDocumentError. */
@@ -134,11 +176,18 @@ function whenAborted(signal: AbortSignal): Promise<never> {
 
 async function buildDocumentData(
 	job: ListDocumentJob,
-	signal: AbortSignal
+	signal: AbortSignal,
+	stats: RunStats
 ): Promise<ListDocumentData> {
+	const loadStart = performance.now();
 	const { list, entries, turfs } = await withOrgTransaction(job.orgId, (client) =>
 		loadList(client, job.orgId, job.listId)
 	);
+	stats.loadMs = elapsed(loadStart);
+	stats.locations = entries.length;
+	stats.turfs = turfs.length;
+	stats.maps = 0;
+	stats.mapsMs = 0;
 
 	// One browser draws every map, opened only if some map has something to
 	// show, and shut down on timeout so a hung render cannot hold it open.
@@ -146,9 +195,13 @@ async function buildDocumentData(
 	const closeRenderer = () => void renderer?.close();
 	signal.addEventListener('abort', closeRenderer, { once: true });
 	const draw = async (details: MapInput) => {
+		const mapStart = performance.now();
 		renderer ??= await openMapRenderer();
 		signal.throwIfAborted();
-		return renderer.render(MAP_SIZE, details);
+		const jpeg = await renderer.render(MAP_SIZE, details);
+		stats.maps! += 1;
+		stats.mapsMs! += elapsed(mapStart);
+		return jpeg;
 	};
 
 	try {

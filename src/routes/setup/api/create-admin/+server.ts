@@ -3,6 +3,7 @@ import { getAuth } from '$lib/auth';
 import { POOL } from '$lib/server/database';
 import { markSetupComplete } from '$lib/server/setup';
 import type { RequestHandler } from './$types';
+import { logger } from '$lib/server/logger';
 
 export const POST: RequestHandler = async ({ request, url }) => {
 	const { name, username, email, password } = await request.json();
@@ -22,6 +23,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		if (!result?.user?.id) throw new Error('No user returned from signUpEmail');
 		userId = result.user.id;
 	} catch (e) {
+		logger.error({ err: e }, 'Setup could not create the admin user');
 		throw error(500, `Failed to create user: ${String(e)}`);
 	}
 
@@ -72,6 +74,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		await client.query('COMMIT');
 	} catch (e) {
 		await client.query('ROLLBACK');
+		logger.error({ err: e }, 'Setup could not grant the admin infrastructure permissions');
 		throw error(500, `Failed to assign infrastructure permissions: ${String(e)}`);
 	} finally {
 		client.release();
