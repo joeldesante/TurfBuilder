@@ -78,8 +78,13 @@
 		class={computedClass}
 		aria-current={active ? 'page' : undefined}
 		title={collapsed ? item.label : undefined}
+		target={item.external ? '_blank' : undefined}
+		rel={item.external ? 'noopener noreferrer' : undefined}
 		{...restProps}
 	>
 		{@render content()}
+		{#if item.external}
+			<span class="sr-only">(opens in a new tab)</span>
+		{/if}
 	</a>
 {/if}

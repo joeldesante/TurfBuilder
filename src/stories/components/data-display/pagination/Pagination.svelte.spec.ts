@@ -70,6 +70,15 @@ test('windows a long list around the current page and keeps both ends', async ()
 	await expect.element(getByRole('link', { name: 'Page 5', exact: true })).not.toBeInTheDocument();
 });
 
+test('builds links with the href function when given one', async () => {
+	const { getByRole } = render(Pagination, {
+		props: { ...base, page: 2, href: (p: number) => `?q=ada&page=${p}` }
+	});
+
+	await expect.element(getByRole('link', { name: 'Page 3' })).toHaveAttribute('href', '?q=ada&page=3');
+	await expect.element(getByRole('link', { name: 'Previous page' })).toHaveAttribute('href', '?q=ada&page=1');
+});
+
 test('renders extra text after the summary', async () => {
 	const children = createRawSnippet(() => ({ render: () => '<span>Use search to filter.</span>' }));
 	const { getByText } = render(Pagination, { props: { ...base, children } });

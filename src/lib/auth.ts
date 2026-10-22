@@ -8,6 +8,9 @@ import { organization } from 'better-auth/plugins';
 import { admin } from 'better-auth/plugins';
 import { ac, userRole } from '$lib/permissions';
 import { POOL, AUTH_POOL, withOrgTransaction } from '$lib/server/database';
+import { recordEvent, touchActiveDay } from '$lib/server/services/activity.service';
+import { infraImpersonation } from '$lib/server/infra-impersonation-plugin';
+import { organizationStatusGuard } from '$lib/server/organization-status-guard';
 
 // Derived from buildAuth's own inferred return type rather than
 // `ReturnType<typeof betterAuth>`, which loses the plugins (organization,
@@ -50,6 +53,36 @@ async function buildAuth() {
 					username: user.name,
 					reset_url: url
 				});
+			},
+			onPasswordReset: async ({ user }) => {
+				await recordEvent('user.password_reset', { userId: user.id });
+			}
+		},
+		databaseHooks: {
+			user: {
+				create: {
+					after: async (user) => {
+						await recordEvent('user.signed_up', {
+							userId: user.id,
+							sourceKey: `user.signed_up:${user.id}`
+						});
+					}
+				}
+			},
+			session: {
+				create: {
+					after: async (session) => {
+						// An admin signing in as someone is not that person signing in.
+						if ((session as { impersonatedBy?: string | null }).impersonatedBy) return;
+						const orgId = (session as { activeOrganizationId?: string | null }).activeOrganizationId;
+						await recordEvent('user.signed_in', {
+							userId: session.userId,
+							orgId: orgId ?? null,
+							sourceKey: `session:${session.id}`
+						});
+						touchActiveDay(session.userId);
+					}
+				}
 			}
 		},
 		emailVerification: {
@@ -198,12 +231,44 @@ async function buildAuth() {
 							console.error('[afterCreateOrganization] error:', err);
 							throw err;
 						}
+
+						await recordEvent('org.created', {
+							userId: member.userId,
+							orgId: organization.id,
+							sourceKey: `org.created:${organization.id}`
+						});
+						await recordEvent('member.joined', {
+							userId: member.userId,
+							orgId: organization.id,
+							sourceKey: `member.joined:${member.id}`
+						});
+					},
+					afterAddMember: async ({ member, organization }) => {
+						await recordEvent('member.joined', {
+							userId: member.userId,
+							orgId: organization.id,
+							sourceKey: `member.joined:${member.id}`
+						});
+					},
+					afterAcceptInvitation: async ({ member, organization }) => {
+						await recordEvent('member.joined', {
+							userId: member.userId,
+							orgId: organization.id,
+							sourceKey: `member.joined:${member.id}`
+						});
+					},
+					afterRemoveMember: async ({ member, organization }) => {
+						await recordEvent('member.left', { userId: member.userId, orgId: organization.id });
 					}
 				},
 				schema: {
 					organization: {
 						fields: {
 							createdAt: 'created_at'
+						},
+						// Set by the infra panel; the org picker hides deleted orgs.
+						additionalFields: {
+							deletedAt: { type: 'date', fieldName: 'deleted_at', required: false, input: false }
 						}
 					},
 					member: {
@@ -243,10 +308,19 @@ async function buildAuth() {
 							banExpires: 'ban_expires',
 							impersonatedBy: 'impersonated_by'
 						}
+					},
+					session: {
+						fields: {
+							impersonatedBy: 'impersonated_by'
+						}
 					}
 				}
-			})
+			}),
+			infraImpersonation()
 		],
+
+		// Suspended and deleted organizations are closed to better-auth's organization endpoints too.
+		hooks: { before: organizationStatusGuard },
 
 		trustedOrigins: baseURLs,
 

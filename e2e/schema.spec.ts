@@ -33,7 +33,10 @@ const RLS_EXEMPT = [
 	// Looked up by token on /invite/[token], before the org is known.
 	'public.org_invite_link',
 	// Checked on /invite/[token] when the token is an org slug, before the org is known.
-	'public.org_slug_invite'
+	'public.org_slug_invite',
+	// Platform activity log: written by server code for every org and read only by
+	// infra admins across all of them (src/lib/server/services/activity.service.ts).
+	'public.activity_event'
 ];
 
 test('every org-scoped table has row-level security enabled and forced', async () => {

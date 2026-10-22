@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { customAlphabet } from 'nanoid';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers';
+import { recordEvent } from '$lib/server/services/activity.service';
 
 const CreateTurfsSchema = z.object({
 	polygons: z
@@ -105,6 +106,14 @@ export async function POST({ request, locals }) {
 
 			return turfs;
 		});
+
+		for (const turf of insertedTurfs) {
+			await recordEvent('turf.created', {
+				userId: locals.user!.id,
+				orgId: locals.organization.id,
+				sourceKey: `turf.created:${turf.id}`
+			});
+		}
 
 		return json({ turfs: insertedTurfs }, { status: 201 });
 	} catch (error) {

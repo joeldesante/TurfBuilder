@@ -5,6 +5,7 @@ import { requireBucketOrg, requireListAccess, requireListOrg } from '$lib/server
 import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
 import type { Page } from '$lib/shared/utils/pagination';
 import { canOrg } from '$lib/server/permissions';
+import { recordEvent } from './activity.service';
 import type { FilterEntity, FilterGroup } from '$lib/shared/types/filters';
 import { findBucketById } from './buckets.service';
 import { buildFilterQuery } from './filters.service';
@@ -215,8 +216,11 @@ export async function createBucketList(
 ): Promise<{ id: string }> {
 	const orgId = await requireBucketOrg(userId, bucketId);
 
-	return withOrgTransaction(orgId, async (client) => {
+	const created = await withOrgTransaction(orgId, async (client) => {
 		if (!(await canOrg(client, userId, orgId, 'system.access'))) throw error(403, 'Forbidden');
 		return createList(client, orgId, bucketId, input);
 	});
+
+	await recordEvent('list.created', { userId, orgId, sourceKey: `list.created:${created.id}` });
+	return created;
 }

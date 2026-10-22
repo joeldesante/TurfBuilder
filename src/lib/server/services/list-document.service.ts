@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { uploadObject, StorageNotConfiguredError } from '$lib/server/storage';
 import { generatePDF } from './pdf-engine.service';
+import { recordEvent } from './activity.service';
 import { openMapRenderer, type MapRenderer } from './map-engine.service';
 import TEMPLATE from './templates/list-document.html?raw';
 
@@ -87,12 +88,22 @@ export async function generateListDocument(job: ListDocumentJob): Promise<void> 
 		// The race makes the timeout win even if a render ignores the abort.
 		await Promise.race([render(job, controller.signal), whenAborted(controller.signal)]);
 		await finish(job, 'ready', null);
+		await recordEvent('document.generated', {
+			orgId: job.orgId,
+			metadata: { listId: job.listId },
+			sourceKey: `document:${job.documentId}`
+		});
 	} catch (e) {
 		// The full error stays in the server log; the row gets a safe message.
 		console.error(`List document ${job.documentId} failed`, e);
 		await fail(job, userMessage(e)).catch((err) =>
 			console.error(`Could not record failure for list document ${job.documentId}`, err)
 		);
+		await recordEvent('document.failed', {
+			orgId: job.orgId,
+			metadata: { listId: job.listId, error: userMessage(e) },
+			sourceKey: `document:${job.documentId}`
+		});
 	} finally {
 		clearTimeout(timer);
 	}

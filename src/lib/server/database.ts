@@ -54,3 +54,23 @@ export async function withOrgTransaction<T>(
 		client.release();
 	}
 }
+
+/**
+ * Runs fn() in a plain transaction, for writes to tables without org RLS
+ * (auth.*, the infra tables) that must land together, such as a change and
+ * its audit row. Commits when fn resolves and rolls back when it throws.
+ */
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+	const client = await POOL.connect();
+	try {
+		await client.query('BEGIN');
+		const result = await fn(client);
+		await client.query('COMMIT');
+		return result;
+	} catch (e) {
+		await client.query('ROLLBACK');
+		throw e;
+	} finally {
+		client.release();
+	}
+}

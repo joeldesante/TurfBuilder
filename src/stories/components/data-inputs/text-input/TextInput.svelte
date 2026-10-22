@@ -3,7 +3,7 @@
 	import InputGroup from '$components/data-inputs/input-group/InputGroup.svelte';
 	import { EyeIcon, EyeSlashIcon } from 'phosphor-svelte';
 
-	type InputType = 'text' | 'email' | 'password' | 'url' | 'tel' | 'search' | 'number';
+	type InputType = 'text' | 'email' | 'password' | 'url' | 'tel' | 'search' | 'number' | 'date';
 
 	interface Props {
 		value?: string;

@@ -1,7 +1,9 @@
 <script lang="ts">
-	import InfraDashboard from '$pages/infra/InfraDashboard.svelte';
+	import InfraOverviewPage from '$pages/infra/overview/InfraOverviewPage.svelte';
 
 	const { data } = $props();
 </script>
 
-<InfraDashboard infraPermissions={data.infraPermissions} />
+<svelte:head><title>Overview | Infrastructure</title></svelte:head>
+
+<InfraOverviewPage overview={data.overview} permissions={data.infraPermissions} />

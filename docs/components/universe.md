@@ -1,5 +1,20 @@
 # Universe Components
 
+## BucketFiltersEditor
+
+**Import:** `$components/universe/bucket-filters-editor/BucketFiltersEditor.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `filters` | `BucketFilters` | `$bindable()` | What the bucket selects: a filter group for each kind of record it includes, null for each it does not. |
+| `orgId` | `string | undefined` | — | The organization whose buckets, lists, and surveys the filters offer. |
+| `source` | `FilterSource | undefined` | — | Overrides where those choices come from; for stories and tests. |
+| `label` | `string | undefined` | `'This bucket will contain'` | Small text above each editor, saying what the filters are for. |
+
+---
+
 ## ContactMadePicker
 
 **Import:** `$components/universe/contact-made-picker/ContactMadePicker.svelte`
@@ -37,7 +52,9 @@
 |------|------|---------|-------------|
 | `group` | `FilterGroupValue | undefined` | `$bindable({ operator: 'AND', filters: [] })` | The whole query. It is always a group: the root group is the foundation
 of the query and cannot be removed. Bindable so parents can read it on submit. |
+| `onchange` | `((group: FilterGroupValue) => void) | undefined` | — | Called with the whole query after each change, for parents that hold it themselves instead of binding. |
 | `catalog` | `FilterRegistryEntry[] | undefined` | — | Filters offered in the catalog. Defaults to the full shared registry. |
+| `label` | `string | undefined` | — | Small text above the root group's mode, saying what the query is for, such as "This bucket will contain". |
 | `entity` | `FilterEntity | undefined` | — | The kind of record the filters select, which their sentences name. Reads as "Records" when not given. |
 | `orgId` | `string | undefined` | — | The organization whose buckets, lists, and surveys the filters that name them offer. Without it (or `source`) those filters cannot load their choices. |
 | `source` | `FilterSource | undefined` | — | Overrides where those choices come from; defaults to the API for `orgId`. |
@@ -57,6 +74,18 @@ of the query and cannot be removed. Bindable so parents can read it on submit. |
 | `onOpenChange` | `(open: boolean) => void` | **required** |  |
 | `onselect` | `((filter: FilterRegistryEntry) => void) | undefined` | — |  |
 | `onselectgroup` | `(() => void) | undefined` | — | When given, the catalog also offers a Filter Group to nest filters in. |
+
+---
+
+## FilterConversionDemo
+
+**Import:** `$components/universe/filter-conversion-demo/FilterConversionDemo.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `input` | `BucketFilterInput | undefined` | — | The old filter, as the old bucket form sent it. |
 
 ---
 
@@ -89,6 +118,7 @@ of the query and cannot be removed. Bindable so parents can read it on submit. |
 | `onchange` | `(group: FilterGroupValue) => void` | **required** |  |
 | `onremove` | `(() => void) | undefined` | — | Omit for the root group, which is the foundation of the query and cannot be removed. |
 | `catalog` | `FilterRegistryEntry[] | undefined` | — | Filters offered in the catalog. Defaults to the full shared registry. |
+| `label` | `string | undefined` | — | Small text above the mode, saying what the query is for, such as "This bucket will contain". |
 | `path` | `FilterPath | undefined` | `[]` | Where this group sits in the query. Empty for the root; set by the parent group. |
 | `ondragstart` | `((event: DragEvent) => void) | undefined` | — | When given, a grip is shown in the header that starts a drag to reorder this group. |
 | `ondragend` | `((event: DragEvent) => void) | undefined` | — |  |
@@ -203,25 +233,6 @@ it was never configured. Read once, when the row is created. |
 | `source` | `FilterSource` | **required** | Where the buckets, surveys, and questions come from. |
 | `value` | `SurveyResponseValue | null` | **required** | The current choice; null until a bucket is picked. |
 | `onchange` | `(value: SurveyResponseValue) => void` | **required** |  |
-
----
-
-## LocationResponseDetail
-
-**Import:** `$components/universe/location-response-detail/LocationResponseDetail.svelte`
-
----
-
-## MetricsWorkflowSidebar
-
-**Import:** `$components/universe/metrics-workflow-sidebar/MetricsWorkflowSidebar.svelte`
-
-**Props**
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `orgSlug` | `string` | **required** |  |
-| `buckets` | `MetricsBucket[]` | **required** |  |
-| `onGenerate` | `(selection: MetricsWorkflowSelection) => void` | **required** |  |
+| `needsResponse` | `boolean | undefined` | `true` | False when the filter only asks whether the question was answered, so there is no response to pick. |
 
 ---

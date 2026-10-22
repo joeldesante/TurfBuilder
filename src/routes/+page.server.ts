@@ -12,7 +12,7 @@ export async function load({ locals }) {
 			`SELECT o.slug
 			 FROM auth.organization o
 			 JOIN auth.member m ON m.organization_id = o.id
-			 WHERE m.user_id = $1
+			 WHERE m.user_id = $1 AND o.deleted_at IS NULL
 			 ORDER BY o.name ASC`,
 			[locals.user.id]
 		);

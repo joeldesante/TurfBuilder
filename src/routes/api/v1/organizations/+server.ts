@@ -3,6 +3,9 @@ import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/list-access';
 import { createOrganization } from '$lib/server/services/organizations.service';
+import { listOrgs } from '$lib/server/services/platform-organizations.service';
+import { requestedPage } from '$lib/shared/utils/pagination';
+import { orgFiltersFromUrl } from '$lib/shared/schemas/platform-organizations';
 
 const postSchema = z.object({
 	name: z.string().trim().min(1),
@@ -11,6 +14,21 @@ const postSchema = z.object({
 		.trim()
 		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase letters, numbers, and hyphens')
 });
+
+/**
+ * Every organization on the instance, one page at a time. Deleted ones only with `status=deleted`.
+ *
+ * @auth infra access
+ * @query q {string} - Optional. Matches name or slug
+ * @query status {'all'|'active'|'inactive'|'suspended'|'deleted'} - Optional. Active and inactive mean used, or not, in the last 90 days
+ * @query sort {'newest'|'oldest'|'members'|'recently_active'|'name'} - Optional. Default newest
+ * @query page {number} - Optional. 1-based page of 100
+ * @returns `{ items: PlatformOrgRow[], totalCount, page, pageSize }`. 401 when signed out, 403 without infra access
+ */
+export const GET: RequestHandler = async ({ locals, url }) => {
+	const userId = requireUser(locals);
+	return json(await listOrgs(userId, orgFiltersFromUrl(url), requestedPage(url)));
+};
 
 /**
  * Creates a new organization with the caller as its owner.

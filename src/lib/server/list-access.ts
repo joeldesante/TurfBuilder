@@ -30,8 +30,12 @@ async function findInMemberOrgs<T>(
 	userId: string,
 	find: (client: PoolClient, orgId: string) => Promise<T | undefined>
 ): Promise<{ orgId: string; row: T } | null> {
+	// Suspended and deleted orgs are left out, so their rows answer 404 like any other org's.
 	const orgs = await POOL.query<{ organization_id: string }>(
-		`SELECT organization_id FROM auth.member WHERE user_id = $1`,
+		`SELECT m.organization_id
+		 FROM auth.member m
+		 JOIN auth.organization o ON o.id = m.organization_id
+		 WHERE m.user_id = $1 AND o.deleted_at IS NULL AND o.suspended_at IS NULL`,
 		[userId]
 	);
 
@@ -131,19 +135,34 @@ export async function requireSurveyOrg(userId: string, surveyId: string): Promis
 }
 
 /**
- * Throws 404 unless the user is a member of the org, so another org's id looks
- * the same as one that does not exist, then 403 without the permission.
+ * The caller's membership in an org they may use. Throws 404 unless they are a
+ * member, so another org's id looks the same as one that does not exist; a
+ * deleted org is treated as missing, and a suspended one answers 403.
+ */
+export async function requireActiveMembership(userId: string, orgId: string): Promise<{ role: string }> {
+	const result = await POOL.query<{ role: string; suspended: boolean; deleted: boolean }>(
+		`SELECT m.role, o.suspended_at IS NOT NULL AS suspended, o.deleted_at IS NOT NULL AS deleted
+		 FROM auth.member m
+		 JOIN auth.organization o ON o.id = m.organization_id
+		 WHERE m.user_id = $1 AND m.organization_id = $2`,
+		[userId, orgId]
+	);
+	const row = result.rows[0];
+	if (!row || row.deleted) throw error(404, 'Organization not found');
+	if (row.suspended) throw error(403, 'This organization has been suspended.');
+	return { role: row.role };
+}
+
+/**
+ * Throws 404 unless the user is a member of the org (403 when it is
+ * suspended), then 403 without the permission.
  */
 export async function requireOrgPermission(
 	userId: string,
 	orgId: string,
 	permission: string
 ): Promise<void> {
-	const member = await POOL.query(
-		`SELECT 1 FROM auth.member WHERE user_id = $1 AND organization_id = $2`,
-		[userId, orgId]
-	);
-	if (member.rowCount === 0) throw error(404, 'Organization not found');
+	await requireActiveMembership(userId, orgId);
 
 	const allowed = await withOrgTransaction(orgId, (client) =>
 		canOrg(client, userId, orgId, permission)

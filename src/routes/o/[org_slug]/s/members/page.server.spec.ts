@@ -66,7 +66,7 @@ function event(locals: unknown, page?: string) {
 
 /** Parameters of the paged member SELECT: [orgId, limit, offset]. */
 function pageParams() {
-	return mockClient.query.mock.calls.find((c) => String(c[0]).includes('LIMIT $2 OFFSET $3'))![1];
+	return mockClient.query.mock.calls.find((c) => String(c[0]).includes('LIMIT $3 OFFSET $4'))![1];
 }
 
 beforeEach(() => {
@@ -112,7 +112,7 @@ describe('members page load', () => {
 		const result = await load(event(staffLocals));
 
 		expect(result).toMatchObject({ totalCount: 250, page: 1, pageSize: 100 });
-		expect(pageParams()).toEqual([staffLocals.organization.id, 100, 0]);
+		expect(pageParams()).toEqual([staffLocals.organization.id, null, 100, 0]);
 	});
 
 	it('offsets by whole pages and clamps past the end', async () => {
@@ -121,15 +121,15 @@ describe('members page load', () => {
 		const result = await load(event(staffLocals, '9'));
 
 		expect(result.page).toBe(3);
-		expect(pageParams()).toEqual([staffLocals.organization.id, 100, 200]);
+		expect(pageParams()).toEqual([staffLocals.organization.id, null, 100, 200]);
 	});
 
 	it('orders by name with an id tiebreak, so pages cannot repeat or skip a member', async () => {
 		await load(event(staffLocals, '2'));
 
 		const sql = String(
-			mockClient.query.mock.calls.find((c) => String(c[0]).includes('LIMIT $2 OFFSET $3'))![0]
+			mockClient.query.mock.calls.find((c) => String(c[0]).includes('LIMIT $3 OFFSET $4'))![0]
 		).replace(/\s+/g, ' ');
-		expect(sql).toContain('ORDER BY lower(name), id LIMIT $2 OFFSET $3');
+		expect(sql).toContain('ORDER BY lower(name), id LIMIT $3 OFFSET $4');
 	});
 });

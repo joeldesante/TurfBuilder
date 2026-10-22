@@ -6,6 +6,8 @@ import { POOL, withOrgTransaction } from '$lib/server/database';
 import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
 import { isSetupComplete } from '$lib/server/setup';
 import { getSettings, SettingsMissingError } from '$lib/server/settings';
+import { touchActiveDay } from '$lib/server/services/activity.service';
+import { audit } from '$lib/server/services/audit.service';
 
 export function handleError({ error: err, event, status, message }) {
 	console.error(`[${status}] ${event.request.method} ${event.url.pathname}`);
@@ -56,8 +58,25 @@ export async function handle({ event, resolve }) {
 		event.locals.session = session.session;
 		event.locals.user = session.user;
 
-		const infraPermissions = await resolveInfraPermissions(session.user.id);
+		const impersonatedBy = (session.session as { impersonatedBy?: string | null }).impersonatedBy ?? null;
+
+		// An impersonation session is the target user, so it never carries infra
+		// access: the infra panel is closed to it and the infra services answer 403.
+		const infraPermissions = impersonatedBy ? [] : await resolveInfraPermissions(session.user.id);
 		event.locals.infrastructure = { permissions: infraPermissions };
+		event.locals.impersonatedBy = impersonatedBy;
+
+		if (impersonatedBy) {
+			if (pathname.startsWith('/infra')) {
+				throw error(403, 'Stop impersonating to use the infrastructure panel.');
+			}
+			if (!['GET', 'HEAD', 'OPTIONS'].includes(event.request.method)) {
+				await audit(impersonatedBy, 'impersonation.request', { type: 'user', id: session.user.id }, {
+					method: event.request.method,
+					path: pathname
+				}).catch((e) => console.error('[audit] Could not record an impersonated request:', e));
+			}
+		}
 
 		// Users with fake emails must set a real one before doing anything else.
 		const isFakeEmail = session.user.email.endsWith('@fake.com');
@@ -71,13 +90,18 @@ export async function handle({ event, resolve }) {
 	if (orgRouteMatch && session?.user) {
 		const slug = orgRouteMatch[1];
 
+		// A deleted org is treated as one that does not exist.
 		const orgRow = await POOL.query(
-			`SELECT id, name, slug FROM auth.organization WHERE slug = $1`,
+			`SELECT id, name, slug, suspended_at FROM auth.organization WHERE slug = $1 AND deleted_at IS NULL`,
 			[slug]
 		);
 
 		if (orgRow.rows.length > 0) {
 			const org = orgRow.rows[0];
+
+			if (org.suspended_at && !event.locals.infrastructure?.permissions.includes('access')) {
+				throw error(403, 'This organization has been suspended. Contact support for help.');
+			}
 
 			const resolved = await withOrgTransaction(org.id, async (client) => {
 				const memberCheck = await client.query(
@@ -121,6 +145,10 @@ export async function handle({ event, resolve }) {
 				};
 			}
 		}
+	}
+
+	if (session?.user && !event.locals.impersonatedBy) {
+		touchActiveDay(session.user.id, event.locals.organization?.id);
 	}
 
 	return svelteKitHandler({ event, resolve, auth, building });

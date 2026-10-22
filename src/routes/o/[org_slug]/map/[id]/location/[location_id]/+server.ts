@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import * as z from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { recordEvent } from '$lib/server/services/activity.service';
 
 const schema = z.object({
 	contactStatus: z.enum(['no_contact', 'contacted']),
@@ -43,7 +44,7 @@ export async function POST({ request, locals, params }) {
 		return json({ error: 'Invalid request body' }, { status: 400 });
 	}
 
-	return withOrgTransaction(orgId, async (client) => {
+	const visit = await withOrgTransaction(orgId, async (client) => {
 		const turfUserResult = await client.query(
 			`SELECT id FROM universe.turf_user WHERE turf_id = $1 AND user_id = $2`,
 			[turfId, userId]
@@ -85,6 +86,24 @@ export async function POST({ request, locals, params }) {
 			}
 		}
 
-		return json({ success: true }, { status: 201 });
+		return { attemptId: attemptResult.rows[0].id as string, contactMade };
 	});
+
+	// Keyed by attempt, so revisiting a door updates nothing here: the first
+	// visit is the one that counts.
+	await recordEvent('canvass.visit', {
+		userId,
+		orgId,
+		metadata: { contact_made: visit.contactMade },
+		sourceKey: `canvass.visit:${visit.attemptId}`
+	});
+	if (visit.contactMade && val.questions.length > 0) {
+		await recordEvent('survey.submitted', {
+			userId,
+			orgId,
+			sourceKey: `survey.submitted:${visit.attemptId}`
+		});
+	}
+
+	return json({ success: true }, { status: 201 });
 }

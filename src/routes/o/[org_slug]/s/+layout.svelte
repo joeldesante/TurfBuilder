@@ -123,7 +123,6 @@
 		currentPath={$page.url.pathname}
 		username={data.user.name}
 		applicationName={data.config?.application_name ?? 'TurfBuilder'}
-		infraAccess={data.infraAccess}
 		theme={themeStore.theme}
 		onthemechange={themeStore.setTheme}
 		panelTitle={panelTitle}
@@ -132,13 +131,16 @@
 		onsignout={logout}
 	/>
 
-	<main class="flex-1 flex flex-col bg-surface overflow-hidden">
+	<main class="relative flex-1 flex flex-col bg-surface overflow-hidden">
 		<div class="md:hidden flex items-center px-4 pt-3 pb-1">
 			<Button variant="ghost" iconOnly aria-label="Open menu" onclick={() => (mobileOpen = true)}>
 				<ListIcon />
 			</Button>
 		</div>
-		<div class="flex-1 overflow-y-auto px-5 pb-5">
+		<!-- Positioned, so absolute descendants (sr-only text, tooltips) are clipped and
+		     scrolled here. Unpositioned, Firefox sizes the document by them, and the page
+		     scrolls on past the shell. -->
+		<div class="relative flex-1 overflow-y-auto px-5 pb-5">
 			{@render children()}
 		</div>
 	</main>

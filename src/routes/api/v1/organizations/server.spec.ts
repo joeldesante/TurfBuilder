@@ -16,6 +16,7 @@ const { createOrganization } = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/server/services/organizations.service', () => ({ createOrganization }));
+vi.mock('$lib/server/services/platform-organizations.service', () => ({ listOrgs: vi.fn() }));
 
 import { POST } from './+server';
 

@@ -21,7 +21,9 @@ vi.mock('pg', () => ({
 	})
 }));
 
-vi.mock('$lib/server/permissions', () => ({ canOrg }));
+const { canInfra, getOrg } = vi.hoisted(() => ({ canInfra: vi.fn(async () => false), getOrg: vi.fn() }));
+vi.mock('$lib/server/permissions', () => ({ canOrg, canInfra }));
+vi.mock('./platform-organizations.service', () => ({ getOrg }));
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
@@ -98,6 +100,21 @@ describe('getOrganization', () => {
 		stub({ role: null });
 
 		await expect(getOrganization('u1', ORG)).rejects.toMatchObject({ status: 404 });
+	});
+
+	it('lets an infra admin read any organization, with its platform detail', async () => {
+		stub({ role: null });
+		canInfra.mockResolvedValueOnce(true);
+		getOrg.mockResolvedValueOnce({ id: ORG, memberCount: 12 });
+
+		await expect(getOrganization('u1', ORG)).resolves.toMatchObject({ id: ORG, platform: { memberCount: 12 } });
+		expect(getOrg).toHaveBeenCalledWith('u1', ORG);
+	});
+
+	it('leaves platform detail out for members', async () => {
+		stub({ role: 'member' });
+
+		expect(await getOrganization('u1', ORG)).not.toHaveProperty('platform');
 	});
 });
 
