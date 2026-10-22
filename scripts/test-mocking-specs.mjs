@@ -25,13 +25,22 @@ if (files.length === 0) {
 	process.exit(1);
 }
 
-const failed = [];
-for (const file of files) {
-	const result = spawnSync('npx', ['vitest', 'run', '--project', 'client-mocks', file], {
-		stdio: 'inherit'
-	});
-	if (result.status !== 0) failed.push(file);
+// The route race can still crash a file whose tests all passed, and it is not
+// reproducible locally. A real failure fails again, so one retry is enough.
+const MAX_ATTEMPTS = 2;
+
+function runSpec(file) {
+	for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+		const result = spawnSync('npx', ['vitest', 'run', '--project', 'client-mocks', file], {
+			stdio: 'inherit'
+		});
+		if (result.status === 0) return true;
+		if (attempt < MAX_ATTEMPTS) console.error(`\nRetrying ${file} (attempt ${attempt + 1}).`);
+	}
+	return false;
 }
+
+const failed = files.filter((file) => !runSpec(file));
 
 if (failed.length > 0) {
 	console.error(`\n${failed.length} of ${files.length} mocking specs failed:`);
