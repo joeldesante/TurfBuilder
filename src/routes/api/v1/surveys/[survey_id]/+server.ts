@@ -8,6 +8,7 @@ import {
 	replaceSurvey,
 	updateSurvey
 } from '$lib/server/services/surveys.service';
+import { analytics } from '$lib/server/analytics';
 
 const putSchema = z.object({
 	name: z.string().trim().min(1).max(255),
@@ -76,6 +77,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const surveyId = parseId(params.survey_id, 'survey');
 
 	await deleteSurvey(userId, surveyId);
+	analytics.capture(userId, 'survey_deleted', { survey_id: surveyId });
 
 	return new Response(null, { status: 204 });
 };

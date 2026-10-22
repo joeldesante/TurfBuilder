@@ -1,4 +1,7 @@
 import pino from 'pino';
+import { scrubMessage } from '$lib/shared/utils/scrub';
+
+export { scrubMessage };
 
 /**
  * Shared JSON logger. Every line carries `env` (APP_ENV: development, staging,
@@ -18,17 +21,6 @@ import pino from 'pino';
  * instrumentation adds trace_id and span_id to each line; when it is not,
  * the logger works the same without them.
  */
-
-const EMAIL = /[^\s@"'<>()]+@[^\s@"'<>()]+\.[^\s@"'<>()]+/g;
-// Quoted values in driver and library messages, e.g. invalid input syntax for
-// type uuid: "abc". Constraint and column names stay available in the
-// dedicated `constraint` and `table` fields.
-const QUOTED = /(["'`])(?:(?!\1).)*\1/g;
-
-/** Masks emails and quoted values in an error message. */
-export function scrubMessage(message: string): string {
-	return message.replace(EMAIL, '[email]').replace(QUOTED, '$1?$1');
-}
 
 // Fields of a Postgres error that describe where it happened, never the data.
 const SAFE_DB_FIELDS = ['code', 'severity', 'schema', 'table', 'column', 'constraint', 'routine'];

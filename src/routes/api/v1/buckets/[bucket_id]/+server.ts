@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
 import { bucketFiltersSchema } from '$lib/shared/schemas/filters';
 import { getBucket, replaceBucket, updateBucket } from '$lib/server/services/buckets.service';
+import { analytics } from '$lib/server/analytics';
 
 const slugSchema = z
 	.string()
@@ -47,7 +48,14 @@ export const PUT: RequestHandler = async ({ params, locals, request }) => {
 	const body = putSchema.safeParse(await request.json().catch(() => null));
 	if (!body.success) throw error(400, body.error.issues[0].message);
 
-	return json(await replaceBucket(userId, bucketId, body.data));
+	const bucket = await replaceBucket(userId, bucketId, body.data);
+	analytics.capture(userId, 'bucket_updated', {
+		bucket_id: bucketId,
+		update_mode: 'replace',
+		changed_fields: Object.keys(body.data)
+	});
+
+	return json(bucket);
 };
 
 /**
@@ -66,5 +74,12 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	const body = patchSchema.safeParse(await request.json().catch(() => null));
 	if (!body.success) throw error(400, body.error.issues[0].message);
 
-	return json(await updateBucket(userId, bucketId, body.data));
+	const bucket = await updateBucket(userId, bucketId, body.data);
+	analytics.capture(userId, 'bucket_updated', {
+		bucket_id: bucketId,
+		update_mode: 'partial',
+		changed_fields: Object.keys(body.data)
+	});
+
+	return json(bucket);
 };

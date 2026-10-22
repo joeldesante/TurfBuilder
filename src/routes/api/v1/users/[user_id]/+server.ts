@@ -4,6 +4,7 @@ import { parseId, requireUser } from '$lib/server/list-access';
 import { parseBody } from '$lib/server/request';
 import { deleteUserSchema, updateUserSchema } from '$lib/shared/schemas/platform-users';
 import { deleteUser, getUser, updateUser } from '$lib/server/services/platform-users.service';
+import { analytics } from '$lib/server/analytics';
 
 /**
  * One user, with their sign-in methods, infra roles, and suspension.
@@ -45,5 +46,6 @@ export const DELETE: RequestHandler = async ({ params, locals, request }) => {
 	const targetId = parseId(params.user_id, 'user');
 	const { confirmEmail } = await parseBody(request, deleteUserSchema);
 	await deleteUser(userId, targetId, confirmEmail);
+	analytics.capture(userId, 'user_account_deleted', { target_user_id: targetId });
 	return new Response(null, { status: 204 });
 };

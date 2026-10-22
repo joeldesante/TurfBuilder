@@ -23,6 +23,21 @@ describe('InfraSettingsPage', () => {
 		await expect.element(getByRole('textbox', { name: 'Application name' })).not.toBeInTheDocument();
 	});
 
+	test('shows the analytics provider and PostHog fields on the analytics tab', async () => {
+		const { getByRole } = render(InfraSettingsPage, { props: props({ tab: 'analytics' }) });
+
+		await expect.element(getByRole('textbox', { name: 'PostHog host' })).toBeVisible();
+		await expect.element(getByRole('textbox', { name: 'PostHog project token' })).toBeVisible();
+		await expect.element(getByRole('textbox', { name: 'Traces endpoint' })).not.toBeInTheDocument();
+	});
+
+	test('shows the OTLP endpoints on the telemetry tab', async () => {
+		const { getByRole } = render(InfraSettingsPage, { props: props({ tab: 'telemetry' }) });
+
+		await expect.element(getByRole('textbox', { name: 'Traces endpoint' })).toBeVisible();
+		await expect.element(getByRole('textbox', { name: 'Logs endpoint' })).toBeVisible();
+	});
+
 	test('saves nothing until something changes', async () => {
 		const { getByRole } = render(InfraSettingsPage, { props: props() });
 

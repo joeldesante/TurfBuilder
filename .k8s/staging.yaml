@@ -43,6 +43,12 @@ spec:
                 name: turfbuilder-secrets-staging
             - secretRef:
                 name: aws-ses-env
+            # OTLP auth headers (OTEL_EXPORTER_OTLP_LOGS_HEADERS, ..._TRACES_HEADERS).
+            # Created by hand in the cluster, never committed; optional so a
+            # cluster without it still starts, just without authenticated export.
+            - secretRef:
+                name: turfbuilder-telemetry-staging
+                optional: true
           volumeMounts:
             - name: db-ca
               mountPath: /etc/ssl/db-ca

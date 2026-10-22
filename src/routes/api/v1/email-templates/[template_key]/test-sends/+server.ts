@@ -4,6 +4,7 @@ import { requireUser } from '$lib/server/list-access';
 import { parseBody, parseTemplateKey } from '$lib/server/request';
 import { testSendSchema } from '$lib/shared/schemas/email-templates';
 import { sendTemplateTest } from '$lib/server/services/email-templates.service';
+import { analytics } from '$lib/server/analytics';
 
 /**
  * Emails the template, filled with sample values, to the signed-in admin. Unsaved text can be sent by passing it.
@@ -16,5 +17,7 @@ import { sendTemplateTest } from '$lib/server/services/email-templates.service';
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const userId = requireUser(locals);
 	const key = parseTemplateKey(params.template_key);
-	return json(await sendTemplateTest(userId, key, await parseBody(request, testSendSchema)));
+	const result = await sendTemplateTest(userId, key, await parseBody(request, testSendSchema));
+	analytics.capture(userId, 'email_template_test_sent', { template_key: key });
+	return json(result);
 };

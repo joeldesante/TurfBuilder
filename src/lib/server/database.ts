@@ -56,8 +56,10 @@ POOL.on('error', (err) => {
 });
 
 process.on('SIGTERM', async () => {
-	logger.info('SIGTERM received, closing the database pool');
-	await POOL.end();
+	logger.info('SIGTERM received, flushing analytics and closing the database pool');
+	// Imported here so the pool module does not load analytics until shutdown.
+	const { shutdownAnalytics } = await import('$lib/server/analytics');
+	await Promise.allSettled([shutdownAnalytics(), POOL.end()]);
 	process.exit(0);
 });
 

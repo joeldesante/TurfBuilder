@@ -13,6 +13,10 @@ export async function load({ locals }) {
 	return {
 		config: locals.config ?? null,
 		infraMenu,
+		// Off while impersonating, so an admin's clicks are not counted as the user's.
+		analytics: locals.impersonatedBy ? null : (locals.analytics ?? null),
+		// Id only: names and emails never go to analytics.
+		analyticsUserId: locals.impersonatedBy ? null : (locals.user?.id ?? null),
 		// Set while an infra admin is signed in as this user; drives the banner.
 		impersonating:
 			locals.impersonatedBy && locals.user ? { userId: locals.user.id, userName: locals.user.name } : null

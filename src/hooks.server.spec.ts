@@ -23,7 +23,21 @@ vi.mock('$lib/server/permissions', () => ({
 	resolveInfraPermissions: mocks.resolveInfraPermissions
 }));
 vi.mock('$lib/server/setup', () => ({ isSetupComplete: async () => true }));
-vi.mock('$lib/server/settings', () => ({ getSettings: async () => ({}), SettingsMissingError: class extends Error {} }));
+vi.mock('$lib/server/settings', () => ({
+	getAllSettings: async () => ({
+		app: {},
+		observability: {
+			analytics: { provider: 'none', posthogHost: '', posthogToken: '' },
+			telemetry: { tracesEndpoint: '', logsEndpoint: '' }
+		}
+	}),
+	SettingsMissingError: class extends Error {}
+}));
+vi.mock('$lib/server/analytics', () => ({
+	analytics: { capture: vi.fn(), captureException: vi.fn() },
+	configureAnalytics: vi.fn(async () => {})
+}));
+vi.mock('$lib/server/telemetry', () => ({ applyTelemetry: vi.fn() }));
 vi.mock('$lib/server/services/activity.service', () => ({ touchActiveDay: mocks.touchActiveDay }));
 vi.mock('$lib/server/services/audit.service', () => ({ audit: mocks.audit }));
 vi.mock('$lib/server/runtime-metrics', () => ({ startRuntimeMetrics: vi.fn() }));

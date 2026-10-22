@@ -5,11 +5,13 @@ import { redirect, error, isHttpError, isRedirect, type Handle } from '@sveltejs
 import { POOL, withOrgTransaction } from '$lib/server/database';
 import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
 import { isSetupComplete } from '$lib/server/setup';
-import { getSettings, SettingsMissingError } from '$lib/server/settings';
+import { getAllSettings, SettingsMissingError } from '$lib/server/settings';
 import { touchActiveDay } from '$lib/server/services/activity.service';
 import { audit } from '$lib/server/services/audit.service';
 import { logger } from '$lib/server/logger';
 import { startRuntimeMetrics } from '$lib/server/runtime-metrics';
+import { analytics, configureAnalytics } from '$lib/server/analytics';
+import { applyTelemetry } from '$lib/server/telemetry';
 
 if (!building) startRuntimeMetrics();
 
@@ -18,6 +20,13 @@ export function handleError({ error: err, event, status, message }) {
 		{ err, status, method: event.request.method, route: event.route?.id ?? '(unmatched)' },
 		'Unhandled request error'
 	);
+	// Fire and forget; a no-op unless analytics is on. The error is scrubbed first.
+	analytics.captureException(err, event.locals.user?.id ?? 'server', {
+		status,
+		method: event.request.method,
+		route: event.route?.id ?? '(unmatched)'
+	});
+
 	return { message: status === 500 ? 'Internal server error' : message };
 }
 
@@ -35,7 +44,16 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 
 			// Load settings; if missing, redirect to setup rather than hard 500.
 			try {
-				event.locals.config = await getSettings();
+				const { app, observability } = await getAllSettings();
+				event.locals.config = app;
+				// Both only act when the settings changed, so a dashboard edit applies without a restart.
+				applyTelemetry(observability.telemetry);
+				await configureAnalytics(observability.analytics);
+				const { provider, posthogHost, posthogToken } = observability.analytics;
+				event.locals.analytics =
+					provider === 'posthog' && posthogHost && posthogToken
+						? { provider, host: posthogHost, token: posthogToken }
+						: null;
 			} catch (e) {
 				if (e instanceof SettingsMissingError) {
 					throw redirect(303, '/setup');

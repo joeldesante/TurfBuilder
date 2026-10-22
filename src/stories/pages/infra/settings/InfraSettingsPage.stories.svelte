@@ -34,4 +34,8 @@
 
 <Story name="Activity" args={{ tab: 'activity' }} />
 
+<Story name="Analytics" args={{ tab: 'analytics' }} />
+
+<Story name="Telemetry" args={{ tab: 'telemetry' }} />
+
 <Story name="External tools" args={{ tab: 'links' }} />
