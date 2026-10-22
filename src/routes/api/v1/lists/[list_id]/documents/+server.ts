@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
 import { createDocument, listDocuments } from '$lib/server/services/documents.service';
+import { analytics } from '$lib/server/analytics';
 
 /**
  * The caller's IANA timezone, used to print times on the document. Temporary:
@@ -62,6 +63,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const body = postSchema.safeParse(await request.json().catch(() => ({})));
 	if (!body.success) throw error(400, body.error.issues[0].message);
 	const document = await createDocument(userId, listId, body.data);
+	analytics.capture(userId, 'document_generation_started', {
+		list_id: listId,
+		document_id: document.id,
+		time_zone_provided: Boolean(body.data.timeZone)
+	});
 
 	return json(
 		{

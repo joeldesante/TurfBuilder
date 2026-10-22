@@ -1,6 +1,7 @@
 import { POOL } from '$lib/server/database';
 import { SETUP_STEPS } from '$lib/server/setup-schema';
 import type { RequestHandler } from './$types';
+import { logger } from '$lib/server/logger';
 
 export const POST: RequestHandler = async () => {
 	const encoder = new TextEncoder();
@@ -37,6 +38,7 @@ export const POST: RequestHandler = async () => {
 					}
 					send({ step: i + 1, total, label: step.label, status: 'done' });
 				} catch (e) {
+					logger.error({ err: e, step: i + 1, total, label: step.label }, 'Setup schema step failed');
 					send({ step: i + 1, total, label: step.label, status: 'error', error: String(e) });
 					client.release();
 					controller.close();

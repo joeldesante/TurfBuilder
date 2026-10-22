@@ -7,6 +7,7 @@ import { EMAIL_TEMPLATES_BY_KEY } from '$lib/shared/registries/email-templates';
 import { fillTemplate } from '$lib/shared/utils/email-template';
 import type { EmailTemplateBody } from '$lib/shared/schemas/email-templates';
 import type { EmailTemplateDetail, EmailTemplateSummary } from '$lib/shared/types/email-templates';
+import { logger } from '$lib/server/logger';
 
 interface TemplateRow {
 	key: string;
@@ -116,7 +117,7 @@ export async function sendTemplateTest(
 	try {
 		await deliverEmail(to, key, subject, html);
 	} catch (e) {
-		console.error('[email-templates] Test send failed:', e);
+		logger.error({ err: e, template: key, adminId: userId }, '[email-templates] Mail server refused the template test email');
 		throw error(502, 'The mail server did not accept the email. The email log has the details.');
 	}
 	await audit(userId, 'email_template.test', { type: 'email_template', id: key }, { to });

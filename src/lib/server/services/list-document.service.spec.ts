@@ -47,6 +47,7 @@ import {
 	GENERATION_TIMEOUT_MS,
 	GENERIC_FAILURE
 } from './list-document.service';
+import { logger } from '$lib/server/logger';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const job = {
@@ -176,7 +177,7 @@ function restoreQuery() {
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	vi.spyOn(console, 'error').mockImplementation(() => {});
+	vi.spyOn(logger, 'error').mockImplementation(() => {});
 	mockDatabase();
 	renderMap.mockResolvedValue(new Uint8Array([255, 216, 255]));
 	generatePDF.mockResolvedValue(new Uint8Array([37, 80, 68, 70]));
@@ -470,7 +471,10 @@ describe('generateListDocument', () => {
 
 		await generateListDocument(job);
 
-		expect(console.error).toHaveBeenCalledWith(expect.stringContaining('doc-1'), internal);
+		expect(logger.error).toHaveBeenCalledWith(
+			expect.objectContaining({ err: internal, documentId: 'doc-1' }),
+			expect.any(String)
+		);
 	});
 
 	// It runs after the response is sent, so a throw would be an unhandled rejection.

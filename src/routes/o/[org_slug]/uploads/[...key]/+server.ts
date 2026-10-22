@@ -4,6 +4,7 @@ import {
 	keyBelongsToOrg,
 	StorageNotConfiguredError
 } from '$lib/server/storage.js';
+import { logger } from '$lib/server/logger';
 
 /**
  * Redirects to a short-lived presigned GET for a stored photo.
@@ -30,6 +31,7 @@ export async function GET({ params, locals }) {
 		url = await presignPhotoDownload(key);
 	} catch (e) {
 		if (e instanceof StorageNotConfiguredError) {
+			logger.warn({ organizationId: locals.organization.id }, 'Photo requested but storage is not configured');
 			return json({ error: e.message }, { status: 503 });
 		}
 		throw e;

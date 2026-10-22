@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { POOL } from '$lib/server/database';
 import { resetAuth } from '$lib/auth';
 import type { RequestHandler } from './$types';
+import { logger } from '$lib/server/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const { base_url, application_name } = await request.json();
@@ -32,6 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		await client.query('COMMIT');
 	} catch (e) {
 		await client.query('ROLLBACK');
+		logger.error({ err: e }, 'Setup could not save the base settings');
 		throw error(500, `Failed to save settings: ${String(e)}`);
 	} finally {
 		client.release();

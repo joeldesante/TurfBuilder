@@ -23,11 +23,27 @@ vi.mock('$lib/server/permissions', () => ({
 	resolveInfraPermissions: mocks.resolveInfraPermissions
 }));
 vi.mock('$lib/server/setup', () => ({ isSetupComplete: async () => true }));
-vi.mock('$lib/server/settings', () => ({ getSettings: async () => ({}), SettingsMissingError: class extends Error {} }));
+vi.mock('$lib/server/settings', () => ({
+	getAllSettings: async () => ({
+		app: {},
+		observability: {
+			analytics: { provider: 'none', posthogHost: '', posthogToken: '' },
+			telemetry: { tracesEndpoint: '', logsEndpoint: '' }
+		}
+	}),
+	SettingsMissingError: class extends Error {}
+}));
+vi.mock('$lib/server/analytics', () => ({
+	analytics: { capture: vi.fn(), captureException: vi.fn() },
+	configureAnalytics: vi.fn(async () => {})
+}));
+vi.mock('$lib/server/telemetry', () => ({ applyTelemetry: vi.fn() }));
 vi.mock('$lib/server/services/activity.service', () => ({ touchActiveDay: mocks.touchActiveDay }));
 vi.mock('$lib/server/services/audit.service', () => ({ audit: mocks.audit }));
+vi.mock('$lib/server/runtime-metrics', () => ({ startRuntimeMetrics: vi.fn() }));
 
 import { handle } from './hooks.server';
+import { logger } from '$lib/server/logger';
 
 const USER = { id: 'u1', email: 'grace@example.org', name: 'Grace' };
 const ADMIN = 'admin-1';
@@ -142,5 +158,23 @@ describe('organization status', () => {
 		mocks.pool.query.mockResolvedValue({ rows: [{ ...ORG, suspended_at: new Date() }] });
 
 		await expect(call('/o/riverside/map').run).rejects.toMatchObject({ status: 403 });
+	});
+});
+
+describe('access log', () => {
+	it('logs the route pattern, never the URL, which can hold tokens and slugs', async () => {
+		const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+		const event = {
+			url: new URL('http://x/invite/secret-token-123'),
+			request: new Request('http://x/invite/secret-token-123'),
+			route: { id: '/invite/[token]' },
+			locals: {} as App.Locals
+		};
+
+		await handle({ event, resolve: vi.fn() } as never);
+
+		const logged = info.mock.calls.find(([, message]) => message === 'request');
+		expect(logged?.[0]).toMatchObject({ method: 'GET', route: '/invite/[token]', status: 200 });
+		expect(JSON.stringify(logged)).not.toContain('secret-token-123');
 	});
 });

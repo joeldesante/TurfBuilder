@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
 import { listSurveyQuestions, replaceSurveyQuestions } from '$lib/server/services/surveys.service';
+import { analytics } from '$lib/server/analytics';
 
 const putSchema = z.array(
 	z.object({
@@ -42,5 +43,11 @@ export const PUT: RequestHandler = async ({ params, locals, request }) => {
 	const body = putSchema.safeParse(await request.json().catch(() => null));
 	if (!body.success) throw error(400, body.error.issues[0].message);
 
-	return json(await replaceSurveyQuestions(userId, surveyId, body.data));
+	const questions = await replaceSurveyQuestions(userId, surveyId, body.data);
+	analytics.capture(userId, 'survey_questions_updated', {
+		survey_id: surveyId,
+		question_count: questions.length
+	});
+
+	return json(questions);
 };

@@ -7,6 +7,7 @@
 
 import type { Session, User } from 'better-auth';
 import type { AppSettings } from '$lib/server/settings';
+import type { ClientAnalyticsConfig } from '$lib/shared/types/analytics';
 
 declare global {
 	namespace App {
@@ -16,6 +17,8 @@ declare global {
 			user?: User;
 			/** Null on /setup and /auth routes before settings have been configured. */
 			config?: AppSettings;
+			/** Browser analytics setup; null when analytics is off. */
+			analytics?: ClientAnalyticsConfig | null;
 			organization?: {
 				id: string;
 				name: string;

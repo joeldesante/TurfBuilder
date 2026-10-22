@@ -10,7 +10,18 @@
 	import ImpersonationBanner from '$components/feedback/impersonation-banner/ImpersonationBanner.svelte';
 	import { page } from '$app/state';
 	import { api } from '$lib/client/api';
+	import { afterNavigate } from '$app/navigation';
+	import { startAnalytics, identify, trackPageview } from '$lib/client/analytics';
 	let { children, data } = $props();
+
+	// Does nothing unless analytics is turned on in the infra dashboard.
+	$effect(() => {
+		const config = data.analytics;
+		const userId = data.analyticsUserId;
+		void startAnalytics(config).then(() => identify(userId));
+	});
+
+	afterNavigate(() => trackPageview(page.route.id));
 
 	async function stopImpersonating() {
 		const { userId } = await api<{ userId: string }>('/impersonations/current', { method: 'DELETE' });

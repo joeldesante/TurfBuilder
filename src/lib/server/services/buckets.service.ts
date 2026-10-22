@@ -9,6 +9,7 @@ import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
 import type { Page } from '$lib/shared/utils/pagination';
 import { buildFilterQuery, convertStoredBucketFilter, LegacyFilterError } from './filters.service';
 import type { FilterQuery } from './filters.service';
+import { logger, zodIssues } from '$lib/server/logger';
 
 export interface BucketInput {
 	name: string;
@@ -98,7 +99,7 @@ function convertOld(row: BucketFiltersRow): BucketFilters {
 		if (e instanceof LegacyFilterError) throw new UnconvertibleBucketError(row.id, e.message);
 		// Stored filters are untrusted JSON. A shape nobody foresaw must not break the
 		// migration for every other bucket, so it is reported like any other failure.
-		console.error(`Unexpected error converting the filter of bucket ${row.id}`, e);
+		logger.error({ err: e, bucketId: row.id }, 'Legacy bucket filter conversion threw an unexpected error; bucket skipped');
 		throw new UnconvertibleBucketError(
 			row.id,
 			`unexpected error while converting: ${e instanceof Error ? e.message : String(e)}`
@@ -111,7 +112,7 @@ function parseStored(bucketId: string, stored: unknown): BucketFilters | null {
 	const parsed = bucketFiltersSchema.safeParse(stored);
 	if (!parsed.success) {
 		const reason = parsed.error.issues[0]?.message ?? 'unknown problem';
-		console.error(`Bucket ${bucketId} has invalid filters`, parsed.error.issues);
+		logger.error({ bucketId, issues: zodIssues(parsed.error) }, 'Stored bucket filters failed validation');
 		throw new InvalidBucketFiltersError(bucketId, reason);
 	}
 	return parsed.data;

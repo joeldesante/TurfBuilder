@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
+import { logger, zodIssues } from '$lib/server/logger';
 
 const OvertureRecordSchema = z.object({
 	name: z.string().optional(),
@@ -23,10 +24,15 @@ export async function POST({ request, locals }) {
 	const body = await request.json().catch(() => null);
 	const parsed = BodySchema.safeParse(body);
 	if (!parsed.success) {
+		logger.warn(
+			{ organizationId: locals.organization.id, issues: zodIssues(parsed.error).slice(0, 5) },
+			'Overture import rejected: invalid request body'
+		);
 		return json({ error: 'Invalid request body' }, { status: 400 });
 	}
 
 	const { records } = parsed.data;
+	const startedAt = performance.now();
 	const errors: { row: number; reason: string }[] = [];
 	let imported = 0;
 
@@ -61,11 +67,25 @@ export async function POST({ request, locals }) {
 					]
 				);
 				imported++;
-			} catch {
+			} catch (err) {
+				// A failed statement aborts the Postgres transaction, so every row after
+				// this one fails too; the log shows where it started.
+				logger.warn({ err, organizationId: locals.organization!.id, row: i + 1 }, 'Overture import row failed');
 				errors.push({ row: i + 1, reason: 'Database insert failed' });
 			}
 		}
 	});
+
+	logger.info(
+		{
+			organizationId: locals.organization.id,
+			received: records.length,
+			imported,
+			failed: errors.length,
+			durationMs: Math.round(performance.now() - startedAt)
+		},
+		'Overture import batch finished'
+	);
 
 	return json({ imported, skipped: records.length - imported - errors.length, errors });
 }

@@ -61,7 +61,8 @@ npm run storybook        # Storybook dev server
 - **Toasts:** svelte-sonner, through the `Toaster` component in the root layout
 - **Object storage:** DigitalOcean Spaces (S3 API) via `@aws-sdk/client-s3`, for location photos and generated PDFs
 - **PDF generation:** Puppeteer (headless Chromium) + Handlebars templates; MapLibre renders static maps in the same browser
-- **Observability:** OpenTelemetry → Jaeger
+- **Observability:** OpenTelemetry traces and logs to any OTLP endpoint (optional, set in the infra dashboard); structured JSON logs via pino (`$lib/server/logger`), never `console.*` in server code
+- **Product analytics:** optional, behind an adapter (`$lib/server/analytics`, `$lib/client/analytics`); PostHog or off, chosen in the infra dashboard
 
 ## Environment Variables
 
@@ -77,6 +78,11 @@ Optional:
 | Variable | Description |
 |----------|-------------|
 | `SPACES_ACCESS_KEY_ID` / `SPACES_SECRET_ACCESS_KEY` | Object storage credentials. Endpoint, region, and bucket are system settings (`spaces.*`), never env vars. Without them, photo uploads and PDF generation report that storage is not set up. |
+| `APP_ENV` | Deployment environment (`development`, `staging`, `production`), stamped on every log line as `env`. Set in `.k8s/*.yaml`; unset means `development`. |
+| `POD_NAME` / `NODE_NAME` | The pod and node name, set from the k8s downward API in `.k8s/*.yaml` and stamped on every log line as `pod` and `node`. Inside a cluster without them `pod` falls back to `HOSTNAME`; outside k8s neither is logged. |
+| `LOG_LEVEL` | Minimum log level (`trace` to `fatal`). Defaults to `info`. |
+| `LOG_METRICS_INTERVAL_MS` | Period of the process metrics line (CPU, memory, event loop, pools). Defaults to 30000; 0 turns it off. |
+| `LOG_SLOW_QUERY_MS` | Queries and connection waits slower than this are logged as warnings. Defaults to 500. |
 | `GIT_SHA` | Commit of the running build, shown on `/infra/system`. |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium binary for Puppeteer. The Docker images set it to Alpine's `/usr/bin/chromium-browser` (Puppeteer's bundled Chrome is glibc-only); outside Docker, leave it unset and Puppeteer uses its own download. |
 
@@ -326,6 +332,11 @@ Runtime configuration is stored in the `system_setting` table and managed at `/i
 | `spaces.endpoint` | Object storage endpoint, e.g. `https://nyc3.digitaloceanspaces.com`. |
 | `spaces.region` | Object storage region, e.g. `nyc3`. Empty means `us-east-1`. |
 | `spaces.bucket` | Bucket for location photos and generated PDFs. |
+| `analytics.provider` | `none` (default) or `posthog`. Off loads no analytics code in the server or browser. |
+| `analytics.posthog.host` / `analytics.posthog.token` | PostHog ingestion address and public project token (`phc_...`). |
+| `telemetry.traces_endpoint` / `telemetry.logs_endpoint` | OTLP over HTTP endpoints. Empty turns each export off. Auth headers come from `OTEL_EXPORTER_OTLP_TRACES_HEADERS` and `OTEL_EXPORTER_OTLP_LOGS_HEADERS`, never the database. For PostHog Logs: endpoint `<host>/i/v1/logs`, header `Authorization=Bearer <project token>`. |
+
+Analytics and telemetry settings apply without a restart: every request reads them and the app reconfigures only when they change. They are kept out of `locals.config`, which is sent to every browser.
 
 **Important:** `base_url` is read at auth instance startup. After saving a new value, restart the pods for it to take effect:
 ```bash
@@ -344,6 +355,34 @@ Staff generate a printable PDF of a location list (master list, turf checkout sh
 - **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.
 - **Storage key:** `orgs/{org_id}/lists/{list_id}/documents/{document_id}.pdf` (from `listDocumentKey()`). Files are never hard-deleted by the app (retention: #174).
 - **Chromium:** Docker images install Alpine `chromium` + `mesa-egl` + fonts. Containers run as root, so Chrome runs with `--no-sandbox` (moving to a worker: #181). Map tiles come from `tiles.openfreemap.org` at render time.
+
+---
+
+## Logging
+
+Server code logs through `logger` from `$lib/server/logger` (pino, JSON on stdout), never `console.*`. Logs go to an aggregator and are used to find the cause of CPU spikes, memory spikes and other hard-to-trace problems, and they must never expose tenant data.
+
+- **Log ids, counts, sizes and durations.** `organizationId`, `documentId`, `rowCount`, `durationMs`. Never names, emails, addresses, subjects, survey answers, URLs with values, or request bodies.
+- **Errors go under `err`**: `logger.error({ err, organizationId }, 'What was being attempted and what happens next')`. The serializer drops database `detail` (it quotes row values), masks quoted values and emails in messages, and keeps only safe Postgres fields (`code`, `table`, `constraint`).
+- **Validation failures use `zodIssues(error)`**, which keeps paths and codes and drops received values.
+- **Request lines log the route pattern** (`/o/[org_slug]/s/turfs/[id]`), never the URL, because URLs carry org slugs, invite tokens and turf codes.
+- Every line carries `env` (`APP_ENV`), and `trace_id` and `span_id` when OpenTelemetry is running. The logger works without OpenTelemetry.
+- Already logged: one access line per request, a process metrics line every 30s, slow queries and connection waits, Chrome launches and closes with the live count, list document runs (phase timings, sizes, memory), storage uploads, mail sends, migrations, and import batches.
+- Scripts in `scripts/` are CLI tools and print to the console on purpose.
+
+## Product Analytics
+
+Analytics is optional (this is open-source software and many installs will not use it), so nothing calls PostHog directly. Server code records events through the adapter, and the provider is chosen by the `analytics.*` settings:
+
+```ts
+import { analytics } from '$lib/server/analytics';
+analytics.capture(userId, 'survey_deleted', { survey_id: surveyId }); // never awaited
+```
+
+- **Fire and forget.** `capture` and `captureException` never throw and are never awaited; a slow or down provider must not touch a request.
+- **Ids and counts only**, as for logs. No names, emails, addresses, typed text, or URLs. Exceptions are scrubbed by the adapter.
+- **Browser:** `$lib/client/analytics` starts PostHog only when it is on, with autocapture, session recording, automatic pageviews and exception autocapture off. `sanitizeEvent` swaps every URL for the route pattern and drops referrers and titles. Users are identified by id only, and nothing is tracked while an admin impersonates.
+- **A new provider** implements `AnalyticsProvider` (`$lib/server/analytics/types.ts`), is loaded with a dynamic import in `configureAnalytics`, and gets an option in the `analytics.provider` setting.
 
 ---
 

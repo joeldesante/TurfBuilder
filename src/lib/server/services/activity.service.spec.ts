@@ -15,6 +15,7 @@ vi.mock('$lib/server/database', () => ({
 }));
 
 import { recordEvent, touchActiveDay, backfillActivity, pruneActivity } from './activity.service';
+import { logger } from '$lib/server/logger';
 
 function flat(sql: unknown) {
 	return String(sql).replace(/\s+/g, ' ');
@@ -38,7 +39,7 @@ describe('recordEvent', () => {
 
 	it('never throws, so a lost event cannot fail the request', async () => {
 		pool.query.mockRejectedValue(new Error('db down'));
-		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const log = vi.spyOn(logger, 'error').mockImplementation(() => {});
 
 		await expect(recordEvent('list.created', { userId: 'u1' })).resolves.toBeUndefined();
 		expect(log).toHaveBeenCalled();

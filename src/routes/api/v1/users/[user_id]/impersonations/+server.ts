@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
 import { startImpersonation } from '$lib/server/services/impersonation.service';
+import { analytics } from '$lib/server/analytics';
 
 /**
  * Signs the caller in as the user for an hour. The response sets the new
@@ -13,5 +14,10 @@ import { startImpersonation } from '$lib/server/services/impersonation.service';
  */
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const userId = requireUser(locals);
-	return json(await startImpersonation(userId, parseId(params.user_id, 'user'), request.headers), { status: 201 });
+	const targetUserId = parseId(params.user_id, 'user');
+	const result = await startImpersonation(userId, targetUserId, request.headers);
+	analytics.capture(userId, 'user_impersonation_started', {
+		target_user_id: targetUserId
+	});
+	return json(result, { status: 201 });
 };

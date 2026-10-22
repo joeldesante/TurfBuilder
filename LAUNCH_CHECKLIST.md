@@ -42,10 +42,12 @@ A plugin that enables organizations to collect donations via Stripe. Must be glo
 
 Allow infra admins to disable OpenTelemetry/Jaeger telemetry without requiring a code change.
 
-- [ ] Add `telemetry_enabled` flag to infra settings schema and `setup-schema.ts`
-- [ ] Read `telemetry_enabled` at server startup and conditionally initialize the OTel SDK
-- [ ] Add toggle to the infra settings UI (`/infra/settings`)
-- [ ] Document the setting in the relevant settings component story
+Done in #248 as the Telemetry settings tab: each OTLP endpoint is empty (off) by default and applies without a restart.
+
+- [x] Add `telemetry_enabled` flag to infra settings schema and `setup-schema.ts`
+- [x] Read `telemetry_enabled` at server startup and conditionally initialize the OTel SDK
+- [x] Add toggle to the infra settings UI (`/infra/settings`)
+- [x] Document the setting in the relevant settings component story
 
 ---
 

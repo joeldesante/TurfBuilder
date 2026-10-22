@@ -24,6 +24,16 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+            - name: APP_ENV
+              value: production
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
             - name: HOST
               value: "0.0.0.0"
             - name: PORT
@@ -33,6 +43,12 @@ spec:
                 name: turfbuilder-secrets
             - secretRef:
                 name: aws-ses-env
+            # OTLP auth headers (OTEL_EXPORTER_OTLP_LOGS_HEADERS, ..._TRACES_HEADERS).
+            # Created by hand in the cluster, never committed; optional so a
+            # cluster without it still starts, just without authenticated export.
+            - secretRef:
+                name: turfbuilder-telemetry
+                optional: true
           volumeMounts:
             - name: db-ca
               mountPath: /etc/ssl/db-ca

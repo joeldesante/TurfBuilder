@@ -3,6 +3,7 @@ import { POOL, withOrgTransaction } from '$lib/server/database';
 import { activityEventLabel, type ActivityEventType } from '$lib/shared/registries/activity-events';
 import { clampPage, pageOffset, type Page } from '$lib/shared/utils/pagination';
 import type { ActivityEntry } from '$lib/shared/types/activity';
+import { logger } from '$lib/server/logger';
 
 export interface RecordEventInput {
 	userId?: string | null;
@@ -38,7 +39,7 @@ export async function recordEvent(type: ActivityEventType, input: RecordEventInp
 			]
 		);
 	} catch (e) {
-		console.error(`[activity] Could not record ${type}:`, e);
+		logger.error({ err: e, type, organizationId: input.orgId ?? undefined }, '[activity] Event not recorded; the request that caused it was not affected');
 	}
 }
 
@@ -70,7 +71,7 @@ export function touchActiveDay(userId: string, orgId?: string | null): void {
 		[day, userId, fresh]
 	).catch((e) => {
 		for (const key of fresh) touched.delete(`${userId}|${key}`);
-		console.error('[activity] Could not mark the user active:', e);
+		logger.error({ err: e, organizationId: orgId ?? undefined }, '[activity] Daily active mark not written; it will be retried on the next request');
 	});
 }
 

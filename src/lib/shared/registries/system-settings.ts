@@ -7,7 +7,16 @@ import { z } from 'zod';
  * `system_setting`; each validator checks that text.
  */
 
-export type SettingGroup = 'general' | 'organizations' | 'appearance' | 'email' | 'storage' | 'activity' | 'links';
+export type SettingGroup =
+	| 'general'
+	| 'organizations'
+	| 'appearance'
+	| 'email'
+	| 'storage'
+	| 'activity'
+	| 'analytics'
+	| 'telemetry'
+	| 'links';
 
 export type SettingInput =
 	| { kind: 'text'; placeholder?: string }
@@ -39,6 +48,17 @@ export const SETTING_GROUPS: { id: SettingGroup; label: string; description: str
 	{ id: 'email', label: 'Email', description: 'How outgoing mail is sent.' },
 	{ id: 'storage', label: 'Storage', description: 'Where photos and generated PDFs are kept.' },
 	{ id: 'activity', label: 'Activity', description: 'How long activity history is kept.' },
+	{
+		id: 'analytics',
+		label: 'Analytics',
+		description:
+			'Product analytics. Off by default. Only ids and counts are sent: no names, emails, page text, or URLs with values.'
+	},
+	{
+		id: 'telemetry',
+		label: 'Telemetry',
+		description: 'Where traces and server logs are exported over OpenTelemetry (OTLP). Empty turns each one off.'
+	},
 	{ id: 'links', label: 'External tools', description: 'Links to tools outside the app, shown in the infra menus.' }
 ];
 
@@ -207,10 +227,64 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 			.refine((value) => Number(value) <= 36500, 'Enter 36500 days or fewer.')
 	},
 	{
+		key: 'analytics.provider',
+		group: 'analytics',
+		label: 'Provider',
+		help: 'Where product analytics are sent. Off sends nothing and loads no analytics code.',
+		input: {
+			kind: 'select',
+			options: [
+				{ value: 'none', label: 'Off' },
+				{ value: 'posthog', label: 'PostHog' }
+			]
+		},
+		defaultValue: 'none',
+		schema: z.enum(['none', 'posthog'], 'Choose a provider.')
+	},
+	{
+		key: 'analytics.posthog.host',
+		group: 'analytics',
+		label: 'PostHog host',
+		help: 'The PostHog ingestion address, such as https://us.i.posthog.com, or your own instance.',
+		input: { kind: 'url', placeholder: 'https://us.i.posthog.com' },
+		defaultValue: '',
+		schema: optionalUrl
+	},
+	{
+		key: 'analytics.posthog.token',
+		group: 'analytics',
+		label: 'PostHog project token',
+		help: 'The project API key, starting with phc_. It is public: browsers receive it to send events.',
+		input: { kind: 'text', placeholder: 'phc_...' },
+		defaultValue: '',
+		schema: z.union([
+			z.literal(''),
+			z.string().trim().regex(/^phc_[A-Za-z0-9_-]+$/, 'Enter a project token starting with phc_.')
+		])
+	},
+	{
+		key: 'telemetry.traces_endpoint',
+		group: 'telemetry',
+		label: 'Traces endpoint',
+		help: 'OTLP over HTTP, such as http://jaeger:4318/v1/traces. Auth headers, if the backend needs them, come from OTEL_EXPORTER_OTLP_TRACES_HEADERS. Empty turns tracing off.',
+		input: { kind: 'url', placeholder: 'http://jaeger:4318/v1/traces' },
+		defaultValue: '',
+		schema: optionalUrl
+	},
+	{
+		key: 'telemetry.logs_endpoint',
+		group: 'telemetry',
+		label: 'Logs endpoint',
+		help: 'OTLP over HTTP. For PostHog Logs use https://us.i.posthog.com/i/v1/logs and set OTEL_EXPORTER_OTLP_LOGS_HEADERS to Authorization=Bearer followed by your project token. Other backends take their auth from the same variable. Logs still go to stdout either way. Empty turns export off.',
+		input: { kind: 'url', placeholder: 'https://otlp.example.com/v1/logs' },
+		defaultValue: '',
+		schema: optionalUrl
+	},
+	{
 		key: 'links.analytics_url',
 		group: 'links',
 		label: 'Analytics',
-		help: 'The web analytics dashboard (Umami). Empty hides the link.',
+		help: 'The analytics dashboard, such as your PostHog project. Empty hides the link.',
 		input: { kind: 'url', placeholder: 'https://analytics.example.com' },
 		defaultValue: 'https://analytics.turfbuilder.org',
 		schema: optionalUrl
@@ -219,7 +293,7 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 		key: 'links.tracing_url',
 		group: 'links',
 		label: 'Tracing',
-		help: 'The tracing UI (Jaeger). Keep it behind access control; Jaeger has no sign-in of its own. Empty hides the link.',
+		help: 'The tracing UI, such as Jaeger. Keep it behind access control; Jaeger has no sign-in of its own. Empty hides the link.',
 		input: { kind: 'url', placeholder: 'http://localhost:16686' },
 		defaultValue: '',
 		schema: optionalUrl
