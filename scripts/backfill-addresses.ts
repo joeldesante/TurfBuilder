@@ -593,7 +593,7 @@ async function main() {
 			`SELECT to_regclass('universe.org_contact') IS NOT NULL AS ready`
 		);
 		if (!schema.rows[0].ready) {
-			throw new Error('universe.org_contact does not exist. Run /infra/migrate first.');
+			throw new Error('universe.org_contact does not exist. Run npm run migrate first.');
 		}
 
 		const orgs = await pool.query<{ id: string; name: string }>(

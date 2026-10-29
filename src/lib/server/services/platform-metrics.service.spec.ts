@@ -26,7 +26,6 @@ vi.mock('./time-series.service', () => ({
 }));
 vi.mock('./audit.service', () => ({ queryAuditPage: m.queryAuditPage }));
 vi.mock('./email-log.service', () => ({ emailLogTotals: m.emailLogTotals }));
-vi.mock('./migrations.service', () => ({ isMigrationNeeded: vi.fn(async () => true) }));
 vi.mock('./system-settings.service', () => ({ getExternalLinks: vi.fn(async () => [{ label: 'Analytics', url: 'https://a' }]) }));
 
 import { getPlatformMetric, getPlatformMetrics, getPlatformOverview, resolveWindow } from './platform-metrics.service';
@@ -133,7 +132,7 @@ describe('getPlatformOverview', () => {
 			organizations: 7,
 			activeOrgs30d: 5,
 			emails7d: { sent: 9, failed: 1 },
-			status: { mailConfigured: true, storageConfigured: false, migrationNeeded: true, failedEmails24h: 1, failedDocuments24h: 2 }
+			status: { mailConfigured: true, storageConfigured: false, failedEmails24h: 1, failedDocuments24h: 2 }
 		});
 		expect(overview.externalLinks).toHaveLength(1);
 	});

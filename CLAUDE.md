@@ -52,7 +52,7 @@ npm run storybook        # Storybook dev server
 - **Framework:** SvelteKit 5 with Svelte 5 runes, TypeScript strict mode
 - **Database:** PostgreSQL + PostGIS (geospatial), accessed via `pg` driver
 - **Auth:** better-auth (sessions, org membership) + custom RBAC + PostgreSQL RLS
-- **Migrations:** idempotent SQL in `src/lib/server/setup-schema.ts` (run via `/setup` or `/infra/migrate`, which calls `POST /api/v1/migrations`)
+- **Migrations:** node-pg-migrate SQL files in `migrations/`, run by `npm run migrate` and automatically before each deploy (`.github/workflows/deploy.yml`). First installs still use the `/setup` wizard, which runs `src/lib/server/setup-schema.ts`
 - **Maps:** MapLibre GL + @geoman-io/maplibre-geoman-free
 - **Styling:** Tailwind CSS 4
 - **UI primitives:** Bits UI + Phosphor Svelte icons
@@ -312,10 +312,10 @@ Platform tables (no org RLS, on the schema spec's `RLS_EXEMPT` list): `activity_
 
 ## Schema Management
 
-Database schema is managed via `src/lib/server/setup-schema.ts` as idempotent SQL statements. Do not add migration files — update `setup-schema.ts` instead.
+Schema changes are node-pg-migrate SQL files in `migrations/`, applied in filename order, one transaction per file, before each deploy. Create one with `npm run migrate:create <name>` and apply it locally with `npm run migrate`. Never edit or rename a migration that has been merged: environments record applied files by name. A new migration should fail loudly rather than tolerate objects that already exist (the first ten files were moved from `setup-schema.ts` and are safe to rerun; that is the exception).
 
-- **First install:** visit `/setup` to initialize the database and create the admin user
-- **Updates (existing DB):** visit `/infra/migrate` — reruns all schema steps safely; existing data is never modified
+- **First install:** visit `/setup` to initialize the database and create the admin user. The wizard still runs `src/lib/server/setup-schema.ts`, not `migrations/`, so until it is replaced a schema change must also go in `setup-schema.ts`
+- There is no migration page or migration status check in the app; the deploy migrates the database
 - If `/setup` is needed on an existing DB (e.g. broken settings), it stays accessible as long as `system_setting` is missing or unpopulated — hooks redirect to `/setup` instead of 500ing
 
 ### System Settings

@@ -35,8 +35,7 @@ The setup admin's role holds all of them, including ones added later (a migratio
 | Settings | Site-wide settings in tabs, generated from the settings registry |
 | Email templates | Edit each email with a live preview; reset to the shipped text |
 | Email log | Every email the app tried to send |
-| System health | Versions, database size and pool, and whether mail, storage, Chromium, and migrations are set up |
-| Migrate | Runs the schema and data steps |
+| System health | Versions, database size and pool, and whether mail, storage, and Chromium are set up |
 
 ## Actions and safeguards
 

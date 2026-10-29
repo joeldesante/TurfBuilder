@@ -40,11 +40,6 @@
 			href: canSettings ? '/infra/settings?tab=storage' : undefined
 		},
 		{
-			ok: !overview.status.migrationNeeded,
-			label: overview.status.migrationNeeded ? 'The database needs a migration' : 'The database is up to date',
-			href: canSettings ? '/infra/migrate' : undefined
-		},
-		{
 			ok: overview.status.failedEmails24h === 0,
 			label:
 				overview.status.failedEmails24h === 0
