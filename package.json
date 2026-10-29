@@ -22,6 +22,7 @@
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
     "migrate": "node --env-file-if-exists=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js up --no-single-transaction --no-verbose --advisory-lock-mode wait",
+    "setup": "tsx scripts/setup.ts",
     "migrate:create": "node-pg-migrate create -j sql --migration-filename-format utc",
     "docs": "tsx scripts/build-docs.ts",
     "import:locations": "tsx scripts/import-locations.ts",
