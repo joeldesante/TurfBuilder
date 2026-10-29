@@ -1,0 +1,55 @@
+# Migrates one environment's database with node-pg-migrate. Rendered and applied
+# by .github/workflows/deploy.yml before each rollout, which fills in __ENV__,
+# __SECRET__, and __IMAGE__ (the image about to be rolled out, so the migrations
+# match the code).
+#
+# Migrations run one at a time, in filename order, each in its own transaction,
+# so a failure leaves the earlier ones applied and stops at the broken one.
+# node-pg-migrate also refuses a migration that sorts before one already run, and
+# holds a Postgres advisory lock so two runs cannot overlap.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate-__ENV__
+  namespace: turfbuilder
+  labels:
+    app: turfbuilder-migrate
+    env: __ENV__
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: turfbuilder-migrate
+        env: __ENV__
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: __IMAGE__
+          command:
+            - node
+            - node_modules/node-pg-migrate/bin/node-pg-migrate.js
+            - up
+            - --no-single-transaction
+            - --no-verbose
+            - --advisory-lock-mode
+            - wait
+          envFrom:
+            - secretRef:
+                name: __SECRET__
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: db-ca
+              mountPath: /etc/ssl/db-ca
+              readOnly: true
+      volumes:
+        - name: db-ca
+          secret:
+            secretName: turfbuilder-db-ca
