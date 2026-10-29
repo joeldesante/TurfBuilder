@@ -4,8 +4,7 @@ import { building } from '$app/environment';
 import { redirect, error, isHttpError, isRedirect, type Handle } from '@sveltejs/kit';
 import { POOL, withOrgTransaction } from '$lib/server/database';
 import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
-import { isSetupComplete } from '$lib/server/setup';
-import { getAllSettings, SettingsMissingError } from '$lib/server/settings';
+import { getAllSettings } from '$lib/server/settings';
 import { touchActiveDay } from '$lib/server/services/activity.service';
 import { audit } from '$lib/server/services/audit.service';
 import { logger } from '$lib/server/logger';
@@ -32,39 +31,19 @@ export function handleError({ error: err, event, status, message }) {
 
 const handleRequest: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
-	const isSetupRoute = pathname.startsWith('/setup');
 	const isAuthRoute = pathname.startsWith('/auth');
 
 	if (!building) {
-		if (!isSetupRoute) {
-			// Redirect to setup wizard if the app hasn't been initialised yet.
-			if (!(await isSetupComplete())) {
-				throw redirect(303, '/setup');
-			}
-
-			// Load settings; if missing, redirect to setup rather than hard 500.
-			try {
-				const { app, observability } = await getAllSettings();
-				event.locals.config = app;
-				// Both only act when the settings changed, so a dashboard edit applies without a restart.
-				applyTelemetry(observability.telemetry);
-				await configureAnalytics(observability.analytics);
-				const { provider, posthogHost, posthogToken } = observability.analytics;
-				event.locals.analytics =
-					provider === 'posthog' && posthogHost && posthogToken
-						? { provider, host: posthogHost, token: posthogToken }
-						: null;
-			} catch (e) {
-				if (e instanceof SettingsMissingError) {
-					throw redirect(303, '/setup');
-				}
-				throw e;
-			}
-		}
-	}
-
-	if (isSetupRoute) {
-		return resolve(event);
+		const { app, observability } = await getAllSettings();
+		event.locals.config = app;
+		// Both only act when the settings changed, so a dashboard edit applies without a restart.
+		applyTelemetry(observability.telemetry);
+		await configureAnalytics(observability.analytics);
+		const { provider, posthogHost, posthogToken } = observability.analytics;
+		event.locals.analytics =
+			provider === 'posthog' && posthogHost && posthogToken
+				? { provider, host: posthogHost, token: posthogToken }
+				: null;
 	}
 
 	const auth = await getAuth();

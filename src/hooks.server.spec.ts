@@ -22,7 +22,6 @@ vi.mock('$lib/server/permissions', () => ({
 	resolveOrgPermissions: mocks.resolveOrgPermissions,
 	resolveInfraPermissions: mocks.resolveInfraPermissions
 }));
-vi.mock('$lib/server/setup', () => ({ isSetupComplete: async () => true }));
 vi.mock('$lib/server/settings', () => ({
 	getAllSettings: async () => ({
 		app: {},
