@@ -15,7 +15,7 @@ TB-194: Fix CI and run tests on pull requests before merging
 ```
 
 - Open an issue first if there isn't one. Branches are named `<number>-<slug>`, e.g. `194-fix-ci-tests-on-prs`
-- Always branch from `staging` and open pull requests into `staging`, never from or into `main`. `staging` is the integration branch; `main` only receives staging when releasing. Update first: `git fetch origin && git switch -c <number>-<slug> origin/staging`
+- Always branch from `staging` and open pull requests into `staging`, never from or into `main`. `staging` is the integration branch; `main` only receives staging when releasing. Update first: `git fetch origin && git switch -c <number>-<slug> --no-track origin/staging`. `--no-track` matters: without it the new branch's upstream is `origin/staging`, and `git push` refuses (or, forced, would push onto staging). Publish with `git push -u origin HEAD`, which creates `origin/<number>-<slug>` and makes that the upstream
 - No other prefixes (`feat:`, `fix:`, ...)
 - Enforced locally by `.githooks/commit-msg` (`npm install` sets `core.hooksPath` to `.githooks`) and on pull requests by the required "Commit Format" check (`.github/workflows/commit-format.yml`). Merge commits are exempt
 
