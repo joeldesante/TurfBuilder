@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Moves locations onto structured addresses as contacts (expand step of the
- * address migration, see steps 41 and 42 in src/lib/server/setup-schema.ts).
+ * address migration, see the addresses and contacts migrations in migrations/).
  *
  * Every current location without a contact becomes a 'business' contact that
  * reuses the location's entity id, keeps its photos, and takes its name (an

@@ -10,7 +10,7 @@ A map-based interface for selecting a geographic region and importing data from 
 
 - [ ] Research Overture Maps API — understand tile/region query format and data schema
 - [ ] Design deduplication strategy (e.g. track downloaded regions or tile hashes in the database)
-- [ ] Add schema for tracking import jobs and downloaded regions in `setup-schema.ts`
+- [ ] Add schema for tracking import jobs and downloaded regions in a migration under `migrations/`
 - [ ] Build map selection UI (region bounding box or polygon draw using MapLibre + Geoman)
 - [ ] Build import API endpoint that queries Overture and inserts into the local database
 - [ ] Wire deduplication check into the import endpoint
@@ -92,7 +92,7 @@ Users need a self-service way to reset their password.
 
 Users need to create named, point-in-time snapshots of location/entity data to use as stable inputs for turf cutting and reporting.
 
-- [ ] Define the `list` (snapshot) schema in `setup-schema.ts` — name, created_at, org_id, source query/filters
+- [ ] Define the `list` (snapshot) schema in a migration under `migrations/` — name, created_at, org_id, source query/filters
 - [ ] Define the `list_item` join table linking a list to its constituent location rows
 - [ ] Build API endpoints: create list, read list, delete list, list all lists
 - [ ] Build the list management UI (create, name, view members, delete)
@@ -183,6 +183,6 @@ Tasks that apply across multiple features above.
 
 - [ ] Review and update the permissions matrix after sections 8, 9, and 10 are complete
 - [ ] Run a full end-to-end test pass across the volunteer and staff flows before release
-- [ ] Confirm all new database schema additions are present in `setup-schema.ts` (no migration files)
+- [ ] Confirm all new database schema additions are present in a migration under `migrations/`
 - [ ] Confirm all new components have stories and at least one passing test
 - [ ] Review infra settings page for completeness — telemetry, Stripe toggle, and any other global flags added during this work
