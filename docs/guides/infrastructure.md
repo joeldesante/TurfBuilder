@@ -16,7 +16,7 @@ The panel at `/infra` is for the people who run the instance. Only users with in
 | `users.manage` | Edit, suspend, and delete users; send resets; manage admins |
 | `users.impersonate` | Sign in as another user |
 | `orgs.manage` | Suspend, delete, restore, and transfer organizations; remove members |
-| `settings.manage` | Change settings and email templates, read the email log, run migrations |
+| `settings.manage` | Change settings and email templates, read the email log |
 | `audit.read` | Read the audit log |
 | `locations.overture_sync` | Run the Overture data sync |
 

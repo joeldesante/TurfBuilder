@@ -32,11 +32,26 @@ Via your preferred command line interface, navigate to the root directory where 
 docker compose up --build frontend-dev
 ```
 
-### 4. Initialize the database
+### 4. Install the setup scripts' dependencies
 
-Once the application is running, open [http://localhost:5173/setup](http://localhost:5173/setup) in your browser. This page will create all required database tables and seed data automatically.
+The next two steps run on your machine and connect to the database container on `localhost:5432`. They need Node 22 or newer.
 
-### 5. Done!
+```
+npm install
+```
+
+### 5. Migrate the database and set up the app
+
+Until this is done, every page answers `503` and says what is missing.
+
+```
+npm run migrate
+npm run setup
+```
+
+`npm run migrate` creates all required database tables and seed data. `npm run setup` asks for the app's URL (use `http://localhost:5173`), a name, and the first admin's details, which are used to sign in. See [Getting Started](docs/getting-started.md) for the questions, the flags for scripted installs, and what to do on staging and production.
+
+### 6. Done!
 
 Assuming everything worked as expected you should be able to access the application at [http://localhost:5173](http://localhost:5173)
 
