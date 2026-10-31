@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers.js';
-import { insertLocation, LOCATION_ROW_COLUMNS, MAX_VIEWPORT_LOCATIONS } from '$lib/server/locations.js';
+import { insertLocation, LOCATION_ROW_COLUMNS, MAX_VIEWPORT_LOCATIONS } from '$lib/server/services/locations.service';
 import { LocationFieldsSchema } from '$lib/schemas/location.js';
 
 const ViewportSchema = z.object({

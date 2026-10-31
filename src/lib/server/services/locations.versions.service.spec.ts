@@ -7,8 +7,12 @@ import {
 	readCurrentVersion,
 	mergeLocationFields,
 	type CurrentVersion
-} from './locations';
+} from './locations.service';
 import type { LocationFields } from '$lib/schemas/location';
+
+vi.mock('$env/dynamic/private', () => ({
+	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
+}));
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const ENTITY = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';

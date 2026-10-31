@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
 import { can } from '$lib/auth-helpers.js';
-import { findPendingProposal, applyApprovedProposal } from '$lib/server/location-edits.js';
+import { findPendingProposal, applyApprovedProposal } from '$lib/server/services/locations.service';
 
 /**
  * Accepts a canvasser's correction into the official dataset.
