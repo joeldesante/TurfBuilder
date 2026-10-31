@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
 	resolveOrgPermissions: vi.fn(async () => ['canvass.use']),
 	resolveInfraPermissions: vi.fn(async () => [] as string[]),
 	touchActiveDay: vi.fn(),
-	audit: vi.fn(async () => undefined)
+	audit: vi.fn(async () => undefined),
+	getAllSettings: vi.fn()
 }));
 
 vi.mock('$app/environment', () => ({ building: false }));
@@ -23,14 +24,15 @@ vi.mock('$lib/server/permissions', () => ({
 	resolveInfraPermissions: mocks.resolveInfraPermissions
 }));
 vi.mock('$lib/server/settings', () => ({
-	getAllSettings: async () => ({
-		app: {},
-		observability: {
-			analytics: { provider: 'none', posthogHost: '', posthogToken: '' },
-			telemetry: { tracesEndpoint: '', logsEndpoint: '' }
+	getAllSettings: mocks.getAllSettings,
+	NotReadyError: class extends Error {
+		constructor(
+			public readonly code: string,
+			public readonly cause?: unknown
+		) {
+			super(code);
 		}
-	}),
-	SettingsMissingError: class extends Error {}
+	}
 }));
 vi.mock('$lib/server/analytics', () => ({
 	analytics: { capture: vi.fn(), captureException: vi.fn() },
@@ -68,6 +70,34 @@ beforeEach(() => {
 	mocks.resolveInfraPermissions.mockResolvedValue([]);
 	mocks.pool.query.mockResolvedValue({ rows: [ORG] });
 	mocks.client.query.mockResolvedValue({ rowCount: 1, rows: [] });
+	mocks.getAllSettings.mockResolvedValue({
+		app: {},
+		observability: {
+			analytics: { provider: 'none', posthogHost: '', posthogToken: '' },
+			telemetry: { tracesEndpoint: '', logsEndpoint: '' }
+		}
+	});
+});
+
+describe('an app that is not ready', () => {
+	it('answers with the error page for the code, without serving the request', async () => {
+		const { NotReadyError } = await import('$lib/server/settings');
+		mocks.getAllSettings.mockRejectedValue(new NotReadyError('APP_NOT_SET_UP'));
+
+		const { event, run } = call('/o/riverside');
+		const res = (await run) as Response;
+
+		expect(res.status).toBe(503);
+		expect(await res.text()).toContain('APP_NOT_SET_UP');
+		expect(mocks.getSession).not.toHaveBeenCalled();
+		expect(event.locals.config).toBeUndefined();
+	});
+
+	it('still fails on an error it does not know', async () => {
+		mocks.getAllSettings.mockRejectedValue(new Error('boom'));
+
+		await expect(call('/o/riverside').run).rejects.toThrow('boom');
+	});
 });
 
 describe('impersonation', () => {

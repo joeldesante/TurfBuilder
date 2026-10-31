@@ -4,7 +4,8 @@ import { building } from '$app/environment';
 import { redirect, error, isHttpError, isRedirect, type Handle } from '@sveltejs/kit';
 import { POOL, withOrgTransaction } from '$lib/server/database';
 import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
-import { getAllSettings } from '$lib/server/settings';
+import { getAllSettings, NotReadyError } from '$lib/server/settings';
+import { errorPage } from '$lib/server/utils/error-page';
 import { touchActiveDay } from '$lib/server/services/activity.service';
 import { audit } from '$lib/server/services/audit.service';
 import { logger } from '$lib/server/logger';
@@ -34,7 +35,18 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 	const isAuthRoute = pathname.startsWith('/auth');
 
 	if (!building) {
-		const { app, observability } = await getAllSettings();
+		let loaded: Awaited<ReturnType<typeof getAllSettings>>;
+		try {
+			loaded = await getAllSettings();
+		} catch (e) {
+			// Not migrated, not set up, or no database: answer with a page that says which.
+			if (e instanceof NotReadyError) {
+				logger.warn({ err: e.cause, code: e.code }, 'The app is not ready, so it answered with an error page');
+				return errorPage(e.code);
+			}
+			throw e;
+		}
+		const { app, observability } = loaded;
 		event.locals.config = app;
 		// Both only act when the settings changed, so a dashboard edit applies without a restart.
 		applyTelemetry(observability.telemetry);
