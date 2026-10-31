@@ -1,4 +1,4 @@
-import { parseTemplateKey } from '$lib/server/request';
+import { parseTemplateKey } from '$lib/server/utils/request';
 import { getEmailTemplate } from '$lib/server/services/email-templates.service';
 
 export async function load({ locals, params }) {
