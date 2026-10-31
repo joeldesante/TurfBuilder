@@ -1,4 +1,4 @@
-import type { ConditionNode, GroupNode, SingleQuery } from './query-builder';
+import type { ConditionNode, GroupNode, SingleQuery } from './query-builder.service';
 
 // ---------------------------------------------------------------------------
 // The form the old bucket and list pages sent. Nothing sends it any more; the

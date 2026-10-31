@@ -4,8 +4,8 @@
 	import Textarea from '$components/data-inputs/textarea/Textarea.svelte';
 	import SqlPreview from '$components/data-display/sql-preview/SqlPreview.svelte';
 	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
-	import { convertBucketFilter } from '$lib/server/filter-converter';
-	import type { BucketFilterInput, StoredBucketFilter } from '$lib/server/filter-converter';
+	import { convertBucketFilter } from '$lib/server/services/filter-converter.service';
+	import type { BucketFilterInput, StoredBucketFilter } from '$lib/server/services/filter-converter.service';
 	import { buildFilterQuery, convertLegacyBucketFilter } from '$lib/server/services/filters.service';
 	import type { FilterQuery } from '$lib/server/services/filters.service';
 	import type { BucketFilters, FilterEntity } from '$lib/shared/types/filters';

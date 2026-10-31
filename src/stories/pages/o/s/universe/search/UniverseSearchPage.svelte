@@ -44,7 +44,7 @@
 
 	interface Props {
 		orgSlug: string;
-		tableSchemas?: import('$lib/server/db-introspection').TableSchema[];
+		tableSchemas?: import('$lib/server/services/query-builder.service').TableSchema[];
 	}
 
 	const { orgSlug, tableSchemas = [] }: Props = $props();

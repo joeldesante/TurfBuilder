@@ -3,8 +3,8 @@ import { filterGroupSchema } from '$lib/shared/schemas/filters';
 import { getFilter } from '$lib/shared/utils/filter-registry';
 import { isFilterGroup } from '$lib/shared/utils/filters';
 import { encodeChoice } from '$lib/shared/utils/survey-answer';
-import type { ConditionNode, GroupNode, WhereNode } from '$lib/server/query-builder';
-import type { StoredBucketFilter, StoredEntityFilter } from '$lib/server/filter-converter';
+import type { ConditionNode, GroupNode, WhereNode } from '$lib/server/services/query-builder.service';
+import type { StoredBucketFilter, StoredEntityFilter } from '$lib/server/services/filter-converter.service';
 import type {
 	AttemptScope,
 	BucketFilters,

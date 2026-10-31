@@ -7,8 +7,8 @@ import {
 	convertStoredBucketFilter,
 	LegacyFilterError
 } from './filters.service';
-import { convertBucketFilter } from '$lib/server/filter-converter';
-import type { BucketFilterInput, MatchType, StoredBucketFilter } from '$lib/server/filter-converter';
+import { convertBucketFilter } from '$lib/server/services/filter-converter.service';
+import type { BucketFilterInput, MatchType, StoredBucketFilter } from '$lib/server/services/filter-converter.service';
 
 const group = (operator: 'AND' | 'OR', ...filters: unknown[]) => ({ operator, filters });
 const f = (item: string, operation: string, value: unknown, extra = {}) => ({

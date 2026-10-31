@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { buildFilterQuery, FILTER_COLUMNS } from './services/filters.service';
+import { buildFilterQuery, FILTER_COLUMNS } from './filters.service';
 import type { BucketFilters } from '$lib/shared/types/filters';
 import { rangeInterval, type DashboardRange } from '$lib/dashboard-range';
 

@@ -8,7 +8,7 @@
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import GlobeIcon from 'phosphor-svelte/lib/Globe';
 	import StackIcon from 'phosphor-svelte/lib/Stack';
-	import type { DashboardProgress, DashboardPoint } from '$lib/server/dashboard';
+	import type { DashboardProgress, DashboardPoint } from '$lib/server/services/dashboard.service';
 	import { rangeLabel, type DashboardRange } from '$lib/dashboard-range';
 
 	interface Props {

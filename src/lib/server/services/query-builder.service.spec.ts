@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { schemaToSqlQuery } from './query-builder';
+import { schemaToSqlQuery } from './query-builder.service';
 
 describe('schemaToSqlQuery', () => {
 	test('basic select, no where', () => {

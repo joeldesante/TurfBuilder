@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getDashboardPoints, getDashboardProgress } from './dashboard';
+import { getDashboardPoints, getDashboardProgress } from './dashboard.service';
 import type { BucketFilters } from '$lib/shared/types/filters';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';

@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import StaffDashboardPage from './StaffDashboardPage.svelte';
-	import type { DashboardPoint } from '$lib/server/dashboard';
+	import type { DashboardPoint } from '$lib/server/services/dashboard.service';
 
 	const buckets = [
 		{ id: 'b1', slug: 'germantown-ave', name: 'Germantown Ave businesses' },

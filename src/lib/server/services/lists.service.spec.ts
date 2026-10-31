@@ -28,7 +28,7 @@ const BUCKET = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const found = { rowCount: 1, rows: [{ id: BUCKET }] };
 
 import { createBucketList, createList, listBucketLists, listListEntries } from './lists.service';
-import { convertBucketFilter } from '$lib/server/filter-converter';
+import { convertBucketFilter } from '$lib/server/services/filter-converter.service';
 import type { BucketFilters } from '$lib/shared/types/filters';
 
 function stub(member = true) {

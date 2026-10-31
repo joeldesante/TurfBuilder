@@ -1,4 +1,4 @@
-import { getTableSchemas } from '$lib/server/db-introspection';
+import { getTableSchemas } from '$lib/server/services/query-builder.service';
 
 export async function load({ locals }) {
 	const tableSchemas = await getTableSchemas(['universe', 'public']);
