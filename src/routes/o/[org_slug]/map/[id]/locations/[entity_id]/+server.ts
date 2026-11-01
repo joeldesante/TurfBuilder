@@ -4,8 +4,8 @@ import {
 	createLocationVersion,
 	mergeLocationFields,
 	readCurrentVersion
-} from '$lib/server/locations.js';
-import { findEditableSuggestion, isInsideTurf } from '$lib/server/suggestions.js';
+} from '$lib/server/services/locations.service';
+import { findEditableSuggestion, isInsideTurf } from '$lib/server/services/suggestions.service';
 import { LocationPatchSchema } from '$lib/schemas/location.js';
 
 const LOCKED =

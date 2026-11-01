@@ -4,8 +4,8 @@ import { building } from '$app/environment';
 import { redirect, error, isHttpError, isRedirect, type Handle } from '@sveltejs/kit';
 import { POOL, withOrgTransaction } from '$lib/server/database';
 import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
-import { isSetupComplete } from '$lib/server/setup';
-import { getAllSettings, SettingsMissingError } from '$lib/server/settings';
+import { getAllSettings, NotReadyError } from '$lib/server/settings';
+import { errorPage } from '$lib/server/utils/error-page';
 import { touchActiveDay } from '$lib/server/services/activity.service';
 import { audit } from '$lib/server/services/audit.service';
 import { logger } from '$lib/server/logger';
@@ -32,39 +32,30 @@ export function handleError({ error: err, event, status, message }) {
 
 const handleRequest: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
-	const isSetupRoute = pathname.startsWith('/setup');
 	const isAuthRoute = pathname.startsWith('/auth');
 
 	if (!building) {
-		if (!isSetupRoute) {
-			// Redirect to setup wizard if the app hasn't been initialised yet.
-			if (!(await isSetupComplete())) {
-				throw redirect(303, '/setup');
+		let loaded: Awaited<ReturnType<typeof getAllSettings>>;
+		try {
+			loaded = await getAllSettings();
+		} catch (e) {
+			// Not migrated, not set up, or no database: answer with a page that says which.
+			if (e instanceof NotReadyError) {
+				logger.warn({ err: e.cause, code: e.code }, 'The app is not ready, so it answered with an error page');
+				return errorPage(e.code);
 			}
-
-			// Load settings; if missing, redirect to setup rather than hard 500.
-			try {
-				const { app, observability } = await getAllSettings();
-				event.locals.config = app;
-				// Both only act when the settings changed, so a dashboard edit applies without a restart.
-				applyTelemetry(observability.telemetry);
-				await configureAnalytics(observability.analytics);
-				const { provider, posthogHost, posthogToken } = observability.analytics;
-				event.locals.analytics =
-					provider === 'posthog' && posthogHost && posthogToken
-						? { provider, host: posthogHost, token: posthogToken }
-						: null;
-			} catch (e) {
-				if (e instanceof SettingsMissingError) {
-					throw redirect(303, '/setup');
-				}
-				throw e;
-			}
+			throw e;
 		}
-	}
-
-	if (isSetupRoute) {
-		return resolve(event);
+		const { app, observability } = loaded;
+		event.locals.config = app;
+		// Both only act when the settings changed, so a dashboard edit applies without a restart.
+		applyTelemetry(observability.telemetry);
+		await configureAnalytics(observability.analytics);
+		const { provider, posthogHost, posthogToken } = observability.analytics;
+		event.locals.analytics =
+			provider === 'posthog' && posthogHost && posthogToken
+				? { provider, host: posthogHost, token: posthogToken }
+				: null;
 	}
 
 	const auth = await getAuth();

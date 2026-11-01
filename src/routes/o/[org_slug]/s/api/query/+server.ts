@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { runQueries } from '$lib/server/query-builder';
+import { runQueries } from '$lib/server/services/query-builder.service';
 import { logger } from '$lib/server/logger';
 
 export async function POST({ request, locals }) {

@@ -1,31 +1,46 @@
 import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { DATABASE_URL } from './config';
 import { gotoHydrated } from './helpers';
 
-test('application setup flow', async ({ page }) => {
-  await gotoHydrated(page, '/setup');
-  await expect(async () => {
-    await page.getByRole('button', { name: 'Test Connection' }).click();
-    await expect(page.getByText('Connected successfully.')).toBeVisible({ timeout: 5_000 });
-  }).toPass({ timeout: 60_000 });
-  await page.getByRole('button', { name: 'Continue →' }).click();
-  await page.getByRole('button', { name: 'Initialize Database' }).click();
-  await page.getByRole('button', { name: 'Continue →' }).click();
-  await expect(page.getByRole('textbox', { name: 'Base URL' })).toHaveValue('http://localhost:5173');
-  await expect(page.getByRole('textbox', { name: 'Application Name' })).toHaveValue('TurfBuilder');
-  await page.getByRole('button', { name: 'Save & Continue →' }).click();
-  await page.getByRole('button', { name: 'Skip' }).click();
-  await page.getByRole('textbox', { name: 'Full Name' }).click();
-  await page.getByRole('textbox', { name: 'Full Name' }).fill('Test McGee');
-  await page.getByRole('textbox', { name: 'Username' }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('testmcgee');
-  await page.getByRole('textbox', { name: 'Email Address' }).click();
-  await page.getByRole('textbox', { name: 'Email Address' }).fill('test@example.com');
-  await page.getByRole('textbox', { name: 'Password', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Password', exact: true }).fill('Password123');
-  await page.getByRole('textbox', { name: 'Confirm Password' }).click();
-  await page.getByRole('textbox', { name: 'Confirm Password' }).fill('Password123');
-  await page.getByRole('button', { name: 'Create Admin Account' }).click();
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+/** Runs an npm script against the e2e database, the way an operator would. */
+function npm(args: string[], input?: string): string {
+	return execFileSync('npm', ['run', ...args], {
+		env: { ...process.env, DATABASE_URL },
+		input,
+		encoding: 'utf8',
+		stdio: ['pipe', 'pipe', 'pipe']
+	});
+}
+
+test('migrating and setting up the database with the CLI', async ({ page }) => {
+	// The database container can still be starting when the app answers.
+	await expect(async () => {
+		npm(['migrate']);
+	}).toPass({ timeout: 60_000 });
+
+	npm(
+		[
+			'setup',
+			'--',
+			'--no-input',
+			'--password-stdin',
+			'--base-url',
+			'http://localhost:5173',
+			'--app-name',
+			'TurfBuilder',
+			'--admin-name',
+			'Test McGee',
+			'--admin-username',
+			'testmcgee',
+			'--admin-email',
+			'test@example.com'
+		],
+		'Password123\n'
+	);
+
+	await gotoHydrated(page, '/auth/signin');
+	await expect(page.locator('body')).toMatchAriaSnapshot(`
     - img "Logo"
     - text: Email or Username
     - textbox "Email or Username"

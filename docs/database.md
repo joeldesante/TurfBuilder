@@ -1,6 +1,6 @@
 # Database Schema
 
-Entity-relationship diagrams for the whole database, drawn from `src/lib/server/setup-schema.ts`. When that file changes, update this page.
+Entity-relationship diagrams for the whole database, drawn from the migration files in `migrations/`. When a migration changes the schema, update this page.
 
 There are three schemas:
 

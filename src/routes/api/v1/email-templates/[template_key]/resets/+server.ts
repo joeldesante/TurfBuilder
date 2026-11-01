@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/list-access';
-import { parseTemplateKey } from '$lib/server/request';
+import { parseTemplateKey } from '$lib/server/utils/request';
 import { resetEmailTemplate } from '$lib/server/services/email-templates.service';
 
 /**

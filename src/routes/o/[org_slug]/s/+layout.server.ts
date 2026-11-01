@@ -3,7 +3,7 @@ import { can } from '$lib/auth-helpers';
 import { getActivePlugins } from '$lib/server/plugins';
 import { withOrgTransaction } from '$lib/server/database';
 import { listBucketNavigation } from '$lib/server/services/buckets.service';
-import { isEmailVerificationDisabled } from '$lib/server/security';
+import { isEmailVerificationDisabled } from '$lib/server/utils/security';
 
 export async function load({ locals, parent }) {
 	const parentData = await parent();

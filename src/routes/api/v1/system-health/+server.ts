@@ -5,7 +5,7 @@ import { getSystemHealth } from '$lib/server/services/system-health.service';
 
 /**
  * How the running instance is doing: Node and Postgres versions, database size and largest tables,
- * connection pool use, and whether migrations, mail, storage, and Chromium are set up.
+ * connection pool use, and whether mail, storage, and Chromium are set up.
  *
  * @auth infra access
  * @returns `SystemHealth`. 401 when signed out, 403 without infra access

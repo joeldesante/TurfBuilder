@@ -387,20 +387,6 @@ One platform metric over a time range, as chart data or CSV.
 
 ---
 
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/migrations`
-
-Runs every schema step, then the data steps (legacy bucket filter conversion,
-activity backfill, activity pruning), streaming progress as server-sent events.
-Safe to rerun on an existing database.
-
-**Auth:** infra settings.manage  
-
-**Response**
-
-`text/event-stream` of `{ step, total, label, status, error?, detail? }`, ending with `{ done: true }`. 401 when signed out, 403 without settings.manage
-
----
-
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations`
 
 Every organization on the instance, one page at a time. Deleted ones only with `status=deleted`.
@@ -622,6 +608,7 @@ The organization's members, one page at a time, ordered by name, each with their
 | Name | Type | Description |
 |------|------|-------------|
 | `page` | `number` | Optional. 1-based page of 100; out-of-range values are clamped to the nearest page |
+| `q` | `string` | Optional. Only members whose name or email contains this |
 
 **Response**
 
@@ -828,7 +815,7 @@ The questions as `GET` returns them. 400 for an invalid id or body, or an `id` t
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/system-health`
 
 How the running instance is doing: Node and Postgres versions, database size and largest tables,
-connection pool use, and whether migrations, mail, storage, and Chromium are set up.
+connection pool use, and whether mail, storage, and Chromium are set up.
 
 **Auth:** infra access  
 

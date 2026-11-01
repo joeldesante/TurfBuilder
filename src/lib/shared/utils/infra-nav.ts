@@ -12,7 +12,6 @@ export type InfraNavIcon =
 	| 'email'
 	| 'email-log'
 	| 'health'
-	| 'migrate'
 	| 'external';
 
 export interface InfraNavLink {
@@ -61,8 +60,7 @@ const PAGES: { label: string | null; entries: Entry[] }[] = [
 	{
 		label: 'System',
 		entries: [
-			{ label: 'Health', href: '/infra/system', icon: 'health', permission: 'access' },
-			{ label: 'Migrate', href: '/infra/migrate', icon: 'migrate', permission: 'settings.manage' }
+			{ label: 'Health', href: '/infra/system', icon: 'health', permission: 'access' }
 		]
 	}
 ];

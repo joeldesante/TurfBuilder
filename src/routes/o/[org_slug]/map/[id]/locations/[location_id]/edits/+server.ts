@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
-import { findWritableTurf, isInsideTurf } from '$lib/server/suggestions.js';
-import { findEditTarget, insertEditProposal } from '$lib/server/location-edits.js';
+import { findWritableTurf, isInsideTurf } from '$lib/server/services/suggestions.service';
+import { findEditTarget, insertEditProposal } from '$lib/server/services/locations.service';
 import { LocationEditProposalSchema } from '$lib/schemas/location.js';
 
 /** Cap on open corrections per canvasser per turf. */

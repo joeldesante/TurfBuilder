@@ -19,11 +19,6 @@
 
 	const checks = $derived([
 		{
-			ok: !status.migrationNeeded,
-			label: status.migrationNeeded ? 'The database needs a migration' : 'The database is up to date',
-			href: canSettings ? '/infra/migrate' : undefined
-		},
-		{
 			ok: status.mailConfigured,
 			label: status.mailConfigured ? 'Mail is set up' : 'Mail is not set up',
 			href: canSettings ? '/infra/settings?tab=email' : undefined

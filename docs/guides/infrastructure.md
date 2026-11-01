@@ -16,7 +16,7 @@ The panel at `/infra` is for the people who run the instance. Only users with in
 | `users.manage` | Edit, suspend, and delete users; send resets; manage admins |
 | `users.impersonate` | Sign in as another user |
 | `orgs.manage` | Suspend, delete, restore, and transfer organizations; remove members |
-| `settings.manage` | Change settings and email templates, read the email log, run migrations |
+| `settings.manage` | Change settings and email templates, read the email log |
 | `audit.read` | Read the audit log |
 | `locations.overture_sync` | Run the Overture data sync |
 
@@ -35,8 +35,7 @@ The setup admin's role holds all of them, including ones added later (a migratio
 | Settings | Site-wide settings in tabs, generated from the settings registry |
 | Email templates | Edit each email with a live preview; reset to the shipped text |
 | Email log | Every email the app tried to send |
-| System health | Versions, database size and pool, and whether mail, storage, Chromium, and migrations are set up |
-| Migrate | Runs the schema and data steps |
+| System health | Versions, database size and pool, and whether mail, storage, and Chromium are set up |
 
 ## Actions and safeguards
 

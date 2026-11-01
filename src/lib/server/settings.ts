@@ -1,5 +1,6 @@
 import { POOL } from '$lib/server/database';
 import { SETTINGS_BY_KEY } from '$lib/shared/registries/system-settings';
+import type { ErrorCode } from '$lib/shared/registries/error-codes';
 
 export interface AppSettings {
 	base_url: string;
@@ -32,15 +33,17 @@ export async function getAllSettings(): Promise<{ app: AppSettings; observabilit
 			`SELECT key, value FROM system_setting`
 		);
 		rows = result.rows;
-	} catch {
-		throw new SettingsMissingError('(database not initialised — run /setup)');
+	} catch (e) {
+		// 42P01 is a missing table: the database answers but has not been migrated.
+		const code = (e as { code?: string }).code === '42P01' ? 'APP_NOT_MIGRATED' : 'DATABASE_UNREACHABLE';
+		throw new NotReadyError(code, e);
 	}
 
 	const raw = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 
 	for (const key of REQUIRED) {
 		if (!raw[key]) {
-			throw new SettingsMissingError(key);
+			throw new NotReadyError('APP_NOT_SET_UP', `Required system setting '${key}' has not been configured`);
 		}
 	}
 
@@ -68,10 +71,12 @@ export async function getAllSettings(): Promise<{ app: AppSettings; observabilit
 	};
 }
 
-export class SettingsMissingError extends Error {
-	constructor(public readonly key: string) {
-		super(
-			`Required system setting '${key}' has not been configured. Please complete the setup wizard at /setup.`
-		);
+/** The app cannot serve yet. The code picks the page shown (see error-codes.ts); the cause is kept for the log. */
+export class NotReadyError extends Error {
+	constructor(
+		public readonly code: ErrorCode,
+		cause?: unknown
+	) {
+		super(`The app is not ready: ${code}`, { cause });
 	}
 }

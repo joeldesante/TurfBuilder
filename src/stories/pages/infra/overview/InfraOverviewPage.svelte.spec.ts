@@ -11,25 +11,25 @@ describe('InfraOverviewPage', () => {
 	});
 
 	test('lists what needs attention, linking to where it is fixed', async () => {
-		const { getByRole } = render(InfraOverviewPage, {
+		const { getByRole, getByText } = render(InfraOverviewPage, {
 			props: {
-				overview: { ...overview, status: { ...overview.status, migrationNeeded: true, failedEmails24h: 4 } },
+				overview: { ...overview, status: { ...overview.status, storageConfigured: false, failedEmails24h: 4 } },
 				permissions
 			}
 		});
 
 		await expect.element(getByRole('heading', { name: '2 things need attention' })).toBeVisible();
-		await expect.element(getByRole('link', { name: 'The database needs a migration' })).toHaveAttribute('href', '/infra/migrate');
+		await expect.element(getByRole('link', { name: 'Storage is not set up; photos and PDFs fail' })).toHaveAttribute('href', '/infra/settings?tab=storage');
 		await expect.element(getByRole('link', { name: '4 emails failed in 24 hours' })).toBeVisible();
 	});
 
 	test('does not link to settings pages the admin cannot open', async () => {
 		const { getByRole, getByText } = render(InfraOverviewPage, {
-			props: { overview: { ...overview, status: { ...overview.status, migrationNeeded: true } }, permissions: ['access'] }
+			props: { overview: { ...overview, status: { ...overview.status, storageConfigured: false } }, permissions: ['access'] }
 		});
 
-		await expect.element(getByText('The database needs a migration')).toBeVisible();
-		await expect.element(getByRole('link', { name: 'The database needs a migration' })).not.toBeInTheDocument();
+		await expect.element(getByText('Storage is not set up; photos and PDFs fail')).toBeVisible();
+		await expect.element(getByRole('link', { name: 'Storage is not set up; photos and PDFs fail' })).not.toBeInTheDocument();
 	});
 
 	test('links recent accounts and organizations to their pages', async () => {

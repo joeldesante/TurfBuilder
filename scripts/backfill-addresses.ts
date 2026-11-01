@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Moves locations onto structured addresses as contacts (expand step of the
- * address migration, see steps 41 and 42 in src/lib/server/setup-schema.ts).
+ * address migration, see the addresses and contacts migrations in migrations/).
  *
  * Every current location without a contact becomes a 'business' contact that
  * reuses the location's entity id, keeps its photos, and takes its name (an
@@ -593,7 +593,7 @@ async function main() {
 			`SELECT to_regclass('universe.org_contact') IS NOT NULL AS ready`
 		);
 		if (!schema.rows[0].ready) {
-			throw new Error('universe.org_contact does not exist. Run /infra/migrate first.');
+			throw new Error('universe.org_contact does not exist. Run npm run migrate first.');
 		}
 
 		const orgs = await pool.query<{ id: string; name: string }>(

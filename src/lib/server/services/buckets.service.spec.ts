@@ -35,7 +35,7 @@ const found = { rowCount: 1, rows: [{ id: BUCKET, filters: stored }] };
 const invalidFilters = { v: 2, people: 'nope', locations: null };
 
 import type { BucketFilters } from '$lib/shared/types/filters';
-import { convertBucketFilter } from '$lib/server/filter-converter';
+import { convertBucketFilter } from '$lib/server/services/filter-converter.service';
 import {
 	listBuckets,
 	createBucket,

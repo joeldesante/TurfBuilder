@@ -287,7 +287,7 @@ async function main() {
 				`SELECT id FROM universe.entity_type WHERE slug = 'location' LIMIT 1`
 			);
 			if (!typeRes.rows[0]) {
-				console.error('No entity_type with slug "location" found. Run /infra/migrate first.');
+				console.error('No entity_type with slug "location" found. Run npm run migrate first.');
 				process.exit(1);
 			}
 			const entityTypeId = typeRes.rows[0].id;

@@ -22,7 +22,6 @@ export interface SystemHealth {
 		pool: { total: number; idle: number; waiting: number };
 	};
 	status: {
-		migrationNeeded: boolean;
 		mailConfigured: boolean;
 		storageConfigured: boolean;
 		/** Whether PUPPETEER_EXECUTABLE_PATH points PDF generation at a browser. Otherwise Puppeteer uses its own download. */

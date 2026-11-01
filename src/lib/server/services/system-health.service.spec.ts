@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
 	requireInfraPermission: vi.fn(),
 	isMailConfigured: vi.fn(),
 	isStorageConfigured: vi.fn(),
-	isMigrationNeeded: vi.fn(),
 	emailLogTotals: vi.fn()
 }));
 
@@ -15,7 +14,6 @@ vi.mock('$lib/server/database', () => ({ POOL: mocks.pool }));
 vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
 vi.mock('$lib/server/mail', () => ({ isMailConfigured: mocks.isMailConfigured }));
 vi.mock('$lib/server/storage', () => ({ isStorageConfigured: mocks.isStorageConfigured }));
-vi.mock('./migrations.service', () => ({ isMigrationNeeded: mocks.isMigrationNeeded }));
 vi.mock('./email-log.service', () => ({ emailLogTotals: mocks.emailLogTotals }));
 
 import { getSystemHealth } from './system-health.service';
@@ -29,7 +27,6 @@ beforeEach(() => {
 	mocks.requireInfraPermission.mockResolvedValue(undefined);
 	mocks.isMailConfigured.mockResolvedValue(true);
 	mocks.isStorageConfigured.mockResolvedValue(true);
-	mocks.isMigrationNeeded.mockResolvedValue(false);
 	mocks.emailLogTotals.mockResolvedValue({ sent: 5, skipped: 0, failed: 1 });
 	mocks.pool.query.mockImplementation(async (sql: string) => {
 		// postgis_version() also contains "version()", so it is matched first.
@@ -74,7 +71,6 @@ describe('getSystemHealth', () => {
 		const { status } = await getSystemHealth(ADMIN);
 
 		expect(status).toEqual({
-			migrationNeeded: false,
 			mailConfigured: true,
 			storageConfigured: false,
 			chromiumPathSet: true,
@@ -93,12 +89,6 @@ describe('getSystemHealth', () => {
 		});
 
 		expect((await getSystemHealth(ADMIN)).database.postgisVersion).toBeNull();
-	});
-
-	it('treats a failed migration check as needing one', async () => {
-		mocks.isMigrationNeeded.mockRejectedValue(new Error('table missing'));
-
-		expect((await getSystemHealth(ADMIN)).status.migrationNeeded).toBe(true);
 	});
 
 	it('shows the commit only when the deploy sets one', async () => {

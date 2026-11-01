@@ -1,6 +1,6 @@
 # One-off Job: moves locations onto addresses and contacts (scripts/backfill-addresses.ts).
 # Rendered and applied by .github/workflows/backfill-addresses.yml, which fills
-# in __ENV__, __SECRET__, __IMAGE__, and __ARGS__. Run /infra/migrate first.
+# in __ENV__, __SECRET__, __IMAGE__, and __ARGS__. The deploy runs the migrations first.
 #
 # libpostal holds about 2 GB in memory, more than the app's nodes have free,
 # so the pod runs on a dedicated node pool named "backfill", tainted so that

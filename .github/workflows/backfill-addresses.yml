@@ -5,7 +5,7 @@ name: Backfill Addresses
 # Actions tab: first as a dry run, then with "apply" checked.
 #
 # Before running:
-#   1. Deploy the release and run /infra/migrate in that environment.
+#   1. Deploy the release and make sure the migrations have run in that environment (the deploy does this).
 #   2. Create the node pool the Job runs on (libpostal needs about 2 GB):
 #        doctl kubernetes cluster node-pool create turfbuilder-k8s \
 #          --name backfill --size s-2vcpu-4gb --count 1 \

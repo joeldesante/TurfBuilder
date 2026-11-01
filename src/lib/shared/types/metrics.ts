@@ -50,7 +50,6 @@ export interface Comparison {
 export interface OverviewStatus {
 	mailConfigured: boolean;
 	storageConfigured: boolean;
-	migrationNeeded: boolean;
 	failedEmails24h: number;
 	failedDocuments24h: number;
 }

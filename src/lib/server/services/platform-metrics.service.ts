@@ -5,7 +5,6 @@ import { isStorageConfigured } from '$lib/server/storage';
 import { countBefore, earliest, rollingActiveUsers, timeSeries } from './time-series.service';
 import { queryAuditPage } from './audit.service';
 import { emailLogTotals } from './email-log.service';
-import { isMigrationNeeded } from './migrations.service';
 import { getExternalLinks } from './system-settings.service';
 import { rangeStart, type DashboardRange } from '$lib/dashboard-range';
 import { activityEventLabel } from '$lib/shared/registries/activity-events';
@@ -414,13 +413,13 @@ export async function getPlatformOverview(userId: string): Promise<PlatformOverv
 		),
 		emailLogTotals(7),
 		orgSizes(),
-		Promise.all([isMailConfigured(), isStorageConfigured().catch(() => false), isMigrationNeeded().catch(() => true), emailLogTotals(1)]),
+		Promise.all([isMailConfigured(), isStorageConfigured().catch(() => false), emailLogTotals(1)]),
 		getExternalLinks(),
 		canInfra(userId, 'audit.read')
 	]);
 
 	const c = counts.rows[0];
-	const [mailConfigured, storageConfigured, migrationNeeded, emailsToday] = status;
+	const [mailConfigured, storageConfigured, emailsToday] = status;
 
 	return {
 		users: Number(c.users),
@@ -445,7 +444,6 @@ export async function getPlatformOverview(userId: string): Promise<PlatformOverv
 		status: {
 			mailConfigured,
 			storageConfigured,
-			migrationNeeded,
 			failedEmails24h: emailsToday.failed,
 			failedDocuments24h: Number(c.failed_documents)
 		},

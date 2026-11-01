@@ -1,5 +1,5 @@
 import { redirect, error } from '@sveltejs/kit';
-import { isEmailVerificationDisabled } from '$lib/server/security';
+import { isEmailVerificationDisabled } from '$lib/server/utils/security';
 
 export async function load({ locals, parent }) {
 	const parentData = await parent();

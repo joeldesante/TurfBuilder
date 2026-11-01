@@ -65,6 +65,7 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true \
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
+COPY migrations ./migrations
 COPY package.json package-lock.json* ./
 
 ENV HOST=0.0.0.0

@@ -24,7 +24,6 @@ describe('buildInfraNav', () => {
 		expect(all).toContain('/infra/admins');
 		expect(all).toContain('/infra/audit');
 		expect(all).toContain('/infra/settings/email/templates');
-		expect(all).toContain('/infra/migrate');
 	});
 
 	it('leaves out groups the admin can open nothing in', () => {
