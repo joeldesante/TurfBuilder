@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
-import { parseBody } from '$lib/server/request';
+import { parseBody } from '$lib/server/utils/request';
 import { deleteUserSchema, updateUserSchema } from '$lib/shared/schemas/platform-users';
 import { deleteUser, getUser, updateUser } from '$lib/server/services/platform-users.service';
 import { analytics } from '$lib/server/analytics';

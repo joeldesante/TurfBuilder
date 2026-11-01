@@ -8,7 +8,7 @@ import {
 	updateOrganization
 } from '$lib/server/services/organizations.service';
 import { deleteOrg } from '$lib/server/services/platform-organizations.service';
-import { parseBody } from '$lib/server/request';
+import { parseBody } from '$lib/server/utils/request';
 import { deleteOrgSchema } from '$lib/shared/schemas/platform-organizations';
 
 const slugSchema = z

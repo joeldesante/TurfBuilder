@@ -4,7 +4,6 @@ import { isMailConfigured } from '$lib/server/mail';
 import { requireInfraPermission } from '$lib/server/permissions';
 import { isStorageConfigured } from '$lib/server/storage';
 import { emailLogTotals } from './email-log.service';
-import { isMigrationNeeded } from './migrations.service';
 import type { SystemHealth } from '$lib/shared/types/system-health';
 
 /** "PostgreSQL 16.2 on x86_64..." as "16.2". */
@@ -21,7 +20,7 @@ function shortVersion(full: string): string {
 export async function getSystemHealth(userId: string): Promise<SystemHealth> {
 	await requireInfraPermission(userId, 'access');
 
-	const [version, postgis, size, tables, documents, migrationNeeded, mailConfigured, storageConfigured, emails] = await Promise.all([
+	const [version, postgis, size, tables, documents, mailConfigured, storageConfigured, emails] = await Promise.all([
 		POOL.query<{ v: string }>(`SELECT version() AS v`),
 		POOL.query<{ v: string }>(`SELECT postgis_version() AS v`).catch(() => null),
 		POOL.query<{ bytes: string }>(`SELECT pg_database_size(current_database()) AS bytes`),
@@ -39,7 +38,6 @@ export async function getSystemHealth(userId: string): Promise<SystemHealth> {
 		POOL.query<{ n: string }>(
 			`SELECT COUNT(*) AS n FROM activity_event WHERE type = 'document.failed' AND occurred_at > now() - interval '24 hours'`
 		),
-		isMigrationNeeded().catch(() => true),
 		isMailConfigured().catch(() => false),
 		isStorageConfigured().catch(() => false),
 		emailLogTotals(1)
@@ -59,7 +57,6 @@ export async function getSystemHealth(userId: string): Promise<SystemHealth> {
 			pool: { total: POOL.totalCount, idle: POOL.idleCount, waiting: POOL.waitingCount }
 		},
 		status: {
-			migrationNeeded,
 			mailConfigured,
 			storageConfigured,
 			chromiumPathSet: Boolean(env.PUPPETEER_EXECUTABLE_PATH),

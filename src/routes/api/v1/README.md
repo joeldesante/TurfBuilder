@@ -127,4 +127,3 @@ Errors are SvelteKit `error(status, message)`, answered as `{ message }`. Messag
 | POST | /api/v1/mail-tests | settings.manage |
 | POST | /api/v1/storage-tests | settings.manage |
 | GET | /api/v1/system-health | access |
-| POST | /api/v1/migrations | settings.manage |

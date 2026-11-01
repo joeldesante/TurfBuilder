@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
-import { parseBody } from '$lib/server/request';
+import { parseBody } from '$lib/server/utils/request';
 import { suspendOrgSchema } from '$lib/shared/schemas/platform-organizations';
 import { suspendOrg, unsuspendOrg } from '$lib/server/services/platform-organizations.service';
 

@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { isEmailVerificationDisabled } from '$lib/server/security';
+import { isEmailVerificationDisabled } from '$lib/server/utils/security';
 
 export async function load({ locals }) {
 	if (!locals.user) {

@@ -9,7 +9,6 @@ import GearIcon from 'phosphor-svelte/lib/Gear';
 import EnvelopeIcon from 'phosphor-svelte/lib/Envelope';
 import TrayIcon from 'phosphor-svelte/lib/Tray';
 import HeartbeatIcon from 'phosphor-svelte/lib/Heartbeat';
-import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwise';
 import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOut';
 import type { InfraNavIcon } from '$lib/shared/utils/infra-nav';
 
@@ -25,6 +24,5 @@ export const INFRA_NAV_ICONS: Record<InfraNavIcon, Component> = {
 	email: EnvelopeIcon,
 	'email-log': TrayIcon,
 	health: HeartbeatIcon,
-	migrate: ArrowsClockwiseIcon,
 	external: ArrowSquareOutIcon
 };

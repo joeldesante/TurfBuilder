@@ -21,7 +21,7 @@
 	args={{
 		overview: {
 			...overview,
-			status: { mailConfigured: false, storageConfigured: true, migrationNeeded: true, failedEmails24h: 4, failedDocuments24h: 1 }
+			status: { mailConfigured: false, storageConfigured: true, failedEmails24h: 4, failedDocuments24h: 1 }
 		},
 		permissions
 	}}

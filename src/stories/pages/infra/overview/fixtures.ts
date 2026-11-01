@@ -42,7 +42,7 @@ export const overview: PlatformOverview = {
 			createdAt: '2026-10-19T12:00:00.000Z'
 		}
 	],
-	status: { mailConfigured: true, storageConfigured: true, migrationNeeded: false, failedEmails24h: 0, failedDocuments24h: 0 },
+	status: { mailConfigured: true, storageConfigured: true, failedEmails24h: 0, failedDocuments24h: 0 },
 	externalLinks: [
 		{ label: 'Analytics', url: 'https://analytics.turfbuilder.org' },
 		{ label: 'Tracing', url: 'https://jaeger.example.org' }

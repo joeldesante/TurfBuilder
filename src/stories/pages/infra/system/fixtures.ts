@@ -13,7 +13,6 @@ export const health: SystemHealth = {
 		pool: { total: 6, idle: 5, waiting: 0 }
 	},
 	status: {
-		migrationNeeded: false,
 		mailConfigured: true,
 		storageConfigured: true,
 		chromiumPathSet: true,

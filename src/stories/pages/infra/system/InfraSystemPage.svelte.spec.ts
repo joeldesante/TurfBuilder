@@ -6,7 +6,7 @@ import { health, permissions } from './fixtures';
 const broken = {
 	...health,
 	database: { ...health.database, postgisVersion: null },
-	status: { ...health.status, migrationNeeded: true, emails24h: { sent: 3, skipped: 0, failed: 4 } }
+	status: { ...health.status, storageConfigured: false, emails24h: { sent: 3, skipped: 0, failed: 4 } }
 };
 
 describe('InfraSystemPage', () => {
@@ -26,17 +26,17 @@ describe('InfraSystemPage', () => {
 	});
 
 	test('links a problem to where it is fixed', async () => {
-		const { getByRole } = render(InfraSystemPage, { props: { health: broken, permissions } });
+		const { getByRole, getByText } = render(InfraSystemPage, { props: { health: broken, permissions } });
 
-		await expect.element(getByRole('link', { name: 'The database needs a migration' })).toHaveAttribute('href', '/infra/migrate');
+		await expect.element(getByRole('link', { name: 'Storage is not set up' })).toHaveAttribute('href', '/infra/settings?tab=storage');
 		await expect.element(getByRole('link', { name: '4 failed emails in 24 hours' })).toBeVisible();
 	});
 
 	test('does not link to settings the admin cannot open', async () => {
 		const { getByRole, getByText } = render(InfraSystemPage, { props: { health: broken, permissions: ['access'] } });
 
-		await expect.element(getByText('The database needs a migration')).toBeVisible();
-		await expect.element(getByRole('link', { name: 'The database needs a migration' })).not.toBeInTheDocument();
+		await expect.element(getByText('Storage is not set up')).toBeVisible();
+		await expect.element(getByRole('link', { name: 'Storage is not set up' })).not.toBeInTheDocument();
 	});
 
 	test('says when PostGIS is missing', async () => {

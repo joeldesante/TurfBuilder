@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
-import { parseBody } from '$lib/server/request';
+import { parseBody } from '$lib/server/utils/request';
 import { grantInfraRole, listUserInfraRoles } from '$lib/server/services/infra-admins.service';
 
 const grantSchema = z.object({ roleId: z.uuid('Choose a role.') });

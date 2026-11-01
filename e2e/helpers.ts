@@ -11,7 +11,7 @@ export async function gotoHydrated(page: Page, path: string, timeout = 60_000): 
 	await waitForHydration(page, timeout);
 }
 
-/** Signs in as the admin account that setup.spec.ts creates. */
+/** Signs in as the admin account that setup.spec.ts creates with npm run setup. */
 export async function signInAsAdmin(page: Page): Promise<void> {
 	await gotoHydrated(page, '/auth/signin');
 	await page.getByRole('textbox', { name: 'Email or Username' }).fill('test@example.com');

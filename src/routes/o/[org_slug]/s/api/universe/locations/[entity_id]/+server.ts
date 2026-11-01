@@ -6,7 +6,7 @@ import {
 	mergeLocationFields,
 	readCurrentVersion,
 	softDeleteLocation
-} from '$lib/server/locations.js';
+} from '$lib/server/services/locations.service';
 import { LocationPatchSchema } from '$lib/schemas/location.js';
 
 /**

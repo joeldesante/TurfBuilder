@@ -132,7 +132,7 @@ Map rendering fetches the map style, tiles and fonts from `tiles.openfreemap.org
 
 ### Migrations
 
-The `universe.list_document` table, including `deleted_at` and `superseded_by`, and the `spaces.*` settings come from `setup-schema.ts`. Run `/infra/migrate` on existing databases.
+The `universe.list_document` table, including `deleted_at` and `superseded_by`, and the `spaces.*` settings come from the migration files in `migrations/`, which the deploy applies.
 
 ## Editing the template
 

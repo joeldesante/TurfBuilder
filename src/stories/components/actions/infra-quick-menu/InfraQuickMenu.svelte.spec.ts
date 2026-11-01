@@ -21,7 +21,6 @@ describe('InfraQuickMenu', () => {
 
 		await expect.element(page.getByRole('link', { name: 'Overview' })).toBeVisible();
 		await expect.element(page.getByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
-		await expect.element(page.getByRole('link', { name: 'Migrate' })).not.toBeInTheDocument();
 	});
 
 	test('opens external tools in a new tab', async () => {

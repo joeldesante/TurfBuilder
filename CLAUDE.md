@@ -15,7 +15,7 @@ TB-194: Fix CI and run tests on pull requests before merging
 ```
 
 - Open an issue first if there isn't one. Branches are named `<number>-<slug>`, e.g. `194-fix-ci-tests-on-prs`
-- Always branch from `staging` and open pull requests into `staging`, never from or into `main`. `staging` is the integration branch; `main` only receives staging when releasing. Update first: `git fetch origin && git switch -c <number>-<slug> origin/staging`
+- Always branch from `staging` and open pull requests into `staging`, never from or into `main`. `staging` is the integration branch; `main` only receives staging when releasing. Update first: `git fetch origin && git switch -c <number>-<slug> --no-track origin/staging`. `--no-track` matters: without it the new branch's upstream is `origin/staging`, and `git push` refuses (or, forced, would push onto staging). Publish with `git push -u origin HEAD`, which creates `origin/<number>-<slug>` and makes that the upstream
 - No other prefixes (`feat:`, `fix:`, ...)
 - Enforced locally by `.githooks/commit-msg` (`npm install` sets `core.hooksPath` to `.githooks`) and on pull requests by the required "Commit Format" check (`.github/workflows/commit-format.yml`). Merge commits are exempt
 
@@ -52,7 +52,7 @@ npm run storybook        # Storybook dev server
 - **Framework:** SvelteKit 5 with Svelte 5 runes, TypeScript strict mode
 - **Database:** PostgreSQL + PostGIS (geospatial), accessed via `pg` driver
 - **Auth:** better-auth (sessions, org membership) + custom RBAC + PostgreSQL RLS
-- **Migrations:** idempotent SQL in `src/lib/server/setup-schema.ts` (run via `/setup` or `/infra/migrate`, which calls `POST /api/v1/migrations`)
+- **Migrations:** node-pg-migrate SQL files in `migrations/`, run by `npm run migrate` and automatically before each deploy (`.github/workflows/deploy.yml`). First installs run `npm run migrate`, then `npm run setup`
 - **Maps:** MapLibre GL + @geoman-io/maplibre-geoman-free
 - **Styling:** Tailwind CSS 4
 - **UI primitives:** Bits UI + Phosphor Svelte icons
@@ -312,11 +312,10 @@ Platform tables (no org RLS, on the schema spec's `RLS_EXEMPT` list): `activity_
 
 ## Schema Management
 
-Database schema is managed via `src/lib/server/setup-schema.ts` as idempotent SQL statements. Do not add migration files — update `setup-schema.ts` instead.
+Schema changes are node-pg-migrate SQL files in `migrations/`, applied in filename order, one transaction per file, before each deploy. Create one with `npm run migrate:create <name>` and apply it locally with `npm run migrate`. Never edit or rename a migration that has been merged: environments record applied files by name. A new migration should fail loudly rather than tolerate objects that already exist (the first ten files were moved from `setup-schema.ts` and are safe to rerun; that is the exception).
 
-- **First install:** visit `/setup` to initialize the database and create the admin user
-- **Updates (existing DB):** visit `/infra/migrate` — reruns all schema steps safely; existing data is never modified
-- If `/setup` is needed on an existing DB (e.g. broken settings), it stays accessible as long as `system_setting` is missing or unpopulated — hooks redirect to `/setup` instead of 500ing
+- **First install:** `npm run migrate`, then `npm run setup` (`scripts/setup.ts`). It saves `base_url` and `application_name`, creates the first admin with a verified email, and gives them every infrastructure permission. It asks for what is missing in a terminal; elsewhere pass flags and `--password-stdin` (`npm run setup -- --help`). The spec is `scripts/setup.spec.ts`
+- The app has no setup or migration page. While the database is not migrated, not set up, or unreachable, every request answers 503 with a plain page for the matching code in `src/lib/shared/registries/error-codes.ts`
 
 ### System Settings
 
@@ -464,8 +463,9 @@ test('renders label', async () => {
 ### E2E tests
 
 - `npm run test:e2e` rebuilds the stack from `docker-compose.test.yml` from scratch (Postgres, the dev frontend, NATS, and an `adobe/s3mock` stand-in for Spaces), so stop the dev stack first: both use ports 5173 and 5432
+- The `setup` project runs `npm run migrate` and `npm run setup` against `E2E_DATABASE_URL`; the app answers 503 until it has, so the Playwright web server waits on `/robots.txt`
 - Projects in `playwright.config.ts`: `setup` runs first; `schema`, `auth`, and `list-documents` depend on it
-- `e2e/helpers.ts`: `gotoHydrated()` waits for `document.body.dataset.hydrated`; `signInAsAdmin()` signs in as the account setup creates (`test@example.com` / `Password123`)
+- `e2e/helpers.ts`: `gotoHydrated()` waits for `document.body.dataset.hydrated`; `signInAsAdmin()` signs in as the account `npm run setup` creates (`test@example.com` / `Password123`)
 - Staff pages require a verified email and tests cannot receive mail, so specs that visit `/o/[slug]/s/...` set `email_verified = true` for the user in the database first
 - Tests talk to the database directly (`E2E_DATABASE_URL` in `.env.test`) to seed data and check results
 - The schema spec fails any org-scoped table (`organization_id` or `org_id`) without forced row-level security and a policy, unless it is in the reviewed `RLS_EXEMPT` list

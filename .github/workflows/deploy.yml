@@ -10,6 +10,12 @@ env:
 jobs:
   # Tests run on the pull request (see test.yml), before the merge.
   deploy:
+    # One deploy per branch at a time, so migrations never run in parallel. A
+    # newer push waits for the running one; every run applies all pending
+    # migrations in order, so none is skipped if an in-between run is replaced.
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,11 +31,15 @@ jobs:
             echo "EXTRA_TAG=${{ env.IMAGE }}:latest" >> $GITHUB_ENV
             echo "DEPLOY_FILE=.k8s/production.yaml" >> $GITHUB_ENV
             echo "DEPLOYMENT=turfbuilder-production" >> $GITHUB_ENV
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "SECRET=turfbuilder-secrets" >> $GITHUB_ENV
           else
             echo "TAG=staging" >> $GITHUB_ENV
             echo "EXTRA_TAG=" >> $GITHUB_ENV
             echo "DEPLOY_FILE=.k8s/staging.yaml" >> $GITHUB_ENV
             echo "DEPLOYMENT=turfbuilder-staging" >> $GITHUB_ENV
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "SECRET=turfbuilder-secrets-staging" >> $GITHUB_ENV
           fi
 
       - name: Log in to GHCR
@@ -63,6 +73,33 @@ jobs:
         uses: tale/kubectl-action@v1
         with:
           base64-kube-config: ${{ secrets.K8S_CONFIG }}
+
+      # Runs before the rollout, so a failed migration stops the deploy while
+      # the old pods keep serving. Migrations must stay compatible with the
+      # previous release, which runs beside the new one during the rollout.
+      - name: Migrate the database
+        run: |
+          # The point to restore to if this migration goes wrong: fork the
+          # managed database to this time (DigitalOcean point-in-time recovery).
+          echo "::notice title=Restore point::$(date -u +%Y-%m-%dT%H:%M:%SZ) (${{ env.ENVIRONMENT }}, before migration)"
+          # A Job's pod template cannot be changed, so replace any earlier run.
+          kubectl delete job migrate-${{ env.ENVIRONMENT }} -n turfbuilder --ignore-not-found --wait
+          sed -e "s|__ENV__|${{ env.ENVIRONMENT }}|g" \
+              -e "s|__SECRET__|${{ env.SECRET }}|g" \
+              -e "s|__IMAGE__|${{ env.IMAGE }}:${{ github.sha }}|g" \
+              .k8s/jobs/migrate.yaml | kubectl apply -f -
+          # Stop at the first sign of failure instead of waiting out a timeout.
+          for _ in $(seq 120); do
+            succeeded=$(kubectl get job migrate-${{ env.ENVIRONMENT }} -n turfbuilder -o jsonpath='{.status.succeeded}')
+            failed=$(kubectl get job migrate-${{ env.ENVIRONMENT }} -n turfbuilder -o jsonpath='{.status.failed}')
+            [ -n "$succeeded" ] || [ -n "$failed" ] && break
+            sleep 5
+          done
+          kubectl logs job/migrate-${{ env.ENVIRONMENT }} -n turfbuilder --tail=100 || true
+          if [ -z "$succeeded" ]; then
+            echo "::error::The migration did not finish successfully, so nothing was rolled out. Fix it and push again."
+            exit 1
+          fi
 
       - name: Apply manifest and wait for rollout
         run: |

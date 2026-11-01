@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { withOrgTransaction } from '$lib/server/database.js';
-import { insertLocation } from '$lib/server/locations.js';
+import { insertLocation } from '$lib/server/services/locations.service';
 import {
 	findWritableTurf,
 	isInsideTurf,
 	countOpenSuggestions,
 	MAX_OPEN_SUGGESTIONS
-} from '$lib/server/suggestions.js';
+} from '$lib/server/services/suggestions.service';
 import { LocationFieldsSchema } from '$lib/schemas/location.js';
 
 /**

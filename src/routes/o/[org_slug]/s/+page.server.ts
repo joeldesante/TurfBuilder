@@ -1,5 +1,5 @@
 import { withOrgTransaction } from '$lib/server/database';
-import { getDashboardPoints, getDashboardProgress } from '$lib/server/dashboard';
+import { getDashboardPoints, getDashboardProgress } from '$lib/server/services/dashboard.service';
 import { findBucketBySlug } from '$lib/server/services/buckets.service';
 import { parseRange } from '$lib/dashboard-range';
 

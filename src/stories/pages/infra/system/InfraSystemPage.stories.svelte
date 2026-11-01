@@ -19,7 +19,7 @@
 		health: {
 			...health,
 			database: { ...health.database, postgisVersion: null },
-			status: { ...health.status, migrationNeeded: true, storageConfigured: false, emails24h: { sent: 3, skipped: 0, failed: 4 }, failedDocuments24h: 2 }
+			status: { ...health.status, storageConfigured: false, emails24h: { sent: 3, skipped: 0, failed: 4 }, failedDocuments24h: 2 }
 		},
 		permissions
 	}}
