@@ -4,7 +4,10 @@
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
 	import type { FilterSource } from '$lib/client/filter-source';
-	import { filterGroupSchema } from '$lib/shared/schemas/filters';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
+	import { Form } from '$lib/client/formstorm/form.svelte';
+	import { createListFormSchema } from '$lib/shared/schemas/lists';
 	import type { FilterEntity, FilterGroup } from '$lib/shared/types/filters';
 	import { filtersFor } from '$lib/shared/utils/filter-registry';
 	import { SELECTABLE_ENTITIES } from '$lib/shared/utils/filters';
@@ -36,53 +39,43 @@
 		)
 	);
 
-	let name = $state('');
-	let expiresAt = $state('');
-
 	// Pre-select the only available type when there is exactly one. Read once:
 	// it sets the starting choice and should not follow later prop changes.
-	const defaultType = untrack((): FilterEntity | null =>
-		availableTypes.length === 1 ? availableTypes[0] : null
+	const defaultType = untrack((): FilterEntity | '' =>
+		availableTypes.length === 1 ? availableTypes[0] : ''
 	);
 
-	let selectedType = $state<FilterEntity | null>(defaultType);
-	let group = $state<FilterGroup>({ operator: 'AND', filters: [] });
-	let submitting = $state(false);
-	let errorMessage = $state('');
+	const form = new Form(
+		createListFormSchema,
+		async (values) => {
+			const entityType = availableTypes.find((type) => type === values.entityType);
+			if (!entityType) throw new Error('Choose a kind of record');
+			await onCreate({
+				name: values.name,
+				entity_type: entityType,
+				expires_at: new Date(values.expiresAt).toISOString(),
+				filters: values.filters
+			});
+		},
+		{ entityType: defaultType, filters: { operator: 'AND', filters: [] } }
+	);
 
 	// Filters for one kind of record do not apply to the other, so start over when the kind changes.
 	$effect(() => {
-		if (selectedType) untrack(() => (group = { operator: 'AND', filters: [] }));
+		if (form.values.entityType) {
+			untrack(() => (form.values.filters = { operator: 'AND', filters: [] }));
+		}
 	});
 
-	const canSubmit = $derived(
-		name.trim().length > 0 && expiresAt.length > 0 && selectedType !== null && !submitting
+	const selectedType = $derived(availableTypes.find((type) => type === form.values.entityType));
+
+	// The filter editor's problems are reported under several paths (filters, filters.filters.0...).
+	// Show the first one once the user has tried to submit.
+	const filtersError = $derived(
+		Object.entries(form.errors).find(
+			([path]) => (path === 'filters' || path.startsWith('filters.')) && form.touched[path]
+		)?.[1][0]
 	);
-
-	async function handleSubmit() {
-		if (!canSubmit || !selectedType) return;
-		errorMessage = '';
-
-		const checked = filterGroupSchema.safeParse($state.snapshot(group));
-		if (!checked.success) {
-			errorMessage = checked.error.issues[0]?.message ?? 'Finish the filters before creating the list.';
-			return;
-		}
-
-		submitting = true;
-		try {
-			await onCreate({
-				name: name.trim(),
-				entity_type: selectedType,
-				expires_at: new Date(expiresAt).toISOString(),
-				filters: checked.data
-			});
-		} catch (err) {
-			errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
-		} finally {
-			submitting = false;
-		}
-	}
 </script>
 
 <div>
@@ -95,49 +88,64 @@
 			to the exact records that match right now.
 		</p>
 
-		<!-- Name -->
-		<div class="flex flex-col gap-1">
-			<label for="list-name" class="text-sm font-medium">Name</label>
-			<input
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				form.submit();
+			}}
+			novalidate
+			class="flex flex-col gap-6"
+		>
+			<FormField
+				label="Name"
 				id="list-name"
-				type="text"
-				bind:value={name}
-				placeholder="e.g. Ward 3 Doors"
-				aria-label="Name"
-				class="border rounded px-3 py-2 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
-			/>
-		</div>
+				errors={form.errors.name ?? []}
+				dirty={!!form.touched.name}
+			>
+				<TextInput
+					bind:value={form.values.name}
+					onfocusout={() => form.touch('name')}
+					placeholder="e.g. Ward 3 Doors"
+					class="w-full max-w-sm"
+				/>
+			</FormField>
 
-		<!-- Expiration date -->
-		<div class="flex flex-col gap-1">
-			<label for="list-expires" class="text-sm font-medium">Expiration Date</label>
-			<input
+			<FormField
+				label="Expiration Date"
 				id="list-expires"
-				type="date"
-				bind:value={expiresAt}
-				aria-label="Expiration Date"
-				class="border rounded px-3 py-2 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
-			/>
-		</div>
+				errors={form.errors.expiresAt ?? []}
+				dirty={!!form.touched.expiresAt}
+			>
+				<TextInput
+					type="date"
+					bind:value={form.values.expiresAt}
+					onfocusout={() => form.touch('expiresAt')}
+					class="w-full max-w-sm"
+				/>
+			</FormField>
 
-		<!-- Entity type selection -->
-		<div class="flex flex-col gap-2">
-			<span class="text-sm font-medium">Entity Type</span>
-			<div class="flex flex-row gap-6">
-				{#each availableTypes as type (type)}
-					<label class="flex items-center gap-2 cursor-pointer">
-						<input
-							type="radio"
-							name="entity-type"
-							value={type}
-							bind:group={selectedType}
-							aria-label={type === 'people' ? 'People' : 'Locations'}
-						/>
-						<span class="text-sm">{type === 'people' ? 'People' : 'Locations'}</span>
-					</label>
-				{/each}
+			<!-- Entity type selection -->
+			<div class="flex flex-col gap-2">
+				<span class="text-sm font-medium">Entity Type</span>
+				<div class="flex flex-row gap-6">
+					{#each availableTypes as type (type)}
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input
+								type="radio"
+								name="entity-type"
+								value={type}
+								bind:group={form.values.entityType}
+								aria-label={type === 'people' ? 'People' : 'Locations'}
+							/>
+							<span class="text-sm">{type === 'people' ? 'People' : 'Locations'}</span>
+						</label>
+					{/each}
+				</div>
+				{#if form.touched.entityType && form.errors.entityType}
+					<p class="text-sm text-error" role="alert">{form.errors.entityType[0]}</p>
+				{/if}
 			</div>
-		</div>
+		</form>
 
 		<!-- Filter editor — only shown once an entity type is selected -->
 		{#if selectedType}
@@ -149,20 +157,24 @@
 					catalog={filtersFor(selectedType)}
 					{orgId}
 					{source}
-					bind:group
+					bind:group={form.values.filters}
 				/>
 			{/key}
 		{/if}
 
 		<!-- Error -->
-		{#if errorMessage}
-			<p class="text-sm text-error">{errorMessage}</p>
+		{#if filtersError}
+			<p class="text-sm text-error" role="alert">{filtersError}</p>
+		{/if}
+
+		{#if form.errorMessage}
+			<p class="text-sm text-error" role="alert">{form.errorMessage}</p>
 		{/if}
 
 		<!-- Submit -->
 		<div>
-			<Button onclick={handleSubmit} disabled={!canSubmit}>
-				{submitting ? 'Creating...' : 'Create List'}
+			<Button onclick={() => form.submit()} loading={form.submitting}>
+				{form.submitting ? 'Creating...' : 'Create List'}
 			</Button>
 		</div>
 	</div>

@@ -15,6 +15,16 @@ describe('Button', () => {
 			await expect.element(button).toHaveTextContent('Save changes');
 		});
 
+		it('disables text selection on buttons and link buttons', async () => {
+			// Tailwind's stylesheet is not loaded in component tests, so check the class.
+			const asButton = render(Button, { children: createChildrenSnippet('Save') });
+			await expect
+				.element(asButton.getByRole('button', { name: 'Save' }))
+				.toHaveClass('select-none');
+			const asLink = render(Button, { children: createChildrenSnippet('Visit'), href: '/about' });
+			await expect.element(asLink.getByRole('link', { name: 'Visit' })).toHaveClass('select-none');
+		});
+
 		it('renders as an <a> element when href is provided', async () => {
 			const screen = render(Button, {
 				children: createChildrenSnippet('Visit'),

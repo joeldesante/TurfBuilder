@@ -3,7 +3,7 @@
 	import SqlPreview from './SqlPreview.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/DataDisplay/SqlPreview',
+		title: 'Components/Data Display/SqlPreview',
 		component: SqlPreview
 	});
 </script>

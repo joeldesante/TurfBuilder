@@ -7,7 +7,8 @@
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import CodeEditor from '$components/data-inputs/code-editor/CodeEditor.svelte';
 	import { fillTemplate, unknownVariables } from '$lib/shared/utils/email-template';
-	import type { EmailTemplateBody } from '$lib/shared/schemas/email-templates';
+	import { Form } from '$lib/client/formstorm/form.svelte';
+	import { emailTemplateBodySchema, type EmailTemplateBody } from '$lib/shared/schemas/email-templates';
 	import type { EmailTemplateDetail } from '$lib/shared/types/email-templates';
 
 	interface Props {
@@ -21,42 +22,50 @@
 
 	let { template, onsave, ontest, onreset }: Props = $props();
 
-	let subject = $state('');
-	let htmlBody = $state('');
+	let notice = $state<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+	const form = new Form(emailTemplateBodySchema, async (values) => {
+		await onsave({ subject: values.subject, htmlBody: values.htmlBody });
+		notice = { kind: 'success', text: 'Saved.' };
+	});
+
 	// The saved text changes after a save or a reset; the editor starts from it.
 	$effect(() => {
-		subject = template.subject;
-		htmlBody = template.htmlBody;
+		form.values.subject = template.subject;
+		form.values.htmlBody = template.htmlBody;
 	});
 
 	let editor = $state<ReturnType<typeof CodeEditor>>();
-	let saving = $state(false);
 	let testing = $state(false);
 	let resetOpen = $state(false);
 	let resetting = $state(false);
 	let resetError = $state<string | null>(null);
-	let notice = $state<{ kind: 'success' | 'error'; text: string } | null>(null);
 
-	const dirty = $derived(subject !== template.subject || htmlBody !== template.htmlBody);
-	const unknown = $derived(unknownVariables([subject, htmlBody], template.variables));
-	const previewSubject = $derived(fillTemplate(subject, template.sample));
-	const previewHtml = $derived(fillTemplate(htmlBody, template.sample));
+	const dirty = $derived(
+		form.values.subject !== template.subject || form.values.htmlBody !== template.htmlBody
+	);
+	const unknown = $derived(unknownVariables([form.values.subject, form.values.htmlBody], template.variables));
+	const previewSubject = $derived(fillTemplate(form.values.subject, template.sample));
+	const previewHtml = $derived(fillTemplate(form.values.htmlBody, template.sample));
 
-	function body(): EmailTemplateBody {
-		return { subject: subject.trim(), htmlBody };
+	async function save() {
+		notice = null;
+		await form.submit();
 	}
 
-	async function run(kind: 'save' | 'test') {
+	async function sendTest() {
 		notice = null;
-		if (kind === 'save') saving = true;
-		else testing = true;
+		// Same checks as saving, so the server is not sent text it will refuse.
+		form.touch('subject');
+		form.touch('htmlBody');
+		if (!form.valid) return;
+		testing = true;
 		try {
-			const text = kind === 'save' ? (await onsave(body()), 'Saved.') : await ontest(body());
+			const text = await ontest({ subject: form.values.subject.trim(), htmlBody: form.values.htmlBody });
 			notice = { kind: 'success', text };
 		} catch (e) {
 			notice = { kind: 'error', text: e instanceof Error ? e.message : 'That did not work. Try again.' };
 		} finally {
-			saving = false;
 			testing = false;
 		}
 	}
@@ -86,16 +95,18 @@
 	]}
 >
 	{#snippet actions()}
-		<Button variant="outline" onclick={() => run('test')} loading={testing}>Send test to me</Button>
+		<Button variant="outline" onclick={sendTest} loading={testing}>Send test to me</Button>
 		{#if template.customized}
 			<Button variant="outline" onclick={() => ((resetError = null), (resetOpen = true))}>Reset to default</Button>
 		{/if}
-		<Button onclick={() => run('save')} loading={saving} disabled={!dirty}>Save</Button>
+		<Button onclick={save} loading={form.submitting} disabled={!dirty}>Save</Button>
 	{/snippet}
 </PageHeader>
 
 <div class="space-y-6">
-	{#if notice}
+	{#if form.errorMessage}
+		<p role="alert" class="text-sm text-error">{form.errorMessage}</p>
+	{:else if notice}
 		<p role={notice.kind === 'error' ? 'alert' : 'status'} class={['text-sm', notice.kind === 'error' ? 'text-error' : 'text-on-surface']}>
 			{notice.text}
 		</p>
@@ -103,8 +114,8 @@
 
 	{#if template.customized}<div><Badge size="sm" variant="info">Edited from the default</Badge></div>{/if}
 
-	<FormField label="Subject">
-		<TextInput bind:value={subject} />
+	<FormField label="Subject" errors={form.errors.subject ?? []} dirty={!!form.touched.subject}>
+		<TextInput bind:value={form.values.subject} onfocusout={() => form.touch('subject')} />
 	</FormField>
 
 	<section aria-labelledby="variables-heading">
@@ -135,7 +146,10 @@
 	<div class="grid gap-4 lg:grid-cols-2">
 		<div class="space-y-1.5">
 			<h2 class="text-sm font-medium text-on-surface">HTML</h2>
-			<CodeEditor bind:this={editor} bind:value={htmlBody} label="Email body HTML" minHeight={420} />
+			<CodeEditor bind:this={editor} bind:value={form.values.htmlBody} label="Email body HTML" minHeight={420} />
+			{#if form.touched.htmlBody && form.errors.htmlBody}
+				<p role="alert" class="text-sm text-error">{form.errors.htmlBody[0]}</p>
+			{/if}
 		</div>
 		<div class="space-y-1.5">
 			<h2 class="text-sm font-medium text-on-surface">Preview</h2>

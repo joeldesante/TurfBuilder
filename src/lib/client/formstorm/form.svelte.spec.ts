@@ -114,6 +114,29 @@ describe('Form — submit()', () => {
 		form.submit();
 		expect(form.dirty).toBe(true);
 	});
+
+	it('passes the parsed result to onSubmit: transformed, defaulted, and without unknown keys', async () => {
+		const onSubmit = vi.fn().mockResolvedValue(undefined);
+		const schema = z.object({
+			name: z.string().trim().min(1),
+			count: z.coerce.number().default(3)
+		});
+		const form = new Form(schema, onSubmit, {
+			name: '  Alice  ',
+			extra: 'leaked'
+		} as never);
+		await form.submit();
+		expect(onSubmit).toHaveBeenCalledWith({ name: 'Alice', count: 3 });
+	});
+
+	it('passes a plain object, not the live form state', async () => {
+		const onSubmit = vi.fn().mockResolvedValue(undefined);
+		const form = new Form(testSchema, onSubmit);
+		form.values.name = 'Alice';
+		form.values.email = 'alice@example.com';
+		await form.submit();
+		expect(onSubmit.mock.calls[0][0]).not.toBe(form.values);
+	});
 });
 
 describe('Form — reset()', () => {
@@ -140,5 +163,83 @@ describe('Form — reset()', () => {
 		form.validate();
 		form.reset();
 		expect(form.valid).toBe(false);
+	});
+});
+
+describe('Form — setFieldError() and clearFieldError()', () => {
+	function validForm(onSubmit = vi.fn().mockResolvedValue(undefined)) {
+		const form = makeForm(onSubmit);
+		form.values.name = 'Alice';
+		form.values.email = 'alice@example.com';
+		return form;
+	}
+
+	it('adds the message to the field errors', () => {
+		const form = makeForm();
+		form.setFieldError('name', 'Already taken');
+		expect(form.errors.name).toEqual(['Already taken']);
+	});
+
+	it('keeps schema errors for the same field and adds the message after them', () => {
+		const form = makeForm();
+		form.validate();
+		form.setFieldError('name', 'Already taken');
+		expect(form.errors.name).toEqual(['Name is required', 'Already taken']);
+	});
+
+	it('makes a valid form invalid', () => {
+		const form = validForm();
+		form.validate();
+		expect(form.valid).toBe(true);
+
+		form.setFieldError('name', 'Already taken');
+
+		expect(form.valid).toBe(false);
+	});
+
+	it('survives validate() and touch()', () => {
+		const form = validForm();
+		form.setFieldError('name', 'Already taken');
+
+		form.validate();
+		form.touch('name');
+
+		expect(form.errors.name).toEqual(['Already taken']);
+		expect(form.valid).toBe(false);
+	});
+
+	it('blocks submit while the error is set', async () => {
+		const onSubmit = vi.fn().mockResolvedValue(undefined);
+		const form = validForm(onSubmit);
+		form.setFieldError('name', 'Already taken');
+
+		await form.submit();
+
+		expect(onSubmit).not.toHaveBeenCalled();
+		expect(form.touched.name).toBe(true);
+	});
+
+	it('lets submit through once the error is cleared', async () => {
+		const onSubmit = vi.fn().mockResolvedValue(undefined);
+		const form = validForm(onSubmit);
+		form.setFieldError('name', 'Already taken');
+		form.clearFieldError('name');
+
+		await form.submit();
+
+		expect(onSubmit).toHaveBeenCalledOnce();
+	});
+
+	it('clearing a field with no error does nothing', () => {
+		const form = makeForm();
+		form.clearFieldError('name');
+		expect(form.errors).toEqual({});
+	});
+
+	it('is removed by reset()', () => {
+		const form = makeForm();
+		form.setFieldError('name', 'Already taken');
+		form.reset();
+		expect(form.errors).toEqual({});
 	});
 });

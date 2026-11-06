@@ -5,7 +5,7 @@ The panel at `/infra` is for the people who run the instance. Only users with in
 ## Getting around
 
 - **Sidebar:** every page below, grouped. Entries you lack permission for are hidden.
-- **Quick menu:** admins also get a round button in the bottom-left corner of every other page (or press Alt+I). It lists the infra pages, jumps to the current organization's infra page, and links to external tools. It is rendered only for admins; other users receive no markup and no infra URLs.
+- **Quick menu:** admins also get a round button in the bottom-right corner of every other page (or press Alt+I). It lists the infra pages, jumps to the current organization's infra page, and links to external tools. It is rendered only for admins; other users receive no markup and no infra URLs.
 - **External tools:** analytics (Umami), tracing (Jaeger), and any custom links appear in the sidebar and quick menu. They are set under Settings, External tools. An empty address hides the link.
 
 ## Permissions

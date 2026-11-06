@@ -3,6 +3,7 @@ import { getAuth } from '$lib/auth';
 import { POOL } from '$lib/server/database';
 import { canInfra } from '$lib/server/permissions';
 import { requireActiveMembership } from '$lib/server/list-access';
+import { analytics } from '$lib/server/analytics';
 import { getOrg } from './platform-organizations.service';
 import type { PlatformOrgDetail } from '$lib/shared/types/platform-organizations';
 
@@ -33,13 +34,22 @@ async function requireOwner(userId: string, orgId: string): Promise<void> {
 }
 
 /**
+ * Whether no organization uses `slug`. Deleted and suspended organizations keep their slug, so
+ * those count as taken. Slugs are public in every org URL, so this reveals nothing new.
+ */
+export async function isSlugAvailable(slug: string): Promise<boolean> {
+	const taken = await POOL.query(`SELECT 1 FROM auth.organization WHERE slug = $1`, [slug]);
+	return !taken.rowCount;
+}
+
+/**
  * Creates an organization with the caller as its owner. Goes through
  * better-auth, which also creates the default roles, so it needs the request's
  * headers to identify the session. 403 when creation is disabled in system
  * settings, 409 when the slug is taken.
  */
 export async function createOrganization(
-	_userId: string,
+	userId: string,
 	input: OrganizationInput,
 	headers: Headers
 ): Promise<Organization> {
@@ -50,11 +60,14 @@ export async function createOrganization(
 		throw error(403, 'Organization creation is currently disabled.');
 	}
 
-	const taken = await POOL.query(`SELECT 1 FROM auth.organization WHERE slug = $1`, [input.slug]);
-	if (taken.rowCount) throw error(409, 'An organization with that slug already exists');
+	if (!(await isSlugAvailable(input.slug))) {
+		throw error(409, 'An organization with that slug already exists');
+	}
 
 	const auth = await getAuth();
 	const created = await auth.api.createOrganization({ headers, body: input });
+
+	analytics.capture(userId, 'organization_created', { organization_id: created.id });
 
 	return {
 		id: created.id,

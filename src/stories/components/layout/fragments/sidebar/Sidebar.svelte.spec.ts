@@ -18,6 +18,18 @@ const testNav: SidebarNavEntry[] = [
 ];
 
 describe('Sidebar', () => {
+	it('links back to the organizations list when orgsHref is set', async () => {
+		const screen = render(Sidebar, { nav: testNav, orgsHref: '/orgs' });
+		await expect
+			.element(screen.getByRole('link', { name: 'Organizations' }))
+			.toHaveAttribute('href', '/orgs');
+	});
+
+	it('omits the organizations link without orgsHref', async () => {
+		const screen = render(Sidebar, { nav: testNav });
+		await expect.element(screen.getByRole('link', { name: 'Organizations' })).not.toBeInTheDocument();
+	});
+
 	describe('rendering', () => {
 		it('renders as a nav element with system navigation label', async () => {
 			const screen = render(Sidebar, { nav: testNav });

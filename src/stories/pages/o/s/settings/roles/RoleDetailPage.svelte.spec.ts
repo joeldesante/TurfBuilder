@@ -69,6 +69,23 @@ describe('RoleDetailPage', () => {
 			await page.getByRole('button', { name: 'Save' }).click();
 			expect(onSaveName).toHaveBeenCalledWith('Member');
 		});
+
+		it('does not call onSaveName and shows an error when the name is blank', async () => {
+			const onSaveName = vi.fn().mockResolvedValue(undefined);
+			render(RoleDetailPage, { ...baseProps, onSaveName });
+			await page.getByLabelText('Name').fill('   ');
+			await page.getByRole('button', { name: 'Save' }).click();
+			await expect.element(page.getByText('Enter a name')).toBeVisible();
+			expect(onSaveName).not.toHaveBeenCalled();
+		});
+
+		it('shows the error when saving the name fails', async () => {
+			const onSaveName = vi.fn().mockRejectedValue(new Error('A role with that name exists.'));
+			render(RoleDetailPage, { ...baseProps, onSaveName });
+			await page.getByLabelText('Name').fill('Taken');
+			await page.getByRole('button', { name: 'Save' }).click();
+			await expect.element(page.getByText('A role with that name exists.')).toBeVisible();
+		});
 	});
 
 	describe('admin role', () => {

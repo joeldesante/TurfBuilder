@@ -21,9 +21,15 @@ vi.mock('pg', () => ({
 	})
 }));
 
-const { canInfra, getOrg } = vi.hoisted(() => ({ canInfra: vi.fn(async () => false), getOrg: vi.fn() }));
+const { canInfra, getOrg } = vi.hoisted(() => ({
+	canInfra: vi.fn(async () => false),
+	getOrg: vi.fn()
+}));
 vi.mock('$lib/server/permissions', () => ({ canOrg, canInfra }));
 vi.mock('./platform-organizations.service', () => ({ getOrg }));
+
+const { capture } = vi.hoisted(() => ({ capture: vi.fn() }));
+vi.mock('$lib/server/analytics', () => ({ analytics: { capture } }));
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
@@ -35,6 +41,7 @@ vi.mock('$lib/auth', () => ({
 import {
 	createOrganization,
 	getOrganization,
+	isSlugAvailable,
 	replaceOrganization,
 	updateOrganization
 } from './organizations.service';
@@ -70,6 +77,21 @@ describe('createOrganization', () => {
 		expect(org).toMatchObject({ id: ORG, slug: 'acme' });
 	});
 
+	it('records the organization_created event for the creator', async () => {
+		createOrganizationApi.mockResolvedValue({ id: ORG, ...input, createdAt: new Date(0) });
+
+		await createOrganization('u1', input, new Headers());
+
+		expect(capture).toHaveBeenCalledWith('u1', 'organization_created', { organization_id: ORG });
+	});
+
+	it('does not record the event when the slug is taken', async () => {
+		stub({ slugTaken: true });
+
+		await expect(createOrganization('u1', input, new Headers())).rejects.toBeTruthy();
+		expect(capture).not.toHaveBeenCalled();
+	});
+
 	it('returns 403 when creation is disabled', async () => {
 		stub({ creation: 'false' });
 
@@ -86,6 +108,28 @@ describe('createOrganization', () => {
 			status: 409
 		});
 		expect(createOrganizationApi).not.toHaveBeenCalled();
+	});
+});
+
+describe('isSlugAvailable', () => {
+	it('is true when no organization uses the slug', async () => {
+		stub({ slugTaken: false });
+
+		await expect(isSlugAvailable('acme')).resolves.toBe(true);
+	});
+
+	it('is false when an organization uses the slug', async () => {
+		stub({ slugTaken: true });
+
+		await expect(isSlugAvailable('acme')).resolves.toBe(false);
+	});
+
+	it('looks the slug up with a parameter, not interpolation', async () => {
+		await isSlugAvailable("acme'; DROP TABLE auth.organization; --");
+
+		expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('slug = $1'), [
+			"acme'; DROP TABLE auth.organization; --"
+		]);
 	});
 });
 
@@ -107,7 +151,10 @@ describe('getOrganization', () => {
 		canInfra.mockResolvedValueOnce(true);
 		getOrg.mockResolvedValueOnce({ id: ORG, memberCount: 12 });
 
-		await expect(getOrganization('u1', ORG)).resolves.toMatchObject({ id: ORG, platform: { memberCount: 12 } });
+		await expect(getOrganization('u1', ORG)).resolves.toMatchObject({
+			id: ORG,
+			platform: { memberCount: 12 }
+		});
 		expect(getOrg).toHaveBeenCalledWith('u1', ORG);
 	});
 

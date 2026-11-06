@@ -79,6 +79,42 @@ describe('InfraSettingsPage', () => {
 		await expect.element(getByRole('alert').first()).toHaveTextContent('Enter a domain');
 	});
 
+	test('checks a changed value before sending it', async () => {
+		const p = props({ tab: 'email' });
+		const { getByRole } = render(InfraSettingsPage, { props: p });
+
+		await getByRole('textbox', { name: 'Sending domain' }).fill('not a domain');
+		await getByRole('button', { name: 'Save changes' }).click();
+
+		await expect.element(getByRole('alert').first()).toBeVisible();
+		expect(p.onsave).not.toHaveBeenCalled();
+	});
+
+	test('clears a field error from the server once the field is edited', async () => {
+		const p = props({
+			tab: 'email',
+			onsave: vi.fn(async () => ({ ok: false as const, message: 'Could not save.', errors: { 'mail.domain': 'That domain is not allowed.' } }))
+		});
+		const { getByRole, getByText } = render(InfraSettingsPage, { props: p });
+
+		await getByRole('textbox', { name: 'Sending domain' }).fill('mail.example.com');
+		await getByRole('button', { name: 'Save changes' }).click();
+		await expect.element(getByText('That domain is not allowed.')).toBeVisible();
+
+		await getByRole('textbox', { name: 'Sending domain' }).fill('mail.example.org');
+		await expect.element(getByText('That domain is not allowed.')).not.toBeInTheDocument();
+	});
+
+	test('follows the saved settings for fields that were not edited', async () => {
+		const p = props();
+		const screen = render(InfraSettingsPage, { props: p });
+
+		const renamed = settings.map((s) => (s.key === 'application_name' ? { ...s, value: 'Renamed Elsewhere' } : s));
+		await screen.rerender({ ...p, settings: renamed });
+
+		await expect.element(screen.getByRole('textbox', { name: 'Application name' })).toHaveValue('Renamed Elsewhere');
+	});
+
 	test('drops unsaved edits when the tab changes, so they are not saved unseen', async () => {
 		const p = props();
 		const screen = render(InfraSettingsPage, { props: p });

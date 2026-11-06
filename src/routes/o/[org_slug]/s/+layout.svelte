@@ -9,6 +9,7 @@
 	import { buildStaffNav, buildBucketNav } from './sidebar-nav';
 	import Button from '$components/actions/button/Button.svelte';
 	import ListIcon from 'phosphor-svelte/lib/List';
+	import BetaBanner from '$components/feedback/beta-banner/BetaBanner.svelte';
 	import SearchBox from '$components/data-inputs/searchbox/SearchBox.svelte';
 
 	const { children, data } = $props<{
@@ -17,8 +18,8 @@
 			config: AppSettings;
 			user: User;
 			organization: { id: string; name: string; slug: string };
-			allOrgs: { id: string; name: string; slug: string }[];
 			buckets: { id: string; name: string; slug: string }[];
+			betaBannerDismissed: boolean;
 		};
 	}>();
 
@@ -64,11 +65,6 @@
 	async function logout() {
 		await authClient.signOut();
 		location.href = '/auth/signin/';
-	}
-
-	async function switchOrg(orgId: string, orgSlug: string) {
-		await authClient.organization.setActive({ organizationId: orgId });
-		goto(`/o/${orgSlug}/s/`);
 	}
 
 	const bucketRouteMatch = $derived(
@@ -128,10 +124,12 @@
 		panelTitle={panelTitle}
 		onpanelback={activeBucket ? handlePanelBack : undefined}
 		bind:mobileOpen
+		orgsHref="/orgs"
 		onsignout={logout}
 	/>
 
 	<main class="relative flex-1 flex flex-col bg-surface overflow-hidden">
+		<BetaBanner dismissed={data.betaBannerDismissed} />
 		<div class="md:hidden flex items-center px-4 pt-3 pb-1">
 			<Button variant="ghost" iconOnly aria-label="Open menu" onclick={() => (mobileOpen = true)}>
 				<ListIcon />

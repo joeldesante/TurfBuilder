@@ -12,9 +12,14 @@
 		/** The organization being viewed, for a shortcut to its infra page. */
 		currentOrg?: { id: string; name: string } | null;
 		open?: boolean;
+		/**
+		 * Phones only: sit to the left of a floating action button in the bottom right corner
+		 * (the organization picker's +) instead of underneath it.
+		 */
+		besideFab?: boolean;
 	}
 
-	let { groups, currentOrg = null, open = $bindable(false) }: Props = $props();
+	let { groups, currentOrg = null, open = $bindable(false), besideFab = false }: Props = $props();
 
 	let query = $state('');
 	const trimmed = $derived(query.trim());
@@ -39,8 +44,12 @@
 <svelte:window {onkeydown} />
 
 <div
-	class="fixed z-40 print:hidden"
-	style="left: calc(1rem + env(safe-area-inset-left)); bottom: calc(1rem + env(safe-area-inset-bottom));"
+	class={[
+		'fixed z-40 print:hidden',
+		// 1rem gutter + the 3.5rem button + 0.75rem gap; bottom lines the centres up.
+		besideFab && 'max-md:right-[calc(5.25rem+env(safe-area-inset-right))]! max-md:bottom-[calc(1.875rem+env(safe-area-inset-bottom))]!'
+	]}
+	style="right: calc(1rem + env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom));"
 >
 	<Popover.Root bind:open onOpenChange={(next) => !next && (query = '')}>
 		<Popover.Trigger
@@ -53,7 +62,7 @@
 		<Popover.Portal>
 			<Popover.Content
 				side="top"
-				align="start"
+				align="end"
 				sideOffset={8}
 				class="z-50 w-72 max-h-[min(36rem,80dvh)] overflow-y-auto rounded-xl border border-outline bg-surface-container-low p-2 shadow-xl"
 			>

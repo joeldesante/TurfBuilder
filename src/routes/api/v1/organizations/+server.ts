@@ -1,19 +1,12 @@
-import { error, json } from '@sveltejs/kit';
-import { z } from 'zod';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/list-access';
+import { parseBody } from '$lib/server/utils/request';
 import { createOrganization } from '$lib/server/services/organizations.service';
 import { listOrgs } from '$lib/server/services/platform-organizations.service';
+import { createOrganizationSchema } from '$lib/shared/schemas/organizations';
 import { requestedPage } from '$lib/shared/utils/pagination';
 import { orgFiltersFromUrl } from '$lib/shared/schemas/platform-organizations';
-
-const postSchema = z.object({
-	name: z.string().trim().min(1),
-	slug: z
-		.string()
-		.trim()
-		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase letters, numbers, and hyphens')
-});
 
 /**
  * Every organization on the instance, one page at a time. Deleted ones only with `status=deleted`.
@@ -44,8 +37,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const userId = requireUser(locals);
 
-	const body = postSchema.safeParse(await request.json().catch(() => null));
-	if (!body.success) throw error(400, body.error.issues[0].message);
+	const body = await parseBody(request, createOrganizationSchema);
 
-	return json(await createOrganization(userId, body.data, request.headers), { status: 201 });
+	return json(await createOrganization(userId, body, request.headers), { status: 201 });
 };
