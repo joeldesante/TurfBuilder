@@ -7,10 +7,13 @@
 	import type { DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import Toaster from '$components/feedback/toaster/Toaster.svelte';
 	import InfraQuickMenu from '$components/actions/infra-quick-menu/InfraQuickMenu.svelte';
+	import PageLoader from '$components/feedback/page-loader/PageLoader.svelte';
 	import ImpersonationBanner from '$components/feedback/impersonation-banner/ImpersonationBanner.svelte';
 	import { page } from '$app/state';
 	import { api } from '$lib/client/api';
-	import { afterNavigate } from '$app/navigation';
+	import { pageLoader } from '$lib/client/page-loader.svelte';
+	import { afterNavigate, beforeNavigate, onNavigate } from '$app/navigation';
+	import { fadesInto, hidesLoaderItself } from '$config/page-transitions';
 	import { startAnalytics, identify, trackPageview } from '$lib/client/analytics';
 	let { children, data } = $props();
 
@@ -21,7 +24,44 @@
 		void startAnalytics(config).then(() => identify(userId));
 	});
 
-	afterNavigate(() => trackPageview(page.route.id));
+	// Cross-fade into the pages listed in $config/page-transitions; every other page swaps instantly.
+	// Browsers without view transitions, and people who ask for reduced motion, get the instant swap.
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+		if (!fadesInto(navigation.to?.route.id)) return;
+		// The wave loader is already covering a navigation it started, so don't fade underneath it.
+		if (pageLoader.active) return;
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+		return new Promise<void>((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
+
+	// Only a loader that was already up when the navigation began is this navigation's to put away.
+	// One a page raises itself while mounting (the org picker) is that page's to hide.
+	let loaderRaisedBeforeNavigation = false;
+	beforeNavigate(() => {
+		loaderRaisedBeforeNavigation = pageLoader.active;
+	});
+
+	afterNavigate((navigation) => {
+		trackPageview(page.route.id);
+		// The new page is on screen now, so let the loader fade out over it.
+		// Unless the page hides it itself: the org picker keeps it up until its list has loaded.
+		// That only holds for a picker that mounts fresh. If we came from the same route (an org page
+		// bounced us back to /orgs) the picker is already mounted and will not look again, and an error
+		// page never mounts it at all, so in both cases the layout puts the loader away.
+		const pickerWillHandOff =
+			hidesLoaderItself(page.route.id) &&
+			!page.error &&
+			navigation.from?.route.id !== page.route.id;
+		if (loaderRaisedBeforeNavigation && !pickerWillHandOff) pageLoader.hide();
+		loaderRaisedBeforeNavigation = false;
+	});
 
 	async function stopImpersonating() {
 		const { userId } = await api<{ userId: string }>('/impersonations/current', { method: 'DELETE' });
@@ -101,7 +141,18 @@
 {@render children()}
 
 {#if data.infraMenu && showInfraMenu}
-	<InfraQuickMenu groups={data.infraMenu.groups} currentOrg={page.data.organization ?? null} />
+	<InfraQuickMenu
+		groups={data.infraMenu.groups}
+		currentOrg={page.data.organization ?? null}
+		besideFab={page.route.id === '/orgs'}
+	/>
 {/if}
+
+<PageLoader
+	visible={pageLoader.active}
+	logoDelayMs={pageLoader.logoDelayMs}
+	logoMinMs={pageLoader.logoMinMs}
+	slowMessageDelayMs={pageLoader.slowMessageDelayMs}
+/>
 
 <Toaster />
