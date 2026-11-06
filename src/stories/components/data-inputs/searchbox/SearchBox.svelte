@@ -241,7 +241,7 @@
 	</div>
 	{#if orgName}
 		<span
-			class="inline-block mt-2 px-2 py-0.5 rounded-sm-full bg-gray-300 text-gray-800 text-xs font-medium"
+			class="inline-block mt-2 px-2 py-0.5 rounded-full bg-gray-300 text-gray-800 text-xs font-medium"
 			>Searching in {orgName}</span
 		>
 	{/if}

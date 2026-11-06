@@ -28,7 +28,11 @@
 		lg: 'size-12 text-base'
 	};
 
-	let initials = $derived(username.trim().slice(0, 2));
+	// The first letter is always a capital, whatever case the name was typed in.
+	let initials = $derived.by(() => {
+		const letters = username.trim().slice(0, 2);
+		return letters.charAt(0).toUpperCase() + letters.slice(1);
+	});
 
 	let computedClass = $derived(
 		[
