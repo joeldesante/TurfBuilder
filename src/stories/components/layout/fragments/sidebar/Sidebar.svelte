@@ -6,6 +6,7 @@
 	import Avatar from '$components/data-display/avatar/Avatar.svelte';
 	import AppDropdownMenu from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import type { DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
+	import BuildingsIcon from 'phosphor-svelte/lib/Buildings';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
 	import SunIcon from 'phosphor-svelte/lib/Sun';
 	import MoonIcon from 'phosphor-svelte/lib/Moon';
@@ -26,6 +27,8 @@
 		theme?: Theme;
 		panelTitle?: string;
 		onpanelback?: () => void;
+		/** Where "Organizations" leads; omit to hide the link. */
+		orgsHref?: string;
 		onsignout?: () => void;
 		onthemechange?: (theme: Theme) => void;
 		class?: string;
@@ -42,6 +45,7 @@
 		theme = 'system',
 		panelTitle,
 		onpanelback,
+		orgsHref,
 		onsignout,
 		onthemechange,
 		class: className = '',
@@ -217,7 +221,14 @@
 	</div>
 
 	<!-- User menu -->
-	<div class="shrink-0 border-t border-outline-subtle px-2 py-3">
+	<div class="shrink-0 border-t border-outline-subtle px-2 py-3 flex flex-col gap-1">
+		{#if orgsHref}
+			<SidebarItem
+				item={{ label: 'Organizations', href: orgsHref, icon: BuildingsIcon }}
+				active={false}
+				{collapsed}
+			/>
+		{/if}
 		<AppDropdownMenu items={userMenuItems} side="top" align="start" sideOffset={8}>
 			{#snippet children()}
 				<div class={userTriggerClass} title={collapsed ? username : undefined}>

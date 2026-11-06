@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import Button from '$components/actions/button/Button.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import AuthLayout from '$components/layout/layouts/auth-layout/AuthLayout.svelte';
 	import { authClient } from '$lib/client';
+	import { navigateWithLoader } from '$lib/client/navigate-with-loader';
 	import { Form } from '$lib/client/formstorm/form.svelte';
 	import { z } from 'zod';
 
@@ -12,10 +12,10 @@
 		redirectTo?: string;
 	}
 
-	let { redirectTo = '/' }: Props = $props();
+	let { redirectTo = '/orgs' }: Props = $props();
 
 	const signupHref = $derived(
-		redirectTo !== '/'
+		redirectTo !== '/orgs'
 			? `/auth/signup?redirectTo=${encodeURIComponent(redirectTo)}`
 			: '/auth/signup'
 	);
@@ -47,7 +47,8 @@
 			throw new Error(response.error.message);
 		}
 
-		goto(redirectTo);
+		// Cover the page now, before the redirect, so the next page loads in under the fade.
+		await navigateWithLoader(redirectTo);
 	});
 </script>
 

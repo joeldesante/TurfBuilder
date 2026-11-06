@@ -17,7 +17,6 @@
 			config: AppSettings;
 			user: User;
 			organization: { id: string; name: string; slug: string };
-			allOrgs: { id: string; name: string; slug: string }[];
 			buckets: { id: string; name: string; slug: string }[];
 		};
 	}>();
@@ -64,11 +63,6 @@
 	async function logout() {
 		await authClient.signOut();
 		location.href = '/auth/signin/';
-	}
-
-	async function switchOrg(orgId: string, orgSlug: string) {
-		await authClient.organization.setActive({ organizationId: orgId });
-		goto(`/o/${orgSlug}/s/`);
 	}
 
 	const bucketRouteMatch = $derived(
@@ -128,6 +122,7 @@
 		panelTitle={panelTitle}
 		onpanelback={activeBucket ? handlePanelBack : undefined}
 		bind:mobileOpen
+		orgsHref="/orgs"
 		onsignout={logout}
 	/>
 
