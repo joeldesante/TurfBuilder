@@ -29,6 +29,7 @@
 		<p><strong>Hate.</strong> We will promptly remove accounts or organizations that spread hate, including racism, homophobia, transphobia, antisemitism, and Islamophobia.</p>
 		<p><strong>Illegal activity.</strong> We may suspend accounts that break the laws where they operate, or that could involve TurfBuilder in clearly illegal activity.</p>
 		<p><strong>Free speech.</strong> We support the constitutional rights to free speech, free assembly, and a free press. We will not remove or suspend accounts for lawfully exercising those rights.</p>
+		<p><strong>Accountability Standard.</strong> We may decline orgaziations whose official positions or actions defend or materially obstruct accountability for credible allegations of serious rights violations in policing and immigration enforcement. In assessing this, we consider whether the organization had a meaningful opportunity and responsibility to act. Party affiliation or an individual member’s views alone are not grounds for denial.</p>
 		<h2 id="user-content-5-copyright-dmca">5. Copyright (DMCA)</h2>
 		<p>We review DMCA copyright takedown claims as we receive them and comply when appropriate.</p>
 		<h2 id="user-content-6-law-enforcement-requests">6. Law Enforcement Requests</h2>
