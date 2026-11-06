@@ -201,7 +201,7 @@ it was never configured. Read once, when the row is created. |
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `open` | `boolean` | **required** |  |
-| `value` | `import("/Users/joeldesante/Development/deice/node_modules/@types/geojson/inde...` | `null` | The region already chosen, if any. |
+| `value` | `import("/Volumes/Storage/Development/TurfBuilder/node_modules/@types/geojson/...` | `null` | The region already chosen, if any. |
 | `onOpenChange` | `(open: boolean) => void` | **required** |  |
 | `onapply` | `(value: GeoJSON.Polygon) => void` | **required** |  |
 
