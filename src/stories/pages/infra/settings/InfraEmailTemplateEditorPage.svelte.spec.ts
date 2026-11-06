@@ -65,6 +65,19 @@ describe('InfraEmailTemplateEditorPage', () => {
 		await expect.element(getByRole('alert')).toHaveTextContent('The subject cannot be empty.');
 	});
 
+	test('does not save or send a test with an empty subject', async () => {
+		const p = props();
+		const { getByRole, getByText } = render(InfraEmailTemplateEditorPage, { props: p });
+
+		await getByRole('textbox', { name: 'Subject' }).fill('   ');
+		await getByRole('button', { name: 'Save' }).click();
+		await expect.element(getByText('The subject cannot be empty.')).toBeVisible();
+
+		await getByRole('button', { name: 'Send test to me' }).click();
+		expect(p.onsave).not.toHaveBeenCalled();
+		expect(p.ontest).not.toHaveBeenCalled();
+	});
+
 	test('resets only after confirming, and only when edited', async () => {
 		const p = props();
 		const { getByRole } = render(InfraEmailTemplateEditorPage, { props: p });

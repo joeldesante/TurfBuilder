@@ -14,20 +14,39 @@ test('renders name field and submit button', async () => {
 	await expect.element(screen.getByRole('button', { name: 'Create Bucket' })).toBeVisible();
 });
 
-test('submit button is disabled when name is empty', async () => {
-	const { screen } = setup();
-
-	await expect.element(screen.getByRole('button', { name: 'Create Bucket' })).toBeDisabled();
-});
-
-test('submit button is disabled until a kind of record is included', async () => {
-	const { screen } = setup();
-
-	await screen.getByLabelText('Name').fill('Voters');
-	await expect.element(screen.getByRole('button', { name: 'Create Bucket' })).toBeDisabled();
+test('asks for a name when submitted without one', async () => {
+	const { screen, onCreate } = setup();
 
 	await screen.getByRole('checkbox', { name: 'Locations' }).click();
-	await expect.element(screen.getByRole('button', { name: 'Create Bucket' })).toBeEnabled();
+	await screen.getByRole('button', { name: 'Create Bucket' }).click();
+
+	await expect.element(screen.getByText('Enter a name')).toBeVisible();
+	expect(onCreate).not.toHaveBeenCalled();
+});
+
+test('rejects a name that has no letters or numbers to make a slug from', async () => {
+	const { screen, onCreate } = setup();
+
+	await screen.getByLabelText('Name').fill('!!!');
+	await screen.getByRole('checkbox', { name: 'Locations' }).click();
+	await screen.getByRole('button', { name: 'Create Bucket' }).click();
+
+	await expect.element(screen.getByText('Use at least one letter or number')).toBeVisible();
+	expect(onCreate).not.toHaveBeenCalled();
+});
+
+test('asks for a kind of record when none is included', async () => {
+	const { screen, onCreate } = setup();
+
+	await screen.getByLabelText('Name').fill('Voters');
+	await screen.getByRole('button', { name: 'Create Bucket' }).click();
+
+	await expect.element(screen.getByText('Include at least one kind of record.')).toBeVisible();
+	expect(onCreate).not.toHaveBeenCalled();
+
+	await screen.getByRole('checkbox', { name: 'Locations' }).click();
+	await screen.getByRole('button', { name: 'Create Bucket' }).click();
+	await vi.waitFor(() => expect(onCreate).toHaveBeenCalled());
 });
 
 test('shows a filter editor for each kind of record included', async () => {

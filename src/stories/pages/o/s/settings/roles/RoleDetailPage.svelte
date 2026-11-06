@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
+	import { Form } from '$lib/client/formstorm/form.svelte';
+	import { createNamedResourceSchema } from '$lib/shared/schemas/named-resource';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
@@ -21,9 +26,13 @@
 
 	const { role, rolesHref, onSavePermissions, onSaveName }: Props = $props();
 
-	let roleName = $state(role.name);
-	let savingName = $state(false);
-	let nameError = $state<string | null>(null);
+	const nameForm = new Form(
+		createNamedResourceSchema,
+		async (values) => {
+			await onSaveName(values.name);
+		},
+		{ name: untrack(() => role.name) }
+	);
 
 	let grantedKeys = $state<string[]>([]);
 	// Initializes and re-syncs with server state after invalidation (e.g. after name save).
@@ -53,19 +62,6 @@
 			savingPerms = false;
 		}
 	}
-
-	async function handleSaveName() {
-		savingName = true;
-		nameError = null;
-		try {
-			await onSaveName(roleName);
-		} catch (e) {
-			nameError = e instanceof Error ? e.message : 'Failed to save.';
-		} finally {
-			savingName = false;
-		}
-	}
-
 </script>
 
 <PageHeader
@@ -78,22 +74,27 @@
 	<!-- Role name + default flag -->
 	<section class="space-y-3">
 			<h2 class="text-sm font-semibold text-on-surface">Role Settings</h2>
-			<div class="flex gap-3 items-end">
-				<div class="flex-1 space-y-1">
-					<label for="role-name" class="text-sm text-on-surface-subtle">Name</label>
-					<input
-						id="role-name"
-						type="text"
-						bind:value={roleName}
-						class="w-full h-10 px-3 rounded-lg border border-outline bg-surface text-sm text-on-surface focus:outline-2 focus:outline-offset-2 focus:outline-primary"
-					/>
-				</div>
-				<Button onclick={handleSaveName} loading={savingName} disabled={!roleName.trim()}>
-					Save
-				</Button>
-			</div>
-			{#if nameError}
-				<p class="text-error text-sm">{nameError}</p>
+			<form
+				class="flex gap-3 items-start"
+				novalidate
+				onsubmit={(e) => {
+					e.preventDefault();
+					nameForm.submit();
+				}}
+			>
+				<FormField
+					label="Name"
+					id="role-name"
+					class="flex-1"
+					errors={nameForm.errors.name ?? []}
+					dirty={!!nameForm.touched.name}
+				>
+					<TextInput bind:value={nameForm.values.name} onfocusout={() => nameForm.touch('name')} />
+				</FormField>
+				<Button type="submit" loading={nameForm.submitting} class="mt-6">Save</Button>
+			</form>
+			{#if nameForm.errorMessage}
+				<p class="text-error text-sm" role="alert">{nameForm.errorMessage}</p>
 			{/if}
 		</section>
 
