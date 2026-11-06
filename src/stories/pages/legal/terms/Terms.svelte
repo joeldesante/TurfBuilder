@@ -2,10 +2,8 @@
 	import DocumentLayout from '$components/layout/layouts/document-layout/DocumentLayout.svelte';
 </script>
 
-<DocumentLayout title="Terms of Service" lastUpdated="June 18, 2026">
+<DocumentLayout title="Terms of Service" lastUpdated="November 5, 2026">
 	{#snippet children()}
-		<h1 id="user-content-turfbuilder-terms-of-service">TurfBuilder Terms of Service</h1>
-		<p><strong>Last updated:</strong> November 4, 2026</p>
 		<p>These terms are an agreement between you and TurfBuilder Infrastructure LLC ("TurfBuilder," "we," "us"). By using TurfBuilder, you agree to them. If you don't agree, please don't use the service.</p>
 		<h2 id="user-content-1-who-can-use-turfbuilder">1. Who Can Use TurfBuilder</h2>
 		<p>You must be at least 13 years old. If you're under 18, you need permission from a parent or guardian. If you sign up for an organization, you confirm you're allowed to act on its behalf.</p>
