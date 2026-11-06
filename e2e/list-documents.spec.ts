@@ -184,7 +184,7 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 		await signInAsAdmin(page);
 
 		// Created through the app so the admin gets the org's default roles.
-		const res = await page.request.post('/orgs/create', {
+		const res = await page.request.post('/api/v1/organizations', {
 			data: { name: 'E2E Documents', slug },
 			headers: { origin: 'http://localhost:5173' }
 		});
