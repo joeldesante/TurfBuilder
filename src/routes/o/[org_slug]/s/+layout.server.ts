@@ -3,9 +3,10 @@ import { can } from '$lib/auth-helpers';
 import { getActivePlugins } from '$lib/server/plugins';
 import { withOrgTransaction } from '$lib/server/database';
 import { listBucketNavigation } from '$lib/server/services/buckets.service';
+import { BETA_BANNER_COOKIE } from '$components/feedback/beta-banner/BetaBanner.svelte';
 import { isEmailVerificationDisabled } from '$lib/server/utils/security';
 
-export async function load({ locals, parent }) {
+export async function load({ locals, parent, cookies }) {
 	const parentData = await parent();
 
 	if (!locals.user) {
@@ -35,6 +36,7 @@ export async function load({ locals, parent }) {
 		...parentData,
 		organization: locals.organization,
 		buckets,
+		betaBannerDismissed: cookies.get(BETA_BANNER_COOKIE) === '1',
 		activePlugins: activePlugins.map((p) => ({
 			slug: p.manifest.slug,
 			name: p.manifest.name,

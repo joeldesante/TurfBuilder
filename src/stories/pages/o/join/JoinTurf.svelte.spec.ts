@@ -50,4 +50,26 @@ describe('JoinTurf', () => {
 
 		await expect.element(page.getByText('Turf not found.')).toBeVisible();
 	});
+
+	it('has no account menu without a signed-in user', async () => {
+		render(JoinTurf, { onJoin: vi.fn() });
+		await expect.element(page.getByRole('heading', { level: 1 })).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: 'Account menu' }))
+			.not.toBeInTheDocument();
+	});
+
+	it('offers sign out from the account menu', async () => {
+		const onsignout = vi.fn();
+		render(JoinTurf, {
+			onJoin: vi.fn(),
+			name: 'Alex Rivera',
+			email: 'alex@example.com',
+			onsignout
+		});
+		await page.getByRole('button', { name: 'Account menu' }).click();
+		await expect.element(page.getByText('alex@example.com')).toBeVisible();
+		await page.getByRole('menuitem', { name: 'Sign Out' }).click();
+		expect(onsignout).toHaveBeenCalledTimes(1);
+	});
 });

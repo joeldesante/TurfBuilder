@@ -76,11 +76,6 @@
 					errors={form.touched.email ? (form.errors.email ?? []) : []}
 					dirty={form.touched.email}
 				>
-					{#snippet helperContent()}
-						Want to keep your identity private? Use a <a target="_blank" href="https://proton.me"
-							>Proton Mail</a
-						> address.
-					{/snippet}
 					<TextInput
 						bind:value={form.values.email}
 						type="email"

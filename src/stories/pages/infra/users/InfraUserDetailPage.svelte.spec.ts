@@ -99,6 +99,62 @@ describe('InfraUserDetailPage', () => {
 		expect(remove).toHaveBeenCalledWith(userDetail.email);
 	});
 
+	describe('edit details', () => {
+		async function openEdit() {
+			await page.getByRole('button', { name: 'Actions' }).click();
+			await page.getByRole('menuitem', { name: 'Edit details' }).click();
+		}
+
+		test('starts with the current details and sends only what changed', async () => {
+			const update = vi.fn(async () => {});
+			setup({ actions: actions({ update }) });
+
+			await openEdit();
+			await expect.element(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(userDetail.name);
+			await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Renamed Person');
+			await page.getByRole('button', { name: 'Save' }).click();
+
+			await vi.waitFor(() => expect(update).toHaveBeenCalledWith({ name: 'Renamed Person' }));
+		});
+
+		test('closes without saving when nothing changed', async () => {
+			const update = vi.fn(async () => {});
+			setup({ actions: actions({ update }) });
+
+			await openEdit();
+			await page.getByRole('button', { name: 'Save' }).click();
+
+			await expect.element(page.getByRole('textbox', { name: 'Name', exact: true })).not.toBeInTheDocument();
+			expect(update).not.toHaveBeenCalled();
+		});
+
+		test('does not save an invalid email', async () => {
+			const update = vi.fn(async () => {});
+			setup({ actions: actions({ update }) });
+
+			await openEdit();
+			await page.getByRole('textbox', { name: 'Email', exact: true }).fill('not-an-email');
+			await page.getByRole('button', { name: 'Save' }).click();
+
+			await expect.element(page.getByText('Enter a valid email address.')).toBeVisible();
+			expect(update).not.toHaveBeenCalled();
+		});
+
+		test('shows the error when saving fails and keeps the dialog open', async () => {
+			const update = vi.fn(async () => {
+				throw new Error('That email is already in use.');
+			});
+			setup({ actions: actions({ update }) });
+
+			await openEdit();
+			await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Renamed Person');
+			await page.getByRole('button', { name: 'Save' }).click();
+
+			await expect.element(page.getByText('That email is already in use.')).toBeVisible();
+			await expect.element(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible();
+		});
+	});
+
 	test('offers no actions to a read-only admin', async () => {
 		setup({ permissions: ['access'] });
 

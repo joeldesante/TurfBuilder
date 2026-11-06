@@ -335,27 +335,3 @@ endpoint's own authorization.
 &#123; url, key &#125;
 
 ---
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/orgs/create`
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/setup/api/check-db`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/create-admin`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/create-schema`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/save-email-settings`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/setup/api/save-settings`
-
----

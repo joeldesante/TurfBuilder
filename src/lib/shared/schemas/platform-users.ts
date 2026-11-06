@@ -55,3 +55,14 @@ export type SuspendUserInput = z.infer<typeof suspendUserSchema>;
 export const deleteUserSchema = z.object({
 	confirmEmail: z.string().trim().toLowerCase()
 });
+
+/**
+ * The edit details dialog: every field is filled in with the user's current value, so unlike
+ * `updateUserSchema` nothing is optional. The dialog sends only what changed.
+ */
+export const editUserFormSchema = z.object({
+	name: z.string().trim().min(1, 'Enter a name.').max(100, 'Names are at most 100 characters.'),
+	email: z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address.')),
+	username,
+	emailVerified: z.boolean()
+});

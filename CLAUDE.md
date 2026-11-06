@@ -496,9 +496,10 @@ import { Form } from '$lib/client/formstorm/form.svelte.ts';
 import { z } from 'zod';
 
 const schema = z.object({ name: z.string().min(1) });
-const form = new Form(schema);
+const form = new Form(schema, async (values) => { await save(values.name); }, { name: 'Initial' });
 
-// Reactive getters: form.values, form.errors, form.dirty, form.submitting, form.valid, form.errorMessage
+// Reactive getters: form.values, form.errors, form.touched, form.dirty, form.submitting, form.valid, form.errorMessage
+// Methods: form.submit(), form.touch(field), form.validate(), form.reset(), form.setFieldError(field, msg), form.clearFieldError(field)
 ```
 
 `Form` initializes values from the Zod schema via `zod-empty` and validates on submit.

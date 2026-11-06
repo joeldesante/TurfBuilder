@@ -387,6 +387,19 @@ One platform metric over a time range, as chart data or CSV.
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organization-slugs/{slug}`
+
+Whether an organization URL slug is free, so the create form can flag a taken one as the user
+types instead of after they submit.
+
+**Auth:** user  
+
+**Response**
+
+`OrganizationSlugAvailability`, `{ available: boolean }`. 400 for a malformed slug, 401 when signed out
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations`
 
 Every organization on the instance, one page at a time. Deleted ones only with `status=deleted`.

@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import type { UpdateUserInput, SuspendUserInput } from '$lib/shared/schemas/platform-users';
+	import type { z } from 'zod';
 
 	export type UserTab = 'overview' | 'organizations' | 'sessions' | 'activity' | 'emails' | 'audit';
 
@@ -23,6 +24,8 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { Form } from '$lib/client/formstorm/form.svelte';
+	import { editUserFormSchema } from '$lib/shared/schemas/platform-users';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Tabs from '$components/layout/tabs/Tabs.svelte';
 	import Badge from '$components/data-display/badge/Badge.svelte';
@@ -110,10 +113,11 @@
 	let busy = $state(false);
 	let dialogError = $state<string | null>(null);
 
-	let editName = $state('');
-	let editEmail = $state('');
-	let editUsername = $state('');
-	let editVerified = $state(false);
+	const editForm = new Form(editUserFormSchema, async (values) => {
+		const changes = editChanges(values);
+		if (Object.keys(changes).length > 0) await actions.update(changes);
+		dialog = null;
+	});
 	let suspendReason = $state('');
 	let suspendFor = $state('indefinite');
 	let deleteConfirm = $state('');
@@ -121,10 +125,11 @@
 	function open(id: Exclude<DialogId, null>) {
 		dialogError = null;
 		if (id === 'edit') {
-			editName = user.name;
-			editEmail = user.email;
-			editUsername = user.displayUsername || user.username;
-			editVerified = user.emailVerified;
+			editForm.reset();
+			editForm.values.name = user.name;
+			editForm.values.email = user.email;
+			editForm.values.username = user.displayUsername || user.username;
+			editForm.values.emailVerified = user.emailVerified;
 		}
 		if (id === 'suspend') {
 			suspendReason = '';
@@ -135,7 +140,7 @@
 	}
 
 	function close() {
-		if (!busy) dialog = null;
+		if (!busy && !editForm.submitting) dialog = null;
 	}
 
 	async function run(action: () => Promise<void>) {
@@ -166,12 +171,12 @@
 		}
 	}
 
-	function editChanges(): UpdateUserInput {
+	function editChanges(values: z.infer<typeof editUserFormSchema>): UpdateUserInput {
 		const changes: UpdateUserInput = {};
-		if (editName.trim() !== user.name) changes.name = editName.trim();
-		if (editEmail.trim().toLowerCase() !== user.email) changes.email = editEmail.trim();
-		if (editUsername.trim().toLowerCase() !== user.username) changes.username = editUsername.trim();
-		if (editVerified !== user.emailVerified) changes.emailVerified = editVerified;
+		if (values.name !== user.name) changes.name = values.name;
+		if (values.email !== user.email) changes.email = values.email;
+		if (values.username.toLowerCase() !== user.username) changes.username = values.username;
+		if (values.emailVerified !== user.emailVerified) changes.emailVerified = values.emailVerified;
 		return changes;
 	}
 
@@ -379,26 +384,41 @@
 	open={dialog === 'edit'}
 	title="Edit details"
 	confirmLabel="Save"
-	loading={busy}
-	error={dialogError}
+	loading={editForm.submitting}
+	error={editForm.errorMessage || null}
 	onCancel={close}
-	onConfirm={() => {
-		const changes = editChanges();
-		if (Object.keys(changes).length === 0) {
-			dialog = null;
-			return;
-		}
-		run(() => actions.update(changes));
-	}}
+	onConfirm={() => editForm.submit()}
 >
-	<div class="space-y-3">
-		<FormField label="Name"><TextInput bind:value={editName} /></FormField>
-		<FormField label="Email" helperText="A new address is unverified unless you mark it verified below.">
-			<TextInput bind:value={editEmail} type="email" />
+	<form
+		class="space-y-3"
+		novalidate
+		onsubmit={(e) => {
+			e.preventDefault();
+			editForm.submit();
+		}}
+	>
+		<FormField label="Name" errors={editForm.errors.name ?? []} dirty={!!editForm.touched.name}>
+			<TextInput bind:value={editForm.values.name} onfocusout={() => editForm.touch('name')} />
 		</FormField>
-		<FormField label="Username"><TextInput bind:value={editUsername} /></FormField>
-		<Switch id="edit-email-verified" checked={editVerified} onCheckedChange={(next) => (editVerified = next)}>Email verified</Switch>
-	</div>
+		<FormField
+			label="Email"
+			helperText="A new address is unverified unless you mark it verified below."
+			errors={editForm.errors.email ?? []}
+			dirty={!!editForm.touched.email}
+		>
+			<TextInput bind:value={editForm.values.email} type="email" onfocusout={() => editForm.touch('email')} />
+		</FormField>
+		<FormField label="Username" errors={editForm.errors.username ?? []} dirty={!!editForm.touched.username}>
+			<TextInput bind:value={editForm.values.username} onfocusout={() => editForm.touch('username')} />
+		</FormField>
+		<Switch
+			id="edit-email-verified"
+			checked={editForm.values.emailVerified}
+			onCheckedChange={(next) => (editForm.values.emailVerified = next)}
+		>
+			Email verified
+		</Switch>
+	</form>
 </ConfirmDialog>
 
 <ConfirmDialog

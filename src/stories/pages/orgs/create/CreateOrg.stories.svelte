@@ -18,6 +18,18 @@
 		return Promise.resolve();
 	}
 
+	// Every slug is free, after a short wait
+	async function slugFree() {
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		return true;
+	}
+
+	// Every slug is taken, after a short wait
+	async function slugTaken() {
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		return false;
+	}
+
 	async function simulateError() {
 		await new Promise((_, reject) =>
 			setTimeout(() => reject(new Error('That slug is already taken.')), 600)
@@ -28,3 +40,7 @@
 <Story name="Default" args={{ onCreate: noop }} />
 
 <Story name="Slug Already Taken" args={{ onCreate: simulateError }} />
+
+<Story name="Slug Available" args={{ onCreate: noop, checkSlug: slugFree }} />
+
+<Story name="Slug Taken" args={{ onCreate: noop, checkSlug: slugTaken }} />

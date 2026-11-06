@@ -72,11 +72,15 @@ test('renders name and expiration inputs', async () => {
 	await expect.element(getByLabelText('Expiration Date')).toBeVisible();
 });
 
-test('Create List button is disabled when name is empty', async () => {
-	const { getByRole } = render(CreateListPage, {
-		props: { bucketName: 'Test', bucketFilter: locationsOnlyFilter, onCreate: async () => {} }
+test('asks for a name and an expiration date when submitted without them', async () => {
+	const onCreate = vi.fn();
+	const { getByRole, getByText } = render(CreateListPage, {
+		props: { bucketName: 'Test', bucketFilter: locationsOnlyFilter, onCreate }
 	});
-	await expect.element(getByRole('button', { name: 'Create List' })).toBeDisabled();
+	await getByRole('button', { name: 'Create List' }).click();
+	await expect.element(getByText('Enter a name')).toBeVisible();
+	await expect.element(getByText('Choose an expiration date')).toBeVisible();
+	expect(onCreate).not.toHaveBeenCalled();
 });
 
 test('calls onCreate with correct payload', async () => {
