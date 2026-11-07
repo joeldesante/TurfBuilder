@@ -1,12 +1,25 @@
 <script lang="ts">
 	import { authClient } from '$lib/client';
 	import Button from '$components/actions/button/Button.svelte';
+	import { ArrowLeftIcon } from 'phosphor-svelte';
 
 	interface Props {
 		email: string;
+		/**
+		 * Opens the organizations page. Given, a plain click runs this instead of following the link,
+		 * so the route can cover the page with the loader first. Without it the link just navigates.
+		 */
+		onBack?: () => void | Promise<void>;
 	}
 
-	let { email }: Props = $props();
+	let { email, onBack }: Props = $props();
+
+	function goBack(event: MouseEvent) {
+		// Leave new-tab and other modified clicks to the browser.
+		if (!onBack || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		onBack();
+	}
 
 	const DEBOUNCE_SECONDS = 25;
 
@@ -47,14 +60,20 @@
 	}
 </script>
 
-<div class="flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
+<div class="relative flex justify-center items-center flex-col gap-6 p-6 min-h-svh">
+	<div class="absolute top-4 left-4">
+		<Button variant="ghost" href="/orgs" onclick={goBack}>
+			<ArrowLeftIcon />
+			Organizations
+		</Button>
+	</div>
+
 	<div class="w-full max-w-sm gap-6 flex flex-col">
 		<h1 class="text-2xl">Verify your email</h1>
 		<p class="text-sm">
 			A verification link was sent to <strong>{email}</strong>. You must verify your email before
 			accessing the admin panel.
 		</p>
-		<p class="text-sm">You can still use volunteer features in the meantime.</p>
 
 		<Button onclick={resend} disabled={cooldown > 0 || loading}>
 			{#if loading}

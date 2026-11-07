@@ -12,6 +12,8 @@
 </script>
 
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import { z } from 'zod';
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Tabs from '$components/layout/tabs/Tabs.svelte';
 	import Button from '$components/actions/button/Button.svelte';
@@ -21,6 +23,7 @@
 	import Select from '$components/data-inputs/select/Select.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
 	import CodeEditor from '$components/data-inputs/code-editor/CodeEditor.svelte';
+	import { Form } from '$lib/client/formstorm/form.svelte';
 	import { SETTING_GROUPS, SYSTEM_SETTINGS, type SettingDefinition, type SettingGroup } from '$lib/shared/registries/system-settings';
 	import { formatDateTime } from '$lib/shared/utils/format-date';
 	import type { SystemSettingValue } from '$lib/shared/types/system-settings';
@@ -42,44 +45,89 @@
 	const definitions = $derived(SYSTEM_SETTINGS.filter((s) => s.group === group.id));
 	const stored = $derived(new Map(settings.map((s) => [s.key, s])));
 
-	// Only the fields the admin changed on this tab; shown value falls back to the stored one.
-	let edits = $state<Record<string, string>>({});
-	let errors = $state<Record<string, string>>({});
-	let saving = $state(false);
 	let notice = $state<{ kind: 'success' | 'error'; text: string } | null>(null);
 
-	const valueOf = (key: string) => edits[key] ?? stored.get(key)?.value ?? '';
-	const dirtyKeys = $derived(Object.keys(edits).filter((key) => edits[key] !== (stored.get(key)?.value ?? '')));
+	const storedValue = (key: string) => stored.get(key)?.value ?? '';
+
+	/**
+	 * A field is checked with its setting's own validator, but only when the admin changed it: a
+	 * stored value that is no longer valid (a default, or one saved before a rule tightened) must
+	 * not stop an unrelated change from saving. The server checks again.
+	 */
+	function settingFieldSchema(def: SettingDefinition) {
+		return z.string().superRefine((value, ctx) => {
+			if (value === storedValue(def.key)) return;
+			const checked = def.schema.safeParse(value);
+			if (checked.success) return;
+			for (const issue of checked.error.issues) ctx.addIssue({ code: 'custom', message: issue.message });
+		});
+	}
+
+	// One form per tab, holding the value of every field on it. Switching tabs starts a new form, so
+	// edits made on the last tab are not saved, unseen, with this one.
+	function createForm() {
+		const shape: Record<string, z.ZodType<string>> = {};
+		const initial: Record<string, string> = {};
+		for (const def of definitions) {
+			shape[def.key] = settingFieldSchema(def);
+			initial[def.key] = storedValue(def.key);
+		}
+		return new Form(z.object(shape), save, initial);
+	}
+
+	let form = $state.raw(untrack(createForm));
+
+	const valueOf = (key: string) => form.values[key] ?? '';
+	const dirtyKeys = $derived(
+		definitions.map((def) => def.key).filter((key) => valueOf(key) !== storedValue(key))
+	);
+	const saving = $derived(form.submitting);
 
 	function edit(key: string, value: string) {
-		edits[key] = value;
-		delete errors[key];
+		form.values[key] = value;
+		form.clearFieldError(key);
 		notice = null;
 	}
 
-	async function save() {
-		saving = true;
+	async function save(values: Record<string, string>) {
 		notice = null;
-		const result = await onsave(Object.fromEntries(dirtyKeys.map((key) => [key, edits[key]])));
-		saving = false;
+		const result = await onsave(Object.fromEntries(dirtyKeys.map((key) => [key, values[key]])));
 		if (result.ok) {
-			edits = {};
-			errors = {};
 			notice = {
 				kind: 'success',
 				text: result.restartRequired ? 'Saved. Restart the app for the change to take effect everywhere.' : 'Saved.'
 			};
-		} else {
-			errors = result.errors;
-			notice = { kind: 'error', text: result.message };
+			return;
 		}
+		for (const def of definitions) {
+			const message = result.errors[def.key];
+			if (message) form.setFieldError(def.key, message);
+		}
+		notice = { kind: 'error', text: result.message };
 	}
 
 	function discard() {
-		edits = {};
-		errors = {};
+		for (const def of definitions) {
+			form.clearFieldError(def.key);
+			form.values[def.key] = storedValue(def.key);
+		}
 		notice = null;
 	}
+
+	// When the saved settings change (after a save the page reloads them), fields the admin has not
+	// edited follow along. An edited field keeps what was typed.
+	let previousStored = untrack(() => stored);
+	$effect(() => {
+		const next = stored;
+		untrack(() => {
+			for (const def of definitions) {
+				if (valueOf(def.key) === (previousStored.get(def.key)?.value ?? '')) {
+					form.values[def.key] = next.get(def.key)?.value ?? '';
+				}
+			}
+			previousStored = next;
+		});
+	});
 
 	// The test buttons.
 	let testing = $state<'mail' | 'storage' | null>(null);
@@ -87,12 +135,11 @@
 
 	// Switching tabs keeps this component, so edits made on the last tab would
 	// otherwise be saved, unseen, with this one. Each tab starts clean.
-	let shownTab = $state<SettingGroup | null>(null);
+	let shownTab = $state<SettingGroup | null>(untrack(() => tab));
 	$effect.pre(() => {
 		if (tab === shownTab) return;
 		shownTab = tab;
-		edits = {};
-		errors = {};
+		form = untrack(createForm);
 		notice = null;
 		testResult = null;
 	});
@@ -137,7 +184,7 @@
 		class="max-w-2xl space-y-6"
 		onsubmit={(event) => {
 			event.preventDefault();
-			if (dirtyKeys.length > 0 && !saving) save();
+			if (dirtyKeys.length > 0 && !saving) form.submit();
 		}}
 	>
 		<p class="text-sm text-on-surface-subtle">{group.description}</p>
@@ -195,7 +242,7 @@
 
 {#snippet field(def: SettingDefinition)}
 	{@const value = valueOf(def.key)}
-	{@const error = errors[def.key]}
+	{@const error = form.errors[def.key]?.[0]}
 	{#if def.input.kind === 'boolean'}
 		<div>
 			<Switch id={`setting-${def.key}`} checked={value === 'true'} onCheckedChange={(next) => edit(def.key, String(next))}>{def.label}</Switch>
@@ -203,7 +250,7 @@
 			{#if error}<p class="mt-1 text-sm text-error" role="alert">{error}</p>{/if}
 		</div>
 	{:else}
-		<FormField label={def.label} helperText={def.help} errors={error ? [error] : []}>
+		<FormField label={def.label} helperText={def.help} errors={form.errors[def.key] ?? []} dirty>
 			{#if def.input.kind === 'text' || def.input.kind === 'url'}
 				<TextInput
 					{value}

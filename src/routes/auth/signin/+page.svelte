@@ -3,7 +3,7 @@
 	import SignIn from '$pages/auth/signin/SignIn.svelte';
 
 	const { data } = $props();
-	const redirectTo = $derived($page.url.searchParams.get('redirectTo') ?? '/');
+	const redirectTo = $derived($page.url.searchParams.get('redirectTo') ?? '/orgs');
 </script>
 
 <svelte:head>

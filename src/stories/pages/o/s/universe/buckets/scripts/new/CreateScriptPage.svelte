@@ -1,6 +1,10 @@
 <script lang="ts">
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
+	import FormField from '$components/data-inputs/form-field/FormField.svelte';
+	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
+	import { Form } from '$lib/client/formstorm/form.svelte';
+	import { createNamedResourceSchema } from '$lib/shared/schemas/named-resource';
 
 	interface Props {
 		onCreate: (name: string) => Promise<void>;
@@ -8,22 +12,9 @@
 
 	const { onCreate }: Props = $props();
 
-	let name = $state('');
-	let error = $state('');
-	let loading = $state(false);
-
-	async function handleSubmit(e: SubmitEvent) {
-		e.preventDefault();
-		error = '';
-		loading = true;
-		try {
-			await onCreate(name);
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create script.';
-		} finally {
-			loading = false;
-		}
-	}
+	const form = new Form(createNamedResourceSchema, async (values) => {
+		await onCreate(values.name);
+	});
 </script>
 
 <div class="max-w-md mx-auto pt-16 px-4">
@@ -37,25 +28,34 @@
 
 	<PageHeader title="New Script" />
 
-	<form onsubmit={handleSubmit} class="flex flex-col gap-4 mt-6">
-		<div class="flex flex-col gap-1">
-			<label for="script-name" class="text-sm font-medium">Name</label>
-			<input
-				id="script-name"
-				type="text"
-				bind:value={name}
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			form.submit();
+		}}
+		novalidate
+		class="flex flex-col gap-4 mt-6"
+	>
+		<FormField
+			label="Name"
+			id="script-name"
+			errors={form.errors.name ?? []}
+			dirty={!!form.touched.name}
+		>
+			<TextInput
+				bind:value={form.values.name}
+				onfocusout={() => form.touch('name')}
 				placeholder="Door Knock Script"
 				required
-				class="border rounded px-3 py-2"
 			/>
-		</div>
+		</FormField>
 
-		{#if error}
-			<p class="text-sm text-red-600" role="alert">{error}</p>
+		{#if form.errorMessage}
+			<p class="text-sm text-red-600" role="alert">{form.errorMessage}</p>
 		{/if}
 
-		<Button type="submit" disabled={loading || !name.trim()}>
-			{loading ? 'Creating…' : 'Create Script'}
+		<Button type="submit" loading={form.submitting}>
+			{form.submitting ? 'Creating…' : 'Create Script'}
 		</Button>
 	</form>
 </div>

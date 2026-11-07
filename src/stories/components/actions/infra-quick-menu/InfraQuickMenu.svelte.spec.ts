@@ -16,6 +16,21 @@ describe('InfraQuickMenu', () => {
 		await expect.element(page.getByRole('link', { name: 'Users', exact: true })).toHaveAttribute('href', '/infra/users');
 	});
 
+	test('moves left of a floating button on phones when asked to', async () => {
+		render(InfraQuickMenu, { props: { groups: everything, besideFab: true } });
+
+		// Tailwind is not loaded in component tests, so check for the phone-only offset classes.
+		const wrapper = page.getByRole('button', { name: 'Infrastructure menu' }).element().closest('.fixed')!;
+		expect(wrapper.className).toContain('max-md:right-');
+	});
+
+	test('stays in the corner by default', async () => {
+		render(InfraQuickMenu, { props: { groups: everything } });
+
+		const wrapper = page.getByRole('button', { name: 'Infrastructure menu' }).element().closest('.fixed')!;
+		expect(wrapper.className).not.toContain('max-md:right-');
+	});
+
 	test('lists only the pages the admin can open', async () => {
 		render(InfraQuickMenu, { props: { groups: buildInfraNav(['access']), open: true } });
 

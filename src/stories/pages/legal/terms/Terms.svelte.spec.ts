@@ -4,14 +4,7 @@ import Terms from './Terms.svelte';
 
 test('renders Terms of Service heading', async () => {
 	const { getByRole } = render(Terms);
-	await expect.element(getByRole('heading', { name: 'Terms of Service' })).toBeVisible();
-});
-
-// The page body is a placeholder until the terms text is written.
-test('shows the placeholder text and when it was last updated', async () => {
-	const { getByText } = render(Terms);
-	await expect.element(getByText('Coming soon')).toBeVisible();
-	await expect.element(getByText('June 18, 2026')).toBeVisible();
+	await expect.element(getByRole('heading', { name: 'Terms of Service', exact: true })).toBeVisible();
 });
 
 // The layout links to it from both the header and the footer.

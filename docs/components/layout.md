@@ -72,6 +72,7 @@
 | `theme` | `Theme | undefined` | `'system'` |  |
 | `panelTitle` | `string | undefined` | — |  |
 | `onpanelback` | `(() => void) | undefined` | — |  |
+| `orgsHref` | `string | undefined` | — | Where "Organizations" leads; omit to hide the link. |
 | `onsignout` | `(() => void) | undefined` | — |  |
 | `onthemechange` | `((theme: Theme) => void) | undefined` | — |  |
 | `class` | `string | undefined` | `''` |  |

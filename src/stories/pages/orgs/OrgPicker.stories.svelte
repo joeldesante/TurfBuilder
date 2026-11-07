@@ -19,4 +19,4 @@
 
 <Story name="Default" args={{ onSelect: noop }} />
 
-<Story name="With Create Link" args={{ allowCreation: true, onSelect: noop }} />
+<Story name="With Create Button" args={{ allowCreation: true, onSelect: noop }} />

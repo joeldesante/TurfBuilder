@@ -2,10 +2,8 @@
 	import DocumentLayout from '$components/layout/layouts/document-layout/DocumentLayout.svelte';
 </script>
 
-<DocumentLayout title="Terms of Service" lastUpdated="June 18, 2026">
+<DocumentLayout title="Terms of Service" lastUpdated="November 5, 2026">
 	{#snippet children()}
-		<h1 id="user-content-turfbuilder-terms-of-service">TurfBuilder Terms of Service</h1>
-		<p><strong>Last updated:</strong> November 4, 2026</p>
 		<p>These terms are an agreement between you and TurfBuilder Infrastructure LLC ("TurfBuilder," "we," "us"). By using TurfBuilder, you agree to them. If you don't agree, please don't use the service.</p>
 		<h2 id="user-content-1-who-can-use-turfbuilder">1. Who Can Use TurfBuilder</h2>
 		<p>You must be at least 13 years old. If you're under 18, you need permission from a parent or guardian. If you sign up for an organization, you confirm you're allowed to act on its behalf.</p>
@@ -29,6 +27,7 @@
 		<p><strong>Hate.</strong> We will promptly remove accounts or organizations that spread hate, including racism, homophobia, transphobia, antisemitism, and Islamophobia.</p>
 		<p><strong>Illegal activity.</strong> We may suspend accounts that break the laws where they operate, or that could involve TurfBuilder in clearly illegal activity.</p>
 		<p><strong>Free speech.</strong> We support the constitutional rights to free speech, free assembly, and a free press. We will not remove or suspend accounts for lawfully exercising those rights.</p>
+		<p><strong>Accountability Standard.</strong> We may decline orgaziations whose official positions or actions defend or materially obstruct accountability for credible allegations of serious rights violations in policing and immigration enforcement. In assessing this, we consider whether the organization had a meaningful opportunity and responsibility to act. Party affiliation or an individual member’s views alone are not grounds for denial.</p>
 		<h2 id="user-content-5-copyright-dmca">5. Copyright (DMCA)</h2>
 		<p>We review DMCA copyright takedown claims as we receive them and comply when appropriate.</p>
 		<h2 id="user-content-6-law-enforcement-requests">6. Law Enforcement Requests</h2>

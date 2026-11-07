@@ -65,4 +65,9 @@ describe('Avatar', () => {
 			expect(avatar.classList.contains('bg-primary-container')).toBe(true);
 		});
 	});
+
+	it('capitalizes the first letter of the initials', async () => {
+		const screen = render(Avatar, { username: 'joel desante' });
+		await expect.element(screen.getByRole('img')).toHaveTextContent('Jo');
+	});
 });
