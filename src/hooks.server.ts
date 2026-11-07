@@ -12,6 +12,7 @@ import { logger } from '$lib/server/logger';
 import { startRuntimeMetrics } from '$lib/server/runtime-metrics';
 import { analytics, configureAnalytics } from '$lib/server/analytics';
 import { applyTelemetry } from '$lib/server/telemetry';
+import { isMaintenanceMode } from '$lib/server/utils/maintenance';
 
 if (!building) startRuntimeMetrics();
 
@@ -33,6 +34,12 @@ export function handleError({ error: err, event, status, message }) {
 const handleRequest: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 	const isAuthRoute = pathname.startsWith('/auth');
+
+	// Maintenance mode answers before anything touches the database: no settings
+	// read, no session lookup, no activity write, no sign-in.
+	if (!building && isMaintenanceMode()) {
+		return errorPage('MAINTENANCE', { 'retry-after': '300' });
+	}
 
 	if (!building) {
 		let loaded: Awaited<ReturnType<typeof getAllSettings>>;

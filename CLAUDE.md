@@ -83,6 +83,7 @@ Optional:
 | `LOG_LEVEL` | Minimum log level (`trace` to `fatal`). Defaults to `info`. |
 | `LOG_METRICS_INTERVAL_MS` | Period of the process metrics line (CPU, memory, event loop, pools). Defaults to 30000; 0 turns it off. |
 | `LOG_SLOW_QUERY_MS` | Queries and connection waits slower than this are logged as warnings. Defaults to 500. |
+| `MAINTENANCE_MODE` | `true` puts the whole app into maintenance mode: `hooks.server.ts` answers every request with a 503 page (`MAINTENANCE` in `error-codes.ts`) before any database access, so nothing is read or written. Restart after changing it; use it while running a data migration. |
 | `GIT_SHA` | Commit of the running build, shown on `/infra/system`. |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium binary for Puppeteer. The Docker images set it to Alpine's `/usr/bin/chromium-browser` (Puppeteer's bundled Chrome is glibc-only); outside Docker, leave it unset and Puppeteer uses its own download. |
 
@@ -354,6 +355,12 @@ Staff generate a printable PDF of a location list (master list, turf checkout sh
 - **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.
 - **Storage key:** `orgs/{org_id}/lists/{list_id}/documents/{document_id}.pdf` (from `listDocumentKey()`). Files are never hard-deleted by the app (retention: #174).
 - **Chromium:** Docker images install Alpine `chromium` + `mesa-egl` + fonts. Containers run as root, so Chrome runs with `--no-sandbox` (moving to a worker: #181). Map tiles come from `tiles.openfreemap.org` at render time.
+
+---
+
+## Server Helpers
+
+Small server-side helpers (a pure function, a response builder, an env flag check) go in `src/lib/server/utils/`, each with a `.spec.ts` beside it. Do not add loose files to the `src/lib/server/` root; that is for services, data access and infrastructure modules.
 
 ---
 
