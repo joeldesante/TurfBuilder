@@ -5,7 +5,8 @@
  * migrations/ and issue #237).
  *
  * Every version of every location, current, superseded, and deleted, becomes
- * a 'business' contact version that is the same row in all but shape:
+ * a 'business' contact version (every location so far is a business) that is
+ * the same row in all but shape:
  *   - the same id, so list_entry.record_id and turf_location.org_location_id
  *     already point at it and switching them over needs no lookup;
  *   - the same entity id, valid_from, valid_to, created_at, authored_by,

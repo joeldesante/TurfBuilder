@@ -25,7 +25,7 @@ Collections whose size is unbounded (entities, bucket matches, list entries, mem
 
 - `page` is 1-based. A missing, nonsense, or out-of-range value is clamped to the nearest real page rather than rejected.
 - Every page has a total order (ending in an id), so pages never repeat or skip a row.
-- Helpers live in `$lib/shared/utils/pagination`. Each service exposes a `query...Page(client, orgId, page)` function for page loads that already hold an org transaction, and an access-checked `list...(userId, id, page)` for the endpoint.
+- Helpers live in `$lib/shared/utils/pagination`. Each service exposes an access-checked `list...(userId, id, page)`, which both the endpoint and page loads call. The `query...Page(client, orgId, page)` beneath it is internal, for other services that already hold an org transaction.
 
 Paginated today:
 
@@ -55,6 +55,12 @@ An action that is not plain CRUD is a noun the client creates or removes, not a 
 - Request schemas live in `$lib/shared/schemas`, so the page that builds a request can validate with the same schema. Parse bodies with `parseBody()` from `$lib/server/request`.
 - Response types live in `$lib/shared/types`.
 - Every endpoint has a JSDoc header (`@auth`, `@query`, `@body`, `@returns`) and a spec beside it.
+
+### Only services touch the database
+
+Routes (endpoints, page and layout loads), `hooks.server.ts`, plugins, pages and browser code never import `$lib/server/database` or `pg`, and never write SQL. They call a service, and the service owns the queries and the transaction. The service is the adapter: when storage changes, only the service changes, not its callers. ESLint enforces this (`no-restricted-imports` in `eslint.config.js`). Files written before the rule are listed in `eslint.db-access-baseline.js`; that list only shrinks.
+
+Public service functions take the caller's `userId` and the ids of what they act on, find the organization, check access, and open their own `withOrgTransaction`. `surveys.service.ts` is the reference. Functions that take a `PoolClient` are internal building blocks for other services (`contacts.service`, `addresses.service`, `query...Page`), and routes cannot call them.
 
 ### Access is checked in the service
 

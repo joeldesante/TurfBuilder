@@ -224,7 +224,11 @@ if (!locals.organization.role) throw error(403, 'Forbidden');
 
 ## Database Patterns
 
-### Preferred: `withOrgTransaction`
+### Only services touch the database
+
+Routes, `hooks.server.ts`, plugins, stories and `$lib/client` never import `$lib/server/database` or `pg` and never write SQL; they call a service in `$lib/server/services`. Public service functions take `userId` plus ids, check access, and open their own transaction (`surveys.service.ts` is the reference). Functions that take a `PoolClient` (`contacts.service`, `addresses.service`, `query...Page`) are internal to services. ESLint enforces this; `eslint.db-access-baseline.js` lists files not yet moved, and it only shrinks. See `src/routes/api/v1/README.md`.
+
+### Inside services: `withOrgTransaction`
 
 Use `withOrgTransaction` for all org-scoped queries. It begins a transaction, sets `app.current_org_id` for Row-Level Security, and handles commit/rollback automatically.
 
