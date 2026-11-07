@@ -132,7 +132,6 @@
 						/>
 					{/if}
 					<MetricsWorkflowSidebar
-						{orgSlug}
 						{buckets}
 						onGenerate={(selection) => handleGenerate(activeTab!.id, selection)}
 					/>

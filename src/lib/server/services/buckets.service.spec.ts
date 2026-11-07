@@ -48,6 +48,8 @@ import {
 	convertAllBucketFilters,
 	findBucketBySlug,
 	findBucketForPage,
+	getBucketPage,
+	getBucketNavigation,
 	listBucketNavigation,
 	queryBucketEntitiesPage,
 	resolveBucketFilters,
@@ -219,7 +221,9 @@ const legacyBroken = convertBucketFilter({
 describe('buckets made before the filter editor', () => {
 	const row = (filter: unknown, filters: unknown = null) => ({
 		rowCount: 1,
-		rows: [{ id: BUCKET, org_id: ORG, name: 'Old', slug: 'old', filter, filters, created_at: 'then' }]
+		rows: [
+			{ id: BUCKET, org_id: ORG, name: 'Old', slug: 'old', filter, filters, created_at: 'then' }
+		]
 	});
 
 	function stubRow(filter: unknown, filters: unknown = null) {
@@ -397,12 +401,16 @@ describe('resolveBucketFilters', () => {
 	});
 
 	it('refuses stored filters that are not valid, instead of using them', async () => {
-		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(InvalidBucketFiltersError);
+		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(
+			InvalidBucketFiltersError
+		);
 		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(/no longer valid/);
 	});
 
 	it('refuses them as an unconvertible bucket, so callers that skip those skip it too', async () => {
-		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(UnconvertibleBucketError);
+		await expect(resolve(row({ filters: invalidFilters }))).rejects.toThrow(
+			UnconvertibleBucketError
+		);
 	});
 
 	it('converts the old filter when there are none, and saves the result', async () => {
@@ -450,8 +458,13 @@ describe('resolveBucketFilters', () => {
 
 describe('bucketSections', () => {
 	it('reports which kinds of record a bucket includes', () => {
-		expect(bucketSections(stored)).toEqual({ people: { enabled: false }, locations: { enabled: true } });
-		expect(bucketSections({ v: 2, people: { operator: 'AND', filters: [] }, locations: null })).toEqual({
+		expect(bucketSections(stored)).toEqual({
+			people: { enabled: false },
+			locations: { enabled: true }
+		});
+		expect(
+			bucketSections({ v: 2, people: { operator: 'AND', filters: [] }, locations: null })
+		).toEqual({
 			people: { enabled: true },
 			locations: { enabled: false }
 		});
@@ -492,7 +505,12 @@ describe('convertAllBucketFilters', () => {
 
 		expect(report.converted).toBe(1);
 		expect(report.failed).toEqual([
-			{ orgId: ORG, bucketId: 'bad', slug: 'bad-bucket', reason: expect.stringContaining('locations:') }
+			{
+				orgId: ORG,
+				bucketId: 'bad',
+				slug: 'bad-bucket',
+				reason: expect.stringContaining('locations:')
+			}
 		]);
 	});
 
@@ -504,7 +522,9 @@ describe('convertAllBucketFilters', () => {
 		});
 
 		expect((await convertAllBucketFilters()).converted).toBe(2);
-		const contexts = mockClient.query.mock.calls.filter((c) => String(c[0]).startsWith('SET LOCAL'));
+		const contexts = mockClient.query.mock.calls.filter((c) =>
+			String(c[0]).startsWith('SET LOCAL')
+		);
 		expect(contexts.map((c) => c[0])).toEqual([
 			`SET LOCAL app.current_org_id = '${ORG}'`,
 			`SET LOCAL app.current_org_id = '${other}'`
@@ -531,9 +551,17 @@ describe('queryBucketEntitiesPage', () => {
 			text.includes('COUNT(*)') ? { rows: [{ count: String(total) }] } : { rows }
 		);
 	}
-	const pageCall = () => mockClient.query.mock.calls.find((c) => !String(c[0]).includes('COUNT(*)'))!;
+	const pageCall = () =>
+		mockClient.query.mock.calls.find((c) => !String(c[0]).includes('COUNT(*)'))!;
 	const run = (page: number, kind: 'locations' | 'people' = 'locations', size?: number) =>
-		queryBucketEntitiesPage(mockClient as never, ORG, kind, kind === 'locations' ? austin : { operator: 'AND', filters: [] }, page, size);
+		queryBucketEntitiesPage(
+			mockClient as never,
+			ORG,
+			kind,
+			kind === 'locations' ? austin : { operator: 'AND', filters: [] },
+			page,
+			size
+		);
 
 	beforeEach(() => answer(250));
 
@@ -563,11 +591,15 @@ describe('queryBucketEntitiesPage', () => {
 
 	it('orders each kind with an id tiebreak, so pages cannot repeat or skip a row', async () => {
 		await run(1);
-		expect(String(pageCall()[0])).toContain('ORDER BY name NULLS LAST, address_line_1 NULLS LAST, id LIMIT $2 OFFSET $3');
+		expect(String(pageCall()[0])).toContain(
+			'ORDER BY name NULLS LAST, address_line_1 NULLS LAST, id LIMIT $2 OFFSET $3'
+		);
 
 		mockClient.query.mockClear();
 		await run(1, 'people');
-		expect(String(pageCall()[0])).toContain('ORDER BY last_name NULLS LAST, first_name NULLS LAST, id LIMIT $1 OFFSET $2');
+		expect(String(pageCall()[0])).toContain(
+			'ORDER BY last_name NULLS LAST, first_name NULLS LAST, id LIMIT $1 OFFSET $2'
+		);
 	});
 
 	it('offsets by whole pages', async () => {
@@ -663,9 +695,19 @@ describe('listBucketNavigation', () => {
 		const nav = await listBucketNavigation(mockClient as never, ORG);
 
 		expect(nav).toEqual([
-			{ id: 'a', name: 'A', slug: 'a', filter: { people: { enabled: false }, locations: { enabled: true } } },
+			{
+				id: 'a',
+				name: 'A',
+				slug: 'a',
+				filter: { people: { enabled: false }, locations: { enabled: true } }
+			},
 			// Kept in the list, with nothing to open
-			{ id: 'b', name: 'B', slug: 'b', filter: { people: { enabled: false }, locations: { enabled: false } } }
+			{
+				id: 'b',
+				name: 'B',
+				slug: 'b',
+				filter: { people: { enabled: false }, locations: { enabled: false } }
+			}
 		]);
 		expect(String(sqlRun('FROM universe.bucket WHERE org_id = $1')![0])).toContain('ORDER BY name');
 	});
@@ -682,8 +724,18 @@ describe('listBucketNavigation', () => {
 		const nav = await listBucketNavigation(mockClient as never, ORG);
 
 		expect(nav).toEqual([
-			{ id: 'a', name: 'A', slug: 'a', filter: { people: { enabled: false }, locations: { enabled: true } } },
-			{ id: 'b', name: 'B', slug: 'b', filter: { people: { enabled: false }, locations: { enabled: false } } }
+			{
+				id: 'a',
+				name: 'A',
+				slug: 'a',
+				filter: { people: { enabled: false }, locations: { enabled: true } }
+			},
+			{
+				id: 'b',
+				name: 'B',
+				slug: 'b',
+				filter: { people: { enabled: false }, locations: { enabled: false } }
+			}
 		]);
 	});
 });
@@ -725,7 +777,10 @@ describe('converting buckets whose stored filter is malformed', () => {
 
 		expect(report.converted).toBe(1);
 		expect(report.failed).toEqual([
-			expect.objectContaining({ slug: 'unvisited-places', reason: expect.stringContaining('"attempt"') })
+			expect.objectContaining({
+				slug: 'unvisited-places',
+				reason: expect.stringContaining('"attempt"')
+			})
 		]);
 	});
 
@@ -736,7 +791,9 @@ describe('converting buckets whose stored filter is malformed', () => {
 
 		expect(report.converted).toBe(0);
 		expect(report.failed).toEqual([expect.objectContaining({ slug: 'all' })]);
-		expect(mockClient.query.mock.calls.some((c) => String(c[0]).includes('UPDATE universe.bucket'))).toBe(false);
+		expect(
+			mockClient.query.mock.calls.some((c) => String(c[0]).includes('UPDATE universe.bucket'))
+		).toBe(false);
 	});
 
 	it('reports an unexpected error as a failure, so one bucket cannot stop the migration', async () => {
@@ -823,5 +880,65 @@ describe('findBucketForPage', () => {
 
 		expect(bucket?.filters?.locations?.filters).toHaveLength(1);
 		expect(bucket?.problem).toBeNull();
+	});
+});
+
+describe('getBucketPage', () => {
+	const row = {
+		id: BUCKET,
+		org_id: ORG,
+		name: 'Voters',
+		slug: 'voters',
+		filter: null,
+		filters: stored,
+		created_at: 'then'
+	};
+
+	it('answers 403 without staff access and reads no bucket', async () => {
+		canOrg.mockResolvedValue(false);
+
+		await expect(getBucketPage('u1', ORG, 'voters')).rejects.toMatchObject({ status: 403 });
+		expect(sqlRun('FROM universe.bucket')).toBeUndefined();
+	});
+
+	it('answers 404 when the organization has no bucket by that slug', async () => {
+		stub(() => ({ rowCount: 0, rows: [] }));
+
+		await expect(getBucketPage('u1', ORG, 'nope')).rejects.toMatchObject({ status: 404 });
+	});
+
+	it('returns the bucket with how many locations it matches', async () => {
+		stub((sql) =>
+			sql.includes('COUNT(*)')
+				? { rowCount: 1, rows: [{ count: '7' }] }
+				: { rowCount: 1, rows: [row] }
+		);
+
+		const page = await getBucketPage('u1', ORG, 'voters');
+
+		expect(page.bucket).toMatchObject({ id: BUCKET, slug: 'voters', problem: null });
+		expect(page.locationCount).toBe(7);
+	});
+
+	it('has no location count for a bucket without locations', async () => {
+		stub(() => ({ rowCount: 1, rows: [{ ...row, filters: { ...stored, locations: null } }] }));
+
+		expect((await getBucketPage('u1', ORG, 'voters')).locationCount).toBeNull();
+	});
+});
+
+describe('getBucketNavigation', () => {
+	it('answers 403 without staff access and lists nothing', async () => {
+		canOrg.mockResolvedValue(false);
+
+		await expect(getBucketNavigation('u1', ORG)).rejects.toMatchObject({ status: 403 });
+		expect(sqlRun('FROM universe.bucket WHERE org_id')).toBeUndefined();
+	});
+
+	it("lists the org's buckets", async () => {
+		stub(() => ({ rowCount: 0, rows: [] }));
+
+		expect(await getBucketNavigation('u1', ORG)).toEqual([]);
+		expect(sqlRun('FROM universe.bucket WHERE org_id')![1]).toEqual([ORG]);
 	});
 });

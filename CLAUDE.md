@@ -428,7 +428,7 @@ Register the plugin in `src/plugins/registry.ts`.
 
 ### Plugin context
 
-`PluginContext` provides `db` (wraps `withOrgTransaction`), `orgId`, `userId`, `userRole`, and `config`.
+`PluginContext` provides `orgId`, `userId`, `userRole`, and `config`. It has no database handle: plugins read and change data through the services in `$lib/server/services`, like routes. Plugin API handlers are served at `/api/v1/organizations/[organization_id]/plugins/[slug]/api/[...path]`.
 
 ### Firing hooks
 

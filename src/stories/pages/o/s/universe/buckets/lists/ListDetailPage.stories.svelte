@@ -21,6 +21,7 @@
 		orgSlug: 'test-org',
 		bucketName: 'Registered Voters',
 		bucketSlug: 'registered-voters',
+		bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
 		listHref: '/o/test-org/s/universe/buckets/registered-voters/lists/1',
 		list: {
 			id: '1',
@@ -30,9 +31,33 @@
 			created_at: new Date().toISOString()
 		},
 		entries: [
-			{ record_id: 'a', record_source: 'org_person', entity_id: 'ent-a', first_name: 'Alice', last_name: 'Nguyen', email: 'alice@example.com', phone: '555-1234' },
-			{ record_id: 'b', record_source: 'org_person', entity_id: 'ent-b', first_name: 'Bob', last_name: 'Smith', email: null, phone: '555-5678' },
-			{ record_id: 'c', record_source: 'org_person', entity_id: 'ent-c', first_name: 'Carol', last_name: 'Lee', email: 'carol@example.com', phone: null }
+			{
+				record_id: 'a',
+				record_source: 'org_person',
+				entity_id: 'ent-a',
+				first_name: 'Alice',
+				last_name: 'Nguyen',
+				email: 'alice@example.com',
+				phone: '555-1234'
+			},
+			{
+				record_id: 'b',
+				record_source: 'org_person',
+				entity_id: 'ent-b',
+				first_name: 'Bob',
+				last_name: 'Smith',
+				email: null,
+				phone: '555-5678'
+			},
+			{
+				record_id: 'c',
+				record_source: 'org_person',
+				entity_id: 'ent-c',
+				first_name: 'Carol',
+				last_name: 'Lee',
+				email: 'carol@example.com',
+				phone: null
+			}
 		],
 		turfs: []
 	}}
@@ -44,6 +69,7 @@
 		orgSlug: 'test-org',
 		bucketName: 'Downtown Properties',
 		bucketSlug: 'downtown-properties',
+		bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
 		listHref: '/o/test-org/s/universe/buckets/downtown-properties/lists/2',
 		onDownloadPdf: fakeDownloadPdf,
 		list: {
@@ -54,8 +80,26 @@
 			created_at: new Date().toISOString()
 		},
 		entries: [
-			{ record_id: 'x', record_source: 'org_location', entity_id: 'ent-x', name: 'City Hall', address_line_1: '100 Main St', city: 'Springfield', state_or_region: 'IL', postal_code: '62701' },
-			{ record_id: 'y', record_source: 'org_location', entity_id: 'ent-y', name: null, address_line_1: '200 Oak Ave', city: 'Springfield', state_or_region: 'IL', postal_code: '62702' }
+			{
+				record_id: 'x',
+				record_source: 'org_location',
+				entity_id: 'ent-x',
+				name: 'City Hall',
+				address_line_1: '100 Main St',
+				city: 'Springfield',
+				state_or_region: 'IL',
+				postal_code: '62701'
+			},
+			{
+				record_id: 'y',
+				record_source: 'org_location',
+				entity_id: 'ent-y',
+				name: null,
+				address_line_1: '200 Oak Ave',
+				city: 'Springfield',
+				state_or_region: 'IL',
+				postal_code: '62702'
+			}
 		],
 		turfs: [
 			{
@@ -88,6 +132,7 @@
 		orgSlug: 'test-org',
 		bucketName: 'Downtown Properties',
 		bucketSlug: 'downtown-properties',
+		bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
 		listHref: '/o/test-org/s/universe/buckets/downtown-properties/lists/5',
 		hasPdf: true,
 		onDownloadPdf: () => new Promise((resolve) => setTimeout(resolve, 500)),
@@ -100,7 +145,16 @@
 			created_at: new Date().toISOString()
 		},
 		entries: [
-			{ record_id: 'x', record_source: 'org_location', entity_id: 'ent-x', name: 'City Hall', address_line_1: '100 Main St', city: 'Springfield', state_or_region: 'IL', postal_code: '62701' }
+			{
+				record_id: 'x',
+				record_source: 'org_location',
+				entity_id: 'ent-x',
+				name: 'City Hall',
+				address_line_1: '100 Main St',
+				city: 'Springfield',
+				state_or_region: 'IL',
+				postal_code: '62701'
+			}
 		],
 		turfs: []
 	}}
@@ -112,6 +166,7 @@
 		orgSlug: 'test-org',
 		bucketName: 'Registered Voters',
 		bucketSlug: 'registered-voters',
+		bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
 		listHref: '/o/test-org/s/universe/buckets/registered-voters/lists/3',
 		list: {
 			id: '3',
@@ -131,6 +186,7 @@
 		orgSlug: 'test-org',
 		bucketName: 'Registered Voters',
 		bucketSlug: 'registered-voters',
+		bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
 		listHref: '/o/test-org/s/universe/buckets/registered-voters/lists/4',
 		list: {
 			id: '4',
@@ -140,7 +196,15 @@
 			created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
 		},
 		entries: [
-			{ record_id: 'a', record_source: 'org_person', entity_id: 'ent-a', first_name: 'Alice', last_name: 'Nguyen', email: 'alice@example.com', phone: null }
+			{
+				record_id: 'a',
+				record_source: 'org_person',
+				entity_id: 'ent-a',
+				first_name: 'Alice',
+				last_name: 'Nguyen',
+				email: 'alice@example.com',
+				phone: null
+			}
 		],
 		turfs: []
 	}}
@@ -152,6 +216,7 @@
 		orgSlug: 'test-org',
 		bucketName: 'Registered Voters',
 		bucketSlug: 'registered-voters',
+		bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
 		listHref: '/o/test-org/s/universe/buckets/registered-voters/lists/1',
 		list: {
 			id: '1',
@@ -161,7 +226,15 @@
 			created_at: new Date().toISOString()
 		},
 		entries: [
-			{ record_id: 'a', record_source: 'org_person', entity_id: 'ent-a', first_name: 'Alice', last_name: 'Nguyen', email: 'alice@example.com', phone: '555-1234' }
+			{
+				record_id: 'a',
+				record_source: 'org_person',
+				entity_id: 'ent-a',
+				first_name: 'Alice',
+				last_name: 'Nguyen',
+				email: 'alice@example.com',
+				phone: '555-1234'
+			}
 		],
 		entryCount: 4800,
 		page: 2,
@@ -169,4 +242,3 @@
 		turfs: []
 	}}
 />
-

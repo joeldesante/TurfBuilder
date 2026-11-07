@@ -55,6 +55,7 @@
 		orgSlug: string;
 		bucketName: string;
 		bucketSlug: string;
+		bucketId: string;
 		/** The URL of this list detail page, used to build the "Back" link on the entity detail page. */
 		listHref: string;
 		list: {
@@ -92,6 +93,7 @@
 		orgSlug,
 		bucketName,
 		bucketSlug,
+		bucketId,
 		listHref,
 		list,
 		entries,
@@ -279,7 +281,12 @@
 
 {#if activeTab === 'entries' || isPeople}
 	<div class="border-t border-outline-subtle">
-		<Pagination {page} totalCount={entryCount} {pageSize} noun={isPeople ? 'people' : 'locations'} />
+		<Pagination
+			{page}
+			totalCount={entryCount}
+			{pageSize}
+			noun={isPeople ? 'people' : 'locations'}
+		/>
 
 		{#if isPeople}
 			<div class="flex items-center gap-4 px-4 py-2">
@@ -351,7 +358,12 @@
 			{/each}
 		{/if}
 
-		<Pagination {page} totalCount={entryCount} {pageSize} noun={isPeople ? 'people' : 'locations'} />
+		<Pagination
+			{page}
+			totalCount={entryCount}
+			{pageSize}
+			noun={isPeople ? 'people' : 'locations'}
+		/>
 	</div>
 {:else}
 	<div class="border-t border-outline-subtle">
@@ -440,6 +452,7 @@
 	open={showSurveySelectionModal}
 	{orgSlug}
 	{bucketSlug}
+	{bucketId}
 	listId={list.id}
 	listName={list.name}
 	onClose={() => (showSurveySelectionModal = false)}

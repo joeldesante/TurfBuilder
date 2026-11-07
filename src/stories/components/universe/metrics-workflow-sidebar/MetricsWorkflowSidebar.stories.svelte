@@ -14,9 +14,6 @@
 	];
 </script>
 
-<Story
-	name="Default"
-	args={{ orgSlug: 'demo-org', buckets: sampleBuckets, onGenerate: () => {} }}
-/>
+<Story name="Default" args={{ buckets: sampleBuckets, onGenerate: () => {} }} />
 
-<Story name="No Buckets" args={{ orgSlug: 'demo-org', buckets: [], onGenerate: () => {} }} />
+<Story name="No Buckets" args={{ buckets: [], onGenerate: () => {} }} />

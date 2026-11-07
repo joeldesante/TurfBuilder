@@ -134,12 +134,66 @@ export async function requireSurveyOrg(userId: string, surveyId: string): Promis
 	return found.orgId;
 }
 
+/** The org a script belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireScriptOrg(userId: string, scriptId: string): Promise<string> {
+	const found = await findInMemberOrgs(userId, async (client, orgId) => {
+		const result = await client.query(
+			`SELECT 1 FROM universe.script WHERE id = $1 AND org_id = $2`,
+			[scriptId, orgId]
+		);
+		return result.rowCount ? true : undefined;
+	});
+	if (!found) throw error(404, 'Script not found');
+
+	return found.orgId;
+}
+
+/** The org a permission role belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireRoleOrg(userId: string, roleId: string): Promise<string> {
+	const found = await findInMemberOrgs(userId, async (client, orgId) => {
+		const result = await client.query(
+			`SELECT 1 FROM permission_role WHERE id = $1 AND organization_id = $2`,
+			[roleId, orgId]
+		);
+		return result.rowCount ? true : undefined;
+	});
+	if (!found) throw error(404, 'Role not found');
+
+	return found.orgId;
+}
+
+/**
+ * The org and user of a membership. Throws 404 unless the membership is in one
+ * of the caller's orgs, so another org's member ids look like unknown ones.
+ */
+export async function requireMemberOrg(
+	userId: string,
+	memberId: string
+): Promise<{ orgId: string; memberUserId: string; memberRole: string }> {
+	const result = await POOL.query<{ organization_id: string; user_id: string; role: string }>(
+		`SELECT target.organization_id, target.user_id, target.role
+		 FROM auth.member target
+		 JOIN auth.member caller
+		   ON caller.organization_id = target.organization_id AND caller.user_id = $2
+		 JOIN auth.organization o ON o.id = target.organization_id
+		 WHERE target.id = $1 AND o.deleted_at IS NULL AND o.suspended_at IS NULL`,
+		[memberId, userId]
+	);
+	const row = result.rows[0];
+	if (!row) throw error(404, 'Member not found');
+
+	return { orgId: row.organization_id, memberUserId: row.user_id, memberRole: row.role };
+}
+
 /**
  * The caller's membership in an org they may use. Throws 404 unless they are a
  * member, so another org's id looks the same as one that does not exist; a
  * deleted org is treated as missing, and a suspended one answers 403.
  */
-export async function requireActiveMembership(userId: string, orgId: string): Promise<{ role: string }> {
+export async function requireActiveMembership(
+	userId: string,
+	orgId: string
+): Promise<{ role: string }> {
 	const result = await POOL.query<{ role: string; suspended: boolean; deleted: boolean }>(
 		`SELECT m.role, o.suspended_at IS NOT NULL AS suspended, o.deleted_at IS NOT NULL AS deleted
 		 FROM auth.member m

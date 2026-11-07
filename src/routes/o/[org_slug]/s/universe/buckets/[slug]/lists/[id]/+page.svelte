@@ -20,6 +20,7 @@
 	orgSlug={data.organization.slug}
 	bucketName={data.bucket.name}
 	bucketSlug={data.bucket.slug}
+	bucketId={data.bucket.id}
 	{listHref}
 	list={data.list}
 	entries={data.entries as unknown as PersonEntry[] | LocationEntry[]}
@@ -29,8 +30,6 @@
 	turfs={data.turfs as TurfEntry[]}
 	{selectedTab}
 	hasPdf={data.hasPdf}
-	onDownloadPdf={(onGenerating) =>
-		downloadListDocument(data.list.id, onGenerating)}
-	onRegeneratePdf={(onGenerating) =>
-		regenerateListDocument(data.list.id, onGenerating)}
+	onDownloadPdf={(onGenerating) => downloadListDocument(data.list.id, onGenerating)}
+	onRegeneratePdf={(onGenerating) => regenerateListDocument(data.list.id, onGenerating)}
 />

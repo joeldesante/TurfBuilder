@@ -99,7 +99,10 @@ function convertOld(row: BucketFiltersRow): BucketFilters {
 		if (e instanceof LegacyFilterError) throw new UnconvertibleBucketError(row.id, e.message);
 		// Stored filters are untrusted JSON. A shape nobody foresaw must not break the
 		// migration for every other bucket, so it is reported like any other failure.
-		logger.error({ err: e, bucketId: row.id }, 'Legacy bucket filter conversion threw an unexpected error; bucket skipped');
+		logger.error(
+			{ err: e, bucketId: row.id },
+			'Legacy bucket filter conversion threw an unexpected error; bucket skipped'
+		);
 		throw new UnconvertibleBucketError(
 			row.id,
 			`unexpected error while converting: ${e instanceof Error ? e.message : String(e)}`
@@ -112,7 +115,10 @@ function parseStored(bucketId: string, stored: unknown): BucketFilters | null {
 	const parsed = bucketFiltersSchema.safeParse(stored);
 	if (!parsed.success) {
 		const reason = parsed.error.issues[0]?.message ?? 'unknown problem';
-		logger.error({ bucketId, issues: zodIssues(parsed.error) }, 'Stored bucket filters failed validation');
+		logger.error(
+			{ bucketId, issues: zodIssues(parsed.error) },
+			'Stored bucket filters failed validation'
+		);
 		throw new InvalidBucketFiltersError(bucketId, reason);
 	}
 	return parsed.data;
@@ -153,9 +159,7 @@ export async function resolveBucketFilters(
 	orgId: string,
 	row: BucketFiltersRow
 ): Promise<BucketFilters> {
-	return (
-		parseStored(row.id, row.filters) ?? saveConverted(client, orgId, row.id, convertOld(row))
-	);
+	return parseStored(row.id, row.filters) ?? saveConverted(client, orgId, row.id, convertOld(row));
 }
 
 /** `resolveBucketFilters`, answering an unconvertible bucket with a 422 that says why. */
@@ -238,7 +242,15 @@ const ORDER = {
 
 /** The columns the bucket pages show for each kind of record. */
 const PAGE_COLUMNS = {
-	locations: ['id', 'name', 'address_line_1', 'address_line_2', 'city', 'state_or_region', 'postal_code'],
+	locations: [
+		'id',
+		'name',
+		'address_line_1',
+		'address_line_2',
+		'city',
+		'state_or_region',
+		'postal_code'
+	],
 	people: ['id', 'first_name', 'last_name', 'email', 'phone', 'dob']
 } as const satisfies Record<FilterEntity, readonly string[]>;
 
@@ -366,9 +378,35 @@ export async function findBucketForPage(
 		const filters = await resolveBucketFilters(client, orgId, row);
 		return { ...base, filters, problem: null };
 	} catch (e) {
-		if (e instanceof UnconvertibleBucketError) return { ...base, filters: null, problem: e.message };
+		if (e instanceof UnconvertibleBucketError)
+			return { ...base, filters: null, problem: e.message };
 		throw e;
 	}
+}
+
+/**
+ * What every page inside a bucket needs: the bucket by slug and, when it
+ * includes locations, how many it matches. 403 without staff access, 404 when
+ * the organization has no bucket by that slug.
+ */
+export async function getBucketPage(
+	userId: string,
+	orgId: string,
+	slug: string
+): Promise<{ bucket: BucketForPage; locationCount: number | null }> {
+	return withOrgTransaction(orgId, async (client) => {
+		await requireStaff(client, userId, orgId);
+
+		const bucket = await findBucketForPage(client, orgId, slug);
+		if (!bucket) throw error(404, 'Bucket not found');
+
+		const locations = bucket.filters?.locations;
+		const locationCount = locations
+			? await countBucketEntities(client, orgId, 'locations', locations)
+			: null;
+
+		return { bucket, locationCount };
+	});
 }
 
 /**
@@ -395,6 +433,14 @@ export async function listBucketNavigation(client: PoolClient, orgId: string) {
 	return buckets;
 }
 
+/** `listBucketNavigation` for the staff layout. 403 without staff access. */
+export async function getBucketNavigation(userId: string, orgId: string) {
+	return withOrgTransaction(orgId, async (client) => {
+		await requireStaff(client, userId, orgId);
+		return listBucketNavigation(client, orgId);
+	});
+}
+
 // ---------------------------------------------------------------------------
 // Buckets, for the API
 // ---------------------------------------------------------------------------
@@ -406,7 +452,11 @@ export async function listBucketNavigation(client: PoolClient, orgId: string) {
 async function toBucket(client: PoolClient, orgId: string, row: BucketRow): Promise<Bucket> {
 	const { filter, filters: stored, ...rest } = row;
 	try {
-		const filters = await resolveBucketFilters(client, orgId, { id: row.id, filter, filters: stored });
+		const filters = await resolveBucketFilters(client, orgId, {
+			id: row.id,
+			filter,
+			filters: stored
+		});
 		return { ...rest, filters };
 	} catch (e) {
 		if (e instanceof UnconvertibleBucketError) return { ...rest, filters: null };

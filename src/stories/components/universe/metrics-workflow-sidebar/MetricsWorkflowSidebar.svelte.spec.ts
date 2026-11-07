@@ -15,16 +15,13 @@ const surveys = [
 beforeEach(() => {
 	vi.stubGlobal(
 		'fetch',
-		vi.fn().mockResolvedValue({
-			ok: true,
-			json: async () => surveys
-		})
+		vi.fn(async () => new Response(JSON.stringify(surveys)))
 	);
 });
 
 test('only shows the bucket selector until a bucket is chosen', async () => {
 	const { getByLabelText, getByRole } = render(MetricsWorkflowSidebar, {
-		props: { orgSlug: 'test-org', buckets, onGenerate: () => {} }
+		props: { buckets, onGenerate: () => {} }
 	});
 
 	await expect.element(getByLabelText('Bucket')).toBeVisible();
@@ -34,18 +31,18 @@ test('only shows the bucket selector until a bucket is chosen', async () => {
 
 test('reveals the survey selector after choosing a bucket', async () => {
 	const { getByLabelText } = render(MetricsWorkflowSidebar, {
-		props: { orgSlug: 'test-org', buckets, onGenerate: () => {} }
+		props: { buckets, onGenerate: () => {} }
 	});
 
 	await getByLabelText('Bucket').selectOptions('bucket-1');
 
 	await expect.element(getByLabelText('Survey')).toBeVisible();
-	expect(fetch).toHaveBeenCalledWith('/o/test-org/s/api/surveys?bucketId=bucket-1');
+	expect(fetch).toHaveBeenCalledWith('/api/v1/buckets/bucket-1/surveys', expect.anything());
 });
 
 test('reveals the date range and generate button after choosing a survey', async () => {
 	const { getByLabelText, getByRole, getByText } = render(MetricsWorkflowSidebar, {
-		props: { orgSlug: 'test-org', buckets, onGenerate: () => {} }
+		props: { buckets, onGenerate: () => {} }
 	});
 
 	await getByLabelText('Bucket').selectOptions('bucket-1');
@@ -60,7 +57,7 @@ test('reveals the date range and generate button after choosing a survey', async
 test('calls onGenerate with the selected bucket and survey', async () => {
 	const onGenerate = vi.fn();
 	const { getByLabelText, getByRole } = render(MetricsWorkflowSidebar, {
-		props: { orgSlug: 'test-org', buckets, onGenerate }
+		props: { buckets, onGenerate }
 	});
 
 	await getByLabelText('Bucket').selectOptions('bucket-1');

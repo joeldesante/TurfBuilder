@@ -42,13 +42,20 @@ vi.mock('$lib/server/telemetry', () => ({ applyTelemetry: vi.fn() }));
 vi.mock('$lib/server/services/activity.service', () => ({ touchActiveDay: mocks.touchActiveDay }));
 vi.mock('$lib/server/services/audit.service', () => ({ audit: mocks.audit }));
 vi.mock('$lib/server/runtime-metrics', () => ({ startRuntimeMetrics: vi.fn() }));
+// Off, whatever a developer's .env says; maintenance mode has its own spec.
+vi.mock('$lib/server/utils/maintenance', () => ({ isMaintenanceMode: () => false }));
 
 import { handle } from './hooks.server';
 import { logger } from '$lib/server/logger';
 
 const USER = { id: 'u1', email: 'grace@example.org', name: 'Grace' };
 const ADMIN = 'admin-1';
-const ORG = { id: 'org-1', name: 'Riverside', slug: 'riverside', suspended_at: null as Date | null };
+const ORG = {
+	id: 'org-1',
+	name: 'Riverside',
+	slug: 'riverside',
+	suspended_at: null as Date | null
+};
 
 function signedIn(impersonatedBy: string | null = null) {
 	mocks.getSession.mockResolvedValue({ user: USER, session: { id: 's1', impersonatedBy } });
@@ -122,10 +129,15 @@ describe('impersonation', () => {
 		signedIn(ADMIN);
 		await call('/api/v1/lists', 'POST').run;
 
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'impersonation.request', { type: 'user', id: USER.id }, {
-			method: 'POST',
-			path: '/api/v1/lists'
-		});
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'impersonation.request',
+			{ type: 'user', id: USER.id },
+			{
+				method: 'POST',
+				path: '/api/v1/lists'
+			}
+		);
 	});
 
 	it('does not audit reads', async () => {

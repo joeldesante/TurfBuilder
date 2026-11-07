@@ -1,46 +1,35 @@
 import { error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
-import { withOrgTransaction } from '$lib/server/database.js';
-import { POOL } from '$lib/server/database.js';
 import { requestedPage } from '$lib/shared/utils/pagination';
-import { queryMembersPage } from '$lib/server/services/members.service';
+import { listMembers } from '$lib/server/services/members.service';
+import { listRoleOptions } from '$lib/server/services/roles.service';
+import { listInviteLinks } from '$lib/server/services/invite-links.service';
 
 export async function load({ locals, url }) {
-	if (!can(locals.organization, 'member', 'read')) {
-		throw error(403, 'Forbidden.');
-	}
+	if (!locals.user) throw error(401, 'Unauthorized');
+	if (!can(locals.organization, 'member', 'read')) throw error(403, 'Forbidden.');
 
-	return withOrgTransaction(locals.organization!.id, async (client) => {
-		const [membersResult, linksResult, slugResult] = await Promise.all([
-			queryMembersPage(client, locals.organization!.id, requestedPage(url)),
-			POOL.query(
-				`SELECT id, created_at, expires_at FROM org_invite_link
-				 WHERE org_id = $1 ORDER BY created_at DESC`,
-				[locals.organization!.id]
-			),
-			POOL.query(`SELECT enabled FROM org_slug_invite WHERE org_id = $1`, [
-				locals.organization!.id
-			])
-		]);
+	const userId = locals.user.id;
+	const orgId = locals.organization!.id;
+	const canInvite = can(locals.organization, 'member', 'invite');
 
-		const rolesResult = await client.query(
-			`SELECT id, name FROM permission_role
-			 WHERE organization_id = $1 AND scope = 'organization'
-			 ORDER BY weight ASC`,
-			[locals.organization!.id]
-		);
+	const [members, roles, invites] = await Promise.all([
+		listMembers(userId, orgId, requestedPage(url)),
+		listRoleOptions(userId, orgId),
+		// Invite links are only shown to those who can make them.
+		canInvite ? listInviteLinks(userId, orgId) : { links: [], slugInviteEnabled: false }
+	]);
 
-		return {
-			members: membersResult.items,
-			totalCount: membersResult.totalCount,
-			page: membersResult.page,
-			pageSize: membersResult.pageSize,
-			roles: rolesResult.rows,
-			canRemoveMembers: can(locals.organization, 'member', 'delete'),
-			canManageRoles: can(locals.organization, 'member', 'update'),
-			canInvite: can(locals.organization, 'member', 'invite'),
-			inviteLinks: linksResult.rows,
-			slugInviteEnabled: slugResult.rows[0]?.enabled ?? false
-		};
-	});
+	return {
+		members: members.items,
+		totalCount: members.totalCount,
+		page: members.page,
+		pageSize: members.pageSize,
+		roles,
+		canRemoveMembers: can(locals.organization, 'member', 'delete'),
+		canManageRoles: can(locals.organization, 'member', 'update'),
+		canInvite,
+		inviteLinks: invites.links,
+		slugInviteEnabled: invites.slugInviteEnabled
+	};
 }

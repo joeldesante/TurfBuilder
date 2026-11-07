@@ -130,8 +130,8 @@ test('fetches and displays results after the workflow is submitted', async () =>
 	vi.stubGlobal(
 		'fetch',
 		vi.fn(async (url: string) => {
-			if (url.includes('/api/surveys')) {
-				return { ok: true, json: async () => [{ id: 'survey-1', name: 'Doorstep Survey' }] };
+			if (url.endsWith('/surveys')) {
+				return new Response(JSON.stringify([{ id: 'survey-1', name: 'Doorstep Survey' }]));
 			}
 			if (url.includes('/api/universe/metrics/results')) {
 				return { ok: true, json: async () => [resultLocation] };

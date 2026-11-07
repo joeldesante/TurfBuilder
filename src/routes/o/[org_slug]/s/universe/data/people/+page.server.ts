@@ -1,18 +1,16 @@
-import { withOrgTransaction } from '$lib/server/database';
+import { error } from '@sveltejs/kit';
 import { requestedPage } from '$lib/shared/utils/pagination';
-import { queryOrgPeoplePage } from '$lib/server/services/people.service';
+import { listOrgPeople } from '$lib/server/services/people.service';
 
 export async function load({ locals, url }) {
-	const orgId = locals.organization!.id;
+	if (!locals.user || !locals.organization) throw error(401, 'Unauthorized');
 
-	return withOrgTransaction(orgId, async (client) => {
-		const result = await queryOrgPeoplePage(client, orgId, requestedPage(url));
+	const result = await listOrgPeople(locals.user.id, locals.organization.id, requestedPage(url));
 
-		return {
-			people: result.items,
-			totalCount: result.totalCount,
-			page: result.page,
-			pageSize: result.pageSize
-		};
-	});
+	return {
+		people: result.items,
+		totalCount: result.totalCount,
+		page: result.page,
+		pageSize: result.pageSize
+	};
 }

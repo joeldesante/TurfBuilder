@@ -1,4 +1,8 @@
+import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
+import { withOrgTransaction } from '$lib/server/database';
+import { canOrg } from '$lib/server/permissions';
+import { findBucketBySlug } from './buckets.service';
 import { buildFilterQuery, FILTER_COLUMNS } from './filters.service';
 import type { BucketFilters } from '$lib/shared/types/filters';
 import { rangeInterval, type DashboardRange } from '$lib/dashboard-range';
@@ -91,7 +95,11 @@ function scopeSql(
 			SELECT attempts.* FROM attempts JOIN scope USING (entity_id)
 		)`;
 
-	return { ctes, params: [...params, orgId, bucket?.id ?? null, rangeInterval(range)], nextParam: params.length + 4 };
+	return {
+		ctes,
+		params: [...params, orgId, bucket?.id ?? null, rangeInterval(range)],
+		nextParam: params.length + 4
+	};
 }
 
 /**
@@ -107,7 +115,14 @@ export async function getDashboardProgress(
 ): Promise<DashboardProgress> {
 	const scope = scopeSql(orgId, bucket, range, ['entity_id']);
 	if (!scope) {
-		return { total: 0, visited: 0, conversations: 0, visits: 0, answeredVisits: 0, recentConversations: 0 };
+		return {
+			total: 0,
+			visited: 0,
+			conversations: 0,
+			visits: 0,
+			answeredVisits: 0,
+			recentConversations: 0
+		};
 	}
 
 	const result = await client.query<Record<keyof DashboardProgress, string>>(
@@ -143,7 +158,13 @@ export async function getDashboardPoints(
 	bucket: DashboardBucket,
 	range: DashboardRange = 'all'
 ): Promise<DashboardPoint[]> {
-	const scope = scopeSql(orgId, bucket, range, ['entity_id', 'name', 'address_line_1', 'city', 'coordinates']);
+	const scope = scopeSql(orgId, bucket, range, [
+		'entity_id',
+		'name',
+		'address_line_1',
+		'city',
+		'coordinates'
+	]);
 	if (!scope) return [];
 
 	const result = await client.query<{
@@ -184,4 +205,28 @@ export async function getDashboardPoints(
 		visits: Number(r.visits),
 		lastVisitAt: r.last_visit_at ? r.last_visit_at.toISOString() : null
 	}));
+}
+
+/**
+ * The staff dashboard: progress and map points for one bucket by slug, or the
+ * whole universe when `bucketSlug` is null. An unknown slug also means the
+ * whole universe; a bucket that cannot be read is an error, since showing the
+ * universe in its place would be wrong. 403 without staff access.
+ */
+export async function getDashboard(
+	userId: string,
+	orgId: string,
+	bucketSlug: string | null,
+	range: DashboardRange
+): Promise<{ progress: DashboardProgress; points: DashboardPoint[] }> {
+	return withOrgTransaction(orgId, async (client) => {
+		if (!(await canOrg(client, userId, orgId, 'system.access'))) throw error(403, 'Forbidden');
+
+		const bucket = bucketSlug ? await findBucketBySlug(client, orgId, bucketSlug) : null;
+
+		return {
+			progress: await getDashboardProgress(client, orgId, bucket, range),
+			points: await getDashboardPoints(client, orgId, bucket, range)
+		};
+	});
 }

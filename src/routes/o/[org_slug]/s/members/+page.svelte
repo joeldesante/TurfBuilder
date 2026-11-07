@@ -2,64 +2,44 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import MembersPage from '$pages/o/s/members/MembersPage.svelte';
+	import { api } from '$lib/client/api';
 
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug!);
+	const orgId = $derived(data.organization.id);
+
+	/** The page names members by user id; the API addresses the membership. */
+	function memberId(userId: string): string {
+		const member = data.members.find((m) => m.id === userId);
+		if (!member) throw new Error('That member is no longer on this page.');
+		return member.member_id;
+	}
 
 	async function handleAssignRole(userId: string, roleId: string | null) {
-		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ role_id: roleId })
-		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to assign role.');
-		}
+		await api(`/members/${memberId(userId)}`, { method: 'PATCH', body: { role_id: roleId } });
 		await invalidateAll();
 	}
 
 	async function handleRemove(userId: string) {
-		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}`, { method: 'DELETE' });
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to remove member.');
-		}
+		await api(`/members/${memberId(userId)}`, { method: 'DELETE' });
 		await invalidateAll();
 	}
 
 	async function handleCreateLink(expiresAt: string | null) {
-		const res = await fetch(`/o/${orgSlug}/s/api/invite-links`, {
+		await api(`/organizations/${orgId}/invite-links`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ expires_at: expiresAt })
+			body: { expires_at: expiresAt }
 		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to generate invite link.');
-		}
 		await invalidateAll();
 	}
 
 	async function handleRevokeLink(id: string) {
-		const res = await fetch(`/o/${orgSlug}/s/api/invite-links/${id}`, { method: 'DELETE' });
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to revoke invite link.');
-		}
+		await api(`/invite-links/${encodeURIComponent(id)}`, { method: 'DELETE' });
 		await invalidateAll();
 	}
 
 	async function handleToggleSlugInvite(enabled: boolean) {
-		const res = await fetch(`/o/${orgSlug}/s/api/invite-links/slug`, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ enabled })
-		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to update slug invite.');
-		}
+		await api(`/organizations/${orgId}/slug-invite`, { method: 'PUT', body: { enabled } });
 		await invalidateAll();
 	}
 </script>
@@ -79,7 +59,7 @@
 	canInvite={data.canInvite}
 	inviteLinks={data.inviteLinks}
 	slugInviteEnabled={data.slugInviteEnabled}
-	orgSlug={orgSlug}
+	{orgSlug}
 	onRemove={handleRemove}
 	onAssignRole={handleAssignRole}
 	onCreateLink={handleCreateLink}
