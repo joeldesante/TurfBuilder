@@ -2,10 +2,8 @@
 	import DocumentLayout from '$components/layout/layouts/document-layout/DocumentLayout.svelte';
 </script>
 
-<DocumentLayout title="Privacy Policy" lastUpdated="June 18, 2026">
+<DocumentLayout title="Privacy Policy" lastUpdated="November 4, 2026">
 	{#snippet children()}
-		<h1 id="user-content-turfbuilder-privacy-policy">TurfBuilder Privacy Policy</h1>
-		<p><strong>Last updated:</strong> November 4, 2026</p>
 		<p>This policy explains what TurfBuilder Infrastructure LLC ("TurfBuilder," "we," "us") collects, why, and what we do with it. The short version: we collect only what we need to run the service, we never sell your data, and we don't use it for advertising.</p>
 		<h2 id="user-content-1-what-we-collect">1. What We Collect</h2>
 		<p><strong>Account information.</strong> Your name (real name or alias, whatever you provide) and email address.</p>
