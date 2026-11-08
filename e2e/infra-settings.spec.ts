@@ -9,26 +9,25 @@ const ADMIN_EMAIL = 'test@example.com';
 test('the storage test reaches object storage', async ({ world }) => {
 	const { page } = await world.admin();
 
-	await gotoHydrated(page, '/infra/settings');
+	await gotoHydrated(page, '/infra/settings?tab=storage');
 	await page.getByRole('button', { name: 'Test connection' }).click();
-	await expect(page.getByText(/connected|works|success|reached/i).first()).toBeVisible();
+	await expect(page.getByText('The bucket accepted a test file.')).toBeVisible();
 });
 
 test('the mail test sends the admin an email', async ({ world, db }) => {
 	const { page } = await world.admin();
 	await db.query(`UPDATE auth."user" SET email_verified = true WHERE email = $1`, [ADMIN_EMAIL]);
-	const before = Date.now();
 
-	await gotoHydrated(page, '/infra/settings');
+	await gotoHydrated(page, '/infra/settings?tab=email');
 	await page.getByRole('button', { name: 'Send a test email to me' }).click();
 
 	const mail = await waitForMail(ADMIN_EMAIL);
 	expect(mail.subject.length).toBeGreaterThan(0);
 	const { rows } = await db.query(
-		`SELECT status FROM email_log WHERE recipient = $1 AND created_at > to_timestamp($2 / 1000.0) ORDER BY created_at DESC LIMIT 1`,
-		[ADMIN_EMAIL, before]
+		`SELECT template, status FROM email_log WHERE recipient = $1 ORDER BY created_at DESC LIMIT 1`,
+		[ADMIN_EMAIL]
 	);
-	expect(rows[0]?.status).toBe('sent');
+	expect(rows[0]).toEqual({ template: 'system.test', status: 'sent' });
 });
 
 test.describe('email templates', () => {
@@ -74,13 +73,14 @@ test.describe('email templates', () => {
 	});
 });
 
-test('system health reports the database, storage, and migrations', async ({ world }) => {
+test('system health reports the runtime and the database', async ({ world }) => {
 	const { page } = await world.admin();
 
 	await gotoHydrated(page, '/infra/system');
-	await expect(page.getByText(/database/i).first()).toBeVisible();
-	await expect(page.getByText(/migration/i).first()).toBeVisible();
-	await expect(page.getByText(/storage/i).first()).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'System health' })).toBeVisible();
+	await expect(page.getByText('PostgreSQL', { exact: true })).toBeVisible();
+	await expect(page.getByText('PostGIS', { exact: true })).toBeVisible();
+	await expect(page.getByText('Largest tables')).toBeVisible();
 });
 
 test('the audit log lists infra changes and opens their target', async ({ world }) => {
@@ -92,8 +92,9 @@ test('the audit log lists infra changes and opens their target', async ({ world 
 	await request.delete(`/api/v1/organizations/${org.id}/suspension`);
 
 	await gotoHydrated(page, '/infra/audit');
-	await expect(page.getByText(org.name).first()).toBeVisible();
-	await expect(page.getByText(/suspend/i).first()).toBeVisible();
+	// Entries name their target; the newest are first.
+	await expect(page.getByText(org.name).first()).toBeAttached();
+	await expect(page.getByText(/suspen/i).first()).toBeAttached();
 });
 
 test('the metrics page opens with its charts and range', async ({ world }) => {

@@ -41,7 +41,7 @@ test.describe('the dashboard', () => {
 		await expect(progress.getByRole('img', { name: '50% visited' })).toBeVisible();
 		await expect(progress).toContainText('Conversations');
 
-		await page.getByLabel('Time range').selectOption('7d');
+		await page.getByText('7 days', { exact: true }).click();
 		await expect(page).toHaveURL(/range=7d/);
 		await expect(progress.getByRole('img', { name: '50% visited' })).toBeVisible();
 
@@ -111,11 +111,10 @@ test.describe('search', () => {
 		const page = staff.page;
 
 		await gotoHydrated(page, `/o/${org.slug}/s`);
+		await page.keyboard.press('Control+k');
 		await page.getByPlaceholder('Search...').fill('Liberty');
-		await page
-			.getByRole('option', { name: /Liberty Bell/ })
-			.first()
-			.click();
+		// The map's marker for the same door is a button too; the result also shows the address.
+		await page.getByRole('button', { name: /^Liberty Bell 526 Market St/ }).click();
 		await expect(page).toHaveURL(/\/universe\/(entity|data|buckets)\//);
 	});
 

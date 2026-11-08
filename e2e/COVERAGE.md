@@ -26,7 +26,7 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 | GLB-08 | A deleted org is treated as missing | vol | `/o/[slug]` | global | hooks.server.spec | covered |
 | GLB-09 | A user with a fake email is sent to update it before anything else | user | any | auth-flows | hooks.server.spec | covered |
 | GLB-10 | No analytics requests leave the browser when analytics are off | any | any page | global | analytics.spec | covered |
-| GLB-11 | Toasts show for errors and confirmations | staff | e.g. members | covered by area specs | | todo |
+| GLB-11 | Toasts show for errors and confirmations | staff | e.g. members | members | | covered (toasts asserted in members, roles, infra specs) |
 | GLB-12 | The beta banner shows on staff pages and stays dismissed | staff | `/o/[slug]/s` | global | | covered |
 | GLB-13 | Infra quick menu shows on non-infra pages for infra admins only | infra, staff | any | infra | | covered (infra.spec) |
 | GLB-14 | Uploads: presign then fetch an uploaded photo; another org's key is refused | staff, outsider | `/o/[slug]/uploads/**` | data | | covered |
@@ -78,7 +78,7 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 | INV-07 | Already a member: page says so, joining changes nothing | vol | `/invite/[token]` | invites | | covered |
 | INV-08 | Expired or unknown token answers 404 | user | `/invite/x` | invites | | covered |
 | INV-09 | Without member.invite the invite section is hidden and the API answers 403 | staff- | members, API | invites | | covered |
-| INV-10 | Email invitations: infra cancels a pending invitation | infra | infra org page | infra-orgs | | todo |
+| INV-10 | Email invitations: infra cancels a pending invitation | infra | infra org page | infra-orgs | | covered |
 
 ## Members (MEM)
 
@@ -114,14 +114,14 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| PLG-01 | Add-ons page lists plugins with install state | staff+ (plugin.manage) | `/s/addons`, `/s/plugins` | plugins | | todo |
-| PLG-02 | Installing a plugin adds its nav entries and pages | staff+ | add-ons | plugins | | todo |
-| PLG-03 | Uninstalling removes them, reinstalling keeps config | staff+ | add-ons | plugins | | todo |
-| PLG-04 | Without plugin.manage the page answers 403 | staff- | | plugins | | todo |
-| PLG-05 | Staff plugin page renders | staff | `/s/plugins/[slug]/...` | plugins | | todo |
-| PLG-06 | Volunteer plugin page renders | vol | `/o/[slug]/plugins/[slug]/...` | plugins | | todo |
-| PLG-07 | Plugin config is validated and saved | staff+ | API | api/plugins | plugin-installations.service.spec | v1-only |
-| PLG-08 | Plugin API handler runs for staff, 403 for non-staff, 404 when inactive | staff, vol | API | api/plugins | | v1-only |
+| PLG-01 | Add-ons page lists plugins with install state | staff+ (plugin.manage) | `/s/addons`, `/s/plugins` | plugins | | covered |
+| PLG-02 | Installing a plugin adds its nav entries and pages | staff+ | add-ons | plugins | | covered |
+| PLG-03 | Uninstalling removes them, reinstalling keeps config | staff+ | add-ons | plugins | | covered |
+| PLG-04 | Without plugin.manage the page answers 403 | staff- | | plugins | | covered |
+| PLG-05 | Staff plugin page renders | staff | `/s/plugins/[slug]/...` | plugins | | covered |
+| PLG-06 | Volunteer plugin page renders | vol | `/o/[slug]/plugins/[slug]/...` | plugins | | covered |
+| PLG-07 | Plugin config is validated and saved | staff+ | API | plugins | plugin-installations.service.spec | v1-only |
+| PLG-08 | Plugin API handler runs for staff, 403 for non-staff, 404 when inactive | staff, vol | API | plugins | | v1-only (every member holds the default role, so the plugin API's staff check never refuses a member (review)) |
 | PLG-09 | Plugin hooks fire on turf creation and survey submission | staff, vol | | plugins | hooks.spec | todo |
 
 ## Buckets (BKT)
@@ -176,10 +176,10 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| SRCH-01 | Search box finds people and locations by name and address | staff | header search | search | | todo |
+| SRCH-01 | Search box finds people and locations by name and address | staff | header search | insights | | covered |
 | SRCH-02 | Universe search page builds queries and shows results | staff | `/universe/search` | insights | query-builder.service.spec | covered (bug fixed, Quick Search ran raw SQL for any staff member across every org; now infra admins only, with identifiers validated) |
-| SRCH-03 | Removing a query term | staff | search page | search | | todo |
-| SRCH-04 | Search never returns another org's records | staff | | search | | todo |
+| SRCH-03 | Removing a query term | staff | search page | insights | | covered |
+| SRCH-04 | Search never returns another org's records | staff | | insights | | covered |
 
 ## Lists (LIST)
 
@@ -245,50 +245,50 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| MET-01 | Metrics page: pick a bucket and survey, view results on the map | staff | `/universe/metrics` | metrics | | todo |
-| MET-02 | Date range narrows the results | staff | metrics | metrics | | todo |
+| MET-01 | Metrics page: pick a bucket and survey, view results on the map | staff | `/universe/metrics` | insights | | covered |
+| MET-02 | Date range narrows the results | staff | metrics | insights | | covered |
 | MET-03 | Multiple result tabs: add, select, close, reorder | staff | metrics | metrics | | todo |
-| MET-04 | Selecting a location shows its responses | staff | metrics | metrics | | todo |
-| MET-05 | Dashboard shows progress and the map for the universe | staff | `/o/[slug]/s` | dashboard | dashboard.service.spec | todo |
-| MET-06 | Dashboard bucket filter and range change the numbers | staff | dashboard | dashboard | | todo |
-| MET-07 | Dashboard empty state for a new org | staff | dashboard | dashboard | | todo |
-| MET-08 | Universe stats API | staff | API | api/stats | | todo |
+| MET-04 | Selecting a location shows its responses | staff | metrics | insights | | covered |
+| MET-05 | Dashboard shows progress and the map for the universe | staff | `/o/[slug]/s` | insights | dashboard.service.spec | covered |
+| MET-06 | Dashboard bucket filter and range change the numbers | staff | dashboard | insights | | covered |
+| MET-07 | Dashboard empty state for a new org | staff | dashboard | insights | | covered |
+| MET-08 | Universe stats API | staff | API | insights | | covered |
 
 ## Infra (INF)
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
 | INF-01 | Signed-out infra API answers 401, panel sends to sign in | anon | | infra | | covered |
-| INF-02 | Non-admins get 403 on the panel and API | user | `/infra` | infra | | todo |
+| INF-02 | Non-admins get 403 on the panel and API | user | `/infra` | infra-orgs | | covered |
 | INF-03 | Overview headline figures | infra | `/infra` | infra | | covered |
 | INF-04 | Every panel page opens | infra | | infra | | covered |
-| INF-05 | Metrics page charts and range | infra | `/infra/metrics` | infra | | todo |
-| INF-06 | Orgs list and search | infra | `/infra/orgs` | infra-orgs | | todo |
-| INF-07 | Suspend and unsuspend an org; members are locked out while suspended | infra | org detail | infra-orgs | | todo |
-| INF-08 | Delete an org (confirm slug) and restore it | infra | org detail | infra-orgs | | todo |
-| INF-09 | Transfer ownership | infra | org detail | infra-orgs | | todo |
-| INF-10 | Remove a member from the org detail page | infra | org detail | infra-orgs | | todo |
-| INF-11 | Revoke an invite link from the org detail page | infra | org detail | infra-orgs | | todo |
-| INF-12 | Org activity and audit tabs | infra | org detail | infra-orgs | | todo |
+| INF-05 | Metrics page charts and range | infra | `/infra/metrics` | infra-settings | | covered |
+| INF-06 | Orgs list and search | infra | `/infra/orgs` | infra-orgs | | covered |
+| INF-07 | Suspend and unsuspend an org; members are locked out while suspended | infra | org detail | infra-orgs | | covered |
+| INF-08 | Delete an org (confirm slug) and restore it | infra | org detail | infra-orgs | | covered |
+| INF-09 | Transfer ownership | infra | org detail | infra-orgs | | covered |
+| INF-10 | Remove a member from the org detail page | infra | org detail | infra-orgs | | covered |
+| INF-11 | Revoke an invite link from the org detail page | infra | org detail | infra-orgs | | covered |
+| INF-12 | Org activity and audit tabs | infra | org detail | infra-orgs | | covered (bug fixed, the org detail page answered 500 (uuid = text in getOrg)) |
 | INF-13 | Users list and search, opening a user | infra | `/infra/users` | infra | | covered |
-| INF-14 | Edit a user's details | infra | user detail | infra-users | | todo |
-| INF-15 | Suspend and unsuspend a user; suspended users cannot sign in | infra | user detail | infra-users | | todo |
-| INF-16 | Delete a user (confirm email) | infra | user detail | infra-users | | todo |
-| INF-17 | Impersonate a user, see the banner, stop and return | infra, imp | user detail | infra-users | | todo |
-| INF-18 | While impersonating, the infra panel is closed and changes are audited | imp | | infra-users | hooks.server.spec | todo |
-| INF-19 | Revoke one session and all sessions | infra | user detail | infra-users | | todo |
-| INF-20 | Send a password reset and a verification email | infra | user detail | infra-users | | todo |
-| INF-21 | Reset a user's 2FA | infra | user detail | infra-users | | todo |
-| INF-22 | User activity, audit, email, memberships tabs | infra | user detail | infra-users | | todo |
-| INF-23 | Admins page: find a user, grant and revoke an infra role | infra (users.manage) | `/infra/admins` | infra-admins | | todo |
-| INF-24 | Audit log lists changes and filters | infra (audit.read) | `/infra/audit` | infra | | todo |
+| INF-14 | Edit a user's details | infra | user detail | infra-users | | covered |
+| INF-15 | Suspend and unsuspend a user; suspended users cannot sign in | infra | user detail | infra-users | | covered |
+| INF-16 | Delete a user (confirm email) | infra | user detail | infra-users | | covered |
+| INF-17 | Impersonate a user, see the banner, stop and return | infra, imp | user detail | infra-users | | covered |
+| INF-18 | While impersonating, the infra panel is closed and changes are audited | imp | | infra-users | hooks.server.spec | covered |
+| INF-19 | Revoke one session and all sessions | infra | user detail | infra-users | | covered |
+| INF-20 | Send a password reset and a verification email | infra | user detail | infra-users | | covered |
+| INF-21 | Reset a user's 2FA | infra | user detail | infra-users | | covered |
+| INF-22 | User activity, audit, email, memberships tabs | infra | user detail | infra-users | | covered |
+| INF-23 | Admins page: find a user, grant and revoke an infra role | infra (users.manage) | `/infra/admins` | infra-users | | covered |
+| INF-24 | Audit log lists changes and filters | infra (audit.read) | `/infra/audit` | infra-settings | | covered |
 | INF-25 | Settings change is audited | infra | `/infra/settings` | infra | | covered |
 | INF-26 | Bad setting value shows on the field | infra | settings | infra | | covered |
-| INF-27 | Storage test reports success against s3mock | infra | settings | infra | | todo |
-| INF-28 | Mail test sends to the admin (Mailpit receives it) | infra | settings | infra-mail | | todo |
-| INF-29 | Email templates list, edit, save, reset to default | infra | `/infra/settings/email/templates/**` | infra-mail | | todo |
-| INF-30 | Email template test send arrives | infra | template editor | infra-mail | | todo |
-| INF-31 | Email log lists sends | infra | `/infra/settings/email/log` | infra-mail | | todo |
-| INF-32 | System health page reports database, storage and migrations | infra | `/infra/system` | infra | | todo |
-| INF-33 | Each infra permission gates its pages and actions | infra-partial | | infra-admins | | todo |
-| INF-34 | Organization creation setting closes create | infra, user | settings | orgs | | todo |
+| INF-27 | Storage test reports success against s3mock | infra | settings | infra-settings | | covered |
+| INF-28 | Mail test sends to the admin (Mailpit receives it) | infra | settings | infra-settings | | covered |
+| INF-29 | Email templates list, edit, save, reset to default | infra | `/infra/settings/email/templates/**` | infra-settings | | covered |
+| INF-30 | Email template test send arrives | infra | template editor | infra-settings | | covered |
+| INF-31 | Email log lists sends | infra | `/infra/settings/email/log` | infra-settings | | covered |
+| INF-32 | System health page reports database, storage and migrations | infra | `/infra/system` | infra-settings | | covered |
+| INF-33 | Each infra permission gates its pages and actions | infra-partial | | infra-settings | | covered |
+| INF-34 | Organization creation setting closes create | infra, user | settings | infra-settings | | covered |

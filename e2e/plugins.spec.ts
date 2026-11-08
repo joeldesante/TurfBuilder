@@ -18,8 +18,13 @@ test('installing a plugin adds its nav entry and pages; uninstalling removes the
 	await gotoHydrated(page, `/o/${org.slug}/s/addons`);
 	await expect(page.getByRole('heading', { name: 'Addons' })).toBeVisible();
 	await expect(toggle).not.toBeChecked();
-	await toggle.click();
-	await page.waitForLoadState('load');
+	// The page reloads once the change is saved; wait for the save, not the reload.
+	await Promise.all([
+		page.waitForResponse(
+			(r) => r.url().includes(`/plugins/${SLUG}`) && r.request().method() !== 'GET'
+		),
+		toggle.click()
+	]);
 	await gotoHydrated(page, `/o/${org.slug}/s/addons`);
 	await expect(toggle).toBeChecked();
 	await expect(page.getByRole('link', { name: 'Alert Feed' })).toBeVisible();
@@ -29,8 +34,13 @@ test('installing a plugin adds its nav entry and pages; uninstalling removes the
 	expect((await volunteer.page.goto(`/o/${org.slug}/plugins/${SLUG}`))?.status()).toBe(200);
 
 	await gotoHydrated(page, `/o/${org.slug}/s/addons`);
-	await toggle.click();
-	await page.waitForLoadState('load');
+	// The page reloads once the change is saved; wait for the save, not the reload.
+	await Promise.all([
+		page.waitForResponse(
+			(r) => r.url().includes(`/plugins/${SLUG}`) && r.request().method() !== 'GET'
+		),
+		toggle.click()
+	]);
 	await gotoHydrated(page, `/o/${org.slug}/s/addons`);
 	await expect(toggle).not.toBeChecked();
 	await expect(page.getByRole('link', { name: 'Alert Feed' })).toHaveCount(0);

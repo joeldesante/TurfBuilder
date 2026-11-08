@@ -24,9 +24,10 @@ test('the organizations list finds an org and opens it with its figures', async 
 	await expect(page.getByRole('region', { name: 'Figures' })).toContainText('Members');
 
 	for (const tab of ['Members', 'Invitations', 'Activity', 'Audit']) {
+		// Scoped: the panel's sidebar has its own Members and Audit links.
 		await page
+			.getByLabel('Organization sections')
 			.getByRole('link', { name: new RegExp(`^${tab}`) })
-			.first()
 			.click();
 		await expect(page).toHaveURL(new RegExp(`tab=${tab.toLowerCase()}`));
 	}
@@ -119,8 +120,8 @@ test('an admin removes a member, cancels an invitation, and turns off an invite 
 	const leaver = await world.createUser();
 	await world.addMember(org, leaver);
 	await db.query(
-		`INSERT INTO auth.invitation (organization_id, email, role, status, expires_at, inviter_id)
-		 VALUES ($1, 'invitee@example.test', 'member', 'pending', now() + interval '7 days', $2)`,
+		`INSERT INTO auth.invitation (organization_id, email, role, status, inviter_id)
+		 VALUES ($1, 'invitee@example.test', 'member', 'pending', $2)`,
 		[org.id, org.owner.id]
 	);
 	await db.query(`INSERT INTO org_invite_link (id, org_id, created_by) VALUES ($1, $2, $3)`, [

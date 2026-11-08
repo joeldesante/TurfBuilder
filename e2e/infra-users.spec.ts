@@ -18,7 +18,7 @@ test('editing a user’s details', async ({ world, db }) => {
 
 	await gotoHydrated(page, `/infra/users/${user.id}`);
 	await action(page, 'Edit details');
-	await dialog(page).getByLabel('Name').fill('Renamed Person');
+	await dialog(page).getByLabel('Name', { exact: true }).fill('Renamed Person');
 	await dialog(page).getByRole('button', { name: 'Save' }).click();
 	await expect(page.getByText('Details saved.')).toBeVisible();
 
@@ -105,12 +105,14 @@ test('a password reset and a verification email reach the user', async ({ world 
 	await gotoHydrated(page, `/infra/users/${user.id}`);
 	await action(page, 'Send password reset');
 	await dialog(page).getByRole('button', { name: 'Send' }).click();
-	const reset = await waitForMail(user.email, { subject: '' });
+	const reset = await waitForMail(user.email, { subject: 'Reset your password' });
 	expect(linkIn(reset, 'reset-password')).toBeTruthy();
 
 	await action(page, 'Resend verification email');
 	await dialog(page).getByRole('button', { name: 'Send' }).click();
-	await expect.poll(async () => (await waitForMail(user.email)).html).toContain('verify-email');
+	expect(
+		linkIn(await waitForMail(user.email, { subject: 'Verify your email' }), 'verify-email')
+	).toBeTruthy();
 
 	await gotoHydrated(page, `/infra/users/${user.id}?tab=emails`);
 	await expect(
@@ -177,11 +179,10 @@ test('admins page: give a user an infra role and take it away', async ({ world, 
 
 	await gotoHydrated(page, '/infra/admins');
 	await page.getByLabel('Find a user').fill(user.email);
-	await page.keyboard.press('Enter');
-	const result = page
-		.getByRole('region', { name: 'Search results' })
-		.or(page.getByLabel('Search results'));
-	await result.getByRole('button').first().click();
+	await page.getByRole('button', { name: 'Search' }).click();
+	await page.getByRole('button', { name: `Choose ${user.name}` }).click();
+	await page.getByLabel(`Role for ${user.name}`).selectOption({ index: 1 });
+	await page.getByRole('button', { name: 'Give role' }).click();
 	await expect(page.getByText('Role given.')).toBeVisible();
 	const roles = async () =>
 		(
@@ -194,7 +195,7 @@ test('admins page: give a user an infra role and take it away', async ({ world, 
 	expect(await roles()).toBe(1);
 
 	await gotoHydrated(page, '/infra/admins');
-	await page.getByRole('row').filter({ hasText: user.email }).getByRole('button').last().click();
+	await page.getByRole('button', { name: new RegExp(`from ${user.name}$`) }).click();
 	await dialog(page).getByRole('button', { name: 'Remove role' }).click();
 	await expect(page.getByText('Role removed.')).toBeVisible();
 	expect(await roles()).toBe(0);
