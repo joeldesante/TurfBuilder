@@ -29,7 +29,7 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 | GLB-11 | Toasts show for errors and confirmations | staff | e.g. members | covered by area specs | | todo |
 | GLB-12 | The beta banner shows on staff pages and stays dismissed | staff | `/o/[slug]/s` | global | | covered |
 | GLB-13 | Infra quick menu shows on non-infra pages for infra admins only | infra, staff | any | infra | | covered (infra.spec) |
-| GLB-14 | Uploads: presign then fetch an uploaded photo; another org's key is refused | staff, outsider | `/o/[slug]/uploads/**` | uploads | | todo |
+| GLB-14 | Uploads: presign then fetch an uploaded photo; another org's key is refused | staff, outsider | `/o/[slug]/uploads/**` | data | | covered |
 | GLB-15 | Maintenance mode answers 503 everywhere before the database | anon | env flag | unit only | maintenance.spec, hooks.server.spec | covered |
 | GLB-16 | Not-ready database answers 503 pages | anon | | unit only | hooks.server.spec | covered |
 
@@ -146,38 +146,38 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| DATA-01 | People list with paging | staff | `/universe/data/people` | data | people.service.spec | todo |
-| DATA-02 | Person profile | staff | `/universe/people/[id]` | data | | todo |
-| DATA-03 | People CSV import adds valid rows and reports invalid ones | staff | `/universe/manage` | data | people.service.spec | todo |
-| DATA-04 | Non-CSV people upload is refused | staff | manage | data | | todo |
-| DATA-05 | Locations browser shows locations on the map and list for the viewport | staff | `/universe/data/locations` | locations | | todo |
-| DATA-06 | Creating a location by dropping a pin | staff (location.create) | locations browser | locations | | todo |
-| DATA-07 | Editing a location creates a new version; lists made earlier do not change | staff (location.update) | locations browser | locations | locations.service.spec | todo |
-| DATA-08 | Moving a location's pin | staff | locations browser | locations | | todo |
-| DATA-09 | Deleting a location | staff (location.delete) | locations browser | locations | | todo |
-| DATA-10 | Location photos upload and show | staff | locations browser | locations | | todo |
-| DATA-11 | Locations CSV import from the manage page and the import page | staff | manage, `/import/csv` | locations | | todo |
-| DATA-12 | Google Sheets import option | staff | `/import/[source]` | locations | | todo |
+| DATA-01 | People list with paging | staff | `/universe/data/people` | data | people.service.spec | covered |
+| DATA-02 | Person profile | staff | `/universe/people/[id]` | data | | covered |
+| DATA-03 | People CSV import adds valid rows and reports invalid ones | staff | `/universe/manage` | data | people.service.spec | covered (the manage page was retired (redirects), so people import has no UI; the API is tested) |
+| DATA-04 | Non-CSV people upload is refused | staff | manage | data | | covered |
+| DATA-05 | Locations browser shows locations on the map and list for the viewport | staff | `/universe/data/locations` | data | | covered |
+| DATA-06 | Creating a location by dropping a pin | staff (location.create) | locations browser | data | | covered |
+| DATA-07 | Editing a location creates a new version; lists made earlier do not change | staff (location.update) | locations browser | data | locations.service.spec | bug (the locations map rebuilds markers as it reloads and closes the popup holding Edit; fixme, edit tested through its endpoint) |
+| DATA-08 | Moving a location's pin | staff | locations browser | data | | covered |
+| DATA-09 | Deleting a location | staff (location.delete) | locations browser | data | | covered |
+| DATA-10 | Location photos upload and show | staff | locations browser | data | | covered |
+| DATA-11 | Locations CSV import from the manage page and the import page | staff | manage, `/import/csv` | data | | covered (the import page; the manage page is retired) |
+| DATA-12 | Google Sheets import option | staff | `/import/[source]` | data | | bug (the Google Sheets import page has no handler, so nothing imports (page render tested)) |
 | DATA-13 | Overture import | staff | `/import/overture` | | | removed (step 5) |
-| DATA-14 | Suggestions page lists new-door suggestions and edit proposals | staff | `/data/locations/suggestions` | suggestions | | todo |
-| DATA-15 | Approving a suggestion creates the location | staff | suggestions | suggestions | suggestions.service.spec | todo |
-| DATA-16 | Rejecting a suggestion | staff | suggestions | suggestions | | todo |
-| DATA-17 | Approving an edit proposal applies it as a new version | staff | suggestions | suggestions | | todo |
-| DATA-18 | Rejecting an edit proposal | staff | suggestions | suggestions | | todo |
-| DATA-19 | Entity page shows a location's or person's versions | staff | `/universe/entity/[id]` | data | | todo |
-| DATA-20 | Integrations page lists integrations | staff | `/data/integrations` | integrations | integrations.service.spec | todo |
-| DATA-21 | Toggling an integration needs infra settings.manage (staff 403, infra ok) | staff, infra | integrations | integrations | integrations.service.spec | todo |
-| DATA-22 | Integration detail page | staff | `/data/integrations/[id]` | integrations | | todo |
-| DATA-23 | Data sources page renders | staff | `/data/sources` | data | | todo |
-| DATA-24 | Without location.* keys the location controls are refused | staff- | | locations | | todo |
-| DATA-25 | Org people and locations API pages; other org 404 | staff, outsider | API | api/data | | todo |
+| DATA-14 | Suggestions page lists new-door suggestions and edit proposals | staff | `/data/locations/suggestions` | data | | covered |
+| DATA-15 | Approving a suggestion creates the location | staff | suggestions | data | suggestions.service.spec | covered |
+| DATA-16 | Rejecting a suggestion | staff | suggestions | data | | covered |
+| DATA-17 | Approving an edit proposal applies it as a new version | staff | suggestions | data | | covered |
+| DATA-18 | Rejecting an edit proposal | staff | suggestions | data | | covered |
+| DATA-19 | Entity page shows a location's or person's versions | staff | `/universe/entity/[id]` | data | | covered (shows the current version only) |
+| DATA-20 | Integrations page lists integrations | staff | `/data/integrations` | data | integrations.service.spec | covered |
+| DATA-21 | Toggling an integration needs infra settings.manage (staff 403, infra ok) | staff, infra | integrations | data | integrations.service.spec | covered (bug fixed earlier, any org member could switch instance-wide integrations) |
+| DATA-22 | Integration detail page | staff | `/data/integrations/[id]` | data | | covered |
+| DATA-23 | Data sources page renders | staff | `/data/sources` | data | | covered (redirects to integrations) |
+| DATA-24 | Without location.* keys the location controls are refused | staff- | | data | | covered |
+| DATA-25 | Org people and locations API pages; other org 404 | staff, outsider | API | data | | covered |
 
 ## Search (SRCH)
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
 | SRCH-01 | Search box finds people and locations by name and address | staff | header search | search | | todo |
-| SRCH-02 | Universe search page builds queries and shows results | staff | `/universe/search` | search | query-builder.service.spec | todo |
+| SRCH-02 | Universe search page builds queries and shows results | staff | `/universe/search` | insights | query-builder.service.spec | covered (bug fixed, Quick Search ran raw SQL for any staff member across every org; now infra admins only, with identifiers validated) |
 | SRCH-03 | Removing a query term | staff | search page | search | | todo |
 | SRCH-04 | Search never returns another org's records | staff | | search | | todo |
 

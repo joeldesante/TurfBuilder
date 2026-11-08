@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { Client } from 'pg';
+import { S3Client, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { DATABASE_URL } from './config';
 import { gotoHydrated } from './helpers';
 
@@ -82,6 +83,39 @@ test('pointing outgoing mail at Mailpit', async () => {
 			`SELECT value FROM system_setting WHERE key = 'mail.transport'`
 		);
 		expect(rows[0].value).toBe('smtp');
+	} finally {
+		await db.end();
+	}
+});
+
+// Object storage for photos and PDFs: the s3mock container, and a bucket in it.
+export const STORAGE_BUCKET = 'turfbuilder-e2e';
+
+test('pointing object storage at s3mock', async () => {
+	const s3 = new S3Client({
+		endpoint: 'http://localhost:9090',
+		region: 'us-east-1',
+		forcePathStyle: true,
+		credentials: { accessKeyId: 'e2e-access-key', secretAccessKey: 'e2e-secret-key' }
+	});
+	await expect(async () => {
+		try {
+			await s3.send(new CreateBucketCommand({ Bucket: STORAGE_BUCKET }));
+		} catch (e) {
+			const name = (e as { name?: string }).name;
+			if (name !== 'BucketAlreadyOwnedByYou' && name !== 'BucketAlreadyExists') throw e;
+		}
+	}).toPass({ timeout: 60_000 });
+
+	const db = new Client({ connectionString: DATABASE_URL });
+	await db.connect();
+	try {
+		await db.query(
+			`UPDATE system_setting SET value = v.value
+			 FROM (VALUES ('spaces.endpoint', 'http://s3:9090'), ('spaces.bucket', $1), ('spaces.region', 'us-east-1')) AS v(key, value)
+			 WHERE system_setting.key = v.key`,
+			[STORAGE_BUCKET]
+		);
 	} finally {
 		await db.end();
 	}

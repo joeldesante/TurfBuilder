@@ -393,6 +393,35 @@ export class World {
 		return rows;
 	}
 
+	/** Records a visit to a door the way the survey screen does. `answers` maps question ids to responses. */
+	async recordVisit(
+		canvasser: Session,
+		org: TestOrg,
+		turfId: string,
+		turfLocationId: string,
+		{ contacted, answers = {} }: { contacted: boolean; answers?: Record<string, string> }
+	): Promise<void> {
+		const res = await canvasser.request.post(
+			`/o/${org.slug}/map/${turfId}/location/${turfLocationId}`,
+			{
+				data: {
+					contactStatus: contacted ? 'contacted' : 'no_contact',
+					attemptNote: '',
+					questions: Object.entries(answers).map(([db_id, response]) => ({ db_id, response }))
+				}
+			}
+		);
+		if (!res.ok()) throw new Error(`Visit failed: ${res.status()} ${await res.text()}`);
+	}
+
+	/** Puts a member on a turf, as joining by its code does. */
+	async joinTurf(org: TestOrg, user: Pick<TestUser, 'id'>, turfId: string): Promise<void> {
+		await this.db.query(
+			`INSERT INTO universe.turf_user (turf_id, user_id, org_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+			[turfId, user.id, org.id]
+		);
+	}
+
 	/** A script in a bucket. */
 	async createScript(
 		staff: Session,

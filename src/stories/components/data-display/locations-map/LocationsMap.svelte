@@ -195,10 +195,14 @@
 		element.addEventListener('click', () => {
 			selectedLocationId = loc.id;
 		});
+		// Set once the marker exists; the keyboard opens its popup as a click does.
+		let created: maplibregl.Marker | undefined;
 		element.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
 				selectedLocationId = loc.id;
+				const attached = created?.getPopup();
+				if (attached && !attached.isOpen()) created!.togglePopup();
 			}
 		});
 
@@ -237,6 +241,7 @@
 			}
 			marker.setPopup(new maplibregl.Popup({ offset: 34 }).setDOMContent(content));
 		}
+		created = marker;
 
 		if (draggable) {
 			marker.on('dragstart', () => {

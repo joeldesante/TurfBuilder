@@ -1,5 +1,5 @@
-import { json, error } from '@sveltejs/kit';
-import { runQueries } from '$lib/server/services/query-builder.service';
+import { json, error, isHttpError } from '@sveltejs/kit';
+import { QueryError, runQueries } from '$lib/server/services/query-builder.service';
 import { logger } from '$lib/server/logger';
 
 export async function POST({ request, locals }) {
@@ -15,7 +15,7 @@ export async function POST({ request, locals }) {
 	}
 
 	try {
-		const results = await runQueries(body as never);
+		const results = await runQueries(locals.user.id, body as never);
 		return json({
 			results: results.map((r) => ({
 				fields: r.fields.map((f) => f.name),
@@ -23,8 +23,13 @@ export async function POST({ request, locals }) {
 			}))
 		});
 	} catch (e) {
+		if (e instanceof QueryError) throw error(400, e.message);
+		if (isHttpError(e)) throw e;
 		// Often the caller's own bad query, so a warning; the message is scrubbed by the serializer.
-		logger.warn({ err: e, organizationId: locals.organization?.id }, 'Query endpoint request failed');
+		logger.warn(
+			{ err: e, organizationId: locals.organization?.id },
+			'Query endpoint request failed'
+		);
 		throw error(400, e instanceof Error ? e.message : 'Query failed');
 	}
 }
