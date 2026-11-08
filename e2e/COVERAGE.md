@@ -128,19 +128,19 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| BKT-01 | Creating a bucket adds it to the sidebar | staff | `/universe/buckets/new` | buckets | | todo |
-| BKT-02 | Duplicate bucket slug is refused | staff | | buckets | | todo |
-| BKT-03 | Bucket overview shows its counts | staff | `/buckets/[slug]` | buckets | | todo |
-| BKT-04 | Filter editor saves people and location filter groups; counts change | staff | `/buckets/[slug]/filters` | buckets | filters.service.spec | todo |
-| BKT-05 | Each location filter field works: city, state, zip, radius, boundary, name | staff | filter editor | buckets | filters.service.spec | todo |
-| BKT-06 | Each people filter field works | staff | filter editor | buckets | filters.service.spec | todo |
-| BKT-07 | A bucket with an old filter that cannot be converted shows the reason; filters page can rebuild it | staff | | buckets | buckets.service.spec | todo |
-| BKT-08 | Bucket locations list and paging | staff | `/buckets/[slug]/locations` | buckets | | todo |
-| BKT-09 | Bucket location detail | staff | `/buckets/[slug]/locations/[id]` | buckets | | todo |
-| BKT-10 | Bucket people list and paging; disabled when the bucket has no people | staff | `/buckets/[slug]/people` | buckets | | todo |
-| BKT-11 | Bucket person profile | staff | `/buckets/[slug]/people/[id]` | buckets | | todo |
-| BKT-12 | Unknown bucket slug answers 404 | staff | | buckets | | todo |
-| BKT-13 | Bucket API: get, replace, update; another org's bucket 404 | staff, outsider | API | api/buckets | | todo |
+| BKT-01 | Creating a bucket adds it to the sidebar | staff | `/universe/buckets/new` | buckets | | covered |
+| BKT-02 | Duplicate bucket slug is refused | staff | | buckets | | covered |
+| BKT-03 | Bucket overview shows its counts | staff | `/buckets/[slug]` | buckets | | covered (a bucket opens on its locations page) |
+| BKT-04 | Filter editor saves people and location filter groups; counts change | staff | `/buckets/[slug]/filters` | buckets | filters.service.spec | covered |
+| BKT-05 | Each location filter field works: city, state, zip, radius, boundary, name | staff | filter editor | buckets | filters.service.spec | covered (every location filter and operation through the bucket API) |
+| BKT-06 | Each people filter field works | staff | filter editor | buckets | filters.service.spec | covered (every people filter through the bucket API) |
+| BKT-07 | A bucket with an old filter that cannot be converted shows the reason; filters page can rebuild it | staff | | buckets | buckets.service.spec | covered |
+| BKT-08 | Bucket locations list and paging | staff | `/buckets/[slug]/locations` | buckets | | covered |
+| BKT-09 | Bucket location detail | staff | `/buckets/[slug]/locations/[id]` | buckets | | covered |
+| BKT-10 | Bucket people list and paging; disabled when the bucket has no people | staff | `/buckets/[slug]/people` | buckets | | covered |
+| BKT-11 | Bucket person profile | staff | `/buckets/[slug]/people/[id]` | buckets | | covered |
+| BKT-12 | Unknown bucket slug answers 404 | staff | | buckets | | covered |
+| BKT-13 | Bucket API: get, replace, update; another org's bucket 404 | staff, outsider | API | buckets | | covered |
 
 ## Universe data (DATA)
 
