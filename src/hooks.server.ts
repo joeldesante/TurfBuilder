@@ -13,6 +13,7 @@ import { startRuntimeMetrics } from '$lib/server/runtime-metrics';
 import { analytics, configureAnalytics } from '$lib/server/analytics';
 import { applyTelemetry } from '$lib/server/telemetry';
 import { isMaintenanceMode } from '$lib/server/utils/maintenance';
+import { isPlaceholderEmail } from '$lib/server/utils/placeholder-email';
 
 if (!building) startRuntimeMetrics();
 
@@ -33,7 +34,8 @@ export function handleError({ error: err, event, status, message }) {
 
 const handleRequest: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
-	const isAuthRoute = pathname.startsWith('/auth');
+	// The auth pages and better-auth's own endpoints, which those pages call.
+	const isAuthRoute = pathname.startsWith('/auth') || pathname.startsWith('/api/auth/');
 
 	// Maintenance mode answers before anything touches the database: no settings
 	// read, no session lookup, no activity write, no sign-in.
@@ -112,8 +114,8 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 		}
 
 		// Users with fake emails must set a real one before doing anything else.
-		const isFakeEmail = session.user.email.endsWith('@fake.com');
-		if (isFakeEmail && !isAuthRoute && pathname !== '/auth/update-email') {
+		const isFakeEmail = isPlaceholderEmail(session.user.email);
+		if (isFakeEmail && !isAuthRoute) {
 			throw redirect(303, '/auth/update-email');
 		}
 	}

@@ -96,6 +96,9 @@ async function buildAuth() {
 			}
 		},
 		user: {
+			// For placeholder accounts only (see change-email-guard.ts): the
+			// verification link goes to the new address.
+			changeEmail: { enabled: true },
 			fields: {
 				emailVerified: 'email_verified',
 				createdAt: 'created_at',
@@ -319,7 +322,8 @@ async function buildAuth() {
 			infraImpersonation()
 		],
 
-		// Suspended and deleted organizations are closed to better-auth's organization endpoints too.
+		// Suspended and deleted organizations are closed to better-auth's organization
+		// endpoints too, and only placeholder accounts may change their email.
 		hooks: { before: organizationStatusGuard },
 
 		trustedOrigins: baseURLs,

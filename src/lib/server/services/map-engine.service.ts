@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import type { Browser } from 'puppeteer';
+import { env } from '$env/dynamic/private';
 import { getMapStyle } from '$lib/map-style';
 import { launchBrowser } from './browser.service';
 
@@ -69,7 +70,8 @@ async function renderOn(
 		[Math.max(...lngs), Math.max(...lats)]
 	];
 
-	const style = await getMapStyle(details.dark ?? false);
+	// MAP_STYLE_URL swaps the tile service out, e.g. for the e2e stack's stub style.
+	const style = await getMapStyle(details.dark ?? false, env.MAP_STYLE_URL || undefined);
 
 	const page = await browser.newPage();
 	try {

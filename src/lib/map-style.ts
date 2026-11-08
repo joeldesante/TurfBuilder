@@ -5,15 +5,17 @@
 
 const POSITRON_URL = 'https://tiles.openfreemap.org/styles/positron';
 
-// Cache the base style so we only fetch it once
-let cachedBaseStyle: Record<string, unknown> | null = null;
+// Cache each base style so it is only fetched once.
+const cachedBaseStyles = new Map<string, Record<string, unknown>>();
 
-async function fetchBaseStyle(): Promise<Record<string, unknown>> {
-	if (!cachedBaseStyle) {
-		const res = await fetch(POSITRON_URL);
-		cachedBaseStyle = (await res.json()) as Record<string, unknown>;
+async function fetchBaseStyle(url: string): Promise<Record<string, unknown>> {
+	let style = cachedBaseStyles.get(url);
+	if (!style) {
+		const res = await fetch(url);
+		style = (await res.json()) as Record<string, unknown>;
+		cachedBaseStyles.set(url, style);
 	}
-	return cachedBaseStyle;
+	return style;
 }
 
 // Light theme — clean zinc palette with emerald/blue accents
@@ -190,8 +192,15 @@ function applyThemeToLayer(
 
 const SHIELD_LAYER_IDS = new Set(['highway-shield-non-us', 'highway-shield-us-interstate', 'road_shield_us']);
 
-export async function getMapStyle(isDark: boolean): Promise<Record<string, unknown>> {
-	const base = await fetchBaseStyle();
+/**
+ * The base style themed for light or dark. `styleUrl` replaces the OpenFreeMap
+ * positron style; the server passes MAP_STYLE_URL here when it is set.
+ */
+export async function getMapStyle(
+	isDark: boolean,
+	styleUrl: string = POSITRON_URL
+): Promise<Record<string, unknown>> {
+	const base = await fetchBaseStyle(styleUrl);
 	const colors = isDark ? darkColors : lightColors;
 
 	const layers = (base.layers as Array<Record<string, unknown>>).map((layer) => {

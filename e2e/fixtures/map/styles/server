@@ -1,0 +1,7 @@
+{
+	"version": 8,
+	"name": "e2e stub",
+	"sources": {},
+	"glyphs": "http://maptiles/fonts/{fontstack}/{range}.pbf",
+	"layers": [{ "id": "background", "type": "background", "paint": { "background-color": "#fafafa" } }]
+}

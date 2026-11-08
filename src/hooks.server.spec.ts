@@ -219,3 +219,22 @@ describe('access log', () => {
 		expect(JSON.stringify(logged)).not.toContain('secret-token-123');
 	});
 });
+
+describe('an account with a placeholder email', () => {
+	beforeEach(() => {
+		mocks.getSession.mockResolvedValue({
+			user: { ...USER, email: 'import-1@fake.com' },
+			session: { id: 's1', impersonatedBy: null }
+		});
+	});
+
+	it('is sent to set a real address from any app page', async () => {
+		await expect(call('/orgs').run).rejects.toMatchObject({ status: 303, location: '/auth/update-email' });
+	});
+
+	it("can still reach the auth pages and better-auth's endpoints, which set the new address", async () => {
+		for (const path of ['/auth/update-email', '/api/auth/change-email']) {
+			await expect(call(path, 'POST').run, path).resolves.toBeDefined();
+		}
+	});
+});

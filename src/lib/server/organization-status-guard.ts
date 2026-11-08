@@ -1,5 +1,6 @@
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { POOL } from '$lib/server/database';
+import { checkChangeEmail } from '$lib/server/change-email-guard';
 
 /**
  * better-auth's organization endpoints that do not act on one organization,
@@ -72,7 +73,18 @@ export async function organizationStatusFor(
  * deleted organization, the way hooks.server.ts stops its pages and the
  * /api/v1 services stop their routes. A deleted org answers as not found.
  */
+/**
+ * Closes better-auth's organization endpoints for suspended (403) and deleted
+ * (404) organizations, as the app's own routes are.
+ */
 export const organizationStatusGuard = createAuthMiddleware(async (ctx) => {
+	// The one before-hook better-auth runs; the change-email rule rides along.
+	if (ctx.path === '/change-email') {
+		const session = await getSessionFromCtx(ctx).catch(() => null);
+		checkChangeEmail(ctx.path, session?.user.email);
+		return;
+	}
+
 	if (!ctx.path.startsWith('/organization/') || UNSCOPED.has(ctx.path)) return;
 
 	const session = await getSessionFromCtx(ctx).catch(() => null);
