@@ -18,18 +18,24 @@ export default defineConfig({
 		trace: 'retain-on-failure'
 	},
 	projects: [
-		{ name: 'setup', testMatch: /setup\.spec\.ts/ },
+		// instance runs as setup's teardown: after every project that depends on
+		// setup has finished, whether or not they passed.
+		{ name: 'setup', testMatch: /setup\.spec\.ts/, teardown: 'instance' },
 		{ name: 'schema', testMatch: /schema\.spec\.ts/, dependencies: ['setup'] },
 		// Every feature spec: e2e/<area>.spec.ts and the API checks in e2e/api/.
 		{
 			name: 'app',
 			testMatch: /\.spec\.ts$/,
-			testIgnore: [/setup\.spec\.ts/, /schema\.spec\.ts/],
+			testIgnore: [/setup\.spec\.ts/, /schema\.spec\.ts/, /instance\.spec\.ts/],
 			dependencies: ['setup']
-		}
+		},
+		// Tests that change instance-wide settings, run alone after the rest so
+		// no parallel test sees the instance changed.
+		{ name: 'instance', testMatch: /instance\.spec\.ts/ }
 	],
 	webServer: {
-		command: 'docker compose -f docker-compose.test.yml down -v && docker volume prune -f --filter "label=com.docker.compose.project=turfbuilder-e2e" && docker compose -f docker-compose.test.yml up --build --remove-orphans',
+		command:
+			'docker compose -f docker-compose.test.yml down -v && docker volume prune -f --filter "label=com.docker.compose.project=turfbuilder-e2e" && docker compose -f docker-compose.test.yml up --build --remove-orphans',
 		// A static file: the app answers every page with 503 until the setup project has migrated and set up the database.
 		url: `${BASE_URL}/robots.txt`,
 		timeout: 600_000,

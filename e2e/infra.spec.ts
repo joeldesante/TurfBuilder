@@ -106,7 +106,8 @@ test.describe('infrastructure admin', () => {
 				`SELECT count(*)::int AS n FROM infra_audit_log WHERE action = 'settings.update'`
 			)
 		).rows[0].n;
-		expect(after).toBe(before + 1);
+		// Other files change settings in parallel, so count at least this one.
+		expect(after).toBeGreaterThanOrEqual(before + 1);
 
 		await page.getByRole('textbox', { name: 'Keep activity for' }).fill('730');
 		await page.getByRole('button', { name: 'Save changes' }).click();

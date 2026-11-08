@@ -74,7 +74,8 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The full suite covers every feature (about 190 tests) on a dev server.
+    timeout-minutes: 60
 
     # Postgres, the app and NATS all come from docker-compose.test.yml, which
     # Playwright's webServer boots. Keeping them here too would fight over port 5432.

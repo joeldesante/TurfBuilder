@@ -30,49 +30,6 @@ test('the mail test sends the admin an email', async ({ world, db }) => {
 	expect(rows[0]).toEqual({ template: 'system.test', status: 'sent' });
 });
 
-test.describe('email templates', () => {
-	// Templates are instance-wide, so these change and restore one at a time.
-	test.describe.configure({ mode: 'serial' });
-
-	test('editing a template, sending a test of it, and resetting it to the default', async ({
-		world,
-		db
-	}) => {
-		const { page } = await world.admin();
-
-		await gotoHydrated(page, '/infra/settings/email/templates');
-		await page.getByRole('link').filter({ hasText: /reset/i }).first().click();
-		await expect(page).toHaveURL(/\/infra\/settings\/email\/templates\/[a-z_.]+$/);
-		const key = decodeURIComponent(page.url().split('/').pop()!);
-		const subject = page.getByLabel('Subject');
-		const original = await subject.inputValue();
-
-		await subject.fill('E2E edited subject');
-		await page.getByRole('button', { name: 'Save', exact: true }).click();
-		await expect(page.getByText('Edited from the default')).toBeVisible();
-		const { rows } = await db.query(`SELECT subject FROM email_template WHERE key = $1`, [key]);
-		expect(rows[0].subject).toBe('E2E edited subject');
-
-		await page.getByRole('button', { name: 'Send test to me' }).click();
-		await expect
-			.poll(async () => (await waitForMail(ADMIN_EMAIL)).subject)
-			.toContain('E2E edited subject');
-
-		await page.getByRole('button', { name: 'Reset to default' }).click();
-		await page.getByRole('dialog').getByRole('button', { name: 'Reset' }).click();
-		await expect(subject).toHaveValue(original);
-		await expect(page.getByText('Edited from the default')).toHaveCount(0);
-	});
-
-	test('the email log lists what was sent', async ({ world }) => {
-		const user = await world.createUser(); // signing up sends a verification email
-		const { page } = await world.admin();
-
-		await gotoHydrated(page, `/infra/settings/email/log?q=${encodeURIComponent(user.email)}`);
-		await expect(page.getByText(user.email).first()).toBeVisible();
-	});
-});
-
 test('system health reports the runtime and the database', async ({ world }) => {
 	const { page } = await world.admin();
 
@@ -104,26 +61,6 @@ test('the metrics page opens with its charts and range', async ({ world }) => {
 	await expect(page.getByRole('heading').first()).toBeVisible();
 	const res = await page.goto('/infra/metrics?range=7d');
 	expect(res?.status()).toBe(200);
-});
-
-test('turning organization creation off from settings closes the create page', async ({
-	world,
-	db
-}) => {
-	const { page } = await world.admin();
-	const user = await world.signIn(await world.createUser());
-	try {
-		const res = await page.request.patch('/api/v1/system-settings', {
-			data: { 'organizations.allow_creation': 'false' }
-		});
-		expect(res.ok()).toBe(true);
-		await user.page.goto('/orgs/create');
-		await expect(user.page).toHaveURL(/\/orgs$/);
-	} finally {
-		await db.query(
-			`UPDATE system_setting SET value = 'true' WHERE key = 'organizations.allow_creation'`
-		);
-	}
 });
 
 test('an infra admin with only some permissions sees only what they allow', async ({

@@ -81,26 +81,6 @@ test.describe('creating an organization', () => {
 		await expect(page).toHaveURL(/\/orgs\/create$/);
 	});
 
-	test('is closed when an admin turns creation off: no button, the page redirects, the API refuses', async ({
-		world,
-		db
-	}) => {
-		const org = await world.createOrg();
-		const { page, request } = await world.as(org, 'volunteer');
-		await setCreation(db, false);
-
-		await gotoHydrated(page, '/orgs');
-		await expect(page.getByRole('link', { name: /Start a New Movement/ })).toHaveCount(0);
-
-		await page.goto('/orgs/create');
-		await expect(page).toHaveURL(/\/orgs$/);
-
-		const res = await request.post('/api/v1/organizations', {
-			data: { name: 'Nope', slug: `nope-${suffix()}` }
-		});
-		expect(res.status()).toBe(403);
-	});
-
 	test('the create button shows while creation is allowed', async ({ world }) => {
 		const org = await world.createOrg();
 		const { page } = await world.as(org, 'volunteer');
