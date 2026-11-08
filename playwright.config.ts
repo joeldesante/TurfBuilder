@@ -2,14 +2,25 @@ import { defineConfig } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:5173';
 
+/**
+ * CI splits the suite across several jobs (.github/workflows/test.yml). There
+ * the instance-wide tests get a job of their own, after setup; locally they run
+ * as setup's teardown, after everything else.
+ */
+const SHARDED = process.env.E2E_SHARDED === '1';
+
 export default defineConfig({
 	testDir: 'e2e',
 	// The dev container compiles routes on demand, so the first navigation of a run can be slow.
 	timeout: 120_000,
-	// Spec files run in parallel; the tests inside one file run in order. Each
-	// spec makes its own org and users (e2e/fixtures/world.ts), so files never
-	// share rows. The dev server and its Chrome are the bottleneck, not tests.
+	// Every test makes its own org and users (e2e/fixtures/world.ts), so tests
+	// run in parallel, files included, and CI shards split by test rather than
+	// by file. A file whose tests build on each other says so with
+	// test.describe.configure({ mode: 'serial' }).
+	fullyParallel: true,
 	workers: Number(process.env.E2E_WORKERS) || 2,
+	// CI shards each write a blob report, and a last job merges them into one.
+	reporter: process.env.CI ? [['blob'], ['list']] : 'list',
 	// The app runs as a dev server and hashes passwords with scrypt, so under
 	// parallel load a sign-in can take several seconds.
 	expect: { timeout: 15_000 },
@@ -20,7 +31,7 @@ export default defineConfig({
 	projects: [
 		// instance runs as setup's teardown: after every project that depends on
 		// setup has finished, whether or not they passed.
-		{ name: 'setup', testMatch: /setup\.spec\.ts/, teardown: 'instance' },
+		{ name: 'setup', testMatch: /setup\.spec\.ts/, teardown: SHARDED ? undefined : 'instance' },
 		{ name: 'schema', testMatch: /schema\.spec\.ts/, dependencies: ['setup'] },
 		// Every feature spec: e2e/<area>.spec.ts and the API checks in e2e/api/.
 		{
@@ -31,7 +42,11 @@ export default defineConfig({
 		},
 		// Tests that change instance-wide settings, run alone after the rest so
 		// no parallel test sees the instance changed.
-		{ name: 'instance', testMatch: /instance\.spec\.ts/ }
+		{
+			name: 'instance',
+			testMatch: /instance\.spec\.ts/,
+			dependencies: SHARDED ? ['setup'] : []
+		}
 	],
 	webServer: {
 		command:

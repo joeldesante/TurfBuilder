@@ -482,6 +482,7 @@ test('renders label', async () => {
 - The schema spec fails any org-scoped table (`organization_id` or `org_id`) without forced row-level security and a policy, unless it is in the reviewed `RLS_EXEMPT` list
 - `auth.spec.ts` › "signing in again is bypassed once a session exists" is parked with `test.fixme` until #179 decides the behavior
 - CI (`.github/workflows/test.yml`) runs type check, server tests, component tests, and e2e on every pull request into `staging` or `main`, before the merge
+- CI splits e2e across six shard jobs (`--shard=N/6`, `E2E_SHARDED=1`), each with its own stack, plus one job for `e2e/instance.spec.ts` (tests that change instance-wide settings and must run alone); "E2E Tests" merges their blob reports into one HTML report and fails if any of them did. Locally the instance tests run as `setup`'s teardown, after everything else. Every test makes its own org (`e2e/fixtures/world.ts`), so the config is `fullyParallel`; a file whose tests depend on each other uses `test.describe.configure({ mode: 'serial' })`
 
 ---
 
