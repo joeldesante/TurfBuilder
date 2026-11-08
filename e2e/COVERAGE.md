@@ -211,17 +211,17 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| SVY-01 | Creating a survey opens its editor | staff | `/buckets/[slug]/surveys/new` | surveys | | todo |
-| SVY-02 | Surveys list, most recently changed first | staff | `/buckets/[slug]/surveys` | surveys | | todo |
-| SVY-03 | Editing name and description saves | staff (survey.update) | survey editor | surveys | | todo |
-| SVY-04 | Adding text, choose-one and choose-many questions with choices saves | staff | survey editor | surveys | surveys.service.spec | todo |
-| SVY-05 | Reordering questions saves the order | staff | survey editor | surveys | | todo |
-| SVY-06 | Removing a question deletes it | staff | survey editor | surveys | | todo |
-| SVY-07 | Without survey.update the editor answers 403 | staff- | | surveys | | todo |
-| SVY-08 | A survey from another bucket's URL answers 404 | staff | | surveys | | todo |
-| SVY-09 | Creating a script and editing its text saves | staff | `/buckets/[slug]/scripts/**` | surveys | scripts.service.spec | todo |
-| SVY-10 | Scripts list | staff | `/buckets/[slug]/scripts` | surveys | | todo |
-| SVY-11 | Survey and script API: another org's 404, delete survey 409 while a turf uses it | outsider, staff | API | api/surveys | surveys.service.spec | v1-only |
+| SVY-01 | Creating a survey opens its editor | staff | `/buckets/[slug]/surveys/new` | surveys | | covered |
+| SVY-02 | Surveys list, most recently changed first | staff | `/buckets/[slug]/surveys` | surveys | | covered |
+| SVY-03 | Editing name and description saves | staff (survey.update) | survey editor | surveys | | covered |
+| SVY-04 | Adding text, choose-one and choose-many questions with choices saves | staff | survey editor | surveys | surveys.service.spec | covered (bug fixed, question and choice inputs and their buttons had no accessible names) |
+| SVY-05 | Reordering questions saves the order | staff | survey editor | surveys | | covered (the editor has no reordering; questions keep the order they are added in, which the test checks) |
+| SVY-06 | Removing a question deletes it | staff | survey editor | surveys | | covered |
+| SVY-07 | Without survey.update the editor answers 403 | staff- | | surveys | | covered |
+| SVY-08 | A survey from another bucket's URL answers 404 | staff | | surveys | | covered |
+| SVY-09 | Creating a script and editing its text saves | staff | `/buckets/[slug]/scripts/**` | surveys | scripts.service.spec | covered |
+| SVY-10 | Scripts list | staff | `/buckets/[slug]/scripts` | surveys | | covered |
+| SVY-11 | Survey and script API: another org's 404, delete survey 409 while a turf uses it | outsider, staff | API | surveys | surveys.service.spec | v1-only |
 
 ## Canvassing (CNV)
 
