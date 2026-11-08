@@ -122,7 +122,7 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 | PLG-06 | Volunteer plugin page renders | vol | `/o/[slug]/plugins/[slug]/...` | plugins | | covered |
 | PLG-07 | Plugin config is validated and saved | staff+ | API | plugins | plugin-installations.service.spec | v1-only |
 | PLG-08 | Plugin API handler runs for staff, 403 for non-staff, 404 when inactive | staff, vol | API | plugins | | v1-only (every member holds the default role, so the plugin API's staff check never refuses a member (review)) |
-| PLG-09 | Plugin hooks fire on turf creation and survey submission | staff, vol | | plugins | hooks.spec | todo |
+| PLG-09 | Plugin hooks fire on turf creation and survey submission | staff, vol | | - | hooks.spec | bug (not wired, nothing calls fireHook and no plugin defines hooks, though CLAUDE.md documents them) |
 
 ## Buckets (BKT)
 
@@ -205,7 +205,7 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 | TURF-04 | A location can only be in one turf of a list | staff | cut page | lists | | covered (not a rule; overlapping turfs share doors, which the test pins down (review)) |
 | TURF-05 | Turf preview modal shows its doors | staff | list detail | lists | | covered |
 | TURF-06 | Turf detail page shows doors, code, progress | staff | `/lists/[id]/turfs/[turf_id]` | lists | | covered |
-| TURF-07 | Turf creation fires the onTurfCreated hook | staff | | turfs | hooks.spec | todo |
+| TURF-07 | Turf creation fires the onTurfCreated hook | staff | | - | hooks.spec | bug (not wired, see PLG-09) |
 
 ## Surveys and scripts (SVY)
 
@@ -239,7 +239,7 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 | CNV-10 | Proposing a fix to a door | vol | map | canvass | | covered |
 | CNV-11 | A volunteer cannot open staff pages | vol | `/o/[slug]/s` | canvass | | covered |
 | CNV-12 | A user not on the turf cannot open its map | vol | `/map/[id]` | canvass | | covered |
-| CNV-13 | Survey submission fires onSurveySubmitted | vol | | canvass | hooks.spec | todo |
+| CNV-13 | Survey submission fires onSurveySubmitted | vol | | - | hooks.spec | bug (not wired, see PLG-09) |
 
 ## Metrics and dashboard (MET)
 
@@ -247,7 +247,7 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 |---|---|---|---|---|---|---|
 | MET-01 | Metrics page: pick a bucket and survey, view results on the map | staff | `/universe/metrics` | insights | | covered |
 | MET-02 | Date range narrows the results | staff | metrics | insights | | covered |
-| MET-03 | Multiple result tabs: add, select, close, reorder | staff | metrics | metrics | | todo |
+| MET-03 | Multiple result tabs: add, select, close, reorder | staff | metrics | insights | | covered |
 | MET-04 | Selecting a location shows its responses | staff | metrics | insights | | covered |
 | MET-05 | Dashboard shows progress and the map for the universe | staff | `/o/[slug]/s` | insights | dashboard.service.spec | covered |
 | MET-06 | Dashboard bucket filter and range change the numbers | staff | dashboard | insights | | covered |

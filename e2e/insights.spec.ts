@@ -105,6 +105,28 @@ test.describe('metrics', () => {
 	});
 });
 
+test.describe('metrics tabs', () => {
+	test('a new tab starts its own workflow; tabs can be switched and closed', async ({ world }) => {
+		const org = await world.createOrg();
+		const { page } = await world.as(org, 'admin');
+
+		await gotoHydrated(page, `/o/${org.slug}/s/universe/metrics`);
+		const tabs = page.getByRole('tablist');
+		await expect(tabs.getByRole('tab')).toHaveCount(1);
+
+		await page.getByRole('button', { name: 'New tab' }).click();
+		await expect(tabs.getByRole('tab')).toHaveCount(2);
+		await expect(tabs.getByRole('tab').nth(1)).toHaveAttribute('aria-selected', 'true');
+
+		await tabs.getByRole('tab').first().click();
+		await expect(tabs.getByRole('tab').first()).toHaveAttribute('aria-selected', 'true');
+
+		await page.getByRole('button', { name: /^Close Tab 2/ }).click();
+		await page.getByRole('alertdialog').getByRole('button', { name: 'Close tab' }).click();
+		await expect(tabs.getByRole('tab')).toHaveCount(1);
+	});
+});
+
 test.describe('search', () => {
 	test('the header search finds a location by name and opens it', async ({ world }) => {
 		const { org, staff } = await canvassed(world);
