@@ -72,7 +72,7 @@ export async function POST({ request, locals }) {
 
 				const result = await client.query(
 					`INSERT INTO universe.turf (code, bounds, author_id, survey_id, script_id, org_id, expires_at, list_id)
-					 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+					 VALUES ($1, ST_SetSRID(ST_GeomFromGeoJSON($2), 4326), $3, $4, $5, $6, $7, $8)
 					 RETURNING *`,
 					[
 						turf_code,

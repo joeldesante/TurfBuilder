@@ -227,18 +227,18 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| CNV-01 | Joining a turf by its code opens its map | vol | `/o/[slug]/join` | canvass | turfs.service.spec | todo |
-| CNV-02 | A wrong code shows a message | vol | join | canvass | | todo |
-| CNV-03 | Turf map shows the turf's doors with their status | vol | `/o/[slug]/map/[id]` | canvass | | todo |
-| CNV-04 | Status refreshes as doors are visited | vol | map | canvass | | todo |
-| CNV-05 | Opening a door shows the survey screen with the script | vol | `/map/[id]/location/[id]` | canvass | | todo |
-| CNV-06 | Submitting each question type records the response and marks the door | vol | survey screen | canvass | | todo |
-| CNV-07 | Not home / no contact records an attempt without answers | vol | survey screen | canvass | | todo |
-| CNV-08 | Suggesting a new door from the map | vol | map | canvass | | todo |
-| CNV-09 | Editing and deleting your own suggestion | vol | map | canvass | | todo |
-| CNV-10 | Proposing a fix to a door | vol | map | canvass | | todo |
-| CNV-11 | A volunteer cannot open staff pages | vol | `/o/[slug]/s` | canvass | | todo |
-| CNV-12 | A user not on the turf cannot open its map | vol | `/map/[id]` | canvass | | todo |
+| CNV-01 | Joining a turf by its code opens its map | vol | `/o/[slug]/join` | canvass | turfs.service.spec | covered |
+| CNV-02 | A wrong code shows a message | vol | join | canvass | | covered |
+| CNV-03 | Turf map shows the turf's doors with their status | vol | `/o/[slug]/map/[id]` | canvass | | covered (bug fixed, door markers had no role, name, or keyboard access) |
+| CNV-04 | Status refreshes as doors are visited | vol | map | canvass | | covered |
+| CNV-05 | Opening a door shows the survey screen with the script | vol | `/map/[id]/location/[id]` | canvass | | covered |
+| CNV-06 | Submitting each question type records the response and marks the door | vol | survey screen | canvass | | covered (bug fixed, text answers had no accessible name) |
+| CNV-07 | Not home / no contact records an attempt without answers | vol | survey screen | canvass | | covered |
+| CNV-08 | Suggesting a new door from the map | vol | map | canvass | | covered (bug fixed, turf bounds were saved with SRID 0 so adding a door to any turf failed with a 500; migration 20261108040950116) |
+| CNV-09 | Editing and deleting your own suggestion | vol | map | canvass | | covered |
+| CNV-10 | Proposing a fix to a door | vol | map | canvass | | covered |
+| CNV-11 | A volunteer cannot open staff pages | vol | `/o/[slug]/s` | canvass | | covered |
+| CNV-12 | A user not on the turf cannot open its map | vol | `/map/[id]` | canvass | | covered |
 | CNV-13 | Survey submission fires onSurveySubmitted | vol | | canvass | hooks.spec | todo |
 
 ## Metrics and dashboard (MET)
