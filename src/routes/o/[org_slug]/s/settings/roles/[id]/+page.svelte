@@ -2,13 +2,20 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import RoleDetailPage from '$pages/o/s/settings/roles/RoleDetailPage.svelte';
-	import { api } from '$lib/client/api';
+	import { toast } from 'svelte-sonner';
+	import { api, errorMessage } from '$lib/client/api';
 
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug);
 
 	async function handleSavePermissions(permissions: string[]) {
-		await api(`/roles/${data.role.id}/permissions`, { method: 'PUT', body: { permissions } });
+		try {
+			await api(`/roles/${data.role.id}/permissions`, { method: 'PUT', body: { permissions } });
+		} catch (e) {
+			toast.error(errorMessage(e, 'The permissions could not be saved.'));
+			// Put the switches back to what is saved.
+			await invalidateAll();
+		}
 	}
 
 	async function handleSaveName(name: string) {

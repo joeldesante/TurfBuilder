@@ -2,7 +2,8 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import MembersPage from '$pages/o/s/members/MembersPage.svelte';
-	import { api } from '$lib/client/api';
+	import { toast } from 'svelte-sonner';
+	import { api, errorMessage } from '$lib/client/api';
 
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug!);
@@ -15,14 +16,26 @@
 		return member.member_id;
 	}
 
+	// The members table does not show errors itself, so these report them as toasts.
 	async function handleAssignRole(userId: string, roleId: string | null) {
-		await api(`/members/${memberId(userId)}`, { method: 'PATCH', body: { role_id: roleId } });
+		try {
+			await api(`/members/${memberId(userId)}`, { method: 'PATCH', body: { role_id: roleId } });
+			toast.success('Role updated.');
+		} catch (e) {
+			toast.error(errorMessage(e, 'The role could not be changed.'));
+		}
+		// Also after a failure, so the role picker shows the role that was kept.
 		await invalidateAll();
 	}
 
 	async function handleRemove(userId: string) {
-		await api(`/members/${memberId(userId)}`, { method: 'DELETE' });
-		await invalidateAll();
+		try {
+			await api(`/members/${memberId(userId)}`, { method: 'DELETE' });
+			toast.success('Member removed.');
+			await invalidateAll();
+		} catch (e) {
+			toast.error(errorMessage(e, 'The member could not be removed.'));
+		}
 	}
 
 	async function handleCreateLink(expiresAt: string | null) {

@@ -261,10 +261,9 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 	test('deleting the current pdf leaves the list with none to download', async () => {
 		const current = (await documents()).find((d) => d.deleted_at === null)!;
 
-		const res = await page.request.delete(
-			`/api/v1/documents/${current.id}`,
-			{ headers: { origin: 'http://localhost:5173' } }
-		);
+		const res = await page.request.delete(`/api/v1/documents/${current.id}`, {
+			headers: { origin: 'http://localhost:5173' }
+		});
 		expect(res.status()).toBe(204);
 
 		expect((await documents()).every((d) => d.deleted_at !== null)).toBe(true);

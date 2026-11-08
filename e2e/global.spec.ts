@@ -42,7 +42,9 @@ test.describe('signed in', () => {
 		await expect(page).toHaveURL(/\/orgs$/);
 	});
 
-	test('an unknown org slug, and an org the user is not in, send them to the org picker', async ({ world }) => {
+	test('an unknown org slug, and an org the user is not in, send them to the org picker', async ({
+		world
+	}) => {
 		const org = await world.createOrg();
 		const { page } = await world.as(org, 'outsider');
 
@@ -65,7 +67,10 @@ test.describe('signed in', () => {
 		await expect(page).toHaveURL(new RegExp(`/o/${org.slug}/join$`));
 	});
 
-	test('a suspended org closes to its members; infra admins can still look but not act in it', async ({ world, db }) => {
+	test('a suspended org closes to its members; infra admins can still look but not act in it', async ({
+		world,
+		db
+	}) => {
 		const org = await world.createOrg();
 		const member = await world.as(org, 'organizer');
 		const admin = await world.admin();
@@ -93,7 +98,9 @@ test.describe('signed in', () => {
 		await expect(page).toHaveURL(/\/orgs$/);
 	});
 
-	test('the beta banner shows on staff pages and stays closed once dismissed', async ({ world }) => {
+	test('the beta banner shows on staff pages and stays closed once dismissed', async ({
+		world
+	}) => {
 		const org = await world.createOrg();
 		const { page } = await world.as(org, 'owner');
 
@@ -124,6 +131,8 @@ test.describe('signed in', () => {
 });
 
 async function adminId(db: import('pg').Client): Promise<string> {
-	const { rows } = await db.query<{ id: string }>(`SELECT id FROM auth."user" WHERE email = 'test@example.com'`);
+	const { rows } = await db.query<{ id: string }>(
+		`SELECT id FROM auth."user" WHERE email = 'test@example.com'`
+	);
 	return rows[0].id;
 }

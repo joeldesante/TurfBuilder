@@ -18,9 +18,30 @@
 		email: 'jane@example.com',
 		orgSlug: 'my-org',
 		permissions: [
-			{ id: 'p1', key: 'turf.read', label: 'View Turfs', group: 'Turfs', description: null, value: null },
-			{ id: 'p2', key: 'turf.create', label: 'Cut New Turfs', group: 'Turfs', description: null, value: true },
-			{ id: 'p3', key: 'survey.read', label: 'View Surveys', group: 'Surveys', description: null, value: false },
+			{
+				id: 'p1',
+				key: 'turf.read',
+				label: 'View Turfs',
+				group: 'Turfs',
+				description: null,
+				value: null
+			},
+			{
+				id: 'p2',
+				key: 'turf.create',
+				label: 'Cut New Turfs',
+				group: 'Turfs',
+				description: null,
+				value: true
+			},
+			{
+				id: 'p3',
+				key: 'survey.read',
+				label: 'View Surveys',
+				group: 'Surveys',
+				description: null,
+				value: false
+			}
 		],
 		onSetPermission: async () => {}
 	}}

@@ -56,59 +56,59 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| ORG-01 | Org picker lists the user's orgs and opens one | user | `/orgs` | orgs | | todo |
-| ORG-02 | Org picker offers create only when creation is allowed | user | `/orgs` | orgs | orgs page.server.spec | todo |
-| ORG-03 | Create org checks the slug as you type and creates it; you are owner | user | `/orgs/create` | orgs | | todo |
-| ORG-04 | Taken slug is refused | user | `/orgs/create` | orgs | | todo |
-| ORG-05 | Create is closed when disabled (page redirects, API 403) | user | `/orgs/create` | orgs | organizations.service.spec | todo |
-| ORG-06 | Join org page explains how to join | user | `/orgs/join` | orgs | | todo |
-| ORG-07 | A new org gets default roles and onboarding | owner | new org | orgs | | todo |
-| ORG-08 | Org API: get, replace, update name and slug | owner | `/api/v1/organizations/[id]` | api/orgs | | todo |
+| ORG-01 | Org picker lists the user's orgs and opens one | user | `/orgs` | orgs | | covered |
+| ORG-02 | Org picker offers create only when creation is allowed | user | `/orgs` | orgs | orgs page.server.spec | covered |
+| ORG-03 | Create org checks the slug as you type and creates it; you are owner | user | `/orgs/create` | orgs | | covered |
+| ORG-04 | Taken slug is refused | user | `/orgs/create` | orgs | | covered |
+| ORG-05 | Create is closed when disabled (page redirects, API 403) | user | `/orgs/create` | orgs | organizations.service.spec | covered |
+| ORG-06 | Join org page explains how to join | user | `/orgs/join` | orgs | | covered |
+| ORG-07 | A new org gets default roles and onboarding | owner | new org | orgs | | covered (onboarding is the org picker welcome) |
+| ORG-08 | Org API: get, replace, update name and slug | owner | `/api/v1/organizations/[id]` | orgs | | covered |
 
 ## Invites (INV)
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| INV-01 | Staff creates an invite link with no expiry | staff+ | members page | invites | | todo |
-| INV-02 | Staff creates an invite link with an expiry date | staff+ | members page | invites | | todo |
-| INV-03 | Staff revokes a link; it stops working | staff+ | members page | invites | | todo |
-| INV-04 | Toggling the slug invite on lets anyone join at `/invite/[slug]`; off stops it | staff+ | members page | invites | | todo |
-| INV-05 | Invite page shows the org and asks a signed-out visitor to sign in | anon | `/invite/[token]` | invites | | todo |
-| INV-06 | Joining through a link adds a plain member and lands in the org | user | `/invite/[token]` | invites | invite-links.service.spec | todo |
-| INV-07 | Already a member: page says so, joining changes nothing | vol | `/invite/[token]` | invites | | todo |
-| INV-08 | Expired or unknown token answers 404 | user | `/invite/x` | invites | | todo |
-| INV-09 | Without member.invite the invite section is hidden and the API answers 403 | staff- | members, API | invites | | todo |
+| INV-01 | Staff creates an invite link with no expiry | staff+ | members page | invites | | covered |
+| INV-02 | Staff creates an invite link with an expiry date | staff+ | members page | invites | | covered (bug fixed, expiry was a zoneless timestamp, shown a day early and ending at the start of the day; migration 20261108001510908) |
+| INV-03 | Staff revokes a link; it stops working | staff+ | members page | invites | | covered |
+| INV-04 | Toggling the slug invite on lets anyone join at `/invite/[slug]`; off stops it | staff+ | members page | invites | | covered (bug fixed, the Switch had no accessible name without an id) |
+| INV-05 | Invite page shows the org and asks a signed-out visitor to sign in | anon | `/invite/[token]` | invites | | covered |
+| INV-06 | Joining through a link adds a plain member and lands in the org | user | `/invite/[token]` | invites | invite-links.service.spec | covered |
+| INV-07 | Already a member: page says so, joining changes nothing | vol | `/invite/[token]` | invites | | covered |
+| INV-08 | Expired or unknown token answers 404 | user | `/invite/x` | invites | | covered |
+| INV-09 | Without member.invite the invite section is hidden and the API answers 403 | staff- | members, API | invites | | covered |
 | INV-10 | Email invitations: infra cancels a pending invitation | infra | infra org page | infra-orgs | | todo |
 
 ## Members (MEM)
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| MEM-01 | Members page lists members with role and paging | staff+ | `/o/[slug]/s/members` | members | members.service.spec | todo |
-| MEM-02 | Without member.read the page answers 403 | staff- | | members | | todo |
-| MEM-03 | Assigning a role changes the member's role | staff+ | members page | members | | todo |
-| MEM-04 | Demoting the last administrator is refused with a message | staff+ | members page | members | | todo |
-| MEM-05 | Removing a member removes their access | staff+ | members page | members | | todo |
-| MEM-06 | Removing yourself is refused | staff+ | API | members | | todo |
-| MEM-07 | Removing the only owner is refused | staff+ | API | members | | todo |
-| MEM-08 | Member detail lists permissions with overrides | staff+ | `/members/[user_id]` | members | | todo |
-| MEM-09 | Granting and denying a permission override takes effect; clearing restores the role's | staff+ | member detail | members | | todo |
-| MEM-10 | Without member.update the controls are hidden and the API answers 403 | staff- | | members | | todo |
-| MEM-11 | Member and permission ids from another org answer 404 | outsider | API | api/members | | v1-only |
+| MEM-01 | Members page lists members with role and paging | staff+ | `/o/[slug]/s/members` | members | members.service.spec | covered |
+| MEM-02 | Without member.read the page answers 403 | staff- | | members | | covered |
+| MEM-03 | Assigning a role changes the member's role | staff+ | members page | members | | covered |
+| MEM-04 | Demoting the last administrator is refused with a message | staff+ | members page | members | | covered (bug fixed, refusals were never shown and the role picker kept the refused choice) |
+| MEM-05 | Removing a member removes their access | staff+ | members page | members | | covered |
+| MEM-06 | Removing yourself is refused | staff+ | API | members | | covered |
+| MEM-07 | Removing the only owner is refused | staff+ | API | members | | covered |
+| MEM-08 | Member detail lists permissions with overrides | staff+ | `/members/[user_id]` | members | | covered (bug fixed, permission badges were named only Inherited/Granted/Denied) |
+| MEM-09 | Granting and denying a permission override takes effect; clearing restores the role's | staff+ | member detail | members | | covered |
+| MEM-10 | Without member.update the controls are hidden and the API answers 403 | staff- | | members | | covered |
+| MEM-11 | Member and permission ids from another org answer 404 | outsider | API | members | | v1-only |
 
 ## Roles (ROLE)
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| ROLE-01 | Roles page lists roles with permission counts | staff+ | `/s/settings/roles` | roles | | todo |
-| ROLE-02 | Without role.read the roles pages answer 403 | staff- | | roles | | todo |
-| ROLE-03 | Creating a role adds it | staff+ | roles page | roles | | todo |
-| ROLE-04 | Renaming a role | staff+ | role detail | roles | | todo |
-| ROLE-05 | Saving a role's permissions changes what its members can do | staff+ | role detail | roles | | todo |
-| ROLE-06 | The administrator role keeps system.access | staff+ | role detail | roles | roles.service.spec | todo |
-| ROLE-07 | The default role cannot be renamed or deleted | staff+ | | roles | roles.service.spec | todo |
-| ROLE-08 | Deleting a role | staff+ | roles page | roles | | todo |
-| ROLE-09 | A role from another org answers 404 | outsider | API, page | api/roles | | v1-only |
+| ROLE-01 | Roles page lists roles with permission counts | staff+ | `/s/settings/roles` | roles | | covered |
+| ROLE-02 | Without role.read the roles pages answer 403 | staff- | | roles | | covered |
+| ROLE-03 | Creating a role adds it | staff+ | roles page | roles | | covered (no UI since 8bccb6a, API only) |
+| ROLE-04 | Renaming a role | staff+ | role detail | roles | | covered |
+| ROLE-05 | Saving a role's permissions changes what its members can do | staff+ | role detail | roles | | covered (bug fixed, permission switches had no accessible names and save failures were silent) |
+| ROLE-06 | The administrator role keeps system.access | staff+ | role detail | roles | roles.service.spec | covered |
+| ROLE-07 | The default role cannot be renamed or deleted | staff+ | | roles | roles.service.spec | covered |
+| ROLE-08 | Deleting a role | staff+ | roles page | roles | | covered |
+| ROLE-09 | A role from another org answers 404 | outsider | API, page | roles | | v1-only |
 
 ## Plugins (PLG)
 

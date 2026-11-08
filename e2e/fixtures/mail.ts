@@ -30,15 +30,30 @@ async function search(query: string): Promise<Summary[]> {
 
 async function read(id: string): Promise<Mail> {
 	const res = await fetch(`${MAILPIT}/api/v1/message/${id}`);
-	const m = (await res.json()) as { ID: string; Subject: string; To: { Address: string }[]; HTML: string; Text: string };
-	return { id: m.ID, subject: m.Subject, to: m.To.map((t) => t.Address), html: m.HTML, text: m.Text };
+	const m = (await res.json()) as {
+		ID: string;
+		Subject: string;
+		To: { Address: string }[];
+		HTML: string;
+		Text: string;
+	};
+	return {
+		id: m.ID,
+		subject: m.Subject,
+		to: m.To.map((t) => t.Address),
+		html: m.HTML,
+		text: m.Text
+	};
 }
 
 /**
  * The newest message to `to` (whose subject contains `subject`, when given),
  * waiting up to 30 seconds for it to arrive.
  */
-export async function waitForMail(to: string, { subject }: { subject?: string } = {}): Promise<Mail> {
+export async function waitForMail(
+	to: string,
+	{ subject }: { subject?: string } = {}
+): Promise<Mail> {
 	let found: Summary | undefined;
 	await expect(async () => {
 		const messages = await search(`to:"${to}"`);
@@ -55,8 +70,11 @@ export async function mailCount(to: string): Promise<number> {
 
 /** The first link in the message whose URL contains `contains`. */
 export function linkIn(mail: Mail, contains: string): string {
-	const links = [...mail.html.matchAll(/href="([^"]+)"/g)].map((m) => m[1].replaceAll('&amp;', '&'));
+	const links = [...mail.html.matchAll(/href="([^"]+)"/g)].map((m) =>
+		m[1].replaceAll('&amp;', '&')
+	);
 	const link = links.find((l) => l.includes(contains));
-	if (!link) throw new Error(`No link containing "${contains}" in "${mail.subject}": ${links.join(', ')}`);
+	if (!link)
+		throw new Error(`No link containing "${contains}" in "${mail.subject}": ${links.join(', ')}`);
 	return link;
 }

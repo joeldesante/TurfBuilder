@@ -7,12 +7,15 @@ import { nextTotp, secretOf, totp } from './fixtures/totp';
 // Signing up, verifying, signing in and out, resetting a password, 2FA, and
 // the fake-email update. Mail is read from Mailpit.
 
-async function fillSignIn(page: import('@playwright/test').Page, identifier: string, password: string) {
+async function fillSignIn(
+	page: import('@playwright/test').Page,
+	identifier: string,
+	password: string
+) {
 	await page.getByRole('textbox', { name: 'Email or Username' }).fill(identifier);
 	await page.getByRole('textbox', { name: 'Password' }).fill(password);
 	await page.getByRole('button', { name: 'Sign In' }).click();
 }
-
 
 /** Turns on two-factor through /auth/2fa/setup and returns the TOTP secret and the backup codes. */
 async function setUpTwoFactor(
@@ -56,7 +59,10 @@ test('signing in by username works too, and returns to the page asked for', asyn
 	await expect(page).toHaveURL(/\/orgs\/join$/);
 });
 
-test('signing up sends a verification email, and its link verifies the address', async ({ world, db }) => {
+test('signing up sends a verification email, and its link verifies the address', async ({
+	world,
+	db
+}) => {
 	const s = suffix();
 	const email = `e2e-signup-${s}@example.test`;
 	const { page } = await world.anonymous();
@@ -76,12 +82,16 @@ test('signing up sends a verification email, and its link verifies the address',
 	await page.goto(linkIn(mail, 'verify-email'));
 
 	await expect(async () => {
-		const after = await db.query(`SELECT email_verified FROM auth."user" WHERE email = $1`, [email]);
+		const after = await db.query(`SELECT email_verified FROM auth."user" WHERE email = $1`, [
+			email
+		]);
 		expect(after.rows[0].email_verified).toBe(true);
 	}).toPass();
 });
 
-test('an unverified user is sent to verify their email before staff pages, and can resend it', async ({ world }) => {
+test('an unverified user is sent to verify their email before staff pages, and can resend it', async ({
+	world
+}) => {
 	const user = await world.createUser({ verified: false });
 	const org = await world.createOrg({ owner: user });
 	const { page } = await world.signIn(user);
@@ -93,14 +103,18 @@ test('an unverified user is sent to verify their email before staff pages, and c
 	await expect(page.getByRole('heading', { name: 'Verify your email' })).toBeVisible();
 
 	await page.getByRole('button', { name: /Resend verification email/ }).click();
-	await expect(page.getByRole('button', { name: /Resend verification email \(\d+s\)/ })).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: /Resend verification email \(\d+s\)/ })
+	).toBeVisible();
 	await expect.poll(() => mailCount(user.email)).toBeGreaterThan(sent);
 
 	await page.getByRole('link', { name: 'Organizations' }).click();
 	await expect(page).toHaveURL(/\/orgs$/);
 });
 
-test('a forgotten password is reset through the emailed link, and the old one stops working', async ({ world }) => {
+test('a forgotten password is reset through the emailed link, and the old one stops working', async ({
+	world
+}) => {
 	const user = await world.createUser();
 	const { page } = await world.anonymous();
 
@@ -150,17 +164,24 @@ test('signing out from the account menu ends the session', async ({ world, db })
 	expect(rows[0].n).toBe(1); // the World's own API sign-in; the page's session is gone
 });
 
-test('two-factor setup verifies a code from the authenticator and shows backup codes', async ({ world, db }) => {
+test('two-factor setup verifies a code from the authenticator and shows backup codes', async ({
+	world,
+	db
+}) => {
 	const user = await world.createUser();
 	const { page } = await world.signIn(user);
 
 	await setUpTwoFactor(page, user.password);
 
-	const { rows } = await db.query(`SELECT two_factor_enabled FROM auth."user" WHERE id = $1`, [user.id]);
+	const { rows } = await db.query(`SELECT two_factor_enabled FROM auth."user" WHERE id = $1`, [
+		user.id
+	]);
 	expect(rows[0].two_factor_enabled).toBe(true);
 });
 
-test('signing in with two-factor on asks for a code, refuses a wrong one, and lets the user in with the right one', async ({ world }) => {
+test('signing in with two-factor on asks for a code, refuses a wrong one, and lets the user in with the right one', async ({
+	world
+}) => {
 	const user = await world.createUser();
 	const { secret } = await setUpTwoFactor((await world.signIn(user)).page, user.password);
 

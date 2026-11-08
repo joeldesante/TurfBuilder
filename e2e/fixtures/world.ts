@@ -41,13 +41,7 @@ export interface Session {
 }
 
 /** The kinds of people the coverage sheet tests features as. */
-export type Persona =
-	| 'owner'
-	| 'admin'
-	| 'organizer'
-	| 'analyst'
-	| 'volunteer'
-	| 'outsider';
+export type Persona = 'owner' | 'admin' | 'organizer' | 'analyst' | 'volunteer' | 'outsider';
 
 export const ADMIN = { email: 'test@example.com', password: 'Password123' };
 
@@ -91,7 +85,8 @@ export class World {
 		const res = await session.request.post('/api/auth/sign-in/email', {
 			data: { email: user.email, password: user.password }
 		});
-		if (!res.ok()) throw new Error(`Sign-in failed for ${user.email}: ${res.status()} ${await res.text()}`);
+		if (!res.ok())
+			throw new Error(`Sign-in failed for ${user.email}: ${res.status()} ${await res.text()}`);
 		return { ...session, user: (user as TestUser) ?? null };
 	}
 
@@ -105,7 +100,10 @@ export class World {
 	// -----------------------------------------------------------------------
 
 	/** Signs a user up through better-auth. Verified by default, since staff pages need it. */
-	async createUser({ verified = true, name }: { verified?: boolean; name?: string } = {}): Promise<TestUser> {
+	async createUser({
+		verified = true,
+		name
+	}: { verified?: boolean; name?: string } = {}): Promise<TestUser> {
 		const s = suffix();
 		const user = {
 			email: `e2e-${s}@example.test`,
@@ -172,7 +170,12 @@ export class World {
 	}
 
 	/** A role in `org` granting exactly `permissions`. */
-	async createRole(org: TestOrg, name: string, permissions: string[], weight = 300): Promise<string> {
+	async createRole(
+		org: TestOrg,
+		name: string,
+		permissions: string[],
+		weight = 300
+	): Promise<string> {
 		const { rows } = await this.db.query<{ id: string }>(
 			`INSERT INTO permission_role (name, weight, scope, organization_id, is_default)
 			 VALUES ($1, $2, 'organization', $3, false) RETURNING id`,
@@ -188,7 +191,11 @@ export class World {
 		return rows[0].id;
 	}
 
-	private async grantRole(user: Pick<TestUser, 'id'>, memberId: string, roleId: string): Promise<void> {
+	private async grantRole(
+		user: Pick<TestUser, 'id'>,
+		memberId: string,
+		roleId: string
+	): Promise<void> {
 		await this.db.query(
 			`INSERT INTO user_role_membership (user_id, member_id, role_id) VALUES ($1, $2, $3)
 			 ON CONFLICT DO NOTHING`,
@@ -201,7 +208,10 @@ export class World {
 	 * `outsider` belongs to another org only; `volunteer` has just the default
 	 * role (canvass.use).
 	 */
-	async as(org: TestOrg, persona: Persona): Promise<Session & { user: TestUser; memberId?: string }> {
+	async as(
+		org: TestOrg,
+		persona: Persona
+	): Promise<Session & { user: TestUser; memberId?: string }> {
 		if (persona === 'owner') return { ...(await this.signIn(org.owner)), user: org.owner };
 
 		const user = await this.createUser();
@@ -209,16 +219,22 @@ export class World {
 		if (persona === 'outsider') {
 			await this.createOrg({ owner: user });
 		} else {
-			const role = { admin: 'Administrator', organizer: 'Organizer', analyst: 'Analyst', volunteer: undefined }[
-				persona
-			] as keyof TestOrg['roles'] | undefined;
+			const role = {
+				admin: 'Administrator',
+				organizer: 'Organizer',
+				analyst: 'Analyst',
+				volunteer: undefined
+			}[persona] as keyof TestOrg['roles'] | undefined;
 			memberId = await this.addMember(org, user, { role });
 		}
 		return { ...(await this.signIn(user)), user, memberId };
 	}
 
 	/** A signed-in staff member of `org` whose only staff permissions are `permissions` (plus system.access). */
-	async staffWith(org: TestOrg, permissions: string[]): Promise<Session & { user: TestUser; memberId: string }> {
+	async staffWith(
+		org: TestOrg,
+		permissions: string[]
+	): Promise<Session & { user: TestUser; memberId: string }> {
 		const user = await this.createUser();
 		const memberId = await this.addMember(org, user, {
 			permissions: [...new Set(['system.access', ...permissions])]

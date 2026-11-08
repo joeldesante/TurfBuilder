@@ -81,13 +81,17 @@
 	{/if}
 
 	<div class="space-y-1 text-xs text-on-surface-subtle">
-		<p>Click a permission badge to cycle: <strong>Inherited → Granted → Denied → Inherited</strong></p>
+		<p>
+			Click a permission badge to cycle: <strong>Inherited → Granted → Denied → Inherited</strong>
+		</p>
 		<p>Inherited means the user's role determines access. Granted/Denied override the role.</p>
 	</div>
 
 	{#each Object.entries(groups) as [group, perms]}
 		<div class="rounded-lg border border-outline overflow-hidden">
-			<div class="px-4 py-2 bg-surface-container text-xs font-semibold text-on-surface-subtle uppercase tracking-wide">
+			<div
+				class="px-4 py-2 bg-surface-container text-xs font-semibold text-on-surface-subtle uppercase tracking-wide"
+			>
 				{group}
 			</div>
 			<div class="divide-y divide-outline">
@@ -100,8 +104,11 @@
 							{/if}
 						</div>
 						<button
-							class="shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 {stateClass(perm.value)}"
+							class="shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 {stateClass(
+								perm.value
+							)}"
 							disabled={saving === perm.id}
+							aria-label="{perm.label}: {stateLabel(perm.value)}"
 							onclick={() => handleChange(perm.id, cycleValue(perm.value))}
 						>
 							{saving === perm.id ? '…' : stateLabel(perm.value)}

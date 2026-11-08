@@ -18,7 +18,15 @@ test.afterAll(async () => {
 
 // The infra API lives outside any layout guard, so each endpoint must refuse signed-out callers itself.
 test.describe('signed out', () => {
-	for (const path of ['/api/v1/users', '/api/v1/organizations', '/api/v1/metrics/signups', '/api/v1/audit-events', '/api/v1/system-settings', '/api/v1/system-health', '/api/v1/email-logs']) {
+	for (const path of [
+		'/api/v1/users',
+		'/api/v1/organizations',
+		'/api/v1/metrics/signups',
+		'/api/v1/audit-events',
+		'/api/v1/system-settings',
+		'/api/v1/system-health',
+		'/api/v1/email-logs'
+	]) {
 		test(`GET ${path} answers 401`, async ({ request }) => {
 			expect((await request.get(path)).status()).toBe(401);
 		});
@@ -64,7 +72,10 @@ test.describe('infrastructure admin', () => {
 		await gotoHydrated(page, '/infra/users');
 		await page.getByRole('searchbox', { name: /Search/ }).fill('test@example.com');
 		await page.getByRole('button', { name: 'Search' }).click();
-		await page.getByRole('link', { name: /test@example.com/ }).first().click();
+		await page
+			.getByRole('link', { name: /test@example.com/ })
+			.first()
+			.click();
 
 		await expect(page).toHaveURL(/\/infra\/users\/[0-9a-f-]{36}/);
 		await expect(page.getByRole('button', { name: /Actions/ })).toBeVisible();
@@ -79,14 +90,22 @@ test.describe('infrastructure admin', () => {
 	});
 
 	test('a settings change is written to the audit log', async ({ page }) => {
-		const before = (await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM infra_audit_log WHERE action = 'settings.update'`)).rows[0].n;
+		const before = (
+			await db.query<{ n: number }>(
+				`SELECT count(*)::int AS n FROM infra_audit_log WHERE action = 'settings.update'`
+			)
+		).rows[0].n;
 
 		await gotoHydrated(page, '/infra/settings?tab=activity');
 		await page.getByRole('textbox', { name: 'Keep activity for' }).fill('731');
 		await page.getByRole('button', { name: 'Save changes' }).click();
 		await expect(page.getByRole('status')).toContainText('Saved.');
 
-		const after = (await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM infra_audit_log WHERE action = 'settings.update'`)).rows[0].n;
+		const after = (
+			await db.query<{ n: number }>(
+				`SELECT count(*)::int AS n FROM infra_audit_log WHERE action = 'settings.update'`
+			)
+		).rows[0].n;
 		expect(after).toBe(before + 1);
 
 		await page.getByRole('textbox', { name: 'Keep activity for' }).fill('730');

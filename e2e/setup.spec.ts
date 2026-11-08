@@ -78,7 +78,9 @@ test('pointing outgoing mail at Mailpit', async () => {
 				['smtp', 'example.test', 'mailpit', '1025', 'false']
 			]
 		);
-		const { rows } = await db.query(`SELECT value FROM system_setting WHERE key = 'mail.transport'`);
+		const { rows } = await db.query(
+			`SELECT value FROM system_setting WHERE key = 'mail.transport'`
+		);
 		expect(rows[0].value).toBe('smtp');
 	} finally {
 		await db.end();

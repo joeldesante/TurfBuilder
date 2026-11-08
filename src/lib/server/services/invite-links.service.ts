@@ -35,13 +35,18 @@ export async function listInviteLinks(userId: string, orgId: string): Promise<In
 	return { links: links.rows, slugInviteEnabled: slug.rows[0]?.enabled ?? false };
 }
 
-/** Creates a token link, which never expires without an expiry. */
+/**
+ * Creates a token link, which never expires without an expiry. A date without
+ * a time (`2026-12-31`) lasts through that day in UTC; the members page sends
+ * the end of the chosen day in the user's own time zone instead.
+ */
 export async function createInviteLink(
 	userId: string,
 	orgId: string,
 	expiresAt: string | null
 ): Promise<InviteLink> {
 	await requireOrgPermission(userId, orgId, PERMISSION);
+	if (expiresAt && /^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) expiresAt = `${expiresAt}T23:59:59Z`;
 
 	const result = await POOL.query<InviteLink>(
 		`INSERT INTO org_invite_link (id, org_id, created_by, expires_at)

@@ -79,12 +79,16 @@
 		}
 	}
 
-	async function handleAssignRole(userId: string, roleId: string) {
+	async function handleAssignRole(userId: string, select: HTMLSelectElement) {
 		assigningId = userId;
+		const roleId = select.value;
 		try {
 			await onAssignRole(userId, roleId === '' ? null : roleId);
 		} finally {
 			assigningId = null;
+			// Show the role the member really has: after a refused change the
+			// props are unchanged, so Svelte would leave the user's pick showing.
+			select.value = members.find((m) => m.id === userId)?.role_id ?? '';
 		}
 	}
 </script>
@@ -113,22 +117,22 @@
 						</td>
 						<td class="px-4 py-3 text-on-surface-subtle">{member.email}</td>
 						<td class="px-4 py-3">
-						{#if canManageRoles}
-							<select
-								class="text-sm bg-transparent border border-outline rounded px-2 py-1 text-on-surface disabled:opacity-50"
-								value={member.role_id ?? ''}
-								disabled={assigningId === member.id}
-								onchange={(e) => handleAssignRole(member.id, e.currentTarget.value)}
-							>
-								<option value="">— No role —</option>
-								{#each roles as role}
-									<option value={role.id}>{role.name}</option>
-								{/each}
-							</select>
-						{:else}
-							<span class="text-on-surface-subtle">{member.role_name ?? '—'}</span>
-						{/if}
-					</td>
+							{#if canManageRoles}
+								<select
+									class="text-sm bg-transparent border border-outline rounded px-2 py-1 text-on-surface disabled:opacity-50"
+									value={member.role_id ?? ''}
+									disabled={assigningId === member.id}
+									onchange={(e) => handleAssignRole(member.id, e.currentTarget)}
+								>
+									<option value="">— No role —</option>
+									{#each roles as role}
+										<option value={role.id}>{role.name}</option>
+									{/each}
+								</select>
+							{:else}
+								<span class="text-on-surface-subtle">{member.role_name ?? '—'}</span>
+							{/if}
+						</td>
 						{#if canRemoveMembers}
 							<td class="px-4 py-3 text-right">
 								<Button

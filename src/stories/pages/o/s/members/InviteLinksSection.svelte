@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DateValue } from '@internationalized/date';
+	import { getLocalTimeZone, type DateValue } from '@internationalized/date';
 	import Time from 'svelte-time/Time.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
@@ -37,11 +37,17 @@
 	let toggling = $state(false);
 	let toggleError = $state<string | null>(null);
 
+	/** The last second of the chosen day where the user is, so the link lasts through that day. */
+	function endOfDay(date: DateValue): string {
+		const nextDay = date.add({ days: 1 }).toDate(getLocalTimeZone());
+		return new Date(nextDay.getTime() - 1000).toISOString();
+	}
+
 	async function handleCreate() {
 		creating = true;
 		createError = null;
 		try {
-			await onCreate(expiryDate?.toString() ?? null);
+			await onCreate(expiryDate ? endOfDay(expiryDate) : null);
 			expiryDate = undefined;
 		} catch (e) {
 			createError = e instanceof Error ? e.message : 'Failed to generate link.';
@@ -80,11 +86,7 @@
 	<!-- Slug invite toggle -->
 	<div class="rounded-lg border border-outline bg-surface-container/40 p-4 space-y-3">
 		<div class="flex items-center justify-between">
-			<Switch
-				checked={slugInviteEnabled}
-				onCheckedChange={handleToggle}
-				disabled={toggling}
-			>
+			<Switch checked={slugInviteEnabled} onCheckedChange={handleToggle} disabled={toggling}>
 				Enable invite via organization slug
 			</Switch>
 		</div>
@@ -131,10 +133,7 @@
 							</td>
 							<td class="px-4 py-3">
 								<div class="flex items-center justify-end gap-1">
-									<CopyButton
-										value="{baseUrl}{link.id}"
-										aria-label="Copy invite link"
-									/>
+									<CopyButton value="{baseUrl}{link.id}" aria-label="Copy invite link" />
 									<Button
 										variant="ghost"
 										size="sm"

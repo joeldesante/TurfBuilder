@@ -108,7 +108,16 @@ describe('createInviteLink', () => {
 
 		const [, values] = sqlRun('INSERT INTO org_invite_link')!;
 		expect(values[0]).toMatch(/^[A-Za-z0-9_-]{21}$/);
-		expect(values.slice(1)).toEqual([ORG, 'u1', '2026-12-31']);
+		// A bare date lasts through that day.
+		expect(values.slice(1)).toEqual([ORG, 'u1', '2026-12-31T23:59:59Z']);
+	});
+
+	it('keeps an exact time as given', async () => {
+		stub(() => ({ rowCount: 1, rows: [{ id: 'tok' }] }));
+
+		await createInviteLink('u1', ORG, '2026-12-31T23:59:59.000-05:00');
+
+		expect(sqlRun('INSERT INTO org_invite_link')![1][3]).toBe('2026-12-31T23:59:59.000-05:00');
 	});
 });
 

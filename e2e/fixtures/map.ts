@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url';
  * themes it like the real positron style (getMapStyle maps over its layers),
  * so map pages, markers, and drawing all work without any tiles.
  */
-const STYLE = readFileSync(fileURLToPath(new URL('./map/styles/positron', import.meta.url)), 'utf8');
+const STYLE = readFileSync(
+	fileURLToPath(new URL('./map/styles/positron', import.meta.url)),
+	'utf8'
+);
 
 /**
  * Answers every request to tiles.openfreemap.org locally: the style with the

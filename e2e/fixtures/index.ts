@@ -11,7 +11,13 @@
  * - `world`: factories for users, orgs, members, and the records they work on,
  *   each with random names so specs can run in parallel without colliding.
  */
-import { test as base, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import {
+	test as base,
+	expect,
+	type Browser,
+	type BrowserContext,
+	type Page
+} from '@playwright/test';
 import { Client } from 'pg';
 import { DATABASE_URL } from '../config';
 import { stubMapTiles } from './map';

@@ -37,7 +37,9 @@
 		| undefined
 	>('formField');
 
-	let switchId = $derived(id ?? ctx?.id);
+	// A label passed as children names the switch through `for`, so it always needs an id.
+	const fallbackId = $props.id();
+	let switchId = $derived(id ?? ctx?.id ?? fallbackId);
 	let isInvalid = $derived(ctx?.invalid ?? false);
 	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
 	let describedBy = $derived(ctx?.describedBy);
