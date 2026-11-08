@@ -355,6 +355,44 @@ export class World {
 		return { id, questions: (await res.json()) as { id: string; question_text: string }[] };
 	}
 
+	/**
+	 * Cuts one turf from a list covering `polygon` (by default the whole world,
+	 * so every location in the list), with the survey and optional script.
+	 */
+	async createTurf(
+		staff: Session,
+		org: TestOrg,
+		{
+			listId,
+			surveyId,
+			scriptId = null,
+			polygon = WORLD
+		}: { listId: string; surveyId: string; scriptId?: string | null; polygon?: object }
+	): Promise<{ id: string; code: string }> {
+		const res = await staff.request.post(`/o/${org.slug}/s/api/turf/create`, {
+			data: {
+				polygons: [{ geometry: polygon }],
+				survey_id: surveyId,
+				script_id: scriptId,
+				list_id: listId
+			}
+		});
+		if (!res.ok()) throw new Error(`Turf creation failed: ${res.status()} ${await res.text()}`);
+		const { turfs } = (await res.json()) as { turfs: { id: string; code: string }[] };
+		return turfs[0];
+	}
+
+	/** The turf_location ids of a turf's doors, in the order they were cut. */
+	async turfDoors(turfId: string): Promise<{ id: string; name: string | null }[]> {
+		const { rows } = await this.db.query<{ id: string; name: string | null }>(
+			`SELECT tl.id, ol.name FROM universe.turf_location tl
+			 JOIN universe.org_location ol ON ol.id = tl.org_location_id
+			 WHERE tl.turf_id = $1 ORDER BY ol.name`,
+			[turfId]
+		);
+		return rows;
+	}
+
 	/** A script in a bucket. */
 	async createScript(
 		staff: Session,
@@ -373,6 +411,20 @@ export interface FilterGroup {
 	operator: 'AND' | 'OR';
 	filters: unknown[];
 }
+
+/** A polygon around the whole map. */
+export const WORLD = {
+	type: 'Polygon',
+	coordinates: [
+		[
+			[-179, -85],
+			[179, -85],
+			[179, 85],
+			[-179, 85],
+			[-179, -85]
+		]
+	]
+};
 
 /** Matches everything of its kind. */
 export const ALL: FilterGroup = { operator: 'AND', filters: [] };

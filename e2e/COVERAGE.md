@@ -185,26 +185,26 @@ Spec files are `e2e/<area>.spec.ts`; API-only checks are in `e2e/api/<area>.spec
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| LIST-01 | Creating a list from a bucket snapshots its matches | staff | `/buckets/[slug]/lists/new` | lists | lists.service.spec | todo |
-| LIST-02 | Bucket lists page lists them | staff | `/buckets/[slug]/lists` | lists | | todo |
-| LIST-03 | List detail shows entries with paging, tabs for entries and turfs | staff | `/lists/[id]` | lists | | todo |
-| LIST-04 | List entries keep the versions from when the list was made after edits and deletes | staff | list detail | lists | | todo |
-| LIST-05 | List map shows entries and turfs | staff | `/lists/[id]/map` | lists | | todo |
+| LIST-01 | Creating a list from a bucket snapshots its matches | staff | `/buckets/[slug]/lists/new` | lists | lists.service.spec | covered (creating returns to the lists page) |
+| LIST-02 | Bucket lists page lists them | staff | `/buckets/[slug]/lists` | lists | | covered |
+| LIST-03 | List detail shows entries with paging, tabs for entries and turfs | staff | `/lists/[id]` | lists | | covered |
+| LIST-04 | List entries keep the versions from when the list was made after edits and deletes | staff | list detail | lists | | bug (known #188, repointToVersion moves entries to the new version; test.fail until step F) |
+| LIST-05 | List map shows entries and turfs | staff | `/lists/[id]/map` | lists | | covered |
 | LIST-06 | PDF generate, download, regenerate, delete | staff | list detail | list-documents | | covered |
 | LIST-07 | Signed-out document API refuses | anon | API | list-documents | | covered |
-| LIST-08 | Another org's list answers 404 | outsider | page, API | api/lists | | todo |
-| LIST-09 | List entries API pages | staff | API | api/lists | | todo |
+| LIST-08 | Another org's list answers 404 | outsider | page, API | lists | | covered |
+| LIST-09 | List entries API pages | staff | API | lists | | covered |
 
 ## Turfs (TURF)
 
 | Id | Behavior | Actors | Entry | Test | Unit | Status |
 |---|---|---|---|---|---|---|
-| TURF-01 | Survey selection modal lists the bucket's surveys and scripts; none means create one first | staff | list detail | turfs | | todo |
-| TURF-02 | Cut page draws a turf and creates it with a code | staff | `/lists/[id]/cut` | turfs | | todo |
-| TURF-03 | Cut survey step creates turfs | staff | `/lists/[id]/cut/survey` | turfs | | todo |
-| TURF-04 | A location can only be in one turf of a list | staff | cut page | turfs | | todo |
-| TURF-05 | Turf preview modal shows its doors | staff | list detail | turfs | | todo |
-| TURF-06 | Turf detail page shows doors, code, progress | staff | `/lists/[id]/turfs/[turf_id]` | turfs | | todo |
+| TURF-01 | Survey selection modal lists the bucket's surveys and scripts; none means create one first | staff | list detail | lists | | covered |
+| TURF-02 | Cut page draws a turf and creates it with a code | staff | `/lists/[id]/cut` | lists | | covered |
+| TURF-03 | Cut survey step creates turfs | staff | `/lists/[id]/cut/survey` | lists | | covered (the survey step is the modal before the cut map) |
+| TURF-04 | A location can only be in one turf of a list | staff | cut page | lists | | covered (not a rule; overlapping turfs share doors, which the test pins down (review)) |
+| TURF-05 | Turf preview modal shows its doors | staff | list detail | lists | | covered |
+| TURF-06 | Turf detail page shows doors, code, progress | staff | `/lists/[id]/turfs/[turf_id]` | lists | | covered |
 | TURF-07 | Turf creation fires the onTurfCreated hook | staff | | turfs | hooks.spec | todo |
 
 ## Surveys and scripts (SVY)
