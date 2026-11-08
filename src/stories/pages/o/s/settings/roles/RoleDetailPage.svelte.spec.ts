@@ -42,12 +42,12 @@ describe('RoleDetailPage', () => {
 	describe('role settings section', () => {
 		it('shows the role name input', async () => {
 			render(RoleDetailPage, baseProps);
-			await expect.element(page.getByLabelText('Name')).toBeVisible();
+			await expect.element(page.getByLabelText('Name', { exact: true })).toBeVisible();
 		});
 
 		it('populates the input with the role name', async () => {
 			render(RoleDetailPage, baseProps);
-			const input = page.getByLabelText('Name');
+			const input = page.getByLabelText('Name', { exact: true });
 			await expect.element(input).toHaveValue('Member');
 		});
 
@@ -73,7 +73,7 @@ describe('RoleDetailPage', () => {
 		it('does not call onSaveName and shows an error when the name is blank', async () => {
 			const onSaveName = vi.fn().mockResolvedValue(undefined);
 			render(RoleDetailPage, { ...baseProps, onSaveName });
-			await page.getByLabelText('Name').fill('   ');
+			await page.getByLabelText('Name', { exact: true }).fill('   ');
 			await page.getByRole('button', { name: 'Save' }).click();
 			await expect.element(page.getByText('Enter a name')).toBeVisible();
 			expect(onSaveName).not.toHaveBeenCalled();
@@ -82,7 +82,7 @@ describe('RoleDetailPage', () => {
 		it('shows the error when saving the name fails', async () => {
 			const onSaveName = vi.fn().mockRejectedValue(new Error('A role with that name exists.'));
 			render(RoleDetailPage, { ...baseProps, onSaveName });
-			await page.getByLabelText('Name').fill('Taken');
+			await page.getByLabelText('Name', { exact: true }).fill('Taken');
 			await page.getByRole('button', { name: 'Save' }).click();
 			await expect.element(page.getByText('A role with that name exists.')).toBeVisible();
 		});
