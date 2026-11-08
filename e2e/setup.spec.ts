@@ -5,6 +5,9 @@ import { S3Client, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { DATABASE_URL } from './config';
 import { gotoHydrated } from './helpers';
 
+// In order: migrating and setting up first, then the rest of the test stack.
+test.describe.configure({ mode: 'serial' });
+
 /** Runs an npm script against the e2e database, the way an operator would. */
 function npm(args: string[], input?: string): string {
 	return execFileSync('npm', ['run', ...args], {
