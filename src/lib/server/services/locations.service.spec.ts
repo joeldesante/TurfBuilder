@@ -41,7 +41,17 @@ function stub(
 		if (sql.includes('JOIN auth.organization o ON o.id = m.organization_id')) {
 			return Promise.resolve(
 				member
-					? { rowCount: 1, rows: [{ organization_id: ORG, role: 'member', suspended: status === 'suspended', deleted: status === 'deleted' }] }
+					? {
+							rowCount: 1,
+							rows: [
+								{
+									organization_id: ORG,
+									role: 'member',
+									suspended: status === 'suspended',
+									deleted: status === 'deleted'
+								}
+							]
+						}
 					: { rowCount: 0, rows: [] }
 			);
 		}
@@ -56,7 +66,8 @@ function stub(
 			);
 		}
 		if (sql.startsWith('SELECT 1 FROM')) return Promise.resolve({ rowCount: 1, rows: [{}] });
-		if (sql.includes('COUNT(*)')) return Promise.resolve({ rowCount: 1, rows: [{ count: String(total) }] });
+		if (sql.includes('COUNT(*)'))
+			return Promise.resolve({ rowCount: 1, rows: [{ count: String(total) }] });
 		return Promise.resolve(rest(sql));
 	});
 }
@@ -80,7 +91,12 @@ beforeEach(() => {
 
 describe('listOrgLocations', () => {
 	it('returns the page with the total', async () => {
-		expect(await listOrgLocations('u1', ORG, 2)).toEqual({ items: rows, totalCount: 250, page: 2, pageSize: 100 });
+		expect(await listOrgLocations('u1', ORG, 2)).toEqual({
+			items: rows,
+			totalCount: 250,
+			page: 2,
+			pageSize: 100
+		});
 	});
 
 	it('checks location.read', async () => {
@@ -117,7 +133,9 @@ describe('listOrgLocations', () => {
 	it('orders with an id tiebreak, so pages cannot repeat or skip a row', async () => {
 		await listOrgLocations('u1', ORG, 1);
 
-		expect(flat(sqlRun('LIMIT $2 OFFSET $3')![0])).toContain('ORDER BY ol.name NULLS LAST, ol.address_line_1 NULLS LAST, ol.id LIMIT');
+		expect(flat(sqlRun('LIMIT $2 OFFSET $3')![0])).toContain(
+			'ORDER BY ol.name NULLS LAST, ol.address_line_1 NULLS LAST, ol.id LIMIT'
+		);
 	});
 });
 

@@ -46,7 +46,11 @@ export interface StoredBucketFilter {
 
 type BuiltCondition = Pick<ConditionNode, 'column' | 'op' | 'negate' | 'value'>;
 
-function buildTextCondition(column: string, qualifierId: string, value: string): BuiltCondition | null {
+function buildTextCondition(
+	column: string,
+	qualifierId: string,
+	value: string
+): BuiltCondition | null {
 	switch (qualifierId) {
 		case 'is':
 			return { column, op: '=', negate: false, value };
@@ -61,7 +65,11 @@ function buildTextCondition(column: string, qualifierId: string, value: string):
 	}
 }
 
-function buildNumericCondition(column: string, qualifierId: string, value: string): BuiltCondition | null {
+function buildNumericCondition(
+	column: string,
+	qualifierId: string,
+	value: string
+): BuiltCondition | null {
 	const num = Number(value);
 	if (!Number.isFinite(num)) return null;
 	switch (qualifierId) {
@@ -80,7 +88,11 @@ function buildNumericCondition(column: string, qualifierId: string, value: strin
 	}
 }
 
-function buildDateCondition(column: string, qualifierId: string, value: string): BuiltCondition | null {
+function buildDateCondition(
+	column: string,
+	qualifierId: string,
+	value: string
+): BuiltCondition | null {
 	if (!value) return null;
 	switch (qualifierId) {
 		case 'after':
@@ -109,7 +121,11 @@ function convertPeopleCondition(cond: FilterCondition): BuiltCondition | null {
 		case 'last_name':
 			return buildTextCondition('vp.last_name', qualifierId, value);
 		case 'age':
-			return buildNumericCondition("EXTRACT(YEAR FROM AGE(CURRENT_DATE, vp.dob))", qualifierId, value);
+			return buildNumericCondition(
+				'EXTRACT(YEAR FROM AGE(CURRENT_DATE, vp.dob))',
+				qualifierId,
+				value
+			);
 		case 'dob':
 			return buildDateCondition('vp.dob', qualifierId, value);
 		case 'has_email':
@@ -144,10 +160,7 @@ function convertLocationCondition(cond: FilterCondition): BuiltCondition | null 
 // Group builder — converts a list of conditions + matchType into a GroupNode
 // ---------------------------------------------------------------------------
 
-function buildGroupNode(
-	conditions: BuiltCondition[],
-	matchType: MatchType
-): GroupNode | undefined {
+function buildGroupNode(conditions: BuiltCondition[], matchType: MatchType): GroupNode | undefined {
 	if (conditions.length === 0) return undefined;
 
 	const children: ConditionNode[] = conditions.map((c) => ({
@@ -155,12 +168,12 @@ function buildGroupNode(
 		column: c.column,
 		op: c.op,
 		negate: c.negate,
-		...(c.value !== undefined ? { value: c.value } : {}),
+		...(c.value !== undefined ? { value: c.value } : {})
 	}));
 
-	// NONE = NOT (cond1 OR cond2 OR ...), so connector OR + negate
-	const connector: 'AND' | 'OR' =
-		matchType === 'ONE_OR_MORE' ? 'OR' : 'AND';
+	// NONE was stored as NOT (cond1 AND cond2 ...): the old pages wrote it this
+	// way, so buckets saved then hold it, and this reproduces their data as is.
+	const connector: 'AND' | 'OR' = matchType === 'ONE_OR_MORE' ? 'OR' : 'AND';
 	const negate = matchType === 'NONE';
 
 	return { type: 'group', connector, negate, children };
@@ -187,7 +200,7 @@ export function convertBucketFilter(input: BucketFilterInput): StoredBucketFilte
 		peopleQuery = {
 			select: ['vp.id', 'vp.first_name', 'vp.last_name', 'vp.email', 'vp.phone', 'vp.dob'],
 			from: 'universe.v_people vp',
-			...(where ? { where } : {}),
+			...(where ? { where } : {})
 		};
 	}
 
@@ -200,15 +213,23 @@ export function convertBucketFilter(input: BucketFilterInput): StoredBucketFilte
 
 		const where = buildGroupNode(conditions, input.locations.matchType);
 		locationsQuery = {
-			select: ['vl.id', 'vl.name', 'vl.address_line_1', 'vl.address_line_2', 'vl.city', 'vl.state_or_region', 'vl.postal_code'],
+			select: [
+				'vl.id',
+				'vl.name',
+				'vl.address_line_1',
+				'vl.address_line_2',
+				'vl.city',
+				'vl.state_or_region',
+				'vl.postal_code'
+			],
 			from: 'universe.v_locations vl',
-			...(where ? { where } : {}),
+			...(where ? { where } : {})
 		};
 	}
 
 	return {
 		v: 1,
 		people: { enabled: input.people.enabled, query: peopleQuery },
-		locations: { enabled: input.locations.enabled, query: locationsQuery },
+		locations: { enabled: input.locations.enabled, query: locationsQuery }
 	};
 }

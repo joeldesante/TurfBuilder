@@ -246,3 +246,53 @@ test.describe('suggesting doors and fixes', () => {
 		]);
 	});
 });
+
+test.describe('who may suggest a door', () => {
+	const door = {
+		name: 'Gate Test',
+		address_line_1: '1 Gate St',
+		city: 'Philadelphia',
+		latitude: 39.95,
+		longitude: -75.16
+	};
+
+	test('a pin outside the turf is refused', async ({ world, db }) => {
+		const { org, turf } = await turfWithSurvey(world);
+		const volunteer = await onTurf(world, org, turf.id);
+		await db.query(
+			`UPDATE universe.turf SET bounds = ST_SetSRID(ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'), 4326) WHERE id = $1`,
+			[turf.id]
+		);
+
+		const res = await volunteer.request.post(`/o/${org.slug}/map/${turf.id}/locations`, {
+			data: door
+		});
+		expect(res.status()).toBeGreaterThanOrEqual(400);
+		expect(res.status()).toBeLessThan(500);
+	});
+
+	test('an expired turf takes no new doors', async ({ world, db }) => {
+		const { org, turf } = await turfWithSurvey(world);
+		const volunteer = await onTurf(world, org, turf.id);
+		await db.query(`UPDATE universe.turf SET expires_at = now() - interval '1 day' WHERE id = $1`, [
+			turf.id
+		]);
+
+		const res = await volunteer.request.post(`/o/${org.slug}/map/${turf.id}/locations`, {
+			data: door
+		});
+		expect(res.status()).toBeGreaterThanOrEqual(400);
+		expect(res.status()).toBeLessThan(500);
+	});
+
+	test('a member not on the turf cannot add to it', async ({ world }) => {
+		const { org, turf } = await turfWithSurvey(world);
+		const stranger = await world.as(org, 'volunteer');
+
+		const res = await stranger.request.post(`/o/${org.slug}/map/${turf.id}/locations`, {
+			data: door
+		});
+		expect(res.status()).toBeGreaterThanOrEqual(400);
+		expect(res.status()).toBeLessThan(500);
+	});
+});

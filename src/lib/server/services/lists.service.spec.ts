@@ -189,12 +189,23 @@ describe('createList', () => {
 	const legacyBroken = locationsOnly([{ filterId: 'city', qualifierId: 'contains', value: '50%' }]);
 
 	/** Answers the bucket lookup with `bucket` (null for none), and the list insert with an id. */
-	function stubBucket(bucket: { filter: unknown; filters: unknown } | null = { filter: null, filters: bucketFilters }) {
+	function stubBucket(
+		bucket: { filter: unknown; filters: unknown } | null = { filter: null, filters: bucketFilters }
+	) {
 		mockClient.query.mockImplementation(async (sql: string) => {
 			if (sql.includes('FROM universe.bucket')) {
 				return {
 					rows: bucket
-						? [{ id: BUCKET, org_id: ORG, name: 'Voters', slug: 'voters', created_at: 'then', ...bucket }]
+						? [
+								{
+									id: BUCKET,
+									org_id: ORG,
+									name: 'Voters',
+									slug: 'voters',
+									created_at: 'then',
+									...bucket
+								}
+							]
 						: []
 				};
 			}
@@ -255,7 +266,10 @@ describe('createList', () => {
 
 		it("narrows the bucket's matches by the list's own filter", async () => {
 			await create({
-				filters: { operator: 'AND', filters: [{ item: 'zip_code', operation: 'starts_with', value: '787' }] }
+				filters: {
+					operator: 'AND',
+					filters: [{ item: 'zip_code', operation: 'starts_with', value: '787' }]
+				}
 			});
 
 			const [sql, params] = run('INSERT INTO universe.list_entry')!;
@@ -276,9 +290,11 @@ describe('createList', () => {
 		it('answers 400, creating nothing, for a filter that does not apply to the kind of record', async () => {
 			const name = { item: 'first_name', operation: 'equals', value: 'Al' };
 
-			await expect(create({ filters: { operator: 'AND', filters: [name] } })).rejects.toMatchObject({
-				status: 400
-			});
+			await expect(create({ filters: { operator: 'AND', filters: [name] } })).rejects.toMatchObject(
+				{
+					status: 400
+				}
+			);
 			expect(run('INSERT INTO universe.list ')).toBeUndefined();
 		});
 
@@ -306,7 +322,10 @@ describe('createList', () => {
 		});
 
 		it("stores the bucket's and the list's filters together", async () => {
-			const own = { operator: 'AND', filters: [{ item: 'zip_code', operation: 'starts_with', value: '787' }] };
+			const own = {
+				operator: 'AND',
+				filters: [{ item: 'zip_code', operation: 'starts_with', value: '787' }]
+			};
 
 			await create({ filters: own });
 
@@ -340,13 +359,19 @@ describe('createList', () => {
 });
 
 describe('createBucketList', () => {
-	const input = { name: 'Doors', entity_type: 'locations' as const, expires_at: '2027-01-01T00:00:00.000Z' };
+	const input = {
+		name: 'Doors',
+		entity_type: 'locations' as const,
+		expires_at: '2027-01-01T00:00:00.000Z'
+	};
 
 	it('answers 403 without staff access and creates nothing', async () => {
 		canOrg.mockResolvedValue(false);
 
 		await expect(createBucketList('u1', BUCKET, input)).rejects.toMatchObject({ status: 403 });
-		expect(mockClient.query.mock.calls.some((c) => String(c[0]).includes('INSERT INTO universe.list'))).toBe(false);
+		expect(
+			mockClient.query.mock.calls.some((c) => String(c[0]).includes('INSERT INTO universe.list'))
+		).toBe(false);
 	});
 
 	it("answers 404 when the bucket is in none of the caller's orgs", async () => {

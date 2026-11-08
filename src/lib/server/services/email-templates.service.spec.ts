@@ -16,8 +16,13 @@ vi.mock('$lib/server/database', () => ({
 	POOL: mocks.pool,
 	withTransaction: async (fn: (c: unknown) => unknown) => fn(mocks.pool)
 }));
-vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
-vi.mock('$lib/server/mail', () => ({ deliverEmail: mocks.deliverEmail, isMailConfigured: mocks.isMailConfigured }));
+vi.mock('$lib/server/permissions', () => ({
+	requireInfraPermission: mocks.requireInfraPermission
+}));
+vi.mock('$lib/server/mail', () => ({
+	deliverEmail: mocks.deliverEmail,
+	isMailConfigured: mocks.isMailConfigured
+}));
 vi.mock('./audit.service', () => ({ audit: mocks.audit }));
 
 import {
@@ -46,7 +51,8 @@ beforeEach(() => {
 	mocks.requireInfraPermission.mockResolvedValue(undefined);
 	mocks.isMailConfigured.mockResolvedValue(true);
 	mocks.pool.query.mockImplementation(async (sql: string) => {
-		if (sql.includes('FROM auth.user')) return { rowCount: 1, rows: [{ email: 'grace@example.com' }] };
+		if (sql.includes('FROM auth.user'))
+			return { rowCount: 1, rows: [{ email: 'grace@example.com' }] };
 		return { rowCount: 1, rows: [row] };
 	});
 });
@@ -96,7 +102,13 @@ describe('updateEmailTemplate', () => {
 		await updateEmailTemplate(ADMIN, KEY, { subject: 'New', htmlBody: '<p>x</p>' });
 
 		expect(mocks.pool.query.mock.calls[0][1]).toEqual([KEY, 'New', '<p>x</p>']);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'email_template.update', { type: 'email_template', id: KEY }, {}, mocks.pool);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'email_template.update',
+			{ type: 'email_template', id: KEY },
+			{},
+			mocks.pool
+		);
 	});
 });
 
@@ -105,7 +117,13 @@ describe('resetEmailTemplate', () => {
 		await resetEmailTemplate(ADMIN, KEY);
 
 		expect(mocks.pool.query.mock.calls[0][1]).toEqual([KEY, fallback.subject, fallback.htmlBody]);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'email_template.reset', { type: 'email_template', id: KEY }, {}, mocks.pool);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'email_template.reset',
+			{ type: 'email_template', id: KEY },
+			{},
+			mocks.pool
+		);
 	});
 
 	it('answers 404 for a template the app has no default for', async () => {
@@ -118,8 +136,18 @@ describe('sendTemplateTest', () => {
 		const result = await sendTemplateTest(ADMIN, KEY, { subject: 'Try {{username}}' });
 
 		expect(result).toEqual({ to: 'grace@example.com' });
-		expect(mocks.deliverEmail).toHaveBeenCalledWith('grace@example.com', KEY, '[Test] Try Ada', expect.stringContaining('Reset password'));
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'email_template.test', { type: 'email_template', id: KEY }, { to: 'grace@example.com' });
+		expect(mocks.deliverEmail).toHaveBeenCalledWith(
+			'grace@example.com',
+			KEY,
+			'[Test] Try Ada',
+			expect.stringContaining('Reset password')
+		);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'email_template.test',
+			{ type: 'email_template', id: KEY },
+			{ to: 'grace@example.com' }
+		);
 	});
 
 	it('answers 409 when mail is not set up and sends nothing', async () => {

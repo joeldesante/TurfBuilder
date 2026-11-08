@@ -95,7 +95,9 @@ describe('getDashboardPoints', () => {
 	});
 
 	it('returns no points for a bucket that does not include locations', async () => {
-		expect(await getDashboardPoints(client as never, ORG, { id: BUCKET, filters: filters(null) })).toEqual([]);
+		expect(
+			await getDashboardPoints(client as never, ORG, { id: BUCKET, filters: filters(null) })
+		).toEqual([]);
 		expect(client.query).not.toHaveBeenCalled();
 	});
 });
