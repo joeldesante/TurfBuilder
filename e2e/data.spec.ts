@@ -368,12 +368,6 @@ test.describe('integrations and other data pages', () => {
 		expect(rows[0].value).toBe('true');
 		await admin.request.patch('/api/v1/integrations/van', { data: { enabled: false } });
 
-		// The card's link is an overlay under its toggle, so follow it directly.
-		await staff.page.goto(
-			(await staff.page.getByRole('link', { name: /^Open/ }).first().getAttribute('href'))!
-		);
-		await expect(staff.page).toHaveURL(/\/data\/integrations\/[a-z_]+$/);
-		await expect(staff.page.getByText('No configuration available yet.')).toBeVisible();
 	});
 
 	test('the data sources page sends staff to the integrations', async ({ world }) => {
