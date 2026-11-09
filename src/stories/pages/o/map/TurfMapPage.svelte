@@ -23,6 +23,8 @@
 
 	export interface Props {
 		orgSlug: string;
+		/** The organization photos are uploaded to. */
+		orgId: string;
 		turfId: string;
 		locations: TurfLocation[];
 		center: { lat: number; lng: number };
@@ -59,6 +61,7 @@
 
 	const {
 		orgSlug,
+		orgId,
 		turfId,
 		locations,
 		center,
@@ -278,7 +281,7 @@
 	}
 
 	async function pollStatuses() {
-		const res = await fetch(`/o/${orgSlug}/map/${turfId}/status`);
+		const res = await fetch(`/api/v1/turfs/${turfId}/doors`);
 		if (!res.ok) return;
 		const updates: Array<{ id: string; visited: boolean; contact_made: boolean | null }> =
 			await res.json();
@@ -399,7 +402,7 @@
 						country_code: editing.country
 					}}
 					coordinates={{ latitude: editing.latitude, longitude: editing.longitude }}
-					{orgSlug}
+					{orgId}
 					submitLabel="Save changes"
 					onSubmit={handleEdit}
 					onCancel={() => (editing = null)}
@@ -408,7 +411,7 @@
 		{:else if draft}
 			<LocationForm
 				coordinates={draft}
-				{orgSlug}
+				{orgId}
 				submitLabel="Add business"
 				instructions="Photograph the business name and address so an organizer can check the details."
 				onSubmit={handleSuggest}
@@ -457,7 +460,7 @@
 					latitude: correcting.latitude,
 					longitude: correcting.longitude
 				}}
-				{orgSlug}
+				{orgId}
 				submitLabel="Send correction"
 				onSubmit={handleCorrection}
 				onCancel={cancelCorrection}

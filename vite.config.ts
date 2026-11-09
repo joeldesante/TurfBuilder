@@ -37,7 +37,6 @@ const mockingSpecs = [
 	'src/stories/components/data-display/locations-map/LocationsMap.svelte.spec.ts',
 	'src/stories/pages/o/map/TurfMapPage.svelte.spec.ts',
 	'src/stories/pages/o/s/universe/data/locations/UniverseDataLocationsPage.svelte.spec.ts',
-	'src/stories/pages/o/s/universe/data/locations/import/OvertureImportPage.svelte.spec.ts',
 	'src/stories/pages/o/s/universe/metrics/UniverseMetricsPage.svelte.spec.ts',
 	'src/stories/pages/orgs/OrgPicker.svelte.spec.ts'
 ];
@@ -83,7 +82,11 @@ export default defineConfig({
 		watch: {
 			// Docker on macOS doesn't forward inotify events across the VM boundary;
 			// polling is the only reliable way to detect file changes in a volume mount.
-			usePolling: process.env.DOCKER === 'true'
+			usePolling: process.env.DOCKER === 'true',
+			// Not part of the app. The e2e run writes traces and screenshots into
+			// test-results while the dev server serves it; polling those (and
+			// reacting to them) stalled requests and reloaded pages mid-test.
+			ignored: ['**/test-results/**', '**/playwright-report/**', '**/e2e/**', '**/docs/**']
 		}
 	},
 	test: {

@@ -11,7 +11,9 @@ const { pool, orgClient } = vi.hoisted(() => ({
 
 vi.mock('$lib/server/database', () => ({
 	POOL: pool,
-	withOrgTransaction: vi.fn(async (_orgId: string, fn: (client: unknown) => unknown) => fn(orgClient))
+	withOrgTransaction: vi.fn(async (_orgId: string, fn: (client: unknown) => unknown) =>
+		fn(orgClient)
+	)
 }));
 
 import { recordEvent, touchActiveDay, backfillActivity, pruneActivity } from './activity.service';
@@ -81,8 +83,17 @@ describe('backfillActivity', () => {
 	it('uses the same source keys live events use, so reruns add nothing', async () => {
 		await backfillActivity();
 
-		const all = [...pool.query.mock.calls, ...orgClient.query.mock.calls].map((c) => flat(c[0])).join('\n');
-		for (const key of ["'user.signed_up:'", "'session:'", "'org.created:'", "'member.joined:'", "'canvass.visit:'", "'survey.submitted:'"]) {
+		const all = [...pool.query.mock.calls, ...orgClient.query.mock.calls]
+			.map((c) => flat(c[0]))
+			.join('\n');
+		for (const key of [
+			"'user.signed_up:'",
+			"'session:'",
+			"'org.created:'",
+			"'member.joined:'",
+			"'canvass.visit:'",
+			"'survey.submitted:'"
+		]) {
 			expect(all).toContain(key);
 		}
 		expect(all.match(/ON CONFLICT \(source_key\) DO NOTHING/g)?.length).toBe(6);
@@ -106,14 +117,17 @@ describe('backfillActivity', () => {
 	it('copies nothing older than the retention window, so pruning does not remove it again', async () => {
 		pool.query.mockImplementation((sql: string) => {
 			if (sql.includes('system_setting')) return Promise.resolve({ rows: [{ value: '30' }] });
-			if (sql.includes('SELECT id FROM auth.organization')) return Promise.resolve({ rows: [{ id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }] });
+			if (sql.includes('SELECT id FROM auth.organization'))
+				return Promise.resolve({ rows: [{ id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }] });
 			return Promise.resolve({ rowCount: 0, rows: [] });
 		});
 		const before = Date.now();
 
 		await backfillActivity();
 
-		const inserts = [...pool.query.mock.calls, ...orgClient.query.mock.calls].filter((c) => flat(c[0]).startsWith('INSERT'));
+		const inserts = [...pool.query.mock.calls, ...orgClient.query.mock.calls].filter((c) =>
+			flat(c[0]).startsWith('INSERT')
+		);
 		expect(inserts.length).toBe(8);
 		for (const [sql, params] of inserts) {
 			expect(flat(sql)).toMatch(/created_at >= \$\d/);
@@ -125,7 +139,11 @@ describe('backfillActivity', () => {
 	it('reports what it added', async () => {
 		const report = await backfillActivity();
 
-		expect(report.inserted).toMatchObject({ 'user.signed_up': 3, 'canvass.visit': 2, 'survey.submitted': 2 });
+		expect(report.inserted).toMatchObject({
+			'user.signed_up': 3,
+			'canvass.visit': 2,
+			'survey.submitted': 2
+		});
 		expect(report.activeDays).toBe(5);
 	});
 });
@@ -133,12 +151,16 @@ describe('backfillActivity', () => {
 describe('pruneActivity', () => {
 	it('removes events past the retention setting', async () => {
 		pool.query.mockImplementation((sql: string) =>
-			Promise.resolve(sql.includes('system_setting') ? { rows: [{ value: '30' }] } : { rowCount: 9, rows: [] })
+			Promise.resolve(
+				sql.includes('system_setting') ? { rows: [{ value: '30' }] } : { rowCount: 9, rows: [] }
+			)
 		);
 
 		const before = Date.now();
 		expect(await pruneActivity()).toBe(9);
-		const deletion = pool.query.mock.calls.find((c) => flat(c[0]).startsWith('DELETE FROM activity_event'));
+		const deletion = pool.query.mock.calls.find((c) =>
+			flat(c[0]).startsWith('DELETE FROM activity_event')
+		);
 		const cutoff = (deletion?.[1] as Date[])[0];
 		expect(before - cutoff.getTime()).toBeGreaterThanOrEqual(30 * 86_400_000 - 1000);
 		// Active days and the email log go too, so neither grows without end.

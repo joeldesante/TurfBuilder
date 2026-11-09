@@ -83,7 +83,7 @@ describe('every operation', () => {
 	it.each([
 		['listBucketSurveys', () => listBucketSurveys('u1', BUCKET)],
 		['createSurvey', () => createSurvey('u1', BUCKET, { name: 'A' })]
-	])('%s answers 404 for a bucket in none of the user\'s orgs', async (_name, run) => {
+	])("%s answers 404 for a bucket in none of the user's orgs", async (_name, run) => {
 		mockClient.query.mockImplementation((sql: string) =>
 			Promise.resolve(
 				sql.includes('FROM auth.member')
@@ -184,8 +184,10 @@ describe('replaceSurveyQuestions', () => {
 		]);
 	});
 
-	it('answers 400 when an id is not one of the survey\'s questions', async () => {
-		stub((sql) => (sql.includes('UPDATE universe.survey_question') ? { rowCount: 0, rows: [] } : found));
+	it("answers 400 when an id is not one of the survey's questions", async () => {
+		stub((sql) =>
+			sql.includes('UPDATE universe.survey_question') ? { rowCount: 0, rows: [] } : found
+		);
 
 		await expect(replaceSurveyQuestions('u1', SURVEY, questions)).rejects.toMatchObject({
 			status: 400

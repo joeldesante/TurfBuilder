@@ -12,11 +12,10 @@
 	import type { MetricsLocationResult } from '$components/universe/location-response-detail/LocationResponseDetail.svelte';
 
 	interface Props {
-		orgSlug: string;
 		buckets?: MetricsBucket[];
 	}
 
-	const { orgSlug, buckets = [] }: Props = $props();
+	const { buckets = [] }: Props = $props();
 
 	const initialTabId: string = crypto.randomUUID();
 	let tabs = $state<Tab[]>([{ id: initialTabId, label: 'Tab 1' }]);
@@ -69,18 +68,15 @@
 		tabLoading = { ...tabLoading, [tabId]: true };
 		tabErrors = { ...tabErrors, [tabId]: null };
 
-		const params = new SvelteURLSearchParams({
-			bucketId: selection.bucketId,
-			surveyId: selection.surveyId
-		});
+		const params = new SvelteURLSearchParams({ bucketId: selection.bucketId });
 		if (selection.startDate) params.set('startDate', selection.startDate);
 		if (selection.endDate) params.set('endDate', selection.endDate);
 
 		try {
-			const res = await fetch(`/o/${orgSlug}/s/api/universe/metrics/results?${params}`);
+			const res = await fetch(`/api/v1/surveys/${selection.surveyId}/results?${params}`);
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
-				tabErrors = { ...tabErrors, [tabId]: body.error ?? 'Failed to load results.' };
+				tabErrors = { ...tabErrors, [tabId]: body.message ?? 'Failed to load results.' };
 				return;
 			}
 			tabResults = { ...tabResults, [tabId]: await res.json() };
@@ -132,7 +128,6 @@
 						/>
 					{/if}
 					<MetricsWorkflowSidebar
-						{orgSlug}
 						{buckets}
 						onGenerate={(selection) => handleGenerate(activeTab!.id, selection)}
 					/>

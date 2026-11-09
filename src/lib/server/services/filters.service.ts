@@ -29,7 +29,7 @@ const METERS_PER_MILE = 1609.344;
 
 const ENTITY_VIEWS: Record<FilterEntity, { from: string; alias: string }> = {
 	people: { from: 'universe.v_people', alias: 'vp' },
-	locations: { from: 'universe.v_locations', alias: 'vl' }
+	locations: { from: 'universe.v_contacts', alias: 'vl' }
 };
 
 /** What a handler needs to write SQL for one filter. */
@@ -122,9 +122,9 @@ function withinOrNot(filter: Filter, condition: string): string {
 
 /**
  * A subquery over the canvassing attempts at the location being filtered,
- * narrowed by `scope`. Each turf location holds the version of the location
- * that was current when the turf was cut, so attempts are matched to the
- * location through its entity id, which every version shares. Reads
+ * narrowed by `scope`. Each turf door holds the contact version its list
+ * recorded, so attempts are matched to the location through its entity id,
+ * which every version shares. Reads
  * `entity_id` from the entity view alias, so it must sit inside that query.
  */
 function attemptsAt(
@@ -154,7 +154,7 @@ function attemptsAt(
 	return (
 		`SELECT ${select} FROM universe.turf_location_attempt tla` +
 		` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
-				` JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
+		` JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = ${org}` +
 		(joins.length ? ` ${joins.join(' ')}` : '') +
 		` WHERE ${where.join(' AND ')}`
 	);
@@ -205,7 +205,7 @@ function surveyResponse(filter: Filter, ctx: Context): string {
 			` JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = ${org}` +
 			` JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = ${org}` +
 			` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
-						` JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
+			` JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = ${org}` +
 			` WHERE sqr.org_id = ${org}` +
 			` AND sqr.survey_question_id = ${ctx.param(value.questionId)}::uuid` +
 			` AND tol.entity_id = ${ctx.alias}.entity_id` +
@@ -410,13 +410,13 @@ export const FILTER_COLUMNS = {
 		'name',
 		'address_line_1',
 		'address_line_2',
-		'address_line_3',
 		'city',
 		'state_or_region',
 		'postal_code',
 		'country_code',
 		'coordinates',
-		'photo_keys'
+		'photo_keys',
+		'address_id'
 	],
 	people: ['id', 'source', 'first_name', 'last_name', 'email', 'phone', 'dob']
 } as const satisfies Record<FilterEntity, readonly string[]>;

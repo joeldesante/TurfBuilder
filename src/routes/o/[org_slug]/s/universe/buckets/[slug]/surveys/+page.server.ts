@@ -1,19 +1,14 @@
 import { error } from '@sveltejs/kit';
-import { withOrgTransaction } from '$lib/server/database';
+import { listBucketSurveys } from '$lib/server/services/surveys.service';
 
-export async function load({ params, locals }) {
-	if (!locals.organization) throw error(401, 'Unauthorized');
+export async function load({ locals, parent }) {
+	if (!locals.user) throw error(401, 'Unauthorized');
 
-	return withOrgTransaction(locals.organization.id, async (client) => {
-		const result = await client.query<{ id: string; name: string; updated_at: string }>(
-			`SELECT s.id, s.name, s.updated_at
-			 FROM universe.survey s
-			 JOIN universe.bucket b ON b.id = s.bucket_id
-			 WHERE b.slug = $1 AND s.org_id = $2
-			 ORDER BY s.updated_at DESC`,
-			[params.slug, locals.organization!.id]
-		);
+	const { bucket } = await parent();
+	const surveys = await listBucketSurveys(locals.user.id, bucket.id);
 
-		return { surveys: result.rows };
-	});
+	// The service lists by name; this page shows the most recently changed first.
+	surveys.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+	return { surveys };
 }

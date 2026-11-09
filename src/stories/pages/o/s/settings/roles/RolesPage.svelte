@@ -8,7 +8,8 @@
 	interface Role {
 		id: string;
 		name: string;
-		is_owner: boolean;
+		/** No stored role has this yet; when set, the role shows as granting everything. */
+		is_owner?: boolean;
 		is_default: boolean;
 		permissions: string[] | null;
 	}

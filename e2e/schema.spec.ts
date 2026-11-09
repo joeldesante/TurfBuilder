@@ -135,3 +135,74 @@ test('setup seeded the object storage settings', async () => {
 	);
 	expect(rows.map((row) => row.key)).toEqual(['spaces.bucket', 'spaces.endpoint', 'spaces.region']);
 });
+
+test('list entries and turf doors record the address version they were made with', async () => {
+	const columns = await db.query<{ table_name: string; is_nullable: string }>(
+		`SELECT table_name, is_nullable FROM information_schema.columns
+		  WHERE table_schema = 'universe' AND column_name = 'address_id'
+		    AND table_name IN ('list_entry', 'turf_location') ORDER BY table_name`
+	);
+	expect(columns.rows.map((r) => r.table_name)).toEqual(['list_entry', 'turf_location']);
+
+	const refs = await db.query<{ table_name: string; target: string }>(
+		`SELECT cl.relname AS table_name, ct.relname AS target
+		   FROM pg_constraint c
+		   JOIN pg_class cl ON cl.oid = c.conrelid
+		   JOIN pg_class ct ON ct.oid = c.confrelid
+		  WHERE c.contype = 'f' AND cl.relname IN ('list_entry', 'turf_location')
+		    AND ct.relname = 'org_address'
+		  ORDER BY cl.relname, ct.relname`
+	);
+	expect(refs.rows).toEqual([
+		{ table_name: 'list_entry', target: 'org_address' },
+		{ table_name: 'turf_location', target: 'org_address' }
+	]);
+});
+
+test('turf doors point at contact versions, and every location entry and door has its address', async () => {
+	const columns = await db.query<{ table_name: string; column_name: string; is_nullable: string }>(
+		`SELECT table_name, column_name, is_nullable FROM information_schema.columns
+		  WHERE table_schema = 'universe' AND table_name = 'turf_location'
+		    AND column_name IN ('contact_id', 'org_location_id', 'address_id')
+		  ORDER BY column_name`
+	);
+	expect(columns.rows).toEqual([
+		{ table_name: 'turf_location', column_name: 'address_id', is_nullable: 'NO' },
+		{ table_name: 'turf_location', column_name: 'contact_id', is_nullable: 'NO' }
+	]);
+
+	const refs = await db.query<{ column: string; target: string }>(
+		`SELECT a.attname AS column, ct.relname AS target
+		   FROM pg_constraint c
+		   JOIN pg_class cl ON cl.oid = c.conrelid
+		   JOIN pg_class ct ON ct.oid = c.confrelid
+		   JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+		  WHERE c.contype = 'f' AND cl.relname = 'turf_location' AND a.attname = 'contact_id'`
+	);
+	expect(refs.rows).toEqual([{ column: 'contact_id', target: 'org_contact' }]);
+
+	const checks = await db.query<{ conname: string; def: string }>(
+		`SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+		  WHERE conrelid = 'universe.list_entry'::regclass AND contype = 'c' ORDER BY conname`
+	);
+	const names = checks.rows.map((r) => r.conname);
+	expect(names).toContain('list_entry_contact_address_check');
+	const source = checks.rows.find((r) => r.conname === 'list_entry_record_source_check');
+	expect(source?.def).toContain('org_contact');
+	expect(source?.def).not.toContain('org_location');
+});
+
+test('contacts are their own entity type and locations are read through v_contacts', async () => {
+	const triggers = await db.query<{ table: string; args: string }>(
+		`SELECT c.relname AS table, encode(t.tgargs, 'escape') AS args
+		   FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+		  WHERE t.tgname = 'set_entity_type' AND c.relname IN ('org_contact', 'org_location')`
+	);
+	expect(triggers.rows).toEqual([{ table: 'org_contact', args: 'contact\\000' }]);
+
+	const views = await db.query<{ table_name: string }>(
+		`SELECT table_name FROM information_schema.views
+		  WHERE table_schema = 'universe' AND table_name IN ('v_contacts', 'v_locations')`
+	);
+	expect(views.rows).toEqual([{ table_name: 'v_contacts' }]);
+});

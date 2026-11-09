@@ -68,9 +68,19 @@ describe('insertAddress', () => {
 			.mockResolvedValueOnce({ rows: [{ id: ENTITY }] })
 			.mockResolvedValueOnce({ rows: [{ id: NEW_VERSION }] });
 
-		await insertAddress(client, ORG, { ...fields, unit_type: 'Apt', unit_identifier: '4B', floor: '4' }, USER, 'manual');
+		await insertAddress(
+			client,
+			ORG,
+			{ ...fields, unit_type: 'Apt', unit_identifier: '4B', floor: '4' },
+			USER,
+			'manual'
+		);
 
-		expect(find('INSERT INTO universe.org_address')!.params.slice(13, 16)).toEqual(['Apt', '4B', '4']);
+		expect(find('INSERT INTO universe.org_address')!.params.slice(13, 16)).toEqual([
+			'Apt',
+			'4B',
+			'4'
+		]);
 	});
 });
 

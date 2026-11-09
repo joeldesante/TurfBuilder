@@ -18,6 +18,8 @@
 
 <Story name="Visible" args={{ visible: true }} />
 
+<Story name="Cut In" args={{ visible: true, cutIn: true }} />
+
 <Story name="Hidden" args={{ visible: false }} />
 
 <Story name="Logo After A Delay" args={{ visible: true, logoDelayMs: 1000 }} />

@@ -71,10 +71,18 @@ jobs:
         env:
           CI: true
 
-  e2e:
-    name: E2E Tests
+  # The e2e suite runs as SHARDS jobs at once, each with its own stack, plus a
+  # job for the tests that change instance-wide settings (they must not run
+  # next to anything else). "E2E Tests" merges their reports and fails when
+  # any of them did, so it stays the one check to require.
+  e2e-shard:
+    name: E2E shard ${{ matrix.shard }}/6
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
 
     # Postgres, the app and NATS all come from docker-compose.test.yml, which
     # Playwright's webServer boots. Keeping them here too would fight over port 5432.
@@ -93,9 +101,10 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run Playwright tests
-        run: npx playwright test --workers=2
+        run: npx playwright test --project=app --project=schema --shard=${{ matrix.shard }}/6 --workers=2
         env:
           CI: true
+          E2E_SHARDED: '1'
 
       - name: Dump stack logs
         if: failure()
@@ -108,6 +117,83 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
+          name: blob-report-shard-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 7
+
+  e2e-instance:
+    name: E2E instance-wide settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test --project=instance --workers=1
+        env:
+          CI: true
+          E2E_SHARDED: '1'
+
+      - name: Dump stack logs
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs --no-color
+
+      - name: Tear down stack
+        if: ${{ !cancelled() }}
+        run: docker compose -f docker-compose.test.yml down -v
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-report-instance
+          path: blob-report/
+          retention-days: 7
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [e2e-shard, e2e-instance]
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+
+      - name: Merge reports
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - uses: actions/upload-artifact@v4
+        with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+
+      - name: Fail when any e2e job failed
+        if: ${{ needs.e2e-shard.result != 'success' || needs.e2e-instance.result != 'success' }}
+        run: |
+          echo "Shards: ${{ needs.e2e-shard.result }}, instance-wide: ${{ needs.e2e-instance.result }}"
+          exit 1

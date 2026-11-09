@@ -18,7 +18,8 @@ import type { ActivityEntry } from '$lib/shared/types/activity';
 import type { AuditEntry } from '$lib/shared/types/audit';
 
 /** Whether the member role column (comma-separated) includes owner. */
-const isOwner = (alias: string) => `'owner' = ANY(string_to_array(replace(${alias}.role, ' ', ''), ','))`;
+const isOwner = (alias: string) =>
+	`'owner' = ANY(string_to_array(replace(${alias}.role, ' ', ''), ','))`;
 
 const ROW_COLUMNS = `
 	o.id, o.name, o.slug, o.created_at, o.suspended_at, o.deleted_at,
@@ -128,7 +129,10 @@ export async function queryOrgsPage(
 ): Promise<Page<PlatformOrgRow>> {
 	const { where, params } = filterSql(filters);
 
-	const count = await POOL.query<{ count: string }>(`SELECT COUNT(*) AS count FROM auth.organization o ${where}`, params);
+	const count = await POOL.query<{ count: string }>(
+		`SELECT COUNT(*) AS count FROM auth.organization o ${where}`,
+		params
+	);
 	const totalCount = Number(count.rows[0]?.count ?? 0);
 	const page = clampPage(requested, totalCount, pageSize);
 
@@ -151,7 +155,11 @@ export async function queryOrgsPage(
 }
 
 /** The organizations list. 403 without `access`. */
-export async function listOrgs(userId: string, filters: OrgFilters, page: number): Promise<Page<PlatformOrgRow>> {
+export async function listOrgs(
+	userId: string,
+	filters: OrgFilters,
+	page: number
+): Promise<Page<PlatformOrgRow>> {
 	await requireInfraPermission(userId, 'access');
 	return queryOrgsPage(filters, page);
 }
@@ -179,7 +187,7 @@ export async function getOrg(userId: string, orgId: string): Promise<PlatformOrg
 		`WITH last AS (
 		   SELECT m.user_id, (SELECT max(d.day) FROM user_activity_day d
 		                      WHERE d.user_id = m.user_id AND d.org_key = $1::text) AS day
-		   FROM auth.member m WHERE m.organization_id = $1
+		   FROM auth.member m WHERE m.organization_id = $1::uuid
 		 )
 		 SELECT
 		   (SELECT COUNT(*) FROM last WHERE day >= current_date - 30) AS active,
@@ -187,7 +195,7 @@ export async function getOrg(userId: string, orgId: string): Promise<PlatformOrg
 		   (SELECT COUNT(*) FROM last WHERE day IS NULL) AS never,
 		   (SELECT json_build_object('id', u.id, 'name', u.name)
 		    FROM activity_event e JOIN auth.user u ON u.id = e.user_id
-		    WHERE e.type = 'org.created' AND e.org_id = $1 LIMIT 1) AS created_by`,
+		    WHERE e.type = 'org.created' AND e.org_id = $1::uuid LIMIT 1) AS created_by`,
 		[orgId]
 	);
 
@@ -206,7 +214,13 @@ export async function getOrg(userId: string, orgId: string): Promise<PlatformOrg
 			   (SELECT COUNT(*) FROM universe.list_document WHERE org_id = $1 AND deleted_at IS NULL AND status = 'ready') AS documents`,
 			[orgId]
 		);
-		const leaders = await client.query<{ user_id: string; name: string; email: string; owner: boolean; role_name: string | null }>(
+		const leaders = await client.query<{
+			user_id: string;
+			name: string;
+			email: string;
+			owner: boolean;
+			role_name: string | null;
+		}>(
 			`SELECT m.user_id, u.name, u.email, ${isOwner('m')} AS owner,
 			        (SELECT pr.name FROM user_role_membership urm
 			         JOIN permission_role pr ON pr.id = urm.role_id
@@ -259,19 +273,33 @@ export async function getOrg(userId: string, orgId: string): Promise<PlatformOrg
 			roleName: l.role_name
 		})),
 		createdBy: activity.created_by ?? org.owner,
-		plugins: inside.plugins.map((p) => ({ slug: p.plugin_slug, enabled: p.enabled, installedAt: p.created_at.toISOString() })),
+		plugins: inside.plugins.map((p) => ({
+			slug: p.plugin_slug,
+			enabled: p.enabled,
+			installedAt: p.created_at.toISOString()
+		})),
 		counts,
-		memberActivity: { active: Number(activity.active), dormant: Number(activity.dormant), never: Number(activity.never) }
+		memberActivity: {
+			active: Number(activity.active),
+			dormant: Number(activity.dormant),
+			never: Number(activity.never)
+		}
 	};
 }
 
 /** The org's members, by name, with their role and last activity there. 403 without `access`. */
-export async function listOrgMembers(userId: string, orgId: string, requested: number): Promise<Page<OrgMember>> {
+export async function listOrgMembers(
+	userId: string,
+	orgId: string,
+	requested: number
+): Promise<Page<OrgMember>> {
 	await requireInfraPermission(userId, 'access');
 	await findOrg(orgId);
 
 	// The same query the staff members page and GET /api/v1/organizations/[id]/members use.
-	const members = await withOrgTransaction(orgId, (client) => queryMembersPage(client, orgId, requested));
+	const members = await withOrgTransaction(orgId, (client) =>
+		queryMembersPage(client, orgId, requested)
+	);
 	return {
 		...members,
 		items: members.items.map((r) => ({
@@ -296,7 +324,14 @@ export async function listOrgInvitations(
 	await findOrg(orgId);
 
 	const [invitations, links] = await Promise.all([
-		POOL.query<{ id: string; email: string; role: string | null; status: string; inviter_name: string | null; created_at: Date }>(
+		POOL.query<{
+			id: string;
+			email: string;
+			role: string | null;
+			status: string;
+			inviter_name: string | null;
+			created_at: Date;
+		}>(
 			`SELECT i.id, i.email, i.role, i.status, u.name AS inviter_name, i.created_at
 			 FROM auth.invitation i
 			 LEFT JOIN auth.user u ON u.id = i.inviter_id
@@ -305,7 +340,12 @@ export async function listOrgInvitations(
 			 LIMIT 200`,
 			[orgId]
 		),
-		POOL.query<{ id: string; created_by: string | null; created_at: Date; expires_at: Date | null }>(
+		POOL.query<{
+			id: string;
+			created_by: string | null;
+			created_at: Date;
+			expires_at: Date | null;
+		}>(
 			`SELECT l.id, u.name AS created_by, l.created_at, l.expires_at
 			 FROM org_invite_link l
 			 LEFT JOIN auth.user u ON u.id = l.created_by
@@ -334,12 +374,20 @@ export async function listOrgInvitations(
 	};
 }
 
-export async function listOrgActivity(userId: string, orgId: string, page: number): Promise<Page<ActivityEntry>> {
+export async function listOrgActivity(
+	userId: string,
+	orgId: string,
+	page: number
+): Promise<Page<ActivityEntry>> {
 	await requireInfraPermission(userId, 'access');
 	return queryActivityPage({ orgId }, page);
 }
 
-export async function listOrgAudit(userId: string, orgId: string, page: number): Promise<Page<AuditEntry>> {
+export async function listOrgAudit(
+	userId: string,
+	orgId: string,
+	page: number
+): Promise<Page<AuditEntry>> {
 	return listAuditEventsFor(userId, { type: 'organization', id: orgId }, page);
 }
 
@@ -351,8 +399,17 @@ export async function suspendOrg(userId: string, orgId: string, reason: string):
 	if (org.suspended_at) throw error(409, 'This organization is already suspended.');
 
 	await withTransaction(async (client) => {
-		await client.query(`UPDATE auth.organization SET suspended_at = now(), suspended_reason = $2 WHERE id = $1`, [orgId, reason]);
-		await audit(userId, 'org.suspend', { type: 'organization', id: orgId }, { name: org.name, reason }, client);
+		await client.query(
+			`UPDATE auth.organization SET suspended_at = now(), suspended_reason = $2 WHERE id = $1`,
+			[orgId, reason]
+		);
+		await audit(
+			userId,
+			'org.suspend',
+			{ type: 'organization', id: orgId },
+			{ name: org.name, reason },
+			client
+		);
 	});
 }
 
@@ -362,8 +419,17 @@ export async function unsuspendOrg(userId: string, orgId: string): Promise<void>
 	if (!org.suspended_at) throw error(409, 'This organization is not suspended.');
 
 	await withTransaction(async (client) => {
-		await client.query(`UPDATE auth.organization SET suspended_at = NULL, suspended_reason = NULL WHERE id = $1`, [orgId]);
-		await audit(userId, 'org.unsuspend', { type: 'organization', id: orgId }, { name: org.name }, client);
+		await client.query(
+			`UPDATE auth.organization SET suspended_at = NULL, suspended_reason = NULL WHERE id = $1`,
+			[orgId]
+		);
+		await audit(
+			userId,
+			'org.unsuspend',
+			{ type: 'organization', id: orgId },
+			{ name: org.name },
+			client
+		);
 	});
 }
 
@@ -381,7 +447,13 @@ export async function deleteOrg(userId: string, orgId: string, confirmSlug: stri
 
 	await withTransaction(async (client) => {
 		await client.query(`UPDATE auth.organization SET deleted_at = now() WHERE id = $1`, [orgId]);
-		await audit(userId, 'org.delete', { type: 'organization', id: orgId }, { name: org.name, slug: org.slug }, client);
+		await audit(
+			userId,
+			'org.delete',
+			{ type: 'organization', id: orgId },
+			{ name: org.name, slug: org.slug },
+			client
+		);
 	});
 }
 
@@ -392,7 +464,13 @@ export async function restoreOrg(userId: string, orgId: string): Promise<void> {
 
 	await withTransaction(async (client) => {
 		await client.query(`UPDATE auth.organization SET deleted_at = NULL WHERE id = $1`, [orgId]);
-		await audit(userId, 'org.restore', { type: 'organization', id: orgId }, { name: org.name }, client);
+		await audit(
+			userId,
+			'org.restore',
+			{ type: 'organization', id: orgId },
+			{ name: org.name },
+			client
+		);
 	});
 }
 
@@ -401,7 +479,11 @@ export async function restoreOrg(userId: string, orgId: string): Promise<void> {
  * the owner flag and the Administrator role; the previous owners become
  * admins and keep their roles.
  */
-export async function transferOwnership(userId: string, orgId: string, memberId: string): Promise<void> {
+export async function transferOwnership(
+	userId: string,
+	orgId: string,
+	memberId: string
+): Promise<void> {
 	await requireInfraPermission(userId, 'orgs.manage');
 	const org = await findOrg(orgId);
 	if (org.deleted_at) throw error(409, 'This organization was deleted. Restore it first.');
@@ -441,7 +523,12 @@ export async function transferOwnership(userId: string, orgId: string, memberId:
 			userId,
 			'org.ownership.transfer',
 			{ type: 'organization', id: orgId },
-			{ name: org.name, newOwner: target.user_id, newOwnerName: target.name, previousOwners: previous.rows.map((r) => r.user_id) },
+			{
+				name: org.name,
+				newOwner: target.user_id,
+				newOwnerName: target.name,
+				previousOwners: previous.rows.map((r) => r.user_id)
+			},
 			client
 		);
 	});
@@ -451,7 +538,12 @@ export async function transferOwnership(userId: string, orgId: string, memberId:
 export async function removeMember(userId: string, memberId: string): Promise<void> {
 	await requireInfraPermission(userId, 'orgs.manage');
 
-	const found = await POOL.query<{ organization_id: string; user_id: string; role: string; name: string }>(
+	const found = await POOL.query<{
+		organization_id: string;
+		user_id: string;
+		role: string;
+		name: string;
+	}>(
 		`SELECT m.organization_id, m.user_id, m.role, u.name
 		 FROM auth.member m JOIN auth.user u ON u.id = m.user_id WHERE m.id = $1`,
 		[memberId]
@@ -459,7 +551,10 @@ export async function removeMember(userId: string, memberId: string): Promise<vo
 	const member = found.rows[0];
 	if (!member) throw error(404, 'Member not found.');
 
-	const memberIsOwner = member.role.split(',').map((r) => r.trim()).includes('owner');
+	const memberIsOwner = member.role
+		.split(',')
+		.map((r) => r.trim())
+		.includes('owner');
 
 	await withOrgTransaction(member.organization_id, async (client) => {
 		if (memberIsOwner) {
@@ -474,7 +569,10 @@ export async function removeMember(userId: string, memberId: string): Promise<vo
 			}
 		}
 		await client.query(`DELETE FROM user_role_membership WHERE member_id = $1`, [memberId]);
-		await client.query(`DELETE FROM auth.member WHERE id = $1 AND organization_id = $2`, [memberId, member.organization_id]);
+		await client.query(`DELETE FROM auth.member WHERE id = $1 AND organization_id = $2`, [
+			memberId,
+			member.organization_id
+		]);
 		await audit(
 			userId,
 			'org.member.remove',
@@ -527,6 +625,12 @@ export async function revokeInviteLink(userId: string, linkId: string): Promise<
 		);
 		if (!result.rows[0]) throw error(404, 'No open invite link with that id.');
 
-		await audit(userId, 'org.invite_link.revoke', { type: 'organization', id: result.rows[0].org_id }, { linkId }, client);
+		await audit(
+			userId,
+			'org.invite_link.revoke',
+			{ type: 'organization', id: result.rows[0].org_id },
+			{ linkId },
+			client
+		);
 	});
 }

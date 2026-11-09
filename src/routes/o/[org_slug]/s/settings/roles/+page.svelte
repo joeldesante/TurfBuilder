@@ -2,30 +2,25 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import RolesPage from '$pages/o/s/settings/roles/RolesPage.svelte';
+	import { toast } from 'svelte-sonner';
+	import { api, errorMessage } from '$lib/client/api';
 
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug);
 
 	async function handleCreate(name: string) {
-		const res = await fetch(`/o/${orgSlug}/s/api/roles`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name })
-		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to create role.');
-		}
+		await api(`/organizations/${data.organization.id}/roles`, { method: 'POST', body: { name } });
 		await invalidateAll();
 	}
 
 	async function handleDelete(id: string) {
-		const res = await fetch(`/o/${orgSlug}/s/api/roles/${id}`, { method: 'DELETE' });
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to delete role.');
+		try {
+			await api(`/roles/${id}`, { method: 'DELETE' });
+			toast.success('Role deleted.');
+			await invalidateAll();
+		} catch (e) {
+			toast.error(errorMessage(e, 'The role could not be deleted.'));
 		}
-		await invalidateAll();
 	}
 </script>
 

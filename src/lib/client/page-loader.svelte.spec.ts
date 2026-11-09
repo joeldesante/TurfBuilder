@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { pageLoader } from './page-loader.svelte';
 
 describe('pageLoader', () => {
-	beforeEach(() => pageLoader.hide());
+	beforeEach(() => {
+		pageLoader.hide();
+		pageLoader.fullLoad = true;
+	});
 
 	it('starts hidden', () => {
 		expect(pageLoader.active).toBe(false);
@@ -24,6 +27,24 @@ describe('pageLoader', () => {
 		pageLoader.hide();
 		pageLoader.hide();
 		expect(pageLoader.active).toBe(false);
+	});
+
+	it('cuts in on a page that came from a full load', () => {
+		pageLoader.show();
+		expect(pageLoader.cutIn).toBe(true);
+	});
+
+	it('fades in after an in-app navigation', () => {
+		pageLoader.fullLoad = false;
+		pageLoader.show();
+		expect(pageLoader.cutIn).toBe(false);
+	});
+
+	it('keeps how it came in while it goes away', () => {
+		pageLoader.show();
+		pageLoader.fullLoad = false;
+		pageLoader.hide();
+		expect(pageLoader.cutIn).toBe(true);
 	});
 
 	it('shows the logo straight away unless a delay is asked for', () => {

@@ -31,7 +31,10 @@ vi.mock('$lib/server/permissions', () => ({
 vi.mock('$lib/server/mail', () => ({ isMailConfigured: mocks.isMailConfigured }));
 vi.mock('$lib/auth', () => ({
 	getAuth: async () => ({
-		api: { requestPasswordReset: mocks.requestPasswordReset, sendVerificationEmail: mocks.sendVerificationEmail }
+		api: {
+			requestPasswordReset: mocks.requestPasswordReset,
+			sendVerificationEmail: mocks.sendVerificationEmail
+		}
 	})
 }));
 vi.mock('./audit.service', () => ({ audit: mocks.audit, listAuditEventsFor: vi.fn() }));
@@ -88,7 +91,8 @@ function respond(overrides: (sql: string) => unknown = () => undefined) {
 	const handler = (sql: string) => {
 		const custom = overrides(sql);
 		if (custom !== undefined) return custom instanceof Promise ? custom : Promise.resolve(custom);
-		if (sql.includes('COUNT(*) AS count FROM auth.user')) return Promise.resolve({ rows: [{ count: '1' }] });
+		if (sql.includes('COUNT(*) AS count FROM auth.user'))
+			return Promise.resolve({ rows: [{ count: '1' }] });
 		if (sql.includes('FROM auth.user u')) return Promise.resolve({ rows: [userRow], rowCount: 1 });
 		return Promise.resolve({ rows: [], rowCount: 0 });
 	};
@@ -117,7 +121,9 @@ describe('listing users', () => {
 	it('picks the page first, then computes the costly columns for that page only', async () => {
 		await queryUsersPage({ sort: 'recently_active' }, 1);
 
-		const page = mocks.pool.query.mock.calls.map((c) => flat(c[0])).find((q) => q.startsWith('WITH p AS'))!;
+		const page = mocks.pool.query.mock.calls
+			.map((c) => flat(c[0]))
+			.find((q) => q.startsWith('WITH p AS'))!;
 		const inner = page.slice(0, page.indexOf(') SELECT'));
 		expect(inner).toContain('AS sort_key');
 		expect(inner).toContain('LIMIT $1 OFFSET $2');
@@ -127,13 +133,20 @@ describe('listing users', () => {
 
 	it('maps rows to the shared shape', async () => {
 		const page = await queryUsersPage({}, 1);
-		expect(page.items[0]).toMatchObject({ id: TARGET, orgCount: 2, lastActiveDay: '2026-10-01', isInfraAdmin: false });
+		expect(page.items[0]).toMatchObject({
+			id: TARGET,
+			orgCount: 2,
+			lastActiveDay: '2026-10-01',
+			isInfraAdmin: false
+		});
 	});
 
 	it('searches name, email, and username with LIKE wildcards escaped', async () => {
 		await queryUsersPage({ q: '50%_off' }, 1);
 		const [sql, params] = mocks.pool.query.mock.calls[0];
-		expect(flat(sql)).toContain('lower(u.email) LIKE $1 OR lower(u.name) LIKE $1 OR lower(u.username) LIKE $1');
+		expect(flat(sql)).toContain(
+			'lower(u.email) LIKE $1 OR lower(u.name) LIKE $1 OR lower(u.username) LIKE $1'
+		);
 		expect(params[0]).toBe('%50\\%\\_off%');
 	});
 
@@ -175,24 +188,36 @@ describe('updateUser', () => {
 	it('marks a new email unverified and records what changed', async () => {
 		await updateUser(ADMIN, TARGET, { email: 'new@example.com' });
 
-		const update = mocks.pool.query.mock.calls.find((c) => flat(c[0]).startsWith('UPDATE auth.user SET'));
+		const update = mocks.pool.query.mock.calls.find((c) =>
+			flat(c[0]).startsWith('UPDATE auth.user SET')
+		);
 		expect(flat(update?.[0])).toContain('email = $1, email_verified = $2');
 		expect(update?.[1]).toEqual(['new@example.com', false, TARGET]);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'user.update', { type: 'user', id: TARGET }, {
-			changes: {
-				email: { from: 'grace@example.com', to: 'new@example.com' },
-				emailVerified: { from: true, to: false }
-			}
-		}, mocks.pool);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'user.update',
+			{ type: 'user', id: TARGET },
+			{
+				changes: {
+					email: { from: 'grace@example.com', to: 'new@example.com' },
+					emailVerified: { from: true, to: false }
+				}
+			},
+			mocks.pool
+		);
 	});
 
 	it('answers 409 for a taken email', async () => {
 		respond((sql) =>
 			sql.startsWith('UPDATE auth.user SET')
-				? Promise.reject(Object.assign(new Error('dup'), { code: '23505', constraint: 'user_email_unique' }))
+				? Promise.reject(
+						Object.assign(new Error('dup'), { code: '23505', constraint: 'user_email_unique' })
+					)
 				: undefined
 		);
-		await expect(updateUser(ADMIN, TARGET, { email: 'taken@example.com' })).rejects.toMatchObject({ status: 409 });
+		await expect(updateUser(ADMIN, TARGET, { email: 'taken@example.com' })).rejects.toMatchObject({
+			status: 409
+		});
 	});
 
 	it('changes nothing when nothing differs', async () => {
@@ -259,26 +284,38 @@ describe('suspendUser', () => {
 	it('refuses yourself and infra admins', async () => {
 		await expect(suspendUser(ADMIN, ADMIN, { reason: 'x' })).rejects.toMatchObject({ status: 400 });
 		mocks.canInfra.mockResolvedValue(true);
-		await expect(suspendUser(ADMIN, TARGET, { reason: 'x' })).rejects.toMatchObject({ status: 409 });
+		await expect(suspendUser(ADMIN, TARGET, { reason: 'x' })).rejects.toMatchObject({
+			status: 409
+		});
 	});
 });
 
 describe('revokeUserSessions', () => {
 	it('can keep the caller session', async () => {
 		await revokeUserSessions(ADMIN, TARGET, '33333333-3333-4333-8333-333333333333');
-		const del = mocks.pool.query.mock.calls.find((c) => flat(c[0]).startsWith('DELETE FROM auth.session'));
+		const del = mocks.pool.query.mock.calls.find((c) =>
+			flat(c[0]).startsWith('DELETE FROM auth.session')
+		);
 		expect(del?.[1]).toEqual([TARGET, '33333333-3333-4333-8333-333333333333']);
 	});
 });
 
 describe('deleteUser', () => {
 	it('needs the email typed back', async () => {
-		await expect(deleteUser(ADMIN, TARGET, 'wrong@example.com')).rejects.toMatchObject({ status: 400 });
+		await expect(deleteUser(ADMIN, TARGET, 'wrong@example.com')).rejects.toMatchObject({
+			status: 400
+		});
 	});
 
 	it('refuses the only owner of an org, checked under a lock in the delete transaction', async () => {
-		respond((sql) => (sql.includes("'owner' = ANY") && !sql.includes('FOR UPDATE') ? { rows: [{ id: 'o1', name: 'Riverside' }] } : undefined));
-		await expect(deleteUser(ADMIN, TARGET, 'grace@example.com')).rejects.toMatchObject({ status: 409 });
+		respond((sql) =>
+			sql.includes("'owner' = ANY") && !sql.includes('FOR UPDATE')
+				? { rows: [{ id: 'o1', name: 'Riverside' }] }
+				: undefined
+		);
+		await expect(deleteUser(ADMIN, TARGET, 'grace@example.com')).rejects.toMatchObject({
+			status: 409
+		});
 
 		const sqls = mocks.client.query.mock.calls.map((c) => flat(c[0]));
 		expect(sqls[0]).toBe('BEGIN');
@@ -290,7 +327,9 @@ describe('deleteUser', () => {
 		mocks.canInfra.mockResolvedValue(true);
 		mocks.requireAnAdminLeft.mockRejectedValue(Object.assign(new Error('last'), { status: 409 }));
 
-		await expect(deleteUser(ADMIN, TARGET, 'grace@example.com')).rejects.toMatchObject({ status: 409 });
+		await expect(deleteUser(ADMIN, TARGET, 'grace@example.com')).rejects.toMatchObject({
+			status: 409
+		});
 		expect(mocks.lockAdminChanges).toHaveBeenCalledWith(mocks.client);
 		expect(mocks.requireAnAdminLeft).toHaveBeenCalledWith(mocks.client, expect.any(String));
 		const sqls = mocks.client.query.mock.calls.map((c) => flat(c[0]));
@@ -307,6 +346,12 @@ describe('deleteUser', () => {
 		expect(sqls.some((s) => s.includes("name = 'Deleted user'"))).toBe(true);
 		expect(sqls.some((s) => s.startsWith('DELETE FROM auth.account'))).toBe(true);
 		expect(sqls.some((s) => s.startsWith('DELETE FROM auth.member'))).toBe(true);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'user.delete', { type: 'user', id: TARGET }, expect.anything(), mocks.client);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'user.delete',
+			{ type: 'user', id: TARGET },
+			expect.anything(),
+			mocks.client
+		);
 	});
 });

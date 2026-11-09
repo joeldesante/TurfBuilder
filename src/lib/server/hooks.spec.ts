@@ -28,14 +28,21 @@ beforeEach(() => {
 describe('fireHook', () => {
 	it('does nothing when no plugins are active', async () => {
 		mockGetActivePlugins.mockResolvedValue([]);
-		await expect(fireHook('onSurveySubmitted', orgId, userId, userRole, attempt)).resolves.toBeUndefined();
+		await expect(
+			fireHook('onSurveySubmitted', orgId, userId, userRole, attempt)
+		).resolves.toBeUndefined();
 	});
 
 	it('calls the matching hook on each active plugin', async () => {
 		const hook = vi.fn().mockResolvedValue(undefined);
 		mockGetActivePlugins.mockResolvedValue([
 			{
-				manifest: { slug: 'test', name: 'Test', version: '1.0.0', hooks: { onSurveySubmitted: hook } } as any,
+				manifest: {
+					slug: 'test',
+					name: 'Test',
+					version: '1.0.0',
+					hooks: { onSurveySubmitted: hook }
+				} as any,
 				config: {}
 			}
 		]);
@@ -49,7 +56,12 @@ describe('fireHook', () => {
 		const hook = vi.fn().mockResolvedValue(undefined);
 		mockGetActivePlugins.mockResolvedValue([
 			{
-				manifest: { slug: 'test', name: 'Test', version: '1.0.0', hooks: { onTurfCreated: hook } } as any,
+				manifest: {
+					slug: 'test',
+					name: 'Test',
+					version: '1.0.0',
+					hooks: { onTurfCreated: hook }
+				} as any,
 				config: {}
 			}
 		]);
@@ -65,17 +77,29 @@ describe('fireHook', () => {
 		const passingHook = vi.fn().mockResolvedValue(undefined);
 		mockGetActivePlugins.mockResolvedValue([
 			{
-				manifest: { slug: 'bad', name: 'Bad', version: '1.0.0', hooks: { onSurveySubmitted: failingHook } } as any,
+				manifest: {
+					slug: 'bad',
+					name: 'Bad',
+					version: '1.0.0',
+					hooks: { onSurveySubmitted: failingHook }
+				} as any,
 				config: {}
 			},
 			{
-				manifest: { slug: 'good', name: 'Good', version: '1.0.0', hooks: { onSurveySubmitted: passingHook } } as any,
+				manifest: {
+					slug: 'good',
+					name: 'Good',
+					version: '1.0.0',
+					hooks: { onSurveySubmitted: passingHook }
+				} as any,
 				config: {}
 			}
 		]);
 
 		// Should not throw even though one plugin failed
-		await expect(fireHook('onSurveySubmitted', orgId, userId, userRole, attempt)).resolves.toBeUndefined();
+		await expect(
+			fireHook('onSurveySubmitted', orgId, userId, userRole, attempt)
+		).resolves.toBeUndefined();
 		expect(passingHook).toHaveBeenCalled();
 	});
 
@@ -83,7 +107,12 @@ describe('fireHook', () => {
 		const hook = vi.fn().mockResolvedValue(undefined);
 		mockGetActivePlugins.mockResolvedValue([
 			{
-				manifest: { slug: 'test', name: 'Test', version: '1.0.0', hooks: { onSurveySubmitted: hook } } as any,
+				manifest: {
+					slug: 'test',
+					name: 'Test',
+					version: '1.0.0',
+					hooks: { onSurveySubmitted: hook }
+				} as any,
 				config: { apiKey: 'secret' }
 			}
 		]);
@@ -95,7 +124,8 @@ describe('fireHook', () => {
 		expect(ctx.userId).toBe(userId);
 		expect(ctx.userRole).toBe(userRole);
 		expect(ctx.config).toEqual({ apiKey: 'secret' });
-		expect(typeof ctx.db).toBe('function');
+		// Plugins reach data through services, never a database handle.
+		expect(ctx).not.toHaveProperty('db');
 	});
 
 	it('calls hooks on multiple plugins', async () => {
@@ -103,11 +133,21 @@ describe('fireHook', () => {
 		const hook2 = vi.fn().mockResolvedValue(undefined);
 		mockGetActivePlugins.mockResolvedValue([
 			{
-				manifest: { slug: 'p1', name: 'P1', version: '1.0.0', hooks: { onSurveySubmitted: hook1 } } as any,
+				manifest: {
+					slug: 'p1',
+					name: 'P1',
+					version: '1.0.0',
+					hooks: { onSurveySubmitted: hook1 }
+				} as any,
 				config: {}
 			},
 			{
-				manifest: { slug: 'p2', name: 'P2', version: '1.0.0', hooks: { onSurveySubmitted: hook2 } } as any,
+				manifest: {
+					slug: 'p2',
+					name: 'P2',
+					version: '1.0.0',
+					hooks: { onSurveySubmitted: hook2 }
+				} as any,
 				config: {}
 			}
 		]);

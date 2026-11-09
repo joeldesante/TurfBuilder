@@ -92,6 +92,12 @@
 			{/each}
 		</div>
 	{:else}
-		<Textarea bind:value placeholder="Enter your response..." rows={3} {disabled} />
+		<Textarea
+			bind:value
+			placeholder="Enter your response..."
+			rows={3}
+			{disabled}
+			aria-label={questionText}
+		/>
 	{/if}
 </div>

@@ -1,32 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { withOrgTransaction } from '$lib/server/database';
-import type { PersonProfile } from '$pages/o/s/universe/people/PersonProfilePage.svelte';
+import { parseId } from '$lib/server/list-access';
+import { getPerson } from '$lib/server/services/people.service';
 
 export async function load({ params, locals }) {
-	return withOrgTransaction(locals.organization!.id, async (client) => {
-		const result = await client.query<PersonProfile>(
-			`SELECT
-				op.id,
-				op.first_name,
-				op.middle_name,
-				op.last_name,
-				op.suffix,
-				op.preferred_name,
-				op.dob,
-				op.phone,
-				op.email,
-				op.gender
-			FROM universe.org_person op
-			WHERE op.id = $1
-			  AND op.org_id = $2
-			  AND op.valid_to IS NULL`,
-			[params.id, locals.organization!.id]
-		);
+	if (!locals.user || !locals.organization) throw error(401, 'Unauthorized');
 
-		if (result.rows.length === 0) {
-			throw error(404, 'Person not found');
-		}
-
-		return { person: result.rows[0] };
-	});
+	return {
+		person: await getPerson(locals.user.id, locals.organization.id, parseId(params.id, 'person'))
+	};
 }

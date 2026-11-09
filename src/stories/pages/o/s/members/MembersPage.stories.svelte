@@ -15,14 +15,24 @@
 	});
 
 	const sampleMembers = [
-		{ id: '1', name: 'Alice Johnson', email: 'alice@example.com', role_id: 'r1', role_name: 'Owner' },
+		{
+			id: '1',
+			name: 'Alice Johnson',
+			email: 'alice@example.com',
+			role_id: 'r1',
+			role_name: 'Owner'
+		},
 		{ id: '2', name: 'Bob Smith', email: 'bob@example.com', role_id: 'r2', role_name: 'Member' },
 		{ id: '3', name: 'Carol White', email: 'carol@example.com', role_id: null, role_name: null }
 	];
 
 	const sampleLinks = [
 		{ id: 'V1StGXR8_Z5jdHi6B-myT', created_at: '2026-03-01T00:00:00Z', expires_at: null },
-		{ id: 'abc123xyz_DEFGH456789', created_at: '2026-03-10T00:00:00Z', expires_at: '2026-04-10T00:00:00Z' }
+		{
+			id: 'abc123xyz_DEFGH456789',
+			created_at: '2026-03-10T00:00:00Z',
+			expires_at: '2026-04-10T00:00:00Z'
+		}
 	];
 
 	async function noop() {}

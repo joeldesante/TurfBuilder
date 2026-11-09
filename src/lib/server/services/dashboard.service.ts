@@ -1,4 +1,8 @@
+import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
+import { withOrgTransaction } from '$lib/server/database';
+import { canOrg } from '$lib/server/permissions';
+import { findBucketBySlug } from './buckets.service';
 import { buildFilterQuery, FILTER_COLUMNS } from './filters.service';
 import type { BucketFilters } from '$lib/shared/types/filters';
 import { rangeInterval, type DashboardRange } from '$lib/dashboard-range';
@@ -39,7 +43,7 @@ export const MAX_POINTS = 5000;
 
 /**
  * The CTEs shared by every dashboard query:
- *   scope    - locations in scope (current versions, the v_locations view)
+ *   scope    - locations in scope (current versions, the v_contacts view)
  *   attempts - visits in the org, or on turfs cut from the bucket's lists, within
  *              the range, keyed by location entity so older versions still count
  *   scoped   - attempts at locations in scope
@@ -64,7 +68,7 @@ function scopeSql(
 		sql = built.sql;
 		params = built.params;
 	} else {
-		sql = `SELECT ${columns.join(', ')} FROM universe.v_locations`;
+		sql = `SELECT ${columns.join(', ')} FROM universe.v_contacts`;
 		params = [];
 	}
 
@@ -77,12 +81,12 @@ function scopeSql(
 			SELECT DISTINCT ON (entity_id) * FROM (${sql}) s
 		),
 		attempts AS (
-			SELECT ol.entity_id, a.contact_made, a.created_at
+			SELECT oc.entity_id, a.contact_made, a.created_at
 			FROM universe.turf_location_attempt a
 			JOIN universe.turf_location tl ON tl.id = a.turf_location_id AND tl.org_id = ${org}
 			JOIN universe.turf t ON t.id = tl.turf_id AND t.org_id = ${org}
 			JOIN universe.list l ON l.id = t.list_id AND l.org_id = ${org}
-			JOIN universe.org_location ol ON ol.id = tl.org_location_id AND ol.org_id = ${org}
+			JOIN universe.org_contact oc ON oc.id = tl.contact_id AND oc.org_id = ${org}
 			WHERE a.org_id = ${org}
 				AND (${bucketId}::uuid IS NULL OR l.bucket = ${bucketId}::uuid)
 				AND (${since}::interval IS NULL OR a.created_at > now() - ${since}::interval)
@@ -91,13 +95,17 @@ function scopeSql(
 			SELECT attempts.* FROM attempts JOIN scope USING (entity_id)
 		)`;
 
-	return { ctes, params: [...params, orgId, bucket?.id ?? null, rangeInterval(range)], nextParam: params.length + 4 };
+	return {
+		ctes,
+		params: [...params, orgId, bucket?.id ?? null, rangeInterval(range)],
+		nextParam: params.length + 4
+	};
 }
 
 /**
  * Counts how many locations are in scope, how many have been visited, and how
  * many conversations those visits produced. Must run inside withOrgTransaction:
- * v_locations scopes org rows through app.current_org_id.
+ * v_contacts scopes org rows through app.current_org_id.
  */
 export async function getDashboardProgress(
 	client: PoolClient,
@@ -107,7 +115,14 @@ export async function getDashboardProgress(
 ): Promise<DashboardProgress> {
 	const scope = scopeSql(orgId, bucket, range, ['entity_id']);
 	if (!scope) {
-		return { total: 0, visited: 0, conversations: 0, visits: 0, answeredVisits: 0, recentConversations: 0 };
+		return {
+			total: 0,
+			visited: 0,
+			conversations: 0,
+			visits: 0,
+			answeredVisits: 0,
+			recentConversations: 0
+		};
 	}
 
 	const result = await client.query<Record<keyof DashboardProgress, string>>(
@@ -143,7 +158,13 @@ export async function getDashboardPoints(
 	bucket: DashboardBucket,
 	range: DashboardRange = 'all'
 ): Promise<DashboardPoint[]> {
-	const scope = scopeSql(orgId, bucket, range, ['entity_id', 'name', 'address_line_1', 'city', 'coordinates']);
+	const scope = scopeSql(orgId, bucket, range, [
+		'entity_id',
+		'name',
+		'address_line_1',
+		'city',
+		'coordinates'
+	]);
 	if (!scope) return [];
 
 	const result = await client.query<{
@@ -184,4 +205,28 @@ export async function getDashboardPoints(
 		visits: Number(r.visits),
 		lastVisitAt: r.last_visit_at ? r.last_visit_at.toISOString() : null
 	}));
+}
+
+/**
+ * The staff dashboard: progress and map points for one bucket by slug, or the
+ * whole universe when `bucketSlug` is null. An unknown slug also means the
+ * whole universe; a bucket that cannot be read is an error, since showing the
+ * universe in its place would be wrong. 403 without staff access.
+ */
+export async function getDashboard(
+	userId: string,
+	orgId: string,
+	bucketSlug: string | null,
+	range: DashboardRange
+): Promise<{ progress: DashboardProgress; points: DashboardPoint[] }> {
+	return withOrgTransaction(orgId, async (client) => {
+		if (!(await canOrg(client, userId, orgId, 'system.access'))) throw error(403, 'Forbidden');
+
+		const bucket = bucketSlug ? await findBucketBySlug(client, orgId, bucketSlug) : null;
+
+		return {
+			progress: await getDashboardProgress(client, orgId, bucket, range),
+			points: await getDashboardPoints(client, orgId, bucket, range)
+		};
+	});
 }

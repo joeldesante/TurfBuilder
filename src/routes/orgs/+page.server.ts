@@ -1,13 +1,5 @@
-import { POOL } from '$lib/server/database.js';
-import { getAuth } from '$lib/auth';
+import { isOrgCreationAllowed } from '$lib/server/services/organizations.service';
 
-export async function load({ locals }) {
-	const client = await POOL.connect();
-	try {
-		const settingResult = await client.query(`SELECT value FROM system_setting WHERE key = 'organizations.allow_creation'`)
-		const allowCreation = settingResult.rows[0]?.value === 'true';
-		return { allowCreation };
-	} finally {
-		client.release();
-	}
+export async function load() {
+	return { allowCreation: await isOrgCreationAllowed() };
 }

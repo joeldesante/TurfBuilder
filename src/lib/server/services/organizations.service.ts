@@ -42,6 +42,14 @@ export async function isSlugAvailable(slug: string): Promise<boolean> {
 	return !taken.rowCount;
 }
 
+/** Whether people may create organizations themselves (the `organizations.allow_creation` system setting). */
+export async function isOrgCreationAllowed(): Promise<boolean> {
+	const setting = await POOL.query<{ value: string }>(
+		`SELECT value FROM system_setting WHERE key = 'organizations.allow_creation'`
+	);
+	return setting.rows[0]?.value === 'true';
+}
+
 /**
  * Creates an organization with the caller as its owner. Goes through
  * better-auth, which also creates the default roles, so it needs the request's
@@ -53,10 +61,7 @@ export async function createOrganization(
 	input: OrganizationInput,
 	headers: Headers
 ): Promise<Organization> {
-	const setting = await POOL.query<{ value: string }>(
-		`SELECT value FROM system_setting WHERE key = 'organizations.allow_creation'`
-	);
-	if (setting.rows[0]?.value !== 'true') {
+	if (!(await isOrgCreationAllowed())) {
 		throw error(403, 'Organization creation is currently disabled.');
 	}
 

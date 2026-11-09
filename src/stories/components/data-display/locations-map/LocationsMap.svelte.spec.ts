@@ -207,6 +207,26 @@ test('creates a marker for each location once the map has loaded', async () => {
 	});
 });
 
+test('each marker is a named button that Enter selects', async () => {
+	const props = $state({
+		locations,
+		selectedLocationId: null as string | null,
+		class: 'w-96 h-96'
+	});
+	render(LocationsMap, { props });
+
+	await loadMap();
+	const element = markerInstances[1].element as HTMLElement;
+	expect(element.getAttribute('role')).toBe('button');
+	expect(element.tabIndex).toBe(0);
+	expect(element.getAttribute('aria-label')).toContain(locations[1].name);
+	element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+	await vi.waitFor(() => {
+		expect(props.selectedLocationId).toBe('loc-2');
+	});
+});
+
 test('exposes the clicked location through selectedLocationId', async () => {
 	const props = $state({
 		locations,

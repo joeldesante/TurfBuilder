@@ -3,4 +3,4 @@
 	const { data } = $props();
 </script>
 
-<UniverseSearchPage orgSlug={data.orgSlug} tableSchemas={data.tableSchemas} />
+<UniverseSearchPage tableSchemas={data.tableSchemas} />

@@ -71,9 +71,9 @@ click Generate / Download
 
 ### Data the PDF uses
 
-- **Master list:** the list's entries, joined to the location versions snapshotted when the list was created, ordered by city then name.
+- **Master list:** the list's entries, joined to the contact and address versions recorded when the list was created, ordered by city then name.
 - **Turfs:** turfs cut from the list, ordered by code. Each turf's locations are ordered by name.
-- **Versions (known bug, [#188](https://github.com/joeldesante/TurfBuilder/issues/188)):** lists and turfs are meant to be locked to the location versions that existed when they were created. Today, editing an org location moves existing lists and turfs onto the new version. Turf pages, including the PDF's, also hide locations whose version was closed (deleted, or re-imported as a new public version), while the master list still shows them. #188 fixes both; once it lands, the PDF shows exactly the snapshot.
+- **Versions:** lists and turfs are locked to the location versions that existed when they were made. Each entry and turf door records the contact version and the address version, and the PDF reads exactly those, so editing, moving, or deleting a location afterwards changes nothing printed until a new list is made.
 - **Numbers** are each row's position in its own table, starting at 1. Each turf numbers from 1 again. Numbers aren't database ids.
 - **Addresses** are "line 1, city, state postal code". Missing parts are skipped, and a location with no name prints as "Unnamed location".
 - **Every query** filters by organization, as well as running under row-level security via `withOrgTransaction`.

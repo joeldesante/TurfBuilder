@@ -25,7 +25,7 @@ Collections whose size is unbounded (entities, bucket matches, list entries, mem
 
 - `page` is 1-based. A missing, nonsense, or out-of-range value is clamped to the nearest real page rather than rejected.
 - Every page has a total order (ending in an id), so pages never repeat or skip a row.
-- Helpers live in `$lib/shared/utils/pagination`. Each service exposes a `query...Page(client, orgId, page)` function for page loads that already hold an org transaction, and an access-checked `list...(userId, id, page)` for the endpoint.
+- Helpers live in `$lib/shared/utils/pagination`. Each service exposes an access-checked `list...(userId, id, page)`, which both the endpoint and page loads call. The `query...Page(client, orgId, page)` beneath it is internal, for other services that already hold an org transaction.
 
 Paginated today:
 
@@ -56,6 +56,12 @@ An action that is not plain CRUD is a noun the client creates or removes, not a 
 - Response types live in `$lib/shared/types`.
 - Every endpoint has a JSDoc header (`@auth`, `@query`, `@body`, `@returns`) and a spec beside it.
 
+### Only services touch the database
+
+Routes (endpoints, page and layout loads), `hooks.server.ts`, plugins, pages and browser code never import `$lib/server/database` or `pg`, and never write SQL. They call a service, and the service owns the queries and the transaction. The service is the adapter: when storage changes, only the service changes, not its callers. ESLint enforces this (`no-restricted-imports` in `eslint.config.js`), with no exceptions.
+
+Public service functions take the caller's `userId` and the ids of what they act on, find the organization, check access, and open their own `withOrgTransaction`. `surveys.service.ts` is the reference. Functions that take a `PoolClient` are internal building blocks for other services (`contacts.service`, `addresses.service`, `query...Page`), and routes cannot call them.
+
 ### Access is checked in the service
 
 The service checks access itself, so page loads that call it directly are checked too. Infra services call `requireInfraPermission(userId, key)` first, and every change an infra admin makes is written to the audit log by the service (`audit()` in `audit.service.ts`).
@@ -68,6 +74,56 @@ Some endpoints serve both org members and infra admins:
 ### Errors
 
 Errors are SvelteKit `error(status, message)`, answered as `{ message }`. Messages are written for people, since the client shows them in a toast.
+
+## Organization endpoints
+
+### Locations
+
+A location is a contact (a business, for now) at an address. The endpoints keep the flat fields the forms use (`name`, `address_line_1`, `address_line_2`, `city`, `state_or_region`, `postal_code`, `country_code`, `latitude`, `longitude`, `photo_keys`); `locations.service` maps them onto the contact and address tables.
+
+| Method | Path | Permission |
+|---|---|---|
+| GET, POST | /api/v1/organizations/[organization_id]/locations | location.read, location.create |
+| GET | /api/v1/organizations/[organization_id]/location-markers | location.read |
+| POST | /api/v1/organizations/[organization_id]/location-imports | location.create |
+| PATCH, DELETE | /api/v1/locations/[entity_id] | location.update, location.delete |
+| PUT | /api/v1/location-suggestions/[suggestion_id]/approval | location.create |
+| DELETE | /api/v1/location-suggestions/[suggestion_id] | location.delete |
+| PUT | /api/v1/location-edits/[edit_id]/approval | location.update |
+| PUT | /api/v1/location-edits/[edit_id]/rejection | location.update |
+
+### Lists, turfs, and canvassing
+
+Lists and turfs are snapshots: their entries and doors show the contact and address versions recorded when they were made.
+
+| Method | Path | Permission |
+|---|---|---|
+| GET, POST | /api/v1/lists/[list_id]/turfs | staff, turf.create |
+| GET | /api/v1/lists/[list_id]/locations | staff |
+| GET | /api/v1/turfs/[turf_id] | staff |
+| GET | /api/v1/turfs/[turf_id]/doors | turf member |
+| POST | /api/v1/turfs/[turf_id]/locations | turf member, open turf |
+| PATCH, DELETE | /api/v1/turfs/[turf_id]/locations/[entity_id] | the volunteer who added it, while tentative and the turf is open |
+| POST | /api/v1/doors/[door_id]/edits | turf member, open turf |
+| POST | /api/v1/doors/[door_id]/visits | turf member |
+
+### Photos
+
+Location photos are private objects. The browser asks for an upload link, sends the file straight to object storage, and saves the key on the location (`photo_keys`). A photo is shown through its key, which names the organization it belongs to.
+
+| Method | Path | Permission |
+|---|---|---|
+| POST | /api/v1/organizations/[organization_id]/photo-uploads | org member |
+| GET | /api/v1/photos/[...key] | member of the photo's org |
+
+### Search and insights
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | /api/v1/organizations/[organization_id]/search | staff; each kind needs its read permission |
+| GET | /api/v1/organizations/[organization_id]/universe-stats | staff |
+| GET | /api/v1/surveys/[survey_id]/results | response.read |
+| POST | /api/v1/queries | infra access |
 
 ## Infrastructure endpoints
 

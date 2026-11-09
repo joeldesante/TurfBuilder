@@ -1,8 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import { can } from '$lib/auth-helpers';
 import { getActivePlugins } from '$lib/server/plugins';
-import { withOrgTransaction } from '$lib/server/database';
-import { listBucketNavigation } from '$lib/server/services/buckets.service';
+import { getBucketNavigation } from '$lib/server/services/buckets.service';
 import { BETA_BANNER_COOKIE } from '$components/feedback/beta-banner/BetaBanner.svelte';
 import { isEmailVerificationDisabled } from '$lib/server/utils/security';
 
@@ -27,9 +26,7 @@ export async function load({ locals, parent, cookies }) {
 
 	const [activePlugins, buckets] = await Promise.all([
 		getActivePlugins(locals.organization.id),
-		withOrgTransaction(locals.organization.id, (client) =>
-			listBucketNavigation(client, locals.organization!.id)
-		)
+		getBucketNavigation(locals.user.id, locals.organization.id)
 	]);
 
 	return {

@@ -29,6 +29,42 @@ export default defineConfig(
 		}
 	},
 	{
+		// Only services touch the database. Routes, hooks, plugins, pages and
+		// browser code call a service in $lib/server/services, which checks
+		// access, opens the transaction and hides the tables, so storage can
+		// change without touching callers. contacts and addresses are internal
+		// building blocks for other services and take a client, so they are off
+		// limits here too.
+		files: [
+			'src/routes/**',
+			'src/hooks.server.ts',
+			'src/plugins/**',
+			'src/stories/**',
+			'src/lib/client/**'
+		],
+		ignores: ['**/*.spec.ts'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					paths: [{ name: 'pg', message: 'Call a service in $lib/server/services instead.' }],
+					patterns: [
+						{
+							group: [
+								'$lib/server/database',
+								'$lib/server/database.*',
+								'$lib/server/services/contacts.service*',
+								'$lib/server/services/addresses.service*'
+							],
+							message:
+								'Only services touch the database. Call a service in $lib/server/services instead.'
+						}
+					]
+				}
+			]
+		}
+	},
+	{
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {

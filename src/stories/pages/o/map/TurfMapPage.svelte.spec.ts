@@ -112,7 +112,7 @@ const locations = [
 	}
 ];
 
-const props = { orgSlug: 'acme', turfId: 'turf-1', locations, center };
+const props = { orgSlug: 'acme', orgId: 'o1', turfId: 'turf-1', locations, center };
 
 function fireMapEvent(event: string) {
 	for (const handler of mapHandlers[event] ?? []) handler();

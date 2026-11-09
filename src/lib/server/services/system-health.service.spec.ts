@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('$env/dynamic/private', () => ({ env: mocks.env }));
 vi.mock('$lib/server/database', () => ({ POOL: mocks.pool }));
-vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
+vi.mock('$lib/server/permissions', () => ({
+	requireInfraPermission: mocks.requireInfraPermission
+}));
 vi.mock('$lib/server/mail', () => ({ isMailConfigured: mocks.isMailConfigured }));
 vi.mock('$lib/server/storage', () => ({ isStorageConfigured: mocks.isStorageConfigured }));
 vi.mock('./email-log.service', () => ({ emailLogTotals: mocks.emailLogTotals }));
@@ -31,9 +33,11 @@ beforeEach(() => {
 	mocks.pool.query.mockImplementation(async (sql: string) => {
 		// postgis_version() also contains "version()", so it is matched first.
 		if (sql.includes('postgis_version')) return { rows: [{ v: '3.4 USE_GEOS=1 USE_PROJ=1' }] };
-		if (sql.includes('version()')) return { rows: [{ v: 'PostgreSQL 16.2 (Debian 16.2-1) on x86_64-pc-linux-gnu' }] };
+		if (sql.includes('version()'))
+			return { rows: [{ v: 'PostgreSQL 16.2 (Debian 16.2-1) on x86_64-pc-linux-gnu' }] };
 		if (sql.includes('pg_database_size')) return { rows: [{ bytes: '1073741824' }] };
-		if (sql.includes('pg_class')) return { rows: [{ name: 'universe.org_entity', bytes: '52428800', rows: '120000' }] };
+		if (sql.includes('pg_class'))
+			return { rows: [{ name: 'universe.org_entity', bytes: '52428800', rows: '120000' }] };
 		return { rows: [{ n: '2' }] };
 	});
 });
@@ -53,14 +57,18 @@ describe('getSystemHealth', () => {
 		expect(database.postgresVersion).toBe('16.2');
 		expect(database.postgisVersion).toBe('3.4');
 		expect(database.sizeBytes).toBe(1073741824);
-		expect(database.largestTables).toEqual([{ name: 'universe.org_entity', sizeBytes: 52428800, estimatedRows: 120000 }]);
+		expect(database.largestTables).toEqual([
+			{ name: 'universe.org_entity', sizeBytes: 52428800, estimatedRows: 120000 }
+		]);
 		expect(database.pool).toEqual({ total: 4, idle: 3, waiting: 0 });
 	});
 
 	it('limits the table list so it stays small on a large database', async () => {
 		await getSystemHealth(ADMIN);
 
-		const sql = mocks.pool.query.mock.calls.map((c) => String(c[0])).find((s) => s.includes('pg_class'))!;
+		const sql = mocks.pool.query.mock.calls
+			.map((c) => String(c[0]))
+			.find((s) => s.includes('pg_class'))!;
 		expect(sql).toContain('LIMIT 15');
 	});
 
@@ -81,7 +89,8 @@ describe('getSystemHealth', () => {
 
 	it('still answers when PostGIS is missing', async () => {
 		mocks.pool.query.mockImplementation(async (sql: string) => {
-			if (sql.includes('postgis_version')) throw new Error('function postgis_version() does not exist');
+			if (sql.includes('postgis_version'))
+				throw new Error('function postgis_version() does not exist');
 			if (sql.includes('version()')) return { rows: [{ v: 'PostgreSQL 16.2' }] };
 			if (sql.includes('pg_database_size')) return { rows: [{ bytes: '1' }] };
 			if (sql.includes('pg_class')) return { rows: [] };

@@ -2,14 +2,14 @@ import { render } from 'vitest-browser-svelte';
 import { expect, test } from 'vitest';
 import SqlPreview from './SqlPreview.svelte';
 
-const sql = 'SELECT vl.id FROM universe.v_locations vl WHERE (lower(vl.city) = lower($1))';
+const sql = 'SELECT vl.id FROM universe.v_contacts vl WHERE (lower(vl.city) = lower($1))';
 
 test('shows the query laid out one clause per line', async () => {
 	const { getByLabelText } = render(SqlPreview, { props: { sql } });
 
 	const block = getByLabelText('Generated SQL');
 	await expect.element(block).toHaveTextContent('lower(vl.city) = lower($1)');
-	expect(block.element().textContent).toContain('\nFROM universe.v_locations vl');
+	expect(block.element().textContent).toContain('\nFROM universe.v_contacts vl');
 });
 
 test('colors the keywords', async () => {

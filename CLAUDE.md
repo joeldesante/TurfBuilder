@@ -83,6 +83,7 @@ Optional:
 | `LOG_LEVEL` | Minimum log level (`trace` to `fatal`). Defaults to `info`. |
 | `LOG_METRICS_INTERVAL_MS` | Period of the process metrics line (CPU, memory, event loop, pools). Defaults to 30000; 0 turns it off. |
 | `LOG_SLOW_QUERY_MS` | Queries and connection waits slower than this are logged as warnings. Defaults to 500. |
+| `MAINTENANCE_MODE` | `true` puts the whole app into maintenance mode: `hooks.server.ts` answers every request with a 503 page (`MAINTENANCE` in `error-codes.ts`) before any database access, so nothing is read or written. Restart after changing it; use it while running a data migration. |
 | `GIT_SHA` | Commit of the running build, shown on `/infra/system`. |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium binary for Puppeteer. The Docker images set it to Alpine's `/usr/bin/chromium-browser` (Puppeteer's bundled Chrome is glibc-only); outside Docker, leave it unset and Puppeteer uses its own download. |
 
@@ -106,15 +107,14 @@ This is a multi-tenant canvassing platform. All data is scoped to an `organizati
 
 - `auth.*` — managed by better-auth: `user`, `session`, `account`, `organization`, `member`, `invitation`
 - `public.*` — app tables: `turf`, `survey`, `response`, `location`, `plugin_installation`, `permission_role`, `permission_role_entry`
-- `universe.*` — entities, locations, buckets, lists, turfs, and `list_document` (generated list PDFs). Universe tables name the org column `org_id`, not `organization_id`
+- `universe.*` — entities (people, addresses, contacts), buckets, lists, turfs, and `list_document` (generated list PDFs). Universe tables name the org column `org_id`, not `organization_id`
+- **Locations are contacts at addresses.** A location is a `business` contact (`universe.org_contact`, name in `metadata`, kinds in `$lib/shared/contact-types`) pointing at an address entity (`universe.org_address`, S42 fields). Pages and the API keep the flat fields (`address_line_1`, `address_line_2`, `city`, `state_or_region`, `postal_code`, `country_code`); `$lib/shared/utils/location-address` maps them onto the address columns and `$lib/server/services/contact-columns.ts` maps them back in SQL. Current reads use the `universe.v_contacts` view (current contact at its current address, tentative suggestions hidden). `universe.org_location` and `v_locations` are retired: nothing reads or writes the table, and the view is gone
 
 ### Entity versioning
 
 Universe entities (locations, people, organizations) are versioned: every update closes the current version (`valid_to = now()`) and inserts a new row. Never edit a version row in place.
 
-Lists snapshot the entity versions that exist when they are created (`list_entry.record_id`), and turfs are cut from lists with those same versions (`turf_location.*_location_id`). After creation, nothing about a list or its turfs changes when an entity is edited, re-imported, or deleted. List- and turf-scoped queries must read the referenced version, never swap in the current one or filter on `valid_to`. Current-version reads (`valid_to IS NULL`) belong to entity pages, the data browser, and building new lists.
-
-Known violations to fix: `repointToVersion()` in `src/lib/server/locations.ts` and the `valid_to` filters in turf and canvasser-map queries (#188).
+Lists snapshot the entity versions that exist when they are created (`list_entry.record_id`, with `record_source` `org_person` or `org_contact`), and turfs are cut from lists with those same versions (`turf_location.contact_id`). A contact only names its address entity, so location entries and turf doors also record the address version (`address_id`, required). After creation, nothing about a list or its turfs changes when an entity is edited, moved, re-imported, or deleted. List- and turf-scoped queries join the recorded contact and address versions, never the current ones, and never filter on `valid_to`. Current-version reads (`valid_to IS NULL`, or `v_contacts`) belong to entity pages, the data browser, and building new lists. The one exception: a volunteer's own tentative addition, which they may still correct, moves its door to the corrected version.
 
 ### RBAC model
 
@@ -199,8 +199,7 @@ toast.error('The PDF could not be generated.');
 - **Staff-facing:** `/o/[org_slug]/s/` — organizers; turfs, surveys, data, users, settings
 - **Plugin pages (staff):** `/o/[org_slug]/s/plugins/[plugin_slug]/[...path]`
 - **Plugin pages (volunteer):** `/o/[org_slug]/plugins/[plugin_slug]/[...path]`
-- **Internal API:** `/o/[org_slug]/s/api/` — JSON endpoints consumed by fetch in route files
-- **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Currently: list documents and the infrastructure panel
+- **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Every endpoint lives here: there is no `+server.ts` outside `src/routes/api`, so no `/o/[org_slug]/s/api/`, none under the canvasser map (`/o/[org_slug]/map/[id]`), and photos are uploaded and shown through `/api/v1/organizations/[organization_id]/photo-uploads` and `/api/v1/photos/[...key]`; canvassers call `/api/v1/turfs/[turf_id]/...` and `/api/v1/doors/[door_id]/...`
 - **All API lives in `/api/v1`:** there is no v2 and no `api/+server.ts` inside page routes. Handlers stay thin (`requireUser`, `parseId`, `parseBody` with a Zod schema, one service call). Page loads call services directly; everything else fetches `/api/v1` through `$lib/client/api`. Extend an existing endpoint rather than versioning it
 - **Global utilities:** `/join` (turf code entry), `/orgs` (org picker), `/orgs/create`, `/invite/[token]`
 - **Infrastructure:** `/infra/` — overview, metrics, organizations, users, admins, audit log, settings and email templates, system health, migrations (requires infra permissions). Admins also get a floating quick menu (`InfraQuickMenu`) on every other page
@@ -223,7 +222,11 @@ if (!locals.organization.role) throw error(403, 'Forbidden');
 
 ## Database Patterns
 
-### Preferred: `withOrgTransaction`
+### Only services touch the database
+
+Routes, `hooks.server.ts`, plugins, stories and `$lib/client` never import `$lib/server/database` or `pg` and never write SQL; they call a service in `$lib/server/services`. Public service functions take `userId` plus ids, check access, and open their own transaction (`surveys.service.ts` is the reference). Functions that take a `PoolClient` (`contacts.service`, `addresses.service`, `query...Page`) are internal to services. ESLint enforces this with no exceptions. See `src/routes/api/v1/README.md`.
+
+### Inside services: `withOrgTransaction`
 
 Use `withOrgTransaction` for all org-scoped queries. It begins a transaction, sets `app.current_org_id` for Row-Level Security, and handles commit/rollback automatically.
 
@@ -302,7 +305,6 @@ Resolved by `resolveInfraPermissions()` from `$lib/server/permissions`. Required
 | `orgs.manage` | Suspend, delete, restore, and transfer organizations; remove members |
 | `settings.manage` | Manage system settings and email templates, read the email log, run migrations |
 | `audit.read` | Read the infra audit log |
-| `locations.overture_sync` | Run Overture data sync |
 
 Services check access themselves with `requireInfraPermission(userId, key)` (403 when missing); `hooks.server.ts` resolves `locals.infrastructure.permissions` once per request. Every infra change calls `audit()`. Full guide: `docs/guides/infrastructure.md`.
 
@@ -315,6 +317,7 @@ Platform tables (no org RLS, on the schema spec's `RLS_EXEMPT` list): `activity_
 Schema changes are node-pg-migrate SQL files in `migrations/`, applied in filename order, one transaction per file, before each deploy. Create one with `npm run migrate:create <name>` and apply it locally with `npm run migrate`. Never edit or rename a migration that has been merged: environments record applied files by name. A new migration should fail loudly rather than tolerate objects that already exist (the first ten files were moved from `setup-schema.ts` and are safe to rerun; that is the exception).
 
 - **First install:** `npm run migrate`, then `npm run setup` (`scripts/setup.ts`). It saves `base_url` and `application_name`, creates the first admin with a verified email, and gives them every infrastructure permission. It asks for what is missing in a terminal; elsewhere pass flags and `--password-stdin` (`npm run setup -- --help`). The spec is `scripts/setup.spec.ts`
+- **Contacts cutover (#237):** `20261109120000000_contacts-cutover` refuses to run while any `org_location` version has no contact. Before deploying it, put the app in maintenance mode (`MAINTENANCE_MODE=true`), run `scripts/backfill-addresses.ts --apply`, then deploy (which migrates) and turn maintenance mode off
 - The app has no setup or migration page. While the database is not migrated, not set up, or unreachable, every request answers 503 with a plain page for the matching code in `src/lib/shared/registries/error-codes.ts`
 
 ### System Settings
@@ -354,6 +357,12 @@ Staff generate a printable PDF of a location list (master list, turf checkout sh
 - **Template:** `src/lib/server/services/templates/list-document.html`, imported with `?raw`. Rules: inline styles only (no `<style>`, no `@page`); the outer layout table provides page margins; each turf is `<section style="break-before: page;">` with its heading in a repeating `<thead>`; the footer logo must be an `<img>` with a `data:` URI (inline `<svg>` in a fixed footer prints on page 1 only); no network resources; escaped `{{...}}` only; notes as Handlebars comments (`{{!-- --}}`), never HTML comments. Style: readability first (near-black, 8.5pt minimum, serif tables), then minimal ink (no fills, black and gray); no small all-caps labels.
 - **Storage key:** `orgs/{org_id}/lists/{list_id}/documents/{document_id}.pdf` (from `listDocumentKey()`). Files are never hard-deleted by the app (retention: #174).
 - **Chromium:** Docker images install Alpine `chromium` + `mesa-egl` + fonts. Containers run as root, so Chrome runs with `--no-sandbox` (moving to a worker: #181). Map tiles come from `tiles.openfreemap.org` at render time.
+
+---
+
+## Server Helpers
+
+Small server-side helpers (a pure function, a response builder, an env flag check) go in `src/lib/server/utils/`, each with a `.spec.ts` beside it. Do not add loose files to the `src/lib/server/` root; that is for services, data access and infrastructure modules.
 
 ---
 
@@ -417,7 +426,7 @@ Register the plugin in `src/plugins/registry.ts`.
 
 ### Plugin context
 
-`PluginContext` provides `db` (wraps `withOrgTransaction`), `orgId`, `userId`, `userRole`, and `config`.
+`PluginContext` provides `orgId`, `userId`, `userRole`, and `config`. It has no database handle: plugins read and change data through the services in `$lib/server/services`, like routes. Plugin API handlers are served at `/api/v1/organizations/[organization_id]/plugins/[slug]/api/[...path]`.
 
 ### Firing hooks
 
@@ -471,6 +480,7 @@ test('renders label', async () => {
 - The schema spec fails any org-scoped table (`organization_id` or `org_id`) without forced row-level security and a policy, unless it is in the reviewed `RLS_EXEMPT` list
 - `auth.spec.ts` › "signing in again is bypassed once a session exists" is parked with `test.fixme` until #179 decides the behavior
 - CI (`.github/workflows/test.yml`) runs type check, server tests, component tests, and e2e on every pull request into `staging` or `main`, before the merge
+- CI splits e2e across six shard jobs (`--shard=N/6`, `E2E_SHARDED=1`), each with its own stack, plus one job for `e2e/instance.spec.ts` (tests that change instance-wide settings and must run alone); "E2E Tests" merges their blob reports into one HTML report and fails if any of them did. Locally the instance tests run as `setup`'s teardown, after everything else. Every test makes its own org (`e2e/fixtures/world.ts`), so the config is `fullyParallel`; a file whose tests depend on each other uses `test.describe.configure({ mode: 'serial' })`
 
 ---
 

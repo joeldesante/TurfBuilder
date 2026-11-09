@@ -61,13 +61,13 @@ beforeEach(() => {
 });
 
 test('renders an initial tab', async () => {
-	const { getByText } = render(UniverseMetricsPage, { props: { orgSlug: 'test-org' } });
+	const { getByText } = render(UniverseMetricsPage, { props: {} });
 	await expect.element(getByText('Tab 1', { exact: true })).toBeVisible();
 });
 
 test('adds a new tab when the new tab button is clicked', async () => {
 	const { getByRole, getByText } = render(UniverseMetricsPage, {
-		props: { orgSlug: 'test-org' }
+		props: {}
 	});
 	await getByRole('button', { name: 'New tab' }).click();
 	await expect.element(getByText('Tab 2', { exact: true })).toBeVisible();
@@ -75,7 +75,7 @@ test('adds a new tab when the new tab button is clicked', async () => {
 
 test('marks the clicked tab as selected', async () => {
 	const { getByRole } = render(UniverseMetricsPage, {
-		props: { orgSlug: 'test-org' }
+		props: {}
 	});
 
 	await getByRole('button', { name: 'New tab' }).click();
@@ -95,7 +95,6 @@ test('marks the clicked tab as selected', async () => {
 test('renders the locations map alongside the workflow sidebar', async () => {
 	const { getByTestId, getByLabelText } = render(UniverseMetricsPage, {
 		props: {
-			orgSlug: 'test-org',
 			buckets: [{ id: 'bucket-1', name: 'Likely Voters', slug: 'likely-voters' }]
 		}
 	});
@@ -130,10 +129,10 @@ test('fetches and displays results after the workflow is submitted', async () =>
 	vi.stubGlobal(
 		'fetch',
 		vi.fn(async (url: string) => {
-			if (url.includes('/api/surveys')) {
-				return { ok: true, json: async () => [{ id: 'survey-1', name: 'Doorstep Survey' }] };
+			if (url.endsWith('/surveys')) {
+				return new Response(JSON.stringify([{ id: 'survey-1', name: 'Doorstep Survey' }]));
 			}
-			if (url.includes('/api/universe/metrics/results')) {
+			if (url.includes('/results?')) {
 				return { ok: true, json: async () => [resultLocation] };
 			}
 			throw new Error(`Unexpected fetch: ${url}`);
@@ -142,7 +141,6 @@ test('fetches and displays results after the workflow is submitted', async () =>
 
 	const { getByLabelText, getByRole, getByText } = render(UniverseMetricsPage, {
 		props: {
-			orgSlug: 'test-org',
 			buckets: [{ id: 'bucket-1', name: 'Likely Voters', slug: 'likely-voters' }]
 		}
 	});
@@ -156,7 +154,7 @@ test('fetches and displays results after the workflow is submitted', async () =>
 
 	await vi.waitFor(() => {
 		expect(fetch).toHaveBeenCalledWith(
-			expect.stringContaining('/api/universe/metrics/results?bucketId=bucket-1&surveyId=survey-1')
+			expect.stringContaining('/api/v1/surveys/survey-1/results?bucketId=bucket-1')
 		);
 	});
 

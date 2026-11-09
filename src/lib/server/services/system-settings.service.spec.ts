@@ -14,12 +14,21 @@ vi.mock('$lib/server/database', () => ({
 	POOL: mocks.pool,
 	withTransaction: async (fn: (c: unknown) => unknown) => fn(mocks.pool)
 }));
-vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
-vi.mock('$lib/server/storage', () => ({ storageCredentialsPresent: mocks.storageCredentialsPresent }));
+vi.mock('$lib/server/permissions', () => ({
+	requireInfraPermission: mocks.requireInfraPermission
+}));
+vi.mock('$lib/server/storage', () => ({
+	storageCredentialsPresent: mocks.storageCredentialsPresent
+}));
 vi.mock('$lib/auth', () => ({ resetAuth: mocks.resetAuth }));
 vi.mock('./audit.service', () => ({ audit: mocks.audit }));
 
-import { getCredentialStatus, getExternalLinks, getSystemSettings, updateSystemSettings } from './system-settings.service';
+import {
+	getCredentialStatus,
+	getExternalLinks,
+	getSystemSettings,
+	updateSystemSettings
+} from './system-settings.service';
 import { SYSTEM_SETTINGS } from '$lib/shared/registries/system-settings';
 
 const ADMIN = '11111111-1111-4111-8111-111111111111';
@@ -30,7 +39,9 @@ function stored(rows: Record<string, string>) {
 		if (sql.startsWith('SELECT')) {
 			const keys = params[0] as string[];
 			return {
-				rows: keys.filter((k) => k in rows).map((key) => ({ key, value: rows[key], updated_at: new Date('2026-10-01T00:00:00Z') }))
+				rows: keys
+					.filter((k) => k in rows)
+					.map((key) => ({ key, value: rows[key], updated_at: new Date('2026-10-01T00:00:00Z') }))
 			};
 		}
 		return { rows: [], rowCount: 1 };
@@ -50,8 +61,14 @@ describe('getSystemSettings', () => {
 		const settings = await getSystemSettings(ADMIN);
 
 		expect(settings).toHaveLength(SYSTEM_SETTINGS.length);
-		expect(settings.find((s) => s.key === 'application_name')).toMatchObject({ value: 'Acme', updatedAt: '2026-10-01T00:00:00.000Z' });
-		expect(settings.find((s) => s.key === 'links.custom')).toMatchObject({ value: '[]', updatedAt: null });
+		expect(settings.find((s) => s.key === 'application_name')).toMatchObject({
+			value: 'Acme',
+			updatedAt: '2026-10-01T00:00:00.000Z'
+		});
+		expect(settings.find((s) => s.key === 'links.custom')).toMatchObject({
+			value: '[]',
+			updatedAt: null
+		});
 	});
 
 	it('needs settings.manage', async () => {
@@ -66,19 +83,31 @@ describe('updateSystemSettings', () => {
 	it('saves only what changed and records before and after', async () => {
 		stored({ application_name: 'Old', 'mail.domain': 'mail.example.com' });
 
-		const result = await updateSystemSettings(ADMIN, { application_name: 'New', 'mail.domain': 'mail.example.com' });
+		const result = await updateSystemSettings(ADMIN, {
+			application_name: 'New',
+			'mail.domain': 'mail.example.com'
+		});
 
 		expect(result).toEqual({ saved: ['application_name'], restartRequired: false });
 		const write = mocks.pool.query.mock.calls.find((c) => String(c[0]).startsWith('INSERT'))!;
 		expect(write[1][0]).toEqual(['application_name']);
 		expect(write[1][1]).toEqual(['New']);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'settings.update', { type: 'setting' }, { changes: [{ key: 'application_name', from: 'Old', to: 'New' }] }, mocks.pool);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'settings.update',
+			{ type: 'setting' },
+			{ changes: [{ key: 'application_name', from: 'Old', to: 'New' }] },
+			mocks.pool
+		);
 	});
 
 	it('writes nothing when nothing changed', async () => {
 		stored({ application_name: 'Same' });
 
-		expect(await updateSystemSettings(ADMIN, { application_name: 'Same' })).toEqual({ saved: [], restartRequired: false });
+		expect(await updateSystemSettings(ADMIN, { application_name: 'Same' })).toEqual({
+			saved: [],
+			restartRequired: false
+		});
 		expect(mocks.pool.query.mock.calls.some((c) => String(c[0]).startsWith('INSERT'))).toBe(false);
 		expect(mocks.audit).not.toHaveBeenCalled();
 	});
@@ -106,7 +135,9 @@ describe('updateSystemSettings', () => {
 	it('needs settings.manage', async () => {
 		mocks.requireInfraPermission.mockRejectedValue(Object.assign(new Error('no'), { status: 403 }));
 
-		await expect(updateSystemSettings(ADMIN, { application_name: 'x' })).rejects.toMatchObject({ status: 403 });
+		await expect(updateSystemSettings(ADMIN, { application_name: 'x' })).rejects.toMatchObject({
+			status: 403
+		});
 	});
 });
 

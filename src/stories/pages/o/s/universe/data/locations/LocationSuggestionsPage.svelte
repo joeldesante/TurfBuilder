@@ -44,7 +44,6 @@
 	}
 
 	export interface Props {
-		orgSlug: string;
 		suggestions: SuggestionRow[];
 		edits?: EditRow[];
 		canApprove?: boolean;
@@ -78,7 +77,6 @@
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquare';
 
 	const {
-		orgSlug,
 		suggestions,
 		edits = [],
 		canApprove = false,
@@ -213,9 +211,9 @@
 					<ul class="mt-3 flex flex-wrap gap-2">
 						{#each suggestion.photo_keys as key (key)}
 							<li>
-								<a href="/o/{orgSlug}/uploads/{key}" target="_blank" rel="noreferrer">
+								<a href="/api/v1/photos/{key}" target="_blank" rel="noreferrer">
 									<img
-										src="/o/{orgSlug}/uploads/{key}"
+										src="/api/v1/photos/{key}"
 										alt="Photo submitted with {suggestion.name ?? 'this business'}"
 										class="size-24 rounded-md border border-outline-subtle object-cover"
 									/>
@@ -312,9 +310,9 @@
 					<ul class="mt-3 flex flex-wrap gap-2">
 						{#each edit.photo_keys as key (key)}
 							<li>
-								<a href="/o/{orgSlug}/uploads/{key}" target="_blank" rel="noreferrer">
+								<a href="/api/v1/photos/{key}" target="_blank" rel="noreferrer">
 									<img
-										src="/o/{orgSlug}/uploads/{key}"
+										src="/api/v1/photos/{key}"
 										alt="Evidence submitted for {edit.current_name ?? 'this location'}"
 										class="size-24 rounded-md border border-outline-subtle object-cover"
 									/>

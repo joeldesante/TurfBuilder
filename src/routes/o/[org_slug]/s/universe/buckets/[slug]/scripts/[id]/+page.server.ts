@@ -1,17 +1,15 @@
 import { error } from '@sveltejs/kit';
-import { withOrgTransaction } from '$lib/server/database';
+import { parseId } from '$lib/server/list-access';
+import { getScript } from '$lib/server/services/scripts.service';
 
-export async function load({ params, locals }) {
-	if (!locals.organization) throw error(401, 'Unauthorized');
+export async function load({ params, locals, parent }) {
+	if (!locals.user) throw error(401, 'Unauthorized');
 
-	return withOrgTransaction(locals.organization.id, async (client) => {
-		const result = await client.query<{ id: string; name: string; contents: string }>(
-			`SELECT id, name, contents FROM universe.script WHERE id = $1 AND org_id = $2 AND bucket = (SELECT id FROM universe.bucket WHERE slug = $3 AND org_id = $2)`,
-			[params.id, locals.organization!.id, params.slug]
-		);
+	const scriptId = parseId(params.id, 'script');
+	const [{ bucket }, script] = await Promise.all([parent(), getScript(locals.user.id, scriptId)]);
 
-		if (result.rows.length === 0) throw error(404, 'Script not found');
+	// The URL names the bucket too; a script from another bucket is not this page's.
+	if (script.bucket_id !== bucket.id) throw error(404, 'Script not found');
 
-		return { script: result.rows[0] };
-	});
+	return { script };
 }

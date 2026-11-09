@@ -1,3 +1,4 @@
+import { isPlaceholderEmail } from '$lib/server/utils/placeholder-email';
 import { redirect } from '@sveltejs/kit';
 
 export async function load({ locals }) {
@@ -6,7 +7,7 @@ export async function load({ locals }) {
 	}
 
 	// Only users with fake emails should be here
-	if (!locals.user.email.endsWith('@fake.com')) {
+	if (!isPlaceholderEmail(locals.user.email)) {
 		throw redirect(303, '/');
 	}
 

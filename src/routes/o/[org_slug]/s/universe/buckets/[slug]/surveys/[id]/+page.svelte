@@ -1,36 +1,34 @@
 <script lang="ts">
 	import BucketSurveyEditorPage from '$pages/o/s/universe/buckets/surveys/BucketSurveyEditorPage.svelte';
 	import type { SurveyQuestion } from '$pages/o/s/universe/buckets/surveys/BucketSurveyEditorPage.svelte';
+	import { api } from '$lib/client/api';
 
 	const { data } = $props();
 
-	async function handleSave(payload: { name: string; description: string; questions: SurveyQuestion[] }) {
-		const orgSlug = data.organization.slug;
+	async function handleSave(payload: {
+		name: string;
+		description: string;
+		questions: SurveyQuestion[];
+	}) {
 		const surveyId = data.survey.id;
 
-		const dbIds = payload.questions.filter((q) => q.db_id !== undefined).map((q) => q.db_id);
-
-		const [r1, r2, r3] = await Promise.all([
-			fetch(`/o/${orgSlug}/s/api/surveys/${surveyId}`, {
+		// The questions PUT replaces the whole set: questions with an id are kept
+		// and updated, new ones are created, and any left out are deleted.
+		await Promise.all([
+			api(`/surveys/${surveyId}`, {
 				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: payload.name, description: payload.description })
+				body: { name: payload.name, description: payload.description || null }
 			}),
-			fetch(`/o/${orgSlug}/s/api/surveys/${surveyId}/questions/purge`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ exclude: dbIds })
-			}),
-			fetch(`/o/${orgSlug}/s/api/surveys/${surveyId}/questions`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ questions: payload.questions })
+			api(`/surveys/${surveyId}/questions`, {
+				method: 'PUT',
+				body: payload.questions.map((q) => ({
+					id: q.db_id,
+					question_text: q.text,
+					question_type: q.type,
+					choices: q.choices
+				}))
 			})
 		]);
-
-		if (!r1.ok || !r2.ok || !r3.ok) {
-			throw new Error('Failed to save survey.');
-		}
 	}
 </script>
 

@@ -1,28 +1,13 @@
 import { error } from '@sveltejs/kit';
-import { withOrgTransaction } from '$lib/server/database.js';
+import { parseId } from '$lib/server/list-access';
+import { getRole } from '$lib/server/services/roles.service';
 
 export async function load({ params, locals }) {
-	return withOrgTransaction(locals.organization!.id, async (client) => {
-		const result = await client.query(
-			`SELECT pr.id, pr.name, pr.is_default, pr.weight,
-			        COALESCE(
-			            array_agg(rp.key ORDER BY rp.key)
-			            FILTER (WHERE pre.value = true AND rp.key IS NOT NULL),
-			            ARRAY[]::text[]
-			        ) AS permissions
-			 FROM permission_role pr
-			 LEFT JOIN permission_role_entry pre ON pre.role_id = pr.id
-			 LEFT JOIN registered_permission rp ON rp.id = pre.registered_permission_id
-			 WHERE pr.id = $1 AND pr.organization_id = $2
-			 GROUP BY pr.id`,
-			[params.id, locals.organization!.id]
-		);
+	if (!locals.user || !locals.organization) throw error(401, 'Unauthorized');
 
-		if (result.rowCount === 0) {
-			throw error(404, 'Role not found.');
-		}
+	const role = await getRole(locals.user.id, parseId(params.id, 'role'));
+	// The URL names the org too; a role from another of the caller's orgs is not this page's.
+	if (role.organization_id !== locals.organization.id) throw error(404, 'Role not found.');
 
-		const row = result.rows[0];
-		return { role: { ...row, is_admin: row.weight === 0 } };
-	});
+	return { role: { ...role, is_admin: role.weight === 0 } };
 }

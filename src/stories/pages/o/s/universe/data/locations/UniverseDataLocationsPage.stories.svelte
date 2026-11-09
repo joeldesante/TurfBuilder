@@ -7,6 +7,7 @@
 		component: UniverseDataLocationsPage,
 		args: {
 			orgSlug: 'acme',
+			orgId: 'o1',
 			onCreate: async () => {},
 			onUpdate: async () => {},
 			onDelete: async () => {}

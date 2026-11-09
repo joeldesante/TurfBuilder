@@ -1,117 +1,46 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({
-	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
-}));
+const { getListDetail } = vi.hoisted(() => ({ getListDetail: vi.fn() }));
 
-// Hoisted so the mock factory, which vitest lifts above this file's consts,
-// can still reach it.
-const { mockClient } = vi.hoisted(() => ({
-	mockClient: { query: vi.fn(), release: vi.fn() }
-}));
-
-vi.mock('pg', () => ({
-	Pool: vi.fn(function () {
-		return {
-			connect: vi.fn().mockResolvedValue(mockClient),
-			on: vi.fn(),
-			end: vi.fn()
-		};
-	})
-}));
+vi.mock('$lib/server/services/lists.service', () => ({ getListDetail }));
 
 import { load } from './+page.server';
 
-const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const LIST = 'f1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const LIST = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const BUCKET = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
-const list = {
-	id: LIST,
-	name: 'Main St',
-	entity_type: 'locations',
-	expires_at: '2026-10-08T12:00:00Z',
-	created_at: '2026-09-24T12:00:00Z'
-};
-
-/** Answers each query the load issues; `pdfs` is how many current, ready PDFs exist. */
-function stub({ listFound = true, pdfs = 0 } = {}) {
-	mockClient.query.mockImplementation(async (sql: string) => {
-		if (sql.includes('FROM universe.list l')) return { rows: listFound ? [list] : [] };
-		if (sql.includes('COUNT(*)')) return { rows: [{ count: '0' }] };
-		if (sql.includes('FROM universe.list_document'))
-			return { rows: Array(pdfs).fill({ '?column?': 1 }), rowCount: pdfs };
-		return { rows: [], rowCount: 0 };
-	});
-}
-
-function event(locals: object = { organization: { id: ORG } }, page?: string) {
-	const url = new URL('https://x/o/acme/s/universe/buckets/downtown/lists/' + LIST);
+function event(id = LIST, page?: string) {
+	const url = new URL(`https://x/o/acme/s/universe/buckets/b/lists/${id}`);
 	if (page !== undefined) url.searchParams.set('page', page);
-	return { params: { id: LIST, slug: 'downtown' }, locals, url } as never;
-}
-
-function pdfQuery() {
-	return mockClient.query.mock.calls.find((c) =>
-		String(c[0]).includes('FROM universe.list_document')
-	)!;
+	return {
+		params: { id, slug: 'b' },
+		parent: async () => ({ bucket: { id: BUCKET } }),
+		locals: { user: { id: 'u1' }, organization: { id: 'o1' } },
+		url
+	} as never;
 }
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	stub();
+	getListDetail.mockResolvedValue({ list: { id: LIST }, entries: [], hasPdf: false });
 });
 
 describe('list detail page load', () => {
-	it('throws 401 without an organization', async () => {
-		await expect(load(event({}))).rejects.toMatchObject({ status: 401 });
+	it('answers 404 for an id that is not a uuid, without asking the service', async () => {
+		await expect(load(event('nope'))).rejects.toMatchObject({ status: 404 });
+		expect(getListDetail).not.toHaveBeenCalled();
 	});
 
-	it('throws 404 when the list is not in this org and bucket', async () => {
-		stub({ listFound: false });
+	it("asks the service for the page of the list in the layout's bucket", async () => {
+		const data = await load(event(LIST, '3'));
+
+		expect(getListDetail).toHaveBeenCalledWith('u1', BUCKET, LIST, 3);
+		expect(data).toEqual({ list: { id: LIST }, entries: [], hasPdf: false });
+	});
+
+	it('passes the service refusal through', async () => {
+		getListDetail.mockRejectedValue({ status: 404 });
 
 		await expect(load(event())).rejects.toMatchObject({ status: 404 });
-	});
-
-	it('reports no pdf when the list has none', async () => {
-		const data = await load(event());
-
-		expect(data).toMatchObject({ list, hasPdf: false });
-	});
-
-	it('reports a pdf when the list has a ready one', async () => {
-		stub({ pdfs: 1 });
-
-		expect(await load(event())).toMatchObject({ hasPdf: true });
-	});
-
-	// Pending, failed, and replaced documents have nothing to download.
-	it('only counts ready documents that have not been replaced, in this org', async () => {
-		await load(event());
-
-		const [sql, params] = pdfQuery();
-		expect(sql).toContain("status = 'ready'");
-		expect(sql).toContain('deleted_at IS NULL');
-		expect(sql).toContain('org_id = $2');
-		expect(params).toEqual([LIST, ORG]);
-	});
-
-	it('returns the first page of entries with their total', async () => {
-		const data = await load(event());
-
-		expect(data).toMatchObject({ entries: [], entryCount: 0, page: 1, pageSize: 100 });
-	});
-
-	it('reads the page asked for, within the list and the org', async () => {
-		mockClient.query.mockImplementation(async (sql: string) => {
-			if (sql.includes('FROM universe.list l')) return { rows: [list] };
-			if (sql.includes('COUNT(*)')) return { rows: [{ count: '250' }] };
-			return { rows: [], rowCount: 0 };
-		});
-
-		const data = await load(event(undefined, '3'));
-
-		expect(data).toMatchObject({ page: 3, entryCount: 250 });
-		const entries = mockClient.query.mock.calls.find((c) => String(c[0]).includes('LIMIT $3 OFFSET $4'))!;
-		expect(entries[1]).toEqual([LIST, ORG, 100, 200]);
 	});
 });

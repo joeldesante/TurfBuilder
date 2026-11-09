@@ -8,7 +8,11 @@ import {
 	LegacyFilterError
 } from './filters.service';
 import { convertBucketFilter } from '$lib/server/services/filter-converter.service';
-import type { BucketFilterInput, MatchType, StoredBucketFilter } from '$lib/server/services/filter-converter.service';
+import type {
+	BucketFilterInput,
+	MatchType,
+	StoredBucketFilter
+} from '$lib/server/services/filter-converter.service';
 
 const group = (operator: 'AND' | 'OR', ...filters: unknown[]) => ({ operator, filters });
 const f = (item: string, operation: string, value: unknown, extra = {}) => ({
@@ -18,7 +22,7 @@ const f = (item: string, operation: string, value: unknown, extra = {}) => ({
 	...extra
 });
 
-const LOC = 'SELECT vl.id, vl.source FROM universe.v_locations vl';
+const LOC = 'SELECT vl.id, vl.source FROM universe.v_contacts vl';
 const PEOPLE = 'SELECT vp.id, vp.source FROM universe.v_people vp';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -58,7 +62,9 @@ describe('text filters', () => {
 			sql: `${LOC} WHERE (vl.city ILIKE $1)`,
 			params: ['%50\\%\\_off\\\\%']
 		});
-		expect(people(group('AND', f('first_name', 'starts_with', 'Al', { caseSensitive: true })))).toEqual({
+		expect(
+			people(group('AND', f('first_name', 'starts_with', 'Al', { caseSensitive: true })))
+		).toEqual({
 			sql: `${PEOPLE} WHERE (vp.first_name LIKE $1)`,
 			params: ['Al%']
 		});
@@ -72,7 +78,9 @@ describe('text filters', () => {
 	});
 
 	it('maps the ZIP code and state columns', () => {
-		expect(loc(group('AND', f('zip_code', 'starts_with', '191'))).sql).toContain('vl.postal_code ILIKE $1');
+		expect(loc(group('AND', f('zip_code', 'starts_with', '191'))).sql).toContain(
+			'vl.postal_code ILIKE $1'
+		);
 	});
 });
 
@@ -92,8 +100,12 @@ describe('person filters', () => {
 	});
 
 	it('treats an empty email or phone as missing', () => {
-		expect(people(group('AND', f('has_email', 'equals', true))).sql).toContain("NULLIF(vp.email, '') IS NOT NULL");
-		expect(people(group('AND', f('has_phone', 'equals', false))).sql).toContain("NULLIF(vp.phone, '') IS NULL");
+		expect(people(group('AND', f('has_email', 'equals', true))).sql).toContain(
+			"NULLIF(vp.email, '') IS NOT NULL"
+		);
+		expect(people(group('AND', f('has_phone', 'equals', false))).sql).toContain(
+			"NULLIF(vp.phone, '') IS NULL"
+		);
 	});
 });
 
@@ -116,12 +128,21 @@ describe('spatial filters', () => {
 	it('passes a drawn region as GeoJSON', () => {
 		const polygon = {
 			type: 'Polygon',
-			coordinates: [[[0, 0], [0, 1], [1, 1], [0, 0]]]
+			coordinates: [
+				[
+					[0, 0],
+					[0, 1],
+					[1, 1],
+					[0, 0]
+				]
+			]
 		};
 
 		const query = loc(group('AND', f('inside_drawn_region', 'within', polygon)));
 
-		expect(query.sql).toContain('ST_Intersects(vl.coordinates, ST_SetSRID(ST_GeomFromGeoJSON($1), 4326))');
+		expect(query.sql).toContain(
+			'ST_Intersects(vl.coordinates, ST_SetSRID(ST_GeomFromGeoJSON($1), 4326))'
+		);
 		expect(query.params).toEqual([JSON.stringify(polygon)]);
 	});
 });
@@ -148,7 +169,7 @@ describe('canvassing filters', () => {
 		expect(flat(query.sql)).toContain(
 			'EXISTS (SELECT tla.contact_made FROM universe.turf_location_attempt tla' +
 				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $1::uuid' +
-				' JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $1::uuid' +
+				' JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = $1::uuid' +
 				' WHERE tla.org_id = $1::uuid' +
 				' AND tol.entity_id = vl.entity_id AND tla.contact_made = $2)'
 		);
@@ -169,7 +190,11 @@ describe('canvassing filters', () => {
 	});
 
 	it('skips the newer attempts for "from the last"', () => {
-		expect(loc(group('AND', contact({ position: 'nth_from_last', n: 3 }))).params).toEqual([ORG, true, 2]);
+		expect(loc(group('AND', contact({ position: 'nth_from_last', n: 3 }))).params).toEqual([
+			ORG,
+			true,
+			2
+		]);
 	});
 
 	it('narrows to a bucket and a list through the turfs they were cut into', () => {
@@ -191,20 +216,26 @@ describe('canvassing filters', () => {
 	it('includes the whole end date in a time range', () => {
 		const query = loc(group('AND', contact({ from: '2026-01-01', to: '2026-01-31' })));
 
-		expect(flat(query.sql)).toContain('tla.created_at >= $2::date AND tla.created_at < ($3::date + 1)');
+		expect(flat(query.sql)).toContain(
+			'tla.created_at >= $2::date AND tla.created_at < ($3::date + 1)'
+		);
 		expect(query.params).toEqual([ORG, '2026-01-01', '2026-01-31', true]);
 	});
 
 	it('applies the scope before picking the latest attempt', () => {
 		const sql = flat(loc(group('AND', contact({ position: 'latest', from: '2026-01-01' }))).sql);
 
-		expect(sql.indexOf('tla.created_at >=')).toBeLessThan(sql.indexOf('ORDER BY tla.created_at DESC'));
+		expect(sql.indexOf('tla.created_at >=')).toBeLessThan(
+			sql.indexOf('ORDER BY tla.created_at DESC')
+		);
 	});
 
 	it('compares the date of the most recent attempt for last canvassed', () => {
 		const query = loc(group('AND', f('last_canvassed', 'less_than', '2026-01-01')));
 
-		expect(flat(query.sql)).toContain('(SELECT max(tla.created_at) FROM universe.turf_location_attempt tla');
+		expect(flat(query.sql)).toContain(
+			'(SELECT max(tla.created_at) FROM universe.turf_location_attempt tla'
+		);
 		expect(flat(query.sql)).toContain(')::date < $2::date');
 		expect(query.params).toEqual([ORG, '2026-01-01']);
 	});
@@ -224,7 +255,12 @@ describe('canvassing filters', () => {
 
 	it('numbers the parameters of several canvassing filters in order', () => {
 		const query = loc(
-			group('AND', contact({ from: '2026-01-01' }), f('last_canvassed', 'greater_than', '2026-02-01'), f('city', 'equals', 'Austin'))
+			group(
+				'AND',
+				contact({ from: '2026-01-01' }),
+				f('last_canvassed', 'greater_than', '2026-02-01'),
+				f('city', 'equals', 'Austin')
+			)
 		);
 
 		// The organization is one parameter, shared by every subquery.
@@ -242,7 +278,9 @@ describe('canvassing filters', () => {
 
 	it('registers the organization again after the branch that first used it is discarded', () => {
 		// The OR holds an always-true group, so it is dropped with the attempt filter inside it.
-		const query = loc(group('AND', group('OR', contact(), group('AND')), contact({ contacted: false })));
+		const query = loc(
+			group('AND', group('OR', contact(), group('AND')), contact({ contacted: false }))
+		);
 
 		expect(query.params).toEqual([ORG, false]);
 		expect(flat(query.sql)).toContain('tla.org_id = $1::uuid');
@@ -291,7 +329,9 @@ describe('groups', () => {
 	});
 
 	it('does not leave a parameter behind for a discarded branch', () => {
-		const query = loc(group('AND', group('OR', f('city', 'equals', 'A'), group('AND')), f('state', 'equals', 'TX')));
+		const query = loc(
+			group('AND', group('OR', f('city', 'equals', 'A'), group('AND')), f('state', 'equals', 'TX'))
+		);
 
 		expect(query.params).toEqual(['TX']);
 		expect(query.sql).toBe(`${LOC} WHERE (lower(vl.state_or_region) = lower($1))`);
@@ -314,7 +354,12 @@ describe('location name filter', () => {
 describe('survey response filters', () => {
 	const Q = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
 	const answer = (operation: string, response: string, extra = {}) =>
-		f('survey_question_response', operation, { bucketId: Q, surveyId: Q, questionId: Q, response }, extra);
+		f(
+			'survey_question_response',
+			operation,
+			{ bucketId: Q, surveyId: Q, questionId: Q, response },
+			extra
+		);
 	const flat = (sql: string) => sql.replace(/\s+/g, ' ');
 	const rejects = (run: () => unknown, status: number) => {
 		expect(run).toThrow(expect.objectContaining({ status }));
@@ -323,7 +368,9 @@ describe('survey response filters', () => {
 	it('finds locations with any answer to the question when it was answered', () => {
 		const query = loc(group('AND', answer('answered', '')));
 
-		expect(flat(query.sql)).toContain("EXISTS (SELECT 1 FROM universe.survey_question_response sqr");
+		expect(flat(query.sql)).toContain(
+			'EXISTS (SELECT 1 FROM universe.survey_question_response sqr'
+		);
 		expect(flat(query.sql)).toContain("COALESCE(sqr.response_value, '') <> ''");
 		expect(flat(query.sql)).not.toContain('NOT EXISTS');
 	});
@@ -331,7 +378,9 @@ describe('survey response filters', () => {
 	it('includes locations never asked when the question was not answered', () => {
 		const query = loc(group('AND', answer('not_answered', '')));
 
-		expect(flat(query.sql)).toContain('NOT EXISTS (SELECT 1 FROM universe.survey_question_response sqr');
+		expect(flat(query.sql)).toContain(
+			'NOT EXISTS (SELECT 1 FROM universe.survey_question_response sqr'
+		);
 		expect(query.params).toEqual([ORG, Q]);
 	});
 
@@ -343,7 +392,7 @@ describe('survey response filters', () => {
 				' JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = $2::uuid' +
 				' JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = $2::uuid' +
 				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $2::uuid' +
-				' JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $2::uuid' +
+				' JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = $2::uuid' +
 				' WHERE sqr.org_id = $2::uuid' +
 				' AND sqr.survey_question_id = $3::uuid' +
 				' AND tol.entity_id = vl.entity_id AND '
@@ -410,7 +459,14 @@ describe('survey response filters', () => {
 	});
 
 	it('combines with other filters, numbering parameters in order', () => {
-		const query = loc(group('AND', f('city', 'equals', 'Austin'), answer('equals', 'Yes'), f('state', 'equals', 'TX')));
+		const query = loc(
+			group(
+				'AND',
+				f('city', 'equals', 'Austin'),
+				answer('equals', 'Yes'),
+				f('state', 'equals', 'TX')
+			)
+		);
 
 		expect(query.params).toEqual(['Austin', 'Yes', ORG, Q, 'TX']);
 		expect(query.sql).toContain('lower(vl.state_or_region) = lower($5)');
@@ -429,7 +485,9 @@ describe('survey response filters', () => {
 	it('works inside an inverted group, so locations without the response can be found', () => {
 		const query = loc({ operator: 'OR', not: true, filters: [answer('equals', 'Yes')] });
 
-		expect(flat(query.sql)).toContain('WHERE NOT (COALESCE((EXISTS (SELECT 1 FROM universe.survey_question_response');
+		expect(flat(query.sql)).toContain(
+			'WHERE NOT (COALESCE((EXISTS (SELECT 1 FROM universe.survey_question_response'
+		);
 	});
 
 	it('only applies to locations, which are what get canvassed', () => {
@@ -460,9 +518,9 @@ describe('inverted groups', () => {
 	});
 
 	it('inverts an AND so that not all of its filters match', () => {
-		expect(loc(not('AND', f('city', 'equals', 'Austin'), f('state', 'equals', 'TX'))).sql).toContain(
-			'NOT (COALESCE((lower(vl.city) = lower($1)), false) AND '
-		);
+		expect(
+			loc(not('AND', f('city', 'equals', 'Austin'), f('state', 'equals', 'TX'))).sql
+		).toContain('NOT (COALESCE((lower(vl.city) = lower($1)), false) AND ');
 	});
 
 	it('counts a condition that cannot be decided as not matching, so inverting includes it', () => {
@@ -473,7 +531,9 @@ describe('inverted groups', () => {
 	});
 
 	it('leaves conditions outside an inverted group as they were', () => {
-		const query = loc(group('AND', f('city', 'equals', 'Austin'), not('OR', f('state', 'equals', 'TX'))));
+		const query = loc(
+			group('AND', f('city', 'equals', 'Austin'), not('OR', f('state', 'equals', 'TX')))
+		);
 
 		expect(flat(query.sql)).toContain('(lower(vl.city) = lower($1) AND NOT (COALESCE(');
 	});
@@ -498,7 +558,9 @@ describe('inverted groups', () => {
 	});
 
 	it('lets an always-true branch settle an OR and drop out of an AND, under inversion too', () => {
-		expect(loc(not('AND', f('city', 'equals', 'Austin'), group('AND'))).sql).toContain('WHERE NOT (');
+		expect(loc(not('AND', f('city', 'equals', 'Austin'), group('AND'))).sql).toContain(
+			'WHERE NOT ('
+		);
 		expect(loc(group('OR', f('city', 'equals', 'Austin'), not('OR', group('AND'))))).toMatchObject({
 			params: ['Austin']
 		});
@@ -506,7 +568,12 @@ describe('inverted groups', () => {
 
 	it('numbers the parameters of filters on either side of an inverted group in order', () => {
 		const query = loc(
-			group('AND', f('city', 'equals', 'A'), not('OR', f('state', 'equals', 'B')), f('zip_code', 'equals', '1'))
+			group(
+				'AND',
+				f('city', 'equals', 'A'),
+				not('OR', f('state', 'equals', 'B')),
+				f('zip_code', 'equals', '1')
+			)
 		);
 
 		expect(query.params).toEqual(['A', 'B', '1']);
@@ -515,7 +582,9 @@ describe('inverted groups', () => {
 
 	it('matches nothing when an always-true branch sits in an inverted OR, and clears its parameters', () => {
 		// "none of: (state is B, anything)" can never match, which settles the AND around it
-		const query = loc(group('AND', f('city', 'equals', 'A'), not('OR', f('state', 'equals', 'B'), group('AND'))));
+		const query = loc(
+			group('AND', f('city', 'equals', 'A'), not('OR', f('state', 'equals', 'B'), group('AND')))
+		);
 
 		expect(query).toEqual({ sql: `${LOC} WHERE false`, params: [] });
 	});
@@ -527,16 +596,19 @@ describe('inverted groups', () => {
 
 describe('selected columns', () => {
 	it('selects only what is asked for, from the entity view', () => {
-		expect(buildFilterQuery('locations', group('AND'), { orgId: ORG, columns: ['id', 'name', 'city'] }).sql).toBe(
-			'SELECT vl.id, vl.name, vl.city FROM universe.v_locations vl'
-		);
-		expect(buildFilterQuery('people', group('AND'), { orgId: ORG, columns: ['id', 'last_name'] }).sql).toBe(
-			'SELECT vp.id, vp.last_name FROM universe.v_people vp'
-		);
+		expect(
+			buildFilterQuery('locations', group('AND'), { orgId: ORG, columns: ['id', 'name', 'city'] })
+				.sql
+		).toBe('SELECT vl.id, vl.name, vl.city FROM universe.v_contacts vl');
+		expect(
+			buildFilterQuery('people', group('AND'), { orgId: ORG, columns: ['id', 'last_name'] }).sql
+		).toBe('SELECT vp.id, vp.last_name FROM universe.v_people vp');
 	});
 
 	it('refuses a column the entity does not have', () => {
-		expect(() => buildFilterQuery('people', group('AND'), { orgId: ORG, columns: ['city'] })).toThrow(/Unknown people columns: city/);
+		expect(() =>
+			buildFilterQuery('people', group('AND'), { orgId: ORG, columns: ['city'] })
+		).toThrow(/Unknown people columns: city/);
 		expect(() =>
 			buildFilterQuery('locations', group('AND'), { orgId: ORG, columns: ['id; DROP TABLE x'] })
 		).toThrow();
@@ -582,28 +654,37 @@ describe('refusals', () => {
 	});
 });
 
-
 // TEMPORARY: removed with the old filter column (see issue #221).
 describe('legacy bucket filters', () => {
 	const off = { enabled: false, matchType: 'ONE_OR_MORE' as MatchType, conditions: [] };
 
 	/** Runs the old pipeline end to end: form input to stored query to editor document. */
 	function convertInput(input: Partial<BucketFilterInput>) {
-		return convertLegacyBucketFilter(convertBucketFilter({ people: off, locations: off, ...input }));
+		return convertLegacyBucketFilter(
+			convertBucketFilter({ people: off, locations: off, ...input })
+		);
 	}
 
 	const locations = (matchType: MatchType, ...conditions: [string, string, string][]) => ({
 		locations: {
 			enabled: true,
 			matchType,
-			conditions: conditions.map(([filterId, qualifierId, value]) => ({ filterId, qualifierId, value }))
+			conditions: conditions.map(([filterId, qualifierId, value]) => ({
+				filterId,
+				qualifierId,
+				value
+			}))
 		}
 	});
 	const people = (matchType: MatchType, ...conditions: [string, string, string][]) => ({
 		people: {
 			enabled: true,
 			matchType,
-			conditions: conditions.map(([filterId, qualifierId, value]) => ({ filterId, qualifierId, value }))
+			conditions: conditions.map(([filterId, qualifierId, value]) => ({
+				filterId,
+				qualifierId,
+				value
+			}))
 		}
 	});
 
@@ -653,18 +734,25 @@ describe('legacy bucket filters', () => {
 		});
 
 		it('"one or more" is an OR', () => {
-			expect(convertInput(locations('ONE_OR_MORE', ...two)).locations).toMatchObject({ operator: 'OR' });
+			expect(convertInput(locations('ONE_OR_MORE', ...two)).locations).toMatchObject({
+				operator: 'OR'
+			});
 		});
 
 		it('"none" is inverted, and keeps the AND it was stored with', () => {
 			// The old converter documented "none" as NOT (a OR b) but stored NOT (a AND b),
 			// so those buckets select what is not all of the conditions. The conversion
 			// keeps what they select; the editor shows it as "at least one condition below is false".
-			expect(convertInput(locations('NONE', ...two)).locations).toMatchObject({ operator: 'AND', not: true });
+			expect(convertInput(locations('NONE', ...two)).locations).toMatchObject({
+				operator: 'AND',
+				not: true
+			});
 		});
 
 		it('agrees with a single "none" condition however it is read', () => {
-			expect(convertInput(locations('NONE', ['city', 'is', 'Austin'])).locations).toMatchObject({ not: true });
+			expect(convertInput(locations('NONE', ['city', 'is', 'Austin'])).locations).toMatchObject({
+				not: true
+			});
 		});
 
 		it('keeps the conditions in order', () => {
@@ -679,13 +767,31 @@ describe('legacy bucket filters', () => {
 			convertInput(locations('ALL', [filterId, qualifier, value])).locations!.filters[0];
 
 		it('keeps "is" and "is not" exact, as they always were', () => {
-			expect(one('is', 'Austin')).toEqual({ item: 'city', operation: 'equals', value: 'Austin', caseSensitive: true });
-			expect(one('is_not', 'Austin')).toEqual({ item: 'city', operation: 'not_equals', value: 'Austin', caseSensitive: true });
+			expect(one('is', 'Austin')).toEqual({
+				item: 'city',
+				operation: 'equals',
+				value: 'Austin',
+				caseSensitive: true
+			});
+			expect(one('is_not', 'Austin')).toEqual({
+				item: 'city',
+				operation: 'not_equals',
+				value: 'Austin',
+				caseSensitive: true
+			});
 		});
 
 		it('keeps "contains" and "starts with" ignoring case, as they always did', () => {
-			expect(one('contains', 'phil')).toEqual({ item: 'city', operation: 'contains', value: 'phil' });
-			expect(one('starts_with', '191', 'zip_code')).toEqual({ item: 'zip_code', operation: 'starts_with', value: '191' });
+			expect(one('contains', 'phil')).toEqual({
+				item: 'city',
+				operation: 'contains',
+				value: 'phil'
+			});
+			expect(one('starts_with', '191', 'zip_code')).toEqual({
+				item: 'zip_code',
+				operation: 'starts_with',
+				value: '191'
+			});
 		});
 
 		it('maps each location column to its filter', () => {
@@ -694,7 +800,9 @@ describe('legacy bucket filters', () => {
 		});
 
 		it('maps each person column to its filter', () => {
-			const doc = convertInput(people('ALL', ['first_name', 'contains', 'al'], ['last_name', 'is', 'Smith']));
+			const doc = convertInput(
+				people('ALL', ['first_name', 'contains', 'al'], ['last_name', 'is', 'Smith'])
+			);
 
 			expect(doc.people!.filters).toEqual([
 				{ item: 'first_name', operation: 'contains', value: 'al' },
@@ -702,9 +810,14 @@ describe('legacy bucket filters', () => {
 			]);
 		});
 
-		it.each([['50%'], ['a_b'], ['back\\slash']])('refuses text with wildcards or escapes of its own (%s)', (text) => {
-			expect(() => convertInput(locations('ALL', ['city', 'contains', text]))).toThrow(LegacyFilterError);
-		});
+		it.each([['50%'], ['a_b'], ['back\\slash']])(
+			'refuses text with wildcards or escapes of its own (%s)',
+			(text) => {
+				expect(() => convertInput(locations('ALL', ['city', 'contains', text]))).toThrow(
+					LegacyFilterError
+				);
+			}
+		);
 
 		it('refuses a blank value, which the editor does not allow', () => {
 			expect(() => convertInput(locations('ALL', ['city', 'is', '']))).toThrow(LegacyFilterError);
@@ -731,16 +844,30 @@ describe('legacy bucket filters', () => {
 			['not_after', 'less_than_or_equal'],
 			['not_before', 'greater_than_or_equal']
 		])('converts the date of birth qualifier %s', (qualifier, operation) => {
-			expect(one('dob', qualifier, '1990-01-01')).toEqual({ item: 'date_of_birth', operation, value: '1990-01-01' });
+			expect(one('dob', qualifier, '1990-01-01')).toEqual({
+				item: 'date_of_birth',
+				operation,
+				value: '1990-01-01'
+			});
 		});
 
 		it('converts having an email or phone', () => {
-			expect(one('has_email', '', '')).toEqual({ item: 'has_email', operation: 'equals', value: true });
-			expect(one('has_phone', '', '')).toEqual({ item: 'has_phone', operation: 'equals', value: true });
+			expect(one('has_email', '', '')).toEqual({
+				item: 'has_email',
+				operation: 'equals',
+				value: true
+			});
+			expect(one('has_phone', '', '')).toEqual({
+				item: 'has_phone',
+				operation: 'equals',
+				value: true
+			});
 		});
 
 		it('refuses a date that is not a date', () => {
-			expect(() => convertInput(people('ALL', ['dob', 'after', 'last week']))).toThrow(LegacyFilterError);
+			expect(() => convertInput(people('ALL', ['dob', 'after', 'last week']))).toThrow(
+				LegacyFilterError
+			);
 		});
 	});
 
@@ -750,10 +877,15 @@ describe('legacy bucket filters', () => {
 			people: { enabled: false, query: null },
 			locations: {
 				enabled: true,
-				query: { select: ['vl.id'], from: 'universe.v_locations vl', where: where as never }
+				query: { select: ['vl.id'], from: 'universe.v_contacts vl', where: where as never }
 			}
 		});
-		const group = (children: unknown[], negate = false) => ({ type: 'group', connector: 'AND', negate, children });
+		const group = (children: unknown[], negate = false) => ({
+			type: 'group',
+			connector: 'AND',
+			negate,
+			children
+		});
 		const cond = (column: string, op: string, value?: unknown, negate = false) => ({
 			type: 'condition',
 			column,
@@ -763,28 +895,40 @@ describe('legacy bucket filters', () => {
 		});
 
 		it('refuses a column no filter reads', () => {
-			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.name', '=', 'x')])))).toThrow(/vl\.name/);
+			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.name', '=', 'x')])))).toThrow(
+				/vl\.name/
+			);
 		});
 
 		it('refuses a person column in a location filter', () => {
-			expect(() => convertLegacyBucketFilter(stored(group([cond('vp.first_name', '=', 'x')])))).toThrow(LegacyFilterError);
+			expect(() =>
+				convertLegacyBucketFilter(stored(group([cond('vp.first_name', '=', 'x')])))
+			).toThrow(LegacyFilterError);
 		});
 
 		it('refuses an operator it does not know', () => {
-			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.city', 'SIMILAR TO', 'x')])))).toThrow(LegacyFilterError);
+			expect(() =>
+				convertLegacyBucketFilter(stored(group([cond('vl.city', 'SIMILAR TO', 'x')])))
+			).toThrow(LegacyFilterError);
 		});
 
 		it('refuses a condition that is inverted on its own', () => {
-			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.city', '=', 'x', true)])))).toThrow(/inverted/);
+			expect(() =>
+				convertLegacyBucketFilter(stored(group([cond('vl.city', '=', 'x', true)])))
+			).toThrow(/inverted/);
 		});
 
 		it('names the kind of record in the message', () => {
-			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.name', '=', 'x')])))).toThrow(/^locations: /);
+			expect(() => convertLegacyBucketFilter(stored(group([cond('vl.name', '=', 'x')])))).toThrow(
+				/^locations: /
+			);
 		});
 
 		it('converts nested groups', () => {
 			const doc = convertLegacyBucketFilter(
-				stored(group([cond('vl.city', '=', 'A'), group([cond('vl.state_or_region', '=', 'B')], true)]))
+				stored(
+					group([cond('vl.city', '=', 'A'), group([cond('vl.state_or_region', '=', 'B')], true)])
+				)
 			);
 
 			expect(doc.locations?.filters[1]).toMatchObject({ operator: 'AND', not: true });
@@ -816,16 +960,28 @@ describe('reading a stored old filter', () => {
 	const locations = (where: unknown) => ({
 		v: 1,
 		people: { enabled: false, query: null },
-		locations: { enabled: true, query: { select: ['vl.id'], from: 'universe.v_locations vl', where } }
+		locations: {
+			enabled: true,
+			query: { select: ['vl.id'], from: 'universe.v_contacts vl', where }
+		}
 	});
-	const group = (children: unknown[]) => ({ type: 'group', connector: 'AND', negate: false, children });
+	const group = (children: unknown[]) => ({
+		type: 'group',
+		connector: 'AND',
+		negate: false,
+		children
+	});
 
 	it.each([[null], [undefined], [{}]])('reads %j as a bucket that includes nothing', (stored) => {
 		expect(convertStoredBucketFilter(stored)).toEqual({ v: 2, people: null, locations: null });
 	});
 
 	it('converts the old stored format', () => {
-		const stored = locations(group([{ type: 'condition', column: 'vl.postal_code', op: '=', negate: false, value: '19130' }]));
+		const stored = locations(
+			group([
+				{ type: 'condition', column: 'vl.postal_code', op: '=', negate: false, value: '19130' }
+			])
+		);
 
 		expect(convertStoredBucketFilter(stored).locations?.filters).toEqual([
 			{ item: 'zip_code', operation: 'equals', value: '19130', caseSensitive: true }
@@ -838,7 +994,11 @@ describe('reading a stored old filter', () => {
 			v: 1,
 			input: {
 				people: { enabled: false, matchType: 'ONE_OR_MORE', conditions: [] },
-				locations: { enabled: true, matchType: 'ONE_OR_MORE', conditions: [{ filterId: 'survey_response' }] }
+				locations: {
+					enabled: true,
+					matchType: 'ONE_OR_MORE',
+					conditions: [{ filterId: 'survey_response' }]
+				}
 			}
 		};
 
@@ -846,23 +1006,41 @@ describe('reading a stored old filter', () => {
 		expect(() => convertStoredBucketFilter(stored)).toThrow(/does not know \(v, input\)/);
 	});
 
-	it.each([['a string', 'nope'], ['a number', 5], ['an array', []]])('refuses %s', (_name, stored) => {
+	it.each([
+		['a string', 'nope'],
+		['a number', 5],
+		['an array', []]
+	])('refuses %s', (_name, stored) => {
 		expect(() => convertStoredBucketFilter(stored)).toThrow(LegacyFilterError);
 	});
 
 	// Also found in a development database: a canvassing condition with a type of its own.
 	it('refuses a kind of condition it does not know, without crashing', () => {
 		const stored = locations(
-			group([{ type: 'attempt', op: 'not_attempted', scope: 'latest', negate: false, bucketId: 'b', entityColumn: 'vl.entity_id' }])
+			group([
+				{
+					type: 'attempt',
+					op: 'not_attempted',
+					scope: 'latest',
+					negate: false,
+					bucketId: 'b',
+					entityColumn: 'vl.entity_id'
+				}
+			])
 		);
 
 		expect(() => convertStoredBucketFilter(stored)).toThrow(LegacyFilterError);
-		expect(() => convertStoredBucketFilter(stored)).toThrow('locations: Cannot convert a "attempt" condition');
+		expect(() => convertStoredBucketFilter(stored)).toThrow(
+			'locations: Cannot convert a "attempt" condition'
+		);
 	});
 
 	it.each([
 		['a group with no conditions list', { type: 'group', connector: 'AND', negate: false }],
-		['a group with an unknown connector', { type: 'group', connector: 'XOR', negate: false, children: [] }],
+		[
+			'a group with an unknown connector',
+			{ type: 'group', connector: 'XOR', negate: false, children: [] }
+		],
 		['conditions that are not an object', 'vl.city = 1']
 	])('refuses %s', (_name, where) => {
 		expect(() => convertStoredBucketFilter(locations(where))).toThrow(LegacyFilterError);
@@ -873,6 +1051,8 @@ describe('reading a stored old filter', () => {
 	});
 
 	it('refuses a kind of record that is not in the expected form', () => {
-		expect(() => convertStoredBucketFilter({ v: 1, people: 'yes', locations: null })).toThrow(LegacyFilterError);
+		expect(() => convertStoredBucketFilter({ v: 1, people: 'yes', locations: null })).toThrow(
+			LegacyFilterError
+		);
 	});
 });

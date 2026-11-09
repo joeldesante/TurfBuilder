@@ -70,6 +70,7 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 	let orgId: string;
 	let listId: string;
 	let locationId: string;
+	let addressId: string;
 	let listPath: string;
 
 	interface DocumentRow {
@@ -142,22 +143,35 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 			['Quick Mart', '1 Main St'],
 			['Main Street Hardware', '2 Main St']
 		]) {
-			const { rows: entities } = await db.query<{ id: string }>(
-				`INSERT INTO universe.org_entity (org_id, type_id)
-				 SELECT $1, id FROM universe.entity_type WHERE slug = 'location' RETURNING id`,
+			// A business at its own address, as the import writes them.
+			const [number, ...street] = address.split(' ');
+			const { rows: addressEntities } = await db.query<{ id: string }>(
+				`INSERT INTO universe.org_entity (org_id) VALUES ($1) RETURNING id`,
 				[orgId]
 			);
-			const { rows: locations } = await db.query<{ id: string }>(
-				`INSERT INTO universe.org_location
-					(org_id, entity_id, name, address_line_1, city, state_or_region, postal_code, source)
-				 VALUES ($1, $2, $3, $4, 'Springfield', 'PA', '19064', 'e2e') RETURNING id`,
-				[orgId, entities[0].id, name, address]
+			const { rows: addresses } = await db.query<{ id: string }>(
+				`INSERT INTO universe.org_address
+					(org_id, entity_id, premises_number, thoroughfare_name, thoroughfare_type,
+					 locality, region, postcode, country_code, coordinates, source)
+				 VALUES ($1, $2, $3, $4, $5, 'Springfield', 'PA', '19064', 'US',
+				         ST_SetSRID(ST_MakePoint(-75.39, 39.91), 4326), 'e2e') RETURNING id`,
+				[orgId, addressEntities[0].id, number, street.slice(0, -1).join(' '), street.at(-1)]
 			);
-			locationId ??= locations[0].id;
+			const { rows: entities } = await db.query<{ id: string }>(
+				`INSERT INTO universe.org_entity (org_id) VALUES ($1) RETURNING id`,
+				[orgId]
+			);
+			const { rows: contacts } = await db.query<{ id: string }>(
+				`INSERT INTO universe.org_contact (org_id, entity_id, type, address_entity_id, metadata, source)
+				 VALUES ($1, $2, 'business', $3, $4, 'e2e') RETURNING id`,
+				[orgId, entities[0].id, addressEntities[0].id, JSON.stringify({ name })]
+			);
+			locationId ??= contacts[0].id;
+			addressId ??= addresses[0].id;
 			await db.query(
-				`INSERT INTO universe.list_entry (list_id, record_id, record_source)
-				 VALUES ($1, $2, 'org_location')`,
-				[listId, locations[0].id]
+				`INSERT INTO universe.list_entry (list_id, record_id, record_source, address_id)
+				 VALUES ($1, $2, 'org_contact', $3)`,
+				[listId, contacts[0].id, addresses[0].id]
 			);
 		}
 
@@ -236,8 +250,8 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 			[orgId, listId, `E2E-${randomUUID().slice(0, 6).toUpperCase()}`]
 		);
 		await db.query(
-			`INSERT INTO universe.turf_location (org_id, turf_id, org_location_id) VALUES ($1, $2, $3)`,
-			[orgId, turfs[0].id, locationId]
+			`INSERT INTO universe.turf_location (org_id, turf_id, contact_id, address_id) VALUES ($1, $2, $3, $4)`,
+			[orgId, turfs[0].id, locationId, addressId]
 		);
 		const [previous] = await documents();
 
@@ -261,10 +275,9 @@ test.describe('generating, downloading, and regenerating the list pdf', () => {
 	test('deleting the current pdf leaves the list with none to download', async () => {
 		const current = (await documents()).find((d) => d.deleted_at === null)!;
 
-		const res = await page.request.delete(
-			`/api/v1/documents/${current.id}`,
-			{ headers: { origin: 'http://localhost:5173' } }
-		);
+		const res = await page.request.delete(`/api/v1/documents/${current.id}`, {
+			headers: { origin: 'http://localhost:5173' }
+		});
 		expect(res.status()).toBe(204);
 
 		expect((await documents()).every((d) => d.deleted_at !== null)).toBe(true);

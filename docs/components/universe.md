@@ -186,7 +186,6 @@ it was never configured. Read once, when the row is created. |
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `orgSlug` | `string` | **required** |  |
 | `buckets` | `MetricsBucket[]` | **required** |  |
 | `onGenerate` | `(selection: MetricsWorkflowSelection) => void` | **required** |  |
 
@@ -201,7 +200,7 @@ it was never configured. Read once, when the row is created. |
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `open` | `boolean` | **required** |  |
-| `value` | `import("/Volumes/Storage/Development/TurfBuilder/node_modules/@types/geojson/...` | `null` | The region already chosen, if any. |
+| `value` | `import("/home/user/turfbuilder/node_modules/@types/geojson/index").Polygon | ...` | `null` | The region already chosen, if any. |
 | `onOpenChange` | `(open: boolean) => void` | **required** |  |
 | `onapply` | `(value: GeoJSON.Polygon) => void` | **required** |  |
 
