@@ -2,13 +2,14 @@
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/client/api';
 	import type { OrganizationSlugAvailability } from '$lib/shared/types/organizations';
+	import type { CreateOrganizationInput } from '$lib/shared/schemas/organizations';
 	import CreateOrg from '$pages/orgs/create/CreateOrg.svelte';
 
 	// ApiError messages are written to be shown, and the form displays whatever is thrown.
-	async function handleCreate(name: string, slug: string) {
+	async function handleCreate(values: CreateOrganizationInput) {
 		const created = await api<{ slug: string }>('/organizations', {
 			method: 'POST',
-			body: { name, slug }
+			body: values
 		});
 		goto(`/o/${created.slug}/s/`);
 	}

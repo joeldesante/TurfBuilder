@@ -5,6 +5,8 @@
 	interface RadioItem {
 		value: string;
 		label: string;
+		/** A line or two under the label explaining the choice. */
+		description?: string;
 		disabled?: boolean;
 	}
 
@@ -89,12 +91,17 @@
 		<div class={listClass}>
 			{#each items as item (item.value)}
 				{@const itemId = `${groupId}-${item.value}`}
-				<div class="inline-flex items-center gap-2">
+				{@const descriptionId = item.description ? `${itemId}-description` : undefined}
+				<div
+					class={['inline-flex gap-2', item.description ? 'items-start' : 'items-center'].join(' ')}
+				>
 					<RadioGroupPrimitive.Item
 						id={itemId}
 						value={item.value}
 						disabled={item.disabled}
+						aria-describedby={descriptionId}
 						class={[
+							item.description && 'mt-0.5',
 							'size-5 shrink-0 rounded-full border inline-flex items-center justify-center',
 							'focus-visible:outline-2 focus-visible:outline-offset-2',
 							'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -110,17 +117,22 @@
 							{/if}
 						{/snippet}
 					</RadioGroupPrimitive.Item>
-					<label
-						for={itemId}
-						class={[
-							'text-sm text-on-surface select-none',
-							item.disabled || disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-						]
-							.filter(Boolean)
-							.join(' ')}
-					>
-						{item.label}
-					</label>
+					<div class="flex flex-col gap-0.5">
+						<label
+							for={itemId}
+							class={[
+								'text-sm text-on-surface select-none',
+								item.disabled || disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+							]
+								.filter(Boolean)
+								.join(' ')}
+						>
+							{item.label}
+						</label>
+						{#if item.description}
+							<p id={descriptionId} class="text-xs text-on-surface-subtle">{item.description}</p>
+						{/if}
+					</div>
 				</div>
 			{/each}
 		</div>

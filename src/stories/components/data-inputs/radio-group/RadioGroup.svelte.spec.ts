@@ -94,4 +94,31 @@ describe('RadioGroup', () => {
 			expect(fieldset?.hasAttribute('disabled')).toBe(true);
 		});
 	});
+
+	describe('descriptions', () => {
+		const described = [
+			{ value: 'free', label: 'Free', description: 'One organizer.' },
+			{ value: 'team', label: 'Team' }
+		];
+
+		it('shows an item description under its label', async () => {
+			const screen = render(RadioGroup, { label: 'Plan', items: described });
+
+			await expect.element(screen.getByText('One organizer.')).toBeVisible();
+		});
+
+		it('describes the radio with its description, without adding it to the name', async () => {
+			const screen = render(RadioGroup, { label: 'Plan', items: described });
+
+			const radio = screen.getByRole('radio', { name: 'Free', exact: true });
+			await expect.element(radio).toHaveAccessibleDescription('One organizer.');
+		});
+
+		it('leaves items without a description undescribed', async () => {
+			const screen = render(RadioGroup, { label: 'Plan', items: described });
+
+			const radio = screen.getByRole('radio', { name: 'Team' });
+			await expect.element(radio).not.toHaveAttribute('aria-describedby');
+		});
+	});
 });

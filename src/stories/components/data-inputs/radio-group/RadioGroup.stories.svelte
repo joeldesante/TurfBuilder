@@ -107,3 +107,14 @@
 <Story name="Disabled" args={{ label: 'Priority', items: priorityItems, disabled: true }} />
 
 <Story name="With Disabled Items" args={{ label: 'Role', items: roleItems }} />
+
+<Story
+	name="With Descriptions"
+	args={{
+		label: 'Plan',
+		items: [
+			{ value: 'free', label: 'Free', description: 'One organizer and up to 500 locations.' },
+			{ value: 'team', label: 'Team', description: 'Unlimited organizers and locations.' }
+		]
+	}}
+/>

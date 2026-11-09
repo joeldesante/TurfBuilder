@@ -9,7 +9,8 @@
 		parameters: {
 			layout: 'fullscreen',
 			docs: {
-				subtitle: 'Form for creating a new organization. Slug is auto-derived from the name.'
+				subtitle:
+					'Multi-step form for creating a new organization: its type, what it does, then its name and slug. Slug is auto-derived from the name.'
 			}
 		}
 	});

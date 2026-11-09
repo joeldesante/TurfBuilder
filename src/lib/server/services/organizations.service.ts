@@ -4,8 +4,10 @@ import { POOL } from '$lib/server/database';
 import { canInfra } from '$lib/server/permissions';
 import { requireActiveMembership } from '$lib/server/list-access';
 import { analytics } from '$lib/server/analytics';
+import { logger } from '$lib/server/logger';
 import { getOrg } from './platform-organizations.service';
 import type { PlatformOrgDetail } from '$lib/shared/types/platform-organizations';
+import type { CreateOrganizationInput } from '$lib/shared/schemas/organizations';
 
 export interface OrganizationInput {
 	name: string;
@@ -47,10 +49,14 @@ export async function isSlugAvailable(slug: string): Promise<boolean> {
  * better-auth, which also creates the default roles, so it needs the request's
  * headers to identify the session. 403 when creation is disabled in system
  * settings, 409 when the slug is taken.
+ *
+ * The profile answers (category, description, campaign registration) are saved
+ * on the new row afterwards. The candidate answers are kept only for political
+ * organizations.
  */
 export async function createOrganization(
 	userId: string,
-	input: OrganizationInput,
+	input: CreateOrganizationInput,
 	headers: Headers
 ): Promise<Organization> {
 	const setting = await POOL.query<{ value: string }>(
@@ -65,9 +71,38 @@ export async function createOrganization(
 	}
 
 	const auth = await getAuth();
-	const created = await auth.api.createOrganization({ headers, body: input });
+	const created = await auth.api.createOrganization({
+		headers,
+		body: { name: input.name, slug: input.slug }
+	});
 
-	analytics.capture(userId, 'organization_created', { organization_id: created.id });
+	const isCandidate = input.category === 'political' && input.is_candidate;
+	try {
+		await POOL.query(
+			`UPDATE auth.organization
+			 SET category = $2, description = $3, is_candidate = $4, campaign_registration = $5
+			 WHERE id = $1`,
+			[
+				created.id,
+				input.category,
+				input.description,
+				isCandidate,
+				isCandidate ? input.campaign_registration || null : null
+			]
+		);
+	} catch (err) {
+		// The organization exists and works without its profile, and retrying would hit the
+		// taken slug, so the request still succeeds.
+		logger.error(
+			{ err, organizationId: created.id },
+			'Saving the new organization profile failed; the organization was created without it'
+		);
+	}
+
+	analytics.capture(userId, 'organization_created', {
+		organization_id: created.id,
+		category: input.category
+	});
 
 	return {
 		id: created.id,

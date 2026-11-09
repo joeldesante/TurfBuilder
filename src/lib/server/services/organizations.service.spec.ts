@@ -47,6 +47,17 @@ import {
 } from './organizations.service';
 
 const input = { name: 'Acme', slug: 'acme' };
+const createInput = {
+	...input,
+	category: 'nonprofit' as const,
+	description: 'We canvass for tenant rights.',
+	is_candidate: false
+};
+
+/** The UPDATE that saves the profile on the new organization, if one was made. */
+function profileUpdate() {
+	return mockClient.query.mock.calls.find(([sql]) => String(sql).includes('SET category'));
+}
 
 function stub({ role = 'owner' as string | null, creation = 'true', slugTaken = false } = {}) {
 	mockClient.query.mockImplementation((sql: string) => {
@@ -71,31 +82,84 @@ describe('createOrganization', () => {
 		createOrganizationApi.mockResolvedValue({ id: ORG, ...input, createdAt: new Date(0) });
 		const headers = new Headers({ cookie: 'x' });
 
-		const org = await createOrganization('u1', input, headers);
+		const org = await createOrganization('u1', createInput, headers);
 
 		expect(createOrganizationApi).toHaveBeenCalledWith({ headers, body: input });
 		expect(org).toMatchObject({ id: ORG, slug: 'acme' });
 	});
 
+	it('saves the profile answers on the new organization', async () => {
+		createOrganizationApi.mockResolvedValue({ id: ORG, ...input, createdAt: new Date(0) });
+
+		await createOrganization('u1', createInput, new Headers());
+
+		expect(profileUpdate()?.[1]).toEqual([
+			ORG,
+			'nonprofit',
+			'We canvass for tenant rights.',
+			false,
+			null
+		]);
+	});
+
+	it('keeps the campaign registration for a political candidate', async () => {
+		createOrganizationApi.mockResolvedValue({ id: ORG, ...input, createdAt: new Date(0) });
+
+		await createOrganization(
+			'u1',
+			{ ...createInput, category: 'political', is_candidate: true, campaign_registration: 'C001' },
+			new Headers()
+		);
+
+		expect(profileUpdate()?.[1]).toEqual([ORG, 'political', createInput.description, true, 'C001']);
+	});
+
+	it('drops the candidate answers for an organization that is not political', async () => {
+		createOrganizationApi.mockResolvedValue({ id: ORG, ...input, createdAt: new Date(0) });
+
+		await createOrganization(
+			'u1',
+			{ ...createInput, category: 'commercial', is_candidate: true, campaign_registration: 'C001' },
+			new Headers()
+		);
+
+		expect(profileUpdate()?.[1]).toEqual([ORG, 'commercial', createInput.description, false, null]);
+	});
+
+	it('still returns the organization when saving the profile fails', async () => {
+		createOrganizationApi.mockResolvedValue({ id: ORG, ...input, createdAt: new Date(0) });
+		const query = mockClient.query.getMockImplementation()!;
+		mockClient.query.mockImplementation((sql: string) =>
+			sql.includes('SET category') ? Promise.reject(new Error('boom')) : query(sql)
+		);
+
+		await expect(createOrganization('u1', createInput, new Headers())).resolves.toMatchObject({
+			id: ORG
+		});
+	});
+
 	it('records the organization_created event for the creator', async () => {
 		createOrganizationApi.mockResolvedValue({ id: ORG, ...input, createdAt: new Date(0) });
 
-		await createOrganization('u1', input, new Headers());
+		await createOrganization('u1', createInput, new Headers());
 
-		expect(capture).toHaveBeenCalledWith('u1', 'organization_created', { organization_id: ORG });
+		expect(capture).toHaveBeenCalledWith('u1', 'organization_created', {
+			organization_id: ORG,
+			category: 'nonprofit'
+		});
 	});
 
 	it('does not record the event when the slug is taken', async () => {
 		stub({ slugTaken: true });
 
-		await expect(createOrganization('u1', input, new Headers())).rejects.toBeTruthy();
+		await expect(createOrganization('u1', createInput, new Headers())).rejects.toBeTruthy();
 		expect(capture).not.toHaveBeenCalled();
 	});
 
 	it('returns 403 when creation is disabled', async () => {
 		stub({ creation: 'false' });
 
-		await expect(createOrganization('u1', input, new Headers())).rejects.toMatchObject({
+		await expect(createOrganization('u1', createInput, new Headers())).rejects.toMatchObject({
 			status: 403
 		});
 		expect(createOrganizationApi).not.toHaveBeenCalled();
@@ -104,7 +168,7 @@ describe('createOrganization', () => {
 	it('returns 409 when the slug is taken', async () => {
 		stub({ slugTaken: true });
 
-		await expect(createOrganization('u1', input, new Headers())).rejects.toMatchObject({
+		await expect(createOrganization('u1', createInput, new Headers())).rejects.toMatchObject({
 			status: 409
 		});
 		expect(createOrganizationApi).not.toHaveBeenCalled();
