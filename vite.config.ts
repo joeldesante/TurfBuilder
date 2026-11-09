@@ -37,7 +37,6 @@ const mockingSpecs = [
 	'src/stories/components/data-display/locations-map/LocationsMap.svelte.spec.ts',
 	'src/stories/pages/o/map/TurfMapPage.svelte.spec.ts',
 	'src/stories/pages/o/s/universe/data/locations/UniverseDataLocationsPage.svelte.spec.ts',
-	'src/stories/pages/o/s/universe/data/locations/import/OvertureImportPage.svelte.spec.ts',
 	'src/stories/pages/o/s/universe/metrics/UniverseMetricsPage.svelte.spec.ts',
 	'src/stories/pages/orgs/OrgPicker.svelte.spec.ts'
 ];

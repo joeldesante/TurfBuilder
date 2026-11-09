@@ -28,21 +28,21 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('PATCH /api/v1/integrations/[integration_id]', () => {
 	it('answers 401 when signed out', async () => {
-		await expect(patch('overture_maps', { enabled: true }, {})).rejects.toMatchObject({
+		await expect(patch('van', { enabled: true }, {})).rejects.toMatchObject({
 			status: 401
 		});
 	});
 
 	it('answers 400 for a malformed id or a body without a boolean', async () => {
 		await expect(patch('../x', { enabled: true })).rejects.toMatchObject({ status: 400 });
-		await expect(patch('overture_maps', { enabled: 'yes' })).rejects.toMatchObject({ status: 400 });
+		await expect(patch('van', { enabled: 'yes' })).rejects.toMatchObject({ status: 400 });
 		expect(setIntegrationEnabled).not.toHaveBeenCalled();
 	});
 
 	it('hands the change to the service and echoes it', async () => {
-		const res = await patch('overture_maps', { enabled: false });
+		const res = await patch('van', { enabled: false });
 
 		expect(await res.json()).toEqual({ enabled: false });
-		expect(setIntegrationEnabled).toHaveBeenCalledWith('u1', 'overture_maps', false);
+		expect(setIntegrationEnabled).toHaveBeenCalledWith('u1', 'van', false);
 	});
 });

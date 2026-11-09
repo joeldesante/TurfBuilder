@@ -214,10 +214,6 @@ what was reported and turned down is worth having.
 
 ---
 
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/import/overture`
-
----
-
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/suggestions/{id}/approve`
 
 Accepts a volunteer's field addition into the organization's universe.

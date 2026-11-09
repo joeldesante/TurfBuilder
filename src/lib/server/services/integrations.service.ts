@@ -7,7 +7,7 @@ import type { IntegrationDef } from '$lib/server/integrations';
 import { audit } from './audit.service';
 
 /**
- * Data integrations (Overture Maps and so on). Whether each is on is a system
+ * Data integrations (Google Sheets, VAN and so on). Whether each is on is a system
  * setting (`integration.{id}.enabled`), so it is the same for every
  * organization on the instance: staff can see it, and only infra admins with
  * `settings.manage` can change it.

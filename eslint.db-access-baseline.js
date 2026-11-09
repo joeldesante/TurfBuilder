@@ -25,7 +25,6 @@ export default [
 	'src/routes/o/[org_slug]/s/api/universe/locations/edits/[id]/approve/+server.ts',
 	'src/routes/o/[org_slug]/s/api/universe/locations/edits/[id]/reject/+server.ts',
 	'src/routes/o/[org_slug]/s/api/universe/locations/import/+server.ts',
-	'src/routes/o/[org_slug]/s/api/universe/locations/import/overture/+server.ts',
 	'src/routes/o/[org_slug]/s/api/universe/locations/suggestions/[id]/approve/+server.ts',
 	'src/routes/o/[org_slug]/s/api/universe/locations/suggestions/[id]/reject/+server.ts',
 	'src/routes/o/[org_slug]/s/api/universe/metrics/results/+server.ts',

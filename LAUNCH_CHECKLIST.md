@@ -4,23 +4,6 @@ A breakdown of features required before launch, organized by domain and broken i
 
 ---
 
-## 1. Overture Data Import
-
-A map-based interface for selecting a geographic region and importing data from Overture Maps. Must be accessible to both infra admins and org admins, with deduplication to prevent redundant downloads.
-
-- [ ] Research Overture Maps API — understand tile/region query format and data schema
-- [ ] Design deduplication strategy (e.g. track downloaded regions or tile hashes in the database)
-- [ ] Add schema for tracking import jobs and downloaded regions in a migration under `migrations/`
-- [ ] Build map selection UI (region bounding box or polygon draw using MapLibre + Geoman)
-- [ ] Build import API endpoint that queries Overture and inserts into the local database
-- [ ] Wire deduplication check into the import endpoint
-- [ ] Expose the import page at `/infra/data/overture` for infra admins
-- [ ] Expose the import page at `/o/[org_slug]/s/data/overture` for org admins
-- [ ] Add stories and tests for the map selection component
-- [ ] Add stories and tests for the import status/result display component
-
----
-
 ## 2. Stripe Donations
 
 A plugin that enables organizations to collect donations via Stripe. Must be globally toggle-able by infra admins.

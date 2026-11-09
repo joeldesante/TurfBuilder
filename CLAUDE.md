@@ -307,7 +307,6 @@ Resolved by `resolveInfraPermissions()` from `$lib/server/permissions`. Required
 | `orgs.manage` | Suspend, delete, restore, and transfer organizations; remove members |
 | `settings.manage` | Manage system settings and email templates, read the email log, run migrations |
 | `audit.read` | Read the infra audit log |
-| `locations.overture_sync` | Run Overture data sync |
 
 Services check access themselves with `requireInfraPermission(userId, key)` (403 when missing); `hooks.server.ts` resolves `locals.infrastructure.permissions` once per request. Every infra change calls `audit()`. Full guide: `docs/guides/infrastructure.md`.
 

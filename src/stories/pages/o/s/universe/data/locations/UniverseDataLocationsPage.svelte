@@ -85,7 +85,6 @@
 	}: Props = $props();
 
 	const importItems = $derived([
-		{ label: 'Overture', href: `/o/${orgSlug}/s/universe/data/locations/import/overture` },
 		{
 			label: 'Google Sheets',
 			href: `/o/${orgSlug}/s/universe/data/locations/import/google-sheets`
