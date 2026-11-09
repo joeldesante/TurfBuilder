@@ -135,3 +135,27 @@ test('setup seeded the object storage settings', async () => {
 	);
 	expect(rows.map((row) => row.key)).toEqual(['spaces.bucket', 'spaces.endpoint', 'spaces.region']);
 });
+
+test('list entries and turf doors record the address version they were made with', async () => {
+	const columns = await db.query<{ table_name: string; is_nullable: string }>(
+		`SELECT table_name, is_nullable FROM information_schema.columns
+		  WHERE table_schema = 'universe' AND column_name = 'address_id'
+		    AND table_name IN ('list_entry', 'turf_location') ORDER BY table_name`
+	);
+	expect(columns.rows.map((r) => r.table_name)).toEqual(['list_entry', 'turf_location']);
+
+	const refs = await db.query<{ table_name: string; target: string }>(
+		`SELECT cl.relname AS table_name, ct.relname AS target
+		   FROM pg_constraint c
+		   JOIN pg_class cl ON cl.oid = c.conrelid
+		   JOIN pg_class ct ON ct.oid = c.confrelid
+		  WHERE c.contype = 'f' AND cl.relname IN ('list_entry', 'turf_location')
+		    AND ct.relname IN ('org_address', 'org_contact')
+		  ORDER BY cl.relname, ct.relname`
+	);
+	expect(refs.rows).toEqual([
+		{ table_name: 'list_entry', target: 'org_address' },
+		{ table_name: 'turf_location', target: 'org_address' },
+		{ table_name: 'turf_location', target: 'org_contact' }
+	]);
+});

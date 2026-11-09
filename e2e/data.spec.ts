@@ -367,7 +367,6 @@ test.describe('integrations and other data pages', () => {
 		);
 		expect(rows[0].value).toBe('true');
 		await admin.request.patch('/api/v1/integrations/van', { data: { enabled: false } });
-
 	});
 
 	test('the data sources page sends staff to the integrations', async ({ world }) => {
