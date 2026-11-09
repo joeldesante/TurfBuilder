@@ -157,7 +157,7 @@ can move the pin while the form is open and have it follow. |
 | `submitLabel` | `string | undefined` | — |  |
 | `cancelLabel` | `string | undefined` | — |  |
 | `instructions` | `string | undefined` | — | Copy shown above the fields, e.g. field instructions for volunteers. |
-| `orgSlug` | `string | undefined` | — | Enables photo attachment. Omit to hide the uploader entirely. |
+| `orgId` | `string | undefined` | — | Enables photo attachment. Omit to hide the uploader entirely. |
 | `maxPhotos` | `number | undefined` | — |  |
 | `onSubmit` | `(fields: LocationFields) => Promise<void>` | **required** |  |
 | `onCancel` | `(() => void) | undefined` | — |  |
@@ -174,7 +174,7 @@ can move the pin while the form is open and have it follow. |
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `keys` | `string[] | undefined` | — | Object keys of the uploaded photos. Bindable. |
-| `orgSlug` | `string` | **required** | Org slug, used to build the presign and read URLs. |
+| `orgId` | `string` | **required** | The organization the photos are uploaded to. |
 | `max` | `number | undefined` | — |  |
 | `label` | `string | undefined` | — |  |
 | `helperText` | `string | undefined` | — |  |

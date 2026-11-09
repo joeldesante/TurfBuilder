@@ -45,6 +45,7 @@
 
 <UniverseDataLocationsPage
 	orgSlug={data.organization.slug}
+	orgId={data.organization.id}
 	totalCount={data.totalCount}
 	page={data.page}
 	pageSize={data.pageSize}

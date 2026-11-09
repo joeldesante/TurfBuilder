@@ -107,7 +107,7 @@ const locations = [
 	}
 ];
 
-const base = { orgSlug: 'acme', totalCount: 2, locations };
+const base = { orgSlug: 'acme', orgId: 'o1', totalCount: 2, locations };
 
 beforeEach(() => {
 	for (const key of Object.keys(mapHandlers)) delete mapHandlers[key];

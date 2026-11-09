@@ -30,7 +30,6 @@
 </script>
 
 <LocationSuggestionsPage
-	orgSlug={data.organization.slug}
 	suggestions={data.suggestions}
 	edits={data.edits}
 	canApprove={data.canApprove}

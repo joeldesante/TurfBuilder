@@ -192,7 +192,7 @@ test.describe('the locations browser', () => {
 			'base64'
 		);
 
-		const presigned = await staff.request.post(`/o/${org.slug}/uploads/presign`, {
+		const presigned = await staff.request.post(`/api/v1/organizations/${org.id}/photo-uploads`, {
 			data: { contentType: 'image/png', contentLength: png.length }
 		});
 		expect(presigned.ok()).toBe(true);
@@ -210,12 +210,12 @@ test.describe('the locations browser', () => {
 		expect(res.ok()).toBe(true);
 		expect((await current(db, org.id, 'Liberty Bell')).photo_keys).toEqual([key]);
 
-		const photo = await staff.request.get(`/o/${org.slug}/uploads/${key}`, { maxRedirects: 0 });
+		const photo = await staff.request.get(`/api/v1/photos/${key}`, { maxRedirects: 0 });
 		expect(photo.status()).toBeLessThan(400);
 		const outsider = await world.as(await world.createOrg(), 'admin');
 		expect(
-			(await outsider.request.get(`/o/${org.slug}/uploads/${key}`, { maxRedirects: 0 })).status()
-		).toBeGreaterThanOrEqual(300);
+			(await outsider.request.get(`/api/v1/photos/${key}`, { maxRedirects: 0 })).status()
+		).toBe(404);
 	});
 
 	test('deleting a location from the list', async ({ world, db }) => {

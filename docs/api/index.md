@@ -16,4 +16,3 @@ All org-scoped routes are prefixed with `/o/{org_slug}/`.
 
 - [Public API](./public.md) — Unauthenticated endpoints for geographic location data. Used by the volunteer map to populate visible addresses.
 - [List Documents](./documents.md) — Staff endpoints for generating, polling, downloading, and deleting the printable PDF of a location list.
-- [Other](./other.md) — Miscellaneous endpoints.

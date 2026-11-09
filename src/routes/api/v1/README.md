@@ -107,6 +107,15 @@ Lists and turfs are snapshots: their entries and doors show the contact and addr
 | POST | /api/v1/doors/[door_id]/edits | turf member, open turf |
 | POST | /api/v1/doors/[door_id]/visits | turf member |
 
+### Photos
+
+Location photos are private objects. The browser asks for an upload link, sends the file straight to object storage, and saves the key on the location (`photo_keys`). A photo is shown through its key, which names the organization it belongs to.
+
+| Method | Path | Permission |
+|---|---|---|
+| POST | /api/v1/organizations/[organization_id]/photo-uploads | org member |
+| GET | /api/v1/photos/[...key] | member of the photo's org |
+
 ### Search and insights
 
 | Method | Path | Permission |

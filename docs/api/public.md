@@ -1051,6 +1051,26 @@ Imports people from a CSV upload. Invalid rows are skipped and reported.
 
 ---
 
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/photo-uploads`
+
+Starts a location photo upload: answers a presigned PUT the browser sends
+the file to, and the key to save on the location (`photo_keys`).
+
+**Auth:** org member  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `contentType` | `string` | ✓ | image/jpeg, image/webp, or image/png |
+| `contentLength` | `number` | ✓ | Byte size, max 5,000,000 |
+
+**Response**
+
+201 with `{ url, key }`. 400 for an invalid body or id, 401 when signed out, 404 when the caller is not a member, 503 when object storage is not set up
+
+---
+
 ### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}`
 
 Installs the plugin, or enables it again with the config it had.
@@ -1253,6 +1273,19 @@ How many people and locations the organization has now.
 **Response**
 
 `{ people: number, locations: number }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/photos/{...key}`
+
+Shows a stored location photo by redirecting to a short-lived presigned
+link. The key is the one the upload answered (`orgs/{org id}/locations/...`).
+
+**Auth:** org member  
+
+**Response**
+
+302 to the presigned link. 401 when signed out, 404 when the key is not a location photo in one of the caller's orgs, 503 when object storage is not set up
 
 ---
 

@@ -23,6 +23,8 @@
 
 	export interface Props {
 		orgSlug: string;
+		/** The organization photos are uploaded to. */
+		orgId: string;
 		totalCount: number;
 		/** One page of the list, already ordered and sliced by the server. */
 		locations: LocationRow[];
@@ -70,6 +72,7 @@
 
 	const {
 		orgSlug,
+		orgId,
 		totalCount,
 		locations,
 		page = 1,
@@ -373,7 +376,7 @@
 									latitude: editing.latitude ?? 0,
 									longitude: editing.longitude ?? 0
 								}}
-								{orgSlug}
+								{orgId}
 								submitLabel="Save changes"
 								onSubmit={handleUpdate}
 								onCancel={() => (editing = null)}
@@ -382,7 +385,7 @@
 					{:else if draft}
 						<LocationForm
 							coordinates={draft}
-							{orgSlug}
+							{orgId}
 							submitLabel="Add location"
 							onSubmit={handleCreate}
 							onCancel={cancelPlacing}

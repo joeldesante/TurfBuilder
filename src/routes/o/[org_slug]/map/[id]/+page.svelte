@@ -33,6 +33,7 @@
 
 <TurfMapPage
 	orgSlug={params.org_slug}
+	orgId={data.organization.id}
 	turfId={data.turfId}
 	locations={data.locations}
 	center={data.center}

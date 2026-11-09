@@ -2,8 +2,8 @@
 	export interface Props {
 		/** Object keys of the uploaded photos. Bindable. */
 		keys?: string[];
-		/** Org slug, used to build the presign and read URLs. */
-		orgSlug: string;
+		/** The organization the photos are uploaded to. */
+		orgId: string;
 		max?: number;
 		label?: string;
 		helperText?: string;
@@ -24,7 +24,7 @@
 
 	let {
 		keys = $bindable([]),
-		orgSlug,
+		orgId,
 		max = 3,
 		label = 'Photos',
 		helperText = 'Photograph the business name and address so an organizer can verify the details.',
@@ -64,14 +64,14 @@
 	}
 
 	async function upload(blob: Blob): Promise<string> {
-		const presignResponse = await fetch(`/o/${orgSlug}/uploads/presign`, {
+		const presignResponse = await fetch(`/api/v1/organizations/${orgId}/photo-uploads`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ contentType: blob.type, contentLength: blob.size })
 		});
 		if (!presignResponse.ok) {
 			const body = await presignResponse.json().catch(() => ({}));
-			throw new Error(body.error ?? 'Could not start the upload.');
+			throw new Error(body.message ?? 'Could not start the upload.');
 		}
 
 		const { url, key } = await presignResponse.json();
@@ -118,7 +118,7 @@
 			{#each keys as key (key)}
 				<li class="relative">
 					<img
-						src="/o/{orgSlug}/uploads/{key}"
+						src="/api/v1/photos/{key}"
 						alt="Uploaded photo of the business"
 						class="size-20 rounded-md border border-outline-subtle object-cover"
 					/>

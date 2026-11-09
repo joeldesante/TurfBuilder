@@ -162,14 +162,14 @@ test('follows the pin when the parent moves it', async () => {
 	expect(onSubmit.mock.calls[0][0]).toMatchObject({ latitude: 40.1, longitude: -75.9 });
 });
 
-test('hides the photo uploader unless an org slug is supplied', async () => {
+test('hides the photo uploader unless an org is supplied', async () => {
 	const { getByRole } = render(LocationForm, { props: base });
 
 	await expect.element(getByRole('button', { name: /Add photo/ })).not.toBeInTheDocument();
 });
 
-test('shows the photo uploader when an org slug is supplied', async () => {
-	const { getByRole } = render(LocationForm, { props: { ...base, orgSlug: 'acme' } });
+test('shows the photo uploader when an org is supplied', async () => {
+	const { getByRole } = render(LocationForm, { props: { ...base, orgId: 'o1' } });
 
 	await expect.element(getByRole('button', { name: /Add photo/ })).toBeVisible();
 });
@@ -179,7 +179,7 @@ test('carries existing photo keys through a submission', async () => {
 	const { getByRole } = render(LocationForm, {
 		props: {
 			...base,
-			orgSlug: 'acme',
+			orgId: 'o1',
 			onSubmit,
 			initialValues: { photo_keys: ['orgs/o1/locations/a.webp'] }
 		}
