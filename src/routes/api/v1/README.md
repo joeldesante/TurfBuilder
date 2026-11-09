@@ -58,7 +58,7 @@ An action that is not plain CRUD is a noun the client creates or removes, not a 
 
 ### Only services touch the database
 
-Routes (endpoints, page and layout loads), `hooks.server.ts`, plugins, pages and browser code never import `$lib/server/database` or `pg`, and never write SQL. They call a service, and the service owns the queries and the transaction. The service is the adapter: when storage changes, only the service changes, not its callers. ESLint enforces this (`no-restricted-imports` in `eslint.config.js`). Files written before the rule are listed in `eslint.db-access-baseline.js`; that list only shrinks.
+Routes (endpoints, page and layout loads), `hooks.server.ts`, plugins, pages and browser code never import `$lib/server/database` or `pg`, and never write SQL. They call a service, and the service owns the queries and the transaction. The service is the adapter: when storage changes, only the service changes, not its callers. ESLint enforces this (`no-restricted-imports` in `eslint.config.js`), with no exceptions.
 
 Public service functions take the caller's `userId` and the ids of what they act on, find the organization, check access, and open their own `withOrgTransaction`. `surveys.service.ts` is the reference. Functions that take a `PoolClient` are internal building blocks for other services (`contacts.service`, `addresses.service`, `query...Page`), and routes cannot call them.
 
@@ -74,6 +74,47 @@ Some endpoints serve both org members and infra admins:
 ### Errors
 
 Errors are SvelteKit `error(status, message)`, answered as `{ message }`. Messages are written for people, since the client shows them in a toast.
+
+## Organization endpoints
+
+### Locations
+
+A location is a contact (a business, for now) at an address. The endpoints keep the flat fields the forms use (`name`, `address_line_1`, `address_line_2`, `city`, `state_or_region`, `postal_code`, `country_code`, `latitude`, `longitude`, `photo_keys`); `locations.service` maps them onto the contact and address tables.
+
+| Method | Path | Permission |
+|---|---|---|
+| GET, POST | /api/v1/organizations/[organization_id]/locations | location.read, location.create |
+| GET | /api/v1/organizations/[organization_id]/location-markers | location.read |
+| POST | /api/v1/organizations/[organization_id]/location-imports | location.create |
+| PATCH, DELETE | /api/v1/locations/[entity_id] | location.update, location.delete |
+| PUT | /api/v1/location-suggestions/[suggestion_id]/approval | location.create |
+| DELETE | /api/v1/location-suggestions/[suggestion_id] | location.delete |
+| PUT | /api/v1/location-edits/[edit_id]/approval | location.update |
+| PUT | /api/v1/location-edits/[edit_id]/rejection | location.update |
+
+### Lists, turfs, and canvassing
+
+Lists and turfs are snapshots: their entries and doors show the contact and address versions recorded when they were made.
+
+| Method | Path | Permission |
+|---|---|---|
+| GET, POST | /api/v1/lists/[list_id]/turfs | staff, turf.create |
+| GET | /api/v1/lists/[list_id]/locations | staff |
+| GET | /api/v1/turfs/[turf_id] | staff |
+| GET | /api/v1/turfs/[turf_id]/doors | turf member |
+| POST | /api/v1/turfs/[turf_id]/locations | turf member, open turf |
+| PATCH, DELETE | /api/v1/turfs/[turf_id]/locations/[entity_id] | the volunteer who added it, while tentative and the turf is open |
+| POST | /api/v1/doors/[door_id]/edits | turf member, open turf |
+| POST | /api/v1/doors/[door_id]/visits | turf member |
+
+### Search and insights
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | /api/v1/organizations/[organization_id]/search | staff; each kind needs its read permission |
+| GET | /api/v1/organizations/[organization_id]/universe-stats | staff |
+| GET | /api/v1/surveys/[survey_id]/results | response.read |
+| POST | /api/v1/queries | infra access |
 
 ## Infrastructure endpoints
 

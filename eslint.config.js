@@ -9,7 +9,6 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import ts from 'typescript-eslint';
 import svelteConfig from './svelte.config.js';
-import dbAccessBaseline from './eslint.db-access-baseline.js';
 
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
@@ -35,7 +34,7 @@ export default defineConfig(
 		// access, opens the transaction and hides the tables, so storage can
 		// change without touching callers. contacts and addresses are internal
 		// building blocks for other services and take a client, so they are off
-		// limits here too. Files not yet moved are listed in the baseline.
+		// limits here too.
 		files: [
 			'src/routes/**',
 			'src/hooks.server.ts',
@@ -43,9 +42,7 @@ export default defineConfig(
 			'src/stories/**',
 			'src/lib/client/**'
 		],
-		// Route paths contain [param] segments, which are glob character
-		// classes; escape them so each baseline entry matches its file literally.
-		ignores: ['**/*.spec.ts', ...dbAccessBaseline.map((p) => p.replace(/[[\]]/g, '\\$&'))],
+		ignores: ['**/*.spec.ts'],
 		rules: {
 			'no-restricted-imports': [
 				'error',

@@ -55,7 +55,8 @@ describe('listBucketLists', () => {
 		const select = mockClient.query.mock.calls.find((c) =>
 			String(c[0]).includes('FROM universe.list')
 		)!;
-		expect(select[0]).toContain('bucket = $1 AND org_id = $2');
+		expect(select[0]).toContain('l.bucket = $1 AND l.org_id = $2');
+		expect(select[0]).toContain('AS entry_count');
 		expect(select[1]).toEqual([BUCKET, ORG]);
 	});
 

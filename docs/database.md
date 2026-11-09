@@ -65,7 +65,7 @@ erDiagram
     bucket ||--o{ survey : ""
     list ||--o{ list_entry : ""
     org_person |o..o{ list_entry : ""
-    org_location |o..o{ list_entry : ""
+    org_contact |o..o{ list_entry : ""
     list ||--o{ list_document : ""
     list_document |o--o{ list_document : ""
     list ||--o{ turf : ""
@@ -74,7 +74,7 @@ erDiagram
     script |o--o{ turf : ""
     turf ||--o{ turf_user : ""
     turf ||--o{ turf_location : ""
-    org_location |o--o{ turf_location : ""
+    org_contact ||--o{ turf_location : ""
     turf_location ||--o{ turf_location_attempt : ""
     turf_location_attempt ||--o{ survey_question_response : ""
     survey_question ||--o{ survey_question_response : ""
@@ -281,15 +281,17 @@ People, organizations, and locations. Each entity is a row in `org_entity`, priv
 
 Addresses follow the UPU S42 address elements for physical places (no addressee, no PO boxes). An address is versioned like the other entities, with one point of coordinates. A unit (apartment, suite, floor) is an address of its own, a complete row with the unit columns set and its own point, as the NENA and OGC address standards model subaddresses; nothing ties it to its building's row. An address split off another keeps a `split_from` relationship to it.
 
-A contact is anything canvassed at an address: a person, a place, or a thing. Existing locations are all businesses, so they become `business` contacts. The kinds share one versioned table, `org_contact`, and differ only in `metadata`, whose shape each kind declares in `$lib/shared/contact-types` (the database only checks that it is a JSON object). A contact points at one address entity, which may be a unit. Existing locations are being moved onto contacts (`scripts/backfill-addresses.ts`): each contact reuses its location's entity id, so the contract step can repoint lists and turfs by entity. Until then the app still reads `org_location`.
+A contact is anything canvassed at an address: a person, a place, or a thing. Existing locations are all businesses, so they become `business` contacts. The kinds share one versioned table, `org_contact`, and differ only in `metadata`, whose shape each kind declares in `$lib/shared/contact-types` (the database only checks that it is a JSON object). A contact points at one address entity, which may be a unit, and has the entity type `contact`. What the pages call a location is a contact at its address: the forms and the API keep the flat fields (`address_line_1`, `city`, `state_or_region`, `postal_code`), which map onto the address columns in `$lib/shared/utils/location-address` (and back, in SQL, in `$lib/server/services/contact-columns.ts`).
 
-Two views read current versions only: `v_people` (`org_person`) and `v_locations` (`org_location`, hiding tentative location suggestions). Both are filtered by `app.current_org_id`.
+`org_location` is the old location table. Every location version was copied into a contact version with the same id and entity (`scripts/backfill-addresses.ts`), and the app no longer reads or writes it; it is kept as the record the copy was made from.
+
+Two views read current versions only: `v_people` (`org_person`) and `v_contacts` (current contacts at their current addresses, in the flat location shape, hiding tentative location suggestions). Both are filtered by `app.current_org_id`.
 
 ```mermaid
 erDiagram
     entity_type {
         uuid id PK
-        text slug UK "person, organization, location, asset, address"
+        text slug UK "person, organization, location, asset, address, contact"
         text name
         text description
         timestamptz created_at
@@ -354,7 +356,7 @@ erDiagram
         timestamptz created_at
     }
     org_location {
-        uuid id PK "version"
+        uuid id PK "version, retired: no longer read or written"
         uuid org_id FK
         uuid entity_id FK
         text name
@@ -458,7 +460,7 @@ erDiagram
 
 ## Buckets, lists, and canvassing
 
-A bucket is a live filter over the universe. A list is a snapshot of a bucket: its `list_entry` rows point at the exact entity version rows that existed when it was made, and `record_source` says which version table `record_id` refers to (there is no foreign key). Turfs are cut from a list and point at those same location versions. `bucket.filters` and `list.filters` hold the filter editor document; `bucket.filter` is the older compiled query it replaces, and `list.filters` cannot change once set.
+A bucket is a live filter over the universe. A list is a snapshot of a bucket: its `list_entry` rows point at the exact entity version rows that existed when it was made, and `record_source` says which version table `record_id` refers to (`org_person` or `org_contact`; there is no foreign key). A contact only names its address entity, so a location entry also records the address version (`address_id`, required for `org_contact` entries). Turfs are cut from a list and their doors (`turf_location`) point at those same contact and address versions. Nothing about a list or its turfs changes when a location is edited, moved, or deleted. `bucket.filters` and `list.filters` hold the filter editor document; `bucket.filter` is the older compiled query it replaces, and `list.filters` cannot change once set.
 
 ```mermaid
 erDiagram
@@ -494,7 +496,8 @@ erDiagram
         uuid id PK
         uuid list_id FK
         uuid record_id "version row, no FK"
-        text record_source "which version table"
+        text record_source "org_person or org_contact"
+        uuid address_id FK "org_address version; required for org_contact"
     }
     list_document {
         uuid id PK
@@ -553,7 +556,8 @@ erDiagram
         uuid id PK
         uuid org_id FK
         uuid turf_id FK
-        uuid org_location_id FK
+        uuid contact_id FK "org_contact version, unique with turf_id"
+        uuid address_id FK "org_address version"
         timestamptz created_at
     }
     turf_location_attempt {
@@ -581,7 +585,8 @@ erDiagram
     bucket ||--o{ survey : "has"
     list ||--o{ list_entry : "contains"
     org_person |o..o{ list_entry : "record_id"
-    org_location |o..o{ list_entry : "record_id"
+    org_contact |o..o{ list_entry : "record_id"
+    org_address |o..o{ list_entry : "address_id"
     list ||--o{ list_document : "printed as"
     list_document |o--o{ list_document : "superseded_by"
     list ||--o{ turf : "cut into"
@@ -591,7 +596,8 @@ erDiagram
     turf ||--o{ turf_user : "assigned"
     auth_user ||--o{ turf_user : "canvasses"
     turf ||--o{ turf_location : "covers"
-    org_location |o--o{ turf_location : "version"
+    org_contact ||--o{ turf_location : "contact_id"
+    org_address ||--o{ turf_location : "address_id"
     turf_location ||--o{ turf_location_attempt : "visited in"
     auth_user ||--o{ turf_location_attempt : "makes"
     turf_location_attempt ||--o{ survey_question_response : "records"
@@ -600,7 +606,7 @@ erDiagram
 
 ## Field suggestions
 
-Canvassers can propose locations from the field. A new location is created as an `org_entity` with a `tentative` `location_suggestion` (at most one per entity), and stays out of `v_locations` until approved. A correction to an existing location goes in `location_edit_suggestion` with the proposed values; it targets an entity rather than a version, so it survives edits. Approving one writes a new version of the location.
+Canvassers can propose locations from the field. A new location is created as an `org_entity` with a `tentative` `location_suggestion` (at most one per entity), and stays out of `v_contacts` until approved. A correction to an existing location goes in `location_edit_suggestion` with the proposed values; it targets an entity rather than a version, so it survives edits. Approving one writes a new version of the location.
 
 ```mermaid
 erDiagram

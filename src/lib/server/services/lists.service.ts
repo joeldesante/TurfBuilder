@@ -1,7 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
-import { requireBucketOrg, requireListAccess, requireListOrg } from '$lib/server/list-access';
+import {
+	requireBucketOrg,
+	requireListAccess,
+	requireListOrg,
+	requireOrgPermission
+} from '$lib/server/list-access';
 import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
 import type { Page } from '$lib/shared/utils/pagination';
 import { canOrg } from '$lib/server/permissions';
@@ -18,9 +23,11 @@ export interface List {
 	entity_type: 'people' | 'locations';
 	expires_at: string;
 	created_at: string;
+	/** How many records the list holds. */
+	entry_count: number;
 }
 
-/** The lists in a bucket, newest first. 404 when it is in none of the caller's orgs, 403 without staff access. */
+/** The lists in a bucket with their sizes, newest first. 404 when it is in none of the caller's orgs, 403 without staff access. */
 export async function listBucketLists(userId: string, bucketId: string): Promise<List[]> {
 	const orgId = await requireBucketOrg(userId, bucketId);
 
@@ -28,10 +35,11 @@ export async function listBucketLists(userId: string, bucketId: string): Promise
 		if (!(await canOrg(client, userId, orgId, 'system.access'))) throw error(403, 'Forbidden');
 
 		const result = await client.query<List>(
-			`SELECT id, name, bucket, entity_type, expires_at, created_at
-			 FROM universe.list
-			 WHERE bucket = $1 AND org_id = $2
-			 ORDER BY created_at DESC`,
+			`SELECT l.id, l.name, l.bucket, l.entity_type, l.expires_at, l.created_at,
+			        (SELECT COUNT(*)::int FROM universe.list_entry le WHERE le.list_id = l.id) AS entry_count
+			 FROM universe.list l
+			 WHERE l.bucket = $1 AND l.org_id = $2
+			 ORDER BY l.created_at DESC`,
 			[bucketId, orgId]
 		);
 		return result.rows;
@@ -231,4 +239,130 @@ export async function createBucketList(
 
 	await recordEvent('list.created', { userId, orgId, sourceKey: `list.created:${created.id}` });
 	return created;
+}
+
+export interface BucketList {
+	id: string;
+	name: string;
+	entity_type: 'people' | 'locations';
+	expires_at: string;
+	created_at: string;
+	bucket_id: string;
+}
+
+/**
+ * A list of the bucket with that slug, for pages outside the bucket layout.
+ * 404 unless the caller is a member and the list is in that bucket, 403
+ * without staff access.
+ */
+export async function getBucketList(
+	userId: string,
+	orgId: string,
+	bucketSlug: string,
+	listId: string
+): Promise<BucketList> {
+	await requireOrgPermission(userId, orgId, 'system.access');
+
+	return withOrgTransaction(orgId, async (client) => {
+		const result = await client.query<BucketList>(
+			`SELECT l.id, l.name, l.entity_type, l.expires_at, l.created_at, l.bucket AS bucket_id
+			 FROM universe.list l
+			 JOIN universe.bucket b ON b.id = l.bucket AND b.org_id = l.org_id
+			 WHERE l.id = $1 AND l.org_id = $2 AND b.slug = $3`,
+			[listId, orgId, bucketSlug]
+		);
+		if (result.rowCount === 0) throw error(404, 'List not found');
+		return result.rows[0];
+	});
+}
+
+export interface ListTurfSummary {
+	id: string;
+	code: string;
+	expires_at: string;
+	created_at: string;
+	author: string;
+	survey_name: string | null;
+	/** Doors on the turf. */
+	location_count: string;
+	/** Doors visited at least once. */
+	attempted_count: string;
+}
+
+export interface ListDetail {
+	list: Omit<BucketList, 'bucket_id'>;
+	entries: ListEntry[];
+	entryCount: number;
+	page: number;
+	pageSize: number;
+	turfs: ListTurfSummary[];
+	/** Whether a generated PDF of the list is ready. */
+	hasPdf: boolean;
+}
+
+/**
+ * The list page: one page of a list's entries, its turfs with their progress,
+ * and whether its PDF is ready. 404 when the bucket is in none of the caller's
+ * orgs or the list is not in it, 403 without staff access.
+ */
+export async function getListDetail(
+	userId: string,
+	bucketId: string,
+	listId: string,
+	requested: number
+): Promise<ListDetail> {
+	const orgId = await requireBucketOrg(userId, bucketId);
+
+	return withOrgTransaction(orgId, async (client) => {
+		if (!(await canOrg(client, userId, orgId, 'system.access'))) throw error(403, 'Forbidden');
+
+		const listResult = await client.query<ListDetail['list']>(
+			`SELECT id, name, entity_type, expires_at, created_at
+			 FROM universe.list
+			 WHERE id = $1 AND bucket = $2 AND org_id = $3`,
+			[listId, bucketId, orgId]
+		);
+		const list = listResult.rows[0];
+		if (!list) throw error(404, 'List not found');
+
+		const entries = await queryListEntriesPage(client, orgId, list, requested);
+
+		const turfs = await client.query<ListTurfSummary>(
+			`SELECT t.id, t.code, t.expires_at, t.created_at,
+			        u.username AS author,
+			        s.name AS survey_name,
+			        COUNT(tl.id)::text AS location_count,
+			        COUNT(tla.id)::text AS attempted_count
+			 FROM universe.turf t
+			 JOIN auth.user u ON t.author_id = u.id
+			 LEFT JOIN universe.survey s ON t.survey_id = s.id AND s.org_id = t.org_id
+			 LEFT JOIN universe.turf_location tl ON tl.turf_id = t.id AND tl.org_id = t.org_id
+			 LEFT JOIN LATERAL (
+			   SELECT id FROM universe.turf_location_attempt
+			    WHERE turf_location_id = tl.id
+			    LIMIT 1
+			 ) tla ON true
+			 WHERE t.list_id = $1 AND t.org_id = $2
+			 GROUP BY t.id, u.username, s.name
+			 ORDER BY t.created_at DESC`,
+			[listId, orgId]
+		);
+
+		const pdf = await client.query(
+			`SELECT 1 FROM universe.list_document
+			 WHERE list_id = $1 AND org_id = $2 AND status = 'ready' AND deleted_at IS NULL
+			 LIMIT 1`,
+			[listId, orgId]
+		);
+
+		return {
+			list,
+			entries: entries.items,
+			entryCount: entries.totalCount,
+			page: entries.page,
+			pageSize: entries.pageSize,
+			turfs: turfs.rows,
+			hasPdf: (pdf.rowCount ?? 0) > 0
+		};
+	});
 }

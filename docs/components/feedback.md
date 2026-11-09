@@ -106,7 +106,7 @@ through.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `position` | `import("/Volumes/Storage/Development/TurfBuilder/node_modules/svelte-sonner/d...` | `'bottom-right'` | Where the stack of toasts sits on screen. |
+| `position` | `import("/home/user/turfbuilder/node_modules/svelte-sonner/dist/types").Positi...` | `'bottom-right'` | Where the stack of toasts sits on screen. |
 | `duration` | `number | undefined` | `6000` | How long a toast stays up, in milliseconds. |
 
 ---

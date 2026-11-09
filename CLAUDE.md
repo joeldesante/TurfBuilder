@@ -107,15 +107,14 @@ This is a multi-tenant canvassing platform. All data is scoped to an `organizati
 
 - `auth.*` — managed by better-auth: `user`, `session`, `account`, `organization`, `member`, `invitation`
 - `public.*` — app tables: `turf`, `survey`, `response`, `location`, `plugin_installation`, `permission_role`, `permission_role_entry`
-- `universe.*` — entities, locations, buckets, lists, turfs, and `list_document` (generated list PDFs). Universe tables name the org column `org_id`, not `organization_id`
+- `universe.*` — entities (people, addresses, contacts), buckets, lists, turfs, and `list_document` (generated list PDFs). Universe tables name the org column `org_id`, not `organization_id`
+- **Locations are contacts at addresses.** A location is a `business` contact (`universe.org_contact`, name in `metadata`, kinds in `$lib/shared/contact-types`) pointing at an address entity (`universe.org_address`, S42 fields). Pages and the API keep the flat fields (`address_line_1`, `address_line_2`, `city`, `state_or_region`, `postal_code`, `country_code`); `$lib/shared/utils/location-address` maps them onto the address columns and `$lib/server/services/contact-columns.ts` maps them back in SQL. Current reads use the `universe.v_contacts` view (current contact at its current address, tentative suggestions hidden). `universe.org_location` and `v_locations` are retired: nothing reads or writes the table, and the view is gone
 
 ### Entity versioning
 
 Universe entities (locations, people, organizations) are versioned: every update closes the current version (`valid_to = now()`) and inserts a new row. Never edit a version row in place.
 
-Lists snapshot the entity versions that exist when they are created (`list_entry.record_id`), and turfs are cut from lists with those same versions (`turf_location.*_location_id`). After creation, nothing about a list or its turfs changes when an entity is edited, re-imported, or deleted. List- and turf-scoped queries must read the referenced version, never swap in the current one or filter on `valid_to`. Current-version reads (`valid_to IS NULL`) belong to entity pages, the data browser, and building new lists.
-
-Known violations to fix: `repointToVersion()` in `src/lib/server/locations.ts` and the `valid_to` filters in turf and canvasser-map queries (#188).
+Lists snapshot the entity versions that exist when they are created (`list_entry.record_id`, with `record_source` `org_person` or `org_contact`), and turfs are cut from lists with those same versions (`turf_location.contact_id`). A contact only names its address entity, so location entries and turf doors also record the address version (`address_id`, required). After creation, nothing about a list or its turfs changes when an entity is edited, moved, re-imported, or deleted. List- and turf-scoped queries join the recorded contact and address versions, never the current ones, and never filter on `valid_to`. Current-version reads (`valid_to IS NULL`, or `v_contacts`) belong to entity pages, the data browser, and building new lists. The one exception: a volunteer's own tentative addition, which they may still correct, moves its door to the corrected version.
 
 ### RBAC model
 
@@ -200,8 +199,7 @@ toast.error('The PDF could not be generated.');
 - **Staff-facing:** `/o/[org_slug]/s/` — organizers; turfs, surveys, data, users, settings
 - **Plugin pages (staff):** `/o/[org_slug]/s/plugins/[plugin_slug]/[...path]`
 - **Plugin pages (volunteer):** `/o/[org_slug]/plugins/[plugin_slug]/[...path]`
-- **Internal API:** `/o/[org_slug]/s/api/` — JSON endpoints consumed by fetch in route files
-- **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Currently: list documents and the infrastructure panel
+- **Versioned API:** `/api/v1/`, laid out as `src/routes/api/v1/README.md` describes: collections are nested under their parent (`/api/v1/lists/[list_id]/documents`, `/api/v1/organizations/[organization_id]/...`), single resources are flat (`/api/v1/documents/[document_id]`). Outside `/o/[org_slug]`, so hooks do not resolve `locals.organization` and no layout guard runs. Each handler checks access itself (see `$lib/server/list-access.ts`): a flat URL carries no org id, so the handler finds which of the caller's orgs holds the row (RLS hides it from the others) and answers 404 when none does. Every endpoint lives here: there is no `/o/[org_slug]/s/api/` and no `+server.ts` under the canvasser map (`/o/[org_slug]/map/[id]`); canvassers call `/api/v1/turfs/[turf_id]/...` and `/api/v1/doors/[door_id]/...`
 - **All API lives in `/api/v1`:** there is no v2 and no `api/+server.ts` inside page routes. Handlers stay thin (`requireUser`, `parseId`, `parseBody` with a Zod schema, one service call). Page loads call services directly; everything else fetches `/api/v1` through `$lib/client/api`. Extend an existing endpoint rather than versioning it
 - **Global utilities:** `/join` (turf code entry), `/orgs` (org picker), `/orgs/create`, `/invite/[token]`
 - **Infrastructure:** `/infra/` — overview, metrics, organizations, users, admins, audit log, settings and email templates, system health, migrations (requires infra permissions). Admins also get a floating quick menu (`InfraQuickMenu`) on every other page
@@ -226,7 +224,7 @@ if (!locals.organization.role) throw error(403, 'Forbidden');
 
 ### Only services touch the database
 
-Routes, `hooks.server.ts`, plugins, stories and `$lib/client` never import `$lib/server/database` or `pg` and never write SQL; they call a service in `$lib/server/services`. Public service functions take `userId` plus ids, check access, and open their own transaction (`surveys.service.ts` is the reference). Functions that take a `PoolClient` (`contacts.service`, `addresses.service`, `query...Page`) are internal to services. ESLint enforces this; `eslint.db-access-baseline.js` lists files not yet moved, and it only shrinks. See `src/routes/api/v1/README.md`.
+Routes, `hooks.server.ts`, plugins, stories and `$lib/client` never import `$lib/server/database` or `pg` and never write SQL; they call a service in `$lib/server/services`. Public service functions take `userId` plus ids, check access, and open their own transaction (`surveys.service.ts` is the reference). Functions that take a `PoolClient` (`contacts.service`, `addresses.service`, `query...Page`) are internal to services. ESLint enforces this with no exceptions. See `src/routes/api/v1/README.md`.
 
 ### Inside services: `withOrgTransaction`
 
@@ -319,6 +317,7 @@ Platform tables (no org RLS, on the schema spec's `RLS_EXEMPT` list): `activity_
 Schema changes are node-pg-migrate SQL files in `migrations/`, applied in filename order, one transaction per file, before each deploy. Create one with `npm run migrate:create <name>` and apply it locally with `npm run migrate`. Never edit or rename a migration that has been merged: environments record applied files by name. A new migration should fail loudly rather than tolerate objects that already exist (the first ten files were moved from `setup-schema.ts` and are safe to rerun; that is the exception).
 
 - **First install:** `npm run migrate`, then `npm run setup` (`scripts/setup.ts`). It saves `base_url` and `application_name`, creates the first admin with a verified email, and gives them every infrastructure permission. It asks for what is missing in a terminal; elsewhere pass flags and `--password-stdin` (`npm run setup -- --help`). The spec is `scripts/setup.spec.ts`
+- **Contacts cutover (#237):** `20261109120000000_contacts-cutover` refuses to run while any `org_location` version has no contact. Before deploying it, put the app in maintenance mode (`MAINTENANCE_MODE=true`), run `scripts/backfill-addresses.ts --apply`, then deploy (which migrates) and turn maintenance mode off
 - The app has no setup or migration page. While the database is not migrated, not set up, or unreachable, every request answers 503 with a plain page for the matching code in `src/lib/shared/registries/error-codes.ts`
 
 ### System Settings
