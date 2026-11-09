@@ -339,7 +339,7 @@ export async function getListDetail(
 			 LEFT JOIN universe.turf_location tl ON tl.turf_id = t.id AND tl.org_id = t.org_id
 			 LEFT JOIN LATERAL (
 			   SELECT id FROM universe.turf_location_attempt
-			    WHERE turf_location_id = tl.id
+			    WHERE turf_location_id = tl.id AND org_id = t.org_id
 			    LIMIT 1
 			 ) tla ON true
 			 WHERE t.list_id = $1 AND t.org_id = $2

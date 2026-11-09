@@ -96,7 +96,7 @@ async function buildAuth() {
 			}
 		},
 		user: {
-			// For placeholder accounts only (see change-email-guard.ts): the
+			// For placeholder accounts only (see utils/change-email-guard.ts): the
 			// verification link goes to the new address.
 			changeEmail: { enabled: true },
 			fields: {

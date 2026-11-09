@@ -115,9 +115,11 @@ export async function getSurveyResults(
 			JOIN universe.turf_location tl ON tl.turf_id = t.id AND tl.org_id = t.org_id
 			JOIN universe.org_contact c ON c.id = tl.contact_id AND c.org_id = t.org_id
 			JOIN universe.org_address a ON a.id = tl.address_id AND a.org_id = t.org_id
-			JOIN universe.turf_location_attempt tla ON tla.turf_location_id = tl.id
-			JOIN universe.survey_question_response sqr ON sqr.turf_location_attempt_id = tla.id
-			JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id
+			JOIN universe.turf_location_attempt tla
+				ON tla.turf_location_id = tl.id AND tla.org_id = t.org_id
+			JOIN universe.survey_question_response sqr
+				ON sqr.turf_location_attempt_id = tla.id AND sqr.org_id = t.org_id
+			JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = t.org_id
 			LEFT JOIN auth."user" u ON u.id = tla.user_id
 			WHERE t.org_id = $1
 				AND l.bucket = $2

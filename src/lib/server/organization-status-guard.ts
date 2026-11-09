@@ -1,6 +1,6 @@
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { POOL } from '$lib/server/database';
-import { checkChangeEmail } from '$lib/server/change-email-guard';
+import { checkChangeEmail } from '$lib/server/utils/change-email-guard';
 
 /**
  * better-auth's organization endpoints that do not act on one organization,

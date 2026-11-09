@@ -12,7 +12,7 @@ export const memberPermissionSchema = z.object({
 
 /**
  * Body of `POST /api/v1/organizations/{organization_id}/invite-links`. The
- * expiry is a date (`2026-12-31`, the start of that day) or an ISO datetime;
+ * expiry is a date (`2026-12-31`, good through that day in UTC) or an ISO datetime;
  * null or omitted means the link never expires.
  */
 export const createInviteLinkSchema = z.object({

@@ -2,7 +2,8 @@ import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { requireMemberOrg, requireOrgPermission } from '$lib/server/list-access';
-import { canInfra, canOrg } from '$lib/server/permissions';
+import { canInfra } from '$lib/server/permissions';
+import { requirePermission } from '$lib/server/utils/require-permission';
 import { PERMISSIONS } from '$lib/permissions-config';
 import { recordEvent } from '$lib/server/services/activity.service';
 import type { MemberDetail } from '$lib/shared/types/members';
@@ -93,10 +94,6 @@ export async function listMembers(
 	if (!(await canInfra(userId, 'access'))) await requireOrgPermission(userId, orgId, 'member.read');
 
 	return withOrgTransaction(orgId, (client) => queryMembersPage(client, orgId, requested, q));
-}
-
-async function requirePermission(client: PoolClient, userId: string, orgId: string, key: string) {
-	if (!(await canOrg(client, userId, orgId, key))) throw error(403, 'Forbidden');
 }
 
 /**

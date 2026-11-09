@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { withOrgTransaction } from '$lib/server/database';
 import { requireOrgPermission, requireRoleOrg } from '$lib/server/list-access';
-import { canOrg } from '$lib/server/permissions';
+import { requirePermission } from '$lib/server/utils/require-permission';
 import { VALID_PERMISSION_KEYS } from '$lib/permissions-config';
 import type { CreateRoleInput } from '$lib/shared/schemas/roles';
 import type { Role, RoleOption } from '$lib/shared/types/roles';
@@ -26,10 +26,6 @@ const ROLE_SELECT = `
 	LEFT JOIN registered_permission rp ON rp.id = pre.registered_permission_id`;
 
 const DEFAULT_WEIGHT = 500;
-
-async function requirePermission(client: PoolClient, userId: string, orgId: string, key: string) {
-	if (!(await canOrg(client, userId, orgId, key))) throw error(403, 'Forbidden');
-}
 
 /** The org's roles, highest priority first. 404 unless the caller is a member, 403 without `role.read`. */
 export async function listRoles(userId: string, orgId: string): Promise<Role[]> {
@@ -72,14 +68,9 @@ export async function getRole(userId: string, roleId: string): Promise<Role> {
 	return withOrgTransaction(orgId, async (client) => {
 		await requirePermission(client, userId, orgId, 'role.read');
 
-		const result = await client.query<Role>(
-			`${ROLE_SELECT}
-			 WHERE pr.id = $1 AND pr.organization_id = $2
-			 GROUP BY pr.id`,
-			[roleId, orgId]
-		);
-		if (result.rowCount === 0) throw error(404, 'Role not found');
-		return result.rows[0];
+		const role = await readRole(client, orgId, roleId);
+		if (!role) throw error(404, 'Role not found');
+		return role;
 	});
 }
 

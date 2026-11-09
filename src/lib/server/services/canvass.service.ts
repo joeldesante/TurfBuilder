@@ -477,11 +477,15 @@ export async function updateSuggestedLocation(
 		);
 		if (!version) throw error(404, 'Location not found.');
 
-		// The volunteer's own draft: its door shows what they typed last.
+		// The volunteer's own draft: its door shows what they typed last. The door
+		// is found by entity, not by the version just replaced: staff may have
+		// edited the addition since, which leaves the door on an earlier version.
 		await client.query(
 			`UPDATE universe.turf_location SET contact_id = $1, address_id = $2
-			  WHERE turf_id = $3 AND org_id = $4 AND contact_id = $5`,
-			[version.versionId, version.addressId, turfId, orgId, version.oldVersionId]
+			  WHERE turf_id = $3 AND org_id = $4
+			    AND contact_id IN (
+			      SELECT id FROM universe.org_contact WHERE entity_id = $5 AND org_id = $4)`,
+			[version.versionId, version.addressId, turfId, orgId, entityId]
 		);
 
 		return { entity_id: entityId, id: version.versionId };

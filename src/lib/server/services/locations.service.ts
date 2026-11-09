@@ -90,6 +90,9 @@ export interface LocationVersion {
  * Creates a location: a new address and a contact at it.
  *
  * @param sourceRef recorded on the contact's entity, as imports name where a row came from
+ * @param fallbackCountry the org's default country when the caller already
+ *   read it (an import reads it once for all its rows); looked up otherwise,
+ *   and only for a location that names no country
  */
 export async function insertLocation(
 	client: PoolClient,
@@ -97,12 +100,19 @@ export async function insertLocation(
 	fields: LocationFields,
 	authoredBy: string | null,
 	source: string,
-	sourceRef: string | null = null
+	sourceRef: string | null = null,
+	fallbackCountry?: string
 ): Promise<LocationVersion> {
+	// A location that names its country never uses the fallback, so the
+	// aggregate behind it is not run for one.
+	const country = fields.country_code?.trim()
+		? FALLBACK_COUNTRY
+		: (fallbackCountry ?? (await defaultCountry(client, orgId)));
+
 	const address = await insertAddress(
 		client,
 		orgId,
-		locationToAddress(fields, await defaultCountry(client, orgId)),
+		locationToAddress(fields, country),
 		authoredBy,
 		source
 	);
@@ -344,12 +354,15 @@ export async function deleteUnreviewedLocation(
 	await client.query(
 		`DELETE FROM universe.org_entity e
 		  WHERE e.id = ANY($1) AND e.org_id = $2
-		    AND NOT EXISTS (SELECT 1 FROM universe.org_contact c WHERE c.address_entity_id = e.id)
+		    AND NOT EXISTS (
+		      SELECT 1 FROM universe.org_contact c
+		       WHERE c.address_entity_id = e.id AND c.org_id = e.org_id)
 		    AND NOT EXISTS (
 		      SELECT 1 FROM universe.org_address a
-		       WHERE a.entity_id = e.id
+		       WHERE a.entity_id = e.id AND a.org_id = e.org_id
 		         AND (EXISTS (SELECT 1 FROM universe.list_entry le WHERE le.address_id = a.id)
-		           OR EXISTS (SELECT 1 FROM universe.turf_location tl WHERE tl.address_id = a.id)))`,
+		           OR EXISTS (SELECT 1 FROM universe.turf_location tl
+		                       WHERE tl.address_id = a.id AND tl.org_id = e.org_id)))`,
 		[addresses.rows.map((r) => r.address_entity_id), orgId]
 	);
 	return true;
@@ -852,13 +865,20 @@ export async function importLocationsCsv(
 	if (valid.length > 0) {
 		const started = Date.now();
 		await withOrgTransaction(orgId, async (client) => {
+			// Read once for the file rather than once per row.
+			const fallbackCountry = valid.some((row) => !row.country_code)
+				? await defaultCountry(client, orgId)
+				: undefined;
+
 			for (const row of valid) {
 				await insertLocation(
 					client,
 					orgId,
 					{ ...row, country_code: row.country_code?.toUpperCase() ?? null, photo_keys: [] },
 					userId,
-					'manual_import'
+					'manual_import',
+					null,
+					fallbackCountry
 				);
 			}
 		});

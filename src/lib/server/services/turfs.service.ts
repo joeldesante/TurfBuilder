@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import type { PoolClient } from 'pg';
 import { customAlphabet } from 'nanoid';
 import { z } from 'zod';
 import { withOrgTransaction } from '$lib/server/database';
@@ -9,7 +8,7 @@ import {
 	requireListOrg,
 	requireTurfOrg
 } from '$lib/server/list-access';
-import { canOrg } from '$lib/server/permissions';
+import { requirePermission } from '$lib/server/utils/require-permission';
 import { recordEvent } from './activity.service';
 import { line1Sql, nameSql } from './contact-columns';
 
@@ -57,16 +56,6 @@ export async function joinTurfByCode(
 // A turf is a snapshot of its list: each door records the contact version and
 // the address version the list recorded, and these reads show exactly those.
 // ---------------------------------------------------------------------------
-
-/** 403 without the permission. Must run inside withOrgTransaction. */
-async function requirePermission(
-	client: PoolClient,
-	userId: string,
-	orgId: string,
-	permission: string
-): Promise<void> {
-	if (!(await canOrg(client, userId, orgId, permission))) throw error(403, 'Forbidden');
-}
 
 export const CreateTurfsSchema = z.object({
 	polygons: z
