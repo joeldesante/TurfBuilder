@@ -49,6 +49,8 @@
 	});
 
 	afterNavigate((navigation) => {
+		// 'enter' is the first page of a full load; a loader raised on it cuts in instead of fading.
+		pageLoader.fullLoad = navigation.type === 'enter';
 		trackPageview(page.route.id);
 		// The new page is on screen now, so let the loader fade out over it.
 		// Unless the page hides it itself: the org picker keeps it up until its list has loaded.
@@ -150,6 +152,7 @@
 
 <PageLoader
 	visible={pageLoader.active}
+	cutIn={pageLoader.cutIn}
 	logoDelayMs={pageLoader.logoDelayMs}
 	logoMinMs={pageLoader.logoMinMs}
 	slowMessageDelayMs={pageLoader.slowMessageDelayMs}
