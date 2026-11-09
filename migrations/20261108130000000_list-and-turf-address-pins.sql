@@ -2,8 +2,9 @@
 -- Lists and turfs are snapshots: they must keep the address a door had when
 -- they were made. A contact points at an address entity, not at one address
 -- version, so each list entry and turf door now records the address version
--- itself. This step only adds what is needed; the code still reads the old
--- columns, and the next migration switches it over.
+-- itself. This step only adds and fills the column; the code still reads the
+-- old columns, and a later migration (with the code that switches over) points
+-- turf doors at contacts and makes the column required.
 --
 -- The backfill gave every location version a contact version with the same id,
 -- so list_entry.record_id and turf_location.org_location_id already name the
@@ -14,11 +15,6 @@ ALTER TABLE universe.turf_location ADD COLUMN address_id UUID REFERENCES univers
 
 CREATE INDEX list_entry_address_idx ON universe.list_entry (address_id) WHERE address_id IS NOT NULL;
 CREATE INDEX turf_location_address_idx ON universe.turf_location (address_id);
-
--- A turf door must be a contact version as well as a location version.
-ALTER TABLE universe.turf_location
-	ADD CONSTRAINT turf_location_contact_fkey
-	FOREIGN KEY (org_location_id) REFERENCES universe.org_contact(id) ON DELETE CASCADE;
 
 ALTER TABLE universe.list_entry DROP CONSTRAINT list_entry_record_source_check;
 ALTER TABLE universe.list_entry ADD CONSTRAINT list_entry_record_source_check

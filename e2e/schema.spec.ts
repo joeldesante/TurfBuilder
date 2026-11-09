@@ -150,12 +150,11 @@ test('list entries and turf doors record the address version they were made with
 		   JOIN pg_class cl ON cl.oid = c.conrelid
 		   JOIN pg_class ct ON ct.oid = c.confrelid
 		  WHERE c.contype = 'f' AND cl.relname IN ('list_entry', 'turf_location')
-		    AND ct.relname IN ('org_address', 'org_contact')
+		    AND ct.relname = 'org_address'
 		  ORDER BY cl.relname, ct.relname`
 	);
 	expect(refs.rows).toEqual([
 		{ table_name: 'list_entry', target: 'org_address' },
-		{ table_name: 'turf_location', target: 'org_address' },
-		{ table_name: 'turf_location', target: 'org_contact' }
+		{ table_name: 'turf_location', target: 'org_address' }
 	]);
 });
