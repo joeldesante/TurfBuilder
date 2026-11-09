@@ -43,7 +43,7 @@ export const MAX_POINTS = 5000;
 
 /**
  * The CTEs shared by every dashboard query:
- *   scope    - locations in scope (current versions, the v_locations view)
+ *   scope    - locations in scope (current versions, the v_contacts view)
  *   attempts - visits in the org, or on turfs cut from the bucket's lists, within
  *              the range, keyed by location entity so older versions still count
  *   scoped   - attempts at locations in scope
@@ -68,7 +68,7 @@ function scopeSql(
 		sql = built.sql;
 		params = built.params;
 	} else {
-		sql = `SELECT ${columns.join(', ')} FROM universe.v_locations`;
+		sql = `SELECT ${columns.join(', ')} FROM universe.v_contacts`;
 		params = [];
 	}
 
@@ -81,12 +81,12 @@ function scopeSql(
 			SELECT DISTINCT ON (entity_id) * FROM (${sql}) s
 		),
 		attempts AS (
-			SELECT ol.entity_id, a.contact_made, a.created_at
+			SELECT oc.entity_id, a.contact_made, a.created_at
 			FROM universe.turf_location_attempt a
 			JOIN universe.turf_location tl ON tl.id = a.turf_location_id AND tl.org_id = ${org}
 			JOIN universe.turf t ON t.id = tl.turf_id AND t.org_id = ${org}
 			JOIN universe.list l ON l.id = t.list_id AND l.org_id = ${org}
-			JOIN universe.org_location ol ON ol.id = tl.org_location_id AND ol.org_id = ${org}
+			JOIN universe.org_contact oc ON oc.id = tl.contact_id AND oc.org_id = ${org}
 			WHERE a.org_id = ${org}
 				AND (${bucketId}::uuid IS NULL OR l.bucket = ${bucketId}::uuid)
 				AND (${since}::interval IS NULL OR a.created_at > now() - ${since}::interval)
@@ -105,7 +105,7 @@ function scopeSql(
 /**
  * Counts how many locations are in scope, how many have been visited, and how
  * many conversations those visits produced. Must run inside withOrgTransaction:
- * v_locations scopes org rows through app.current_org_id.
+ * v_contacts scopes org rows through app.current_org_id.
  */
 export async function getDashboardProgress(
 	client: PoolClient,

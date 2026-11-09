@@ -12,8 +12,12 @@ test.use({ launchOptions: { args: ['--host-resolver-rules=MAP s3 127.0.0.1'] } }
 
 async function current(db: import('pg').Client, orgId: string, name: string) {
 	const { rows } = await db.query(
-		`SELECT entity_id, name, address_line_1, ST_Y(coordinates) AS lat, ST_X(coordinates) AS lng, photo_keys
-		 FROM universe.org_location WHERE org_id = $1 AND name = $2 AND valid_to IS NULL`,
+		`SELECT c.entity_id, c.metadata->>'name' AS name,
+		        COALESCE(NULLIF(concat_ws(' ', a.premises_number, a.thoroughfare_pre_qualifier, a.thoroughfare_name, a.thoroughfare_type, a.thoroughfare_post_qualifier), ''), a.premises_name) AS address_line_1,
+		        ST_Y(a.coordinates) AS lat, ST_X(a.coordinates) AS lng, c.photo_keys
+		 FROM universe.org_contact c
+		 JOIN universe.org_address a ON a.entity_id = c.address_entity_id AND a.valid_to IS NULL
+		 WHERE c.org_id = $1 AND c.metadata->>'name' = $2 AND c.valid_to IS NULL`,
 		[orgId, name]
 	);
 	return rows[0];
@@ -147,14 +151,21 @@ test.describe('the locations browser', () => {
 		const staff = await world.as(org, 'admin');
 		const [entityId] = await world.importLocations(staff, org, [LOCATIONS[0]]);
 
-		const res = await staff.request.patch(`/o/${org.slug}/s/api/universe/locations/${entityId}`, {
+		const res = await staff.request.patch(`/api/v1/locations/${entityId}`, {
 			data: { address_line_1: '520 Chestnut St', latitude: 39.9489, longitude: -75.15 }
 		});
 		expect(res.ok()).toBe(true);
 
 		const { rows } = await db.query(
-			`SELECT address_line_1, valid_to IS NULL AS current FROM universe.org_location
-			 WHERE entity_id = $1 ORDER BY valid_from`,
+			// Each contact version at the address version in force when it was made.
+			`SELECT COALESCE(NULLIF(concat_ws(' ', a.premises_number, a.thoroughfare_pre_qualifier, a.thoroughfare_name, a.thoroughfare_type, a.thoroughfare_post_qualifier), ''), a.premises_name) AS address_line_1, c.valid_to IS NULL AS current
+			 FROM universe.org_contact c
+			 CROSS JOIN LATERAL (
+			   SELECT * FROM universe.org_address a
+			    WHERE a.entity_id = c.address_entity_id AND a.valid_from <= c.valid_from
+			    ORDER BY a.valid_from DESC LIMIT 1
+			 ) a
+			 WHERE c.entity_id = $1 ORDER BY c.valid_from`,
 			[entityId]
 		);
 		expect(rows).toEqual([
@@ -193,7 +204,7 @@ test.describe('the locations browser', () => {
 		});
 		expect(put.ok).toBe(true);
 
-		const res = await staff.request.patch(`/o/${org.slug}/s/api/universe/locations/${entityId}`, {
+		const res = await staff.request.patch(`/api/v1/locations/${entityId}`, {
 			data: { photo_keys: [key] }
 		});
 		expect(res.ok()).toBe(true);
@@ -235,7 +246,7 @@ test.describe('the locations browser', () => {
 		await expect(reader.page.getByRole('button', { name: 'Add location' })).toHaveCount(0);
 		await expect(reader.page.getByRole('button', { name: /^Delete / })).toHaveCount(0);
 
-		const base = `/o/${org.slug}/s/api/universe/locations`;
+		const base = `/api/v1/locations`;
 		expect(
 			(await reader.request.patch(`${base}/${entityId}`, { data: { name: 'x' } })).status()
 		).toBe(403);
@@ -257,7 +268,7 @@ test.describe('reviewing suggestions', () => {
 			`INSERT INTO universe.turf_user (turf_id, user_id, org_id) VALUES ($1, $2, $3)`,
 			[turf.id, volunteer.user.id, org.id]
 		);
-		const base = `/o/${org.slug}/map/${turf.id}/locations`;
+		const base = `/api/v1/turfs/${turf.id}/locations`;
 		const added = await volunteer.request.post(base, {
 			data: {
 				name: 'New Deli',
@@ -269,7 +280,7 @@ test.describe('reviewing suggestions', () => {
 		});
 		expect(added.status()).toBe(201);
 		const [door] = await world.turfDoors(turf.id);
-		const proposed = await volunteer.request.post(`${base}/${door.id}/edits`, {
+		const proposed = await volunteer.request.post(`/api/v1/doors/${door.id}/edits`, {
 			data: { name: 'Corrected Name', note: 'Sign says otherwise' }
 		});
 		expect(proposed.status()).toBe(201);

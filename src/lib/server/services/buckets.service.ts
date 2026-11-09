@@ -259,7 +259,7 @@ const PAGE_COLUMNS = {
  * bucket can match far more rows than fit in memory on the server or in the
  * browser, so callers always get a page, never the whole result.
  *
- * The underlying views (universe.v_people, universe.v_locations) filter
+ * The underlying views (universe.v_people, universe.v_contacts) filter
  * org-owned rows using current_setting('app.current_org_id'), and the filters'
  * subqueries are filtered by `orgId`. Must run inside withOrgTransaction.
  */

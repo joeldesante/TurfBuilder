@@ -82,7 +82,7 @@
 		entries: [
 			{
 				record_id: 'x',
-				record_source: 'org_location',
+				record_source: 'org_contact',
 				entity_id: 'ent-x',
 				name: 'City Hall',
 				address_line_1: '100 Main St',
@@ -92,7 +92,7 @@
 			},
 			{
 				record_id: 'y',
-				record_source: 'org_location',
+				record_source: 'org_contact',
 				entity_id: 'ent-y',
 				name: null,
 				address_line_1: '200 Oak Ave',
@@ -147,7 +147,7 @@
 		entries: [
 			{
 				record_id: 'x',
-				record_source: 'org_location',
+				record_source: 'org_contact',
 				entity_id: 'ent-x',
 				name: 'City Hall',
 				address_line_1: '100 Main St',

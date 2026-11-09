@@ -48,7 +48,7 @@ describe('countOpenSuggestions', () => {
 	it("counts only the volunteer's tentative suggestions on the turf", async () => {
 		client.query.mockResolvedValueOnce({ rows: [{ n: 3 }] });
 
-		expect(await countOpenSuggestions(client as never, 't1', 'u1')).toBe(3);
+		expect(await countOpenSuggestions(client as never, 't1', 'u1', 'o1')).toBe(3);
 		expect(client.query.mock.calls[0][0]).toContain("status = 'tentative'");
 	});
 });
@@ -60,7 +60,7 @@ describe('findEditableSuggestion', () => {
 		expect(await findEditableSuggestion(client as never, 'e1', 't1', 'u1', 'o1')).toBeNull();
 		const [sql, values] = client.query.mock.calls[0];
 		expect(sql).toContain("ls.status    = 'tentative'");
-		expect(sql).toContain('FOR UPDATE OF ol');
+		expect(sql).toContain('FOR UPDATE OF c');
 		expect(values).toEqual(['e1', 't1', 'u1', 'o1']);
 	});
 });

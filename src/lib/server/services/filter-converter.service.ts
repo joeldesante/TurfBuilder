@@ -138,7 +138,7 @@ function convertPeopleCondition(cond: FilterCondition): BuiltCondition | null {
 }
 
 // ---------------------------------------------------------------------------
-// Location filter mapper (table alias: ol = universe.org_location)
+// Location filter mapper (table alias: vl = universe.v_contacts)
 // ---------------------------------------------------------------------------
 
 function convertLocationCondition(cond: FilterCondition): BuiltCondition | null {
@@ -222,7 +222,7 @@ export function convertBucketFilter(input: BucketFilterInput): StoredBucketFilte
 				'vl.state_or_region',
 				'vl.postal_code'
 			],
-			from: 'universe.v_locations vl',
+			from: 'universe.v_contacts vl',
 			...(where ? { where } : {})
 		};
 	}

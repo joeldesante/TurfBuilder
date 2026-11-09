@@ -3,8 +3,8 @@ import { formatSql } from './format-sql';
 
 describe('formatSql', () => {
 	test('puts each clause on its own line', () => {
-		expect(formatSql('SELECT vl.id, vl.source FROM universe.v_locations vl')).toBe(
-			'SELECT vl.id, vl.source\nFROM universe.v_locations vl'
+		expect(formatSql('SELECT vl.id, vl.source FROM universe.v_contacts vl')).toBe(
+			'SELECT vl.id, vl.source\nFROM universe.v_contacts vl'
 		);
 	});
 

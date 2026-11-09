@@ -83,10 +83,10 @@ test.describe('metrics', () => {
 	test('the results endpoint answers with the canvassed doors and their responses', async ({
 		world
 	}) => {
-		const { org, staff, bucket, survey } = await canvassed(world);
+		const { staff, bucket, survey } = await canvassed(world);
 
 		const res = await staff.request.get(
-			`/o/${org.slug}/s/api/universe/metrics/results?bucketId=${bucket.id}&surveyId=${survey.id}`
+			`/api/v1/surveys/${survey.id}/results?bucketId=${bucket.id}`
 		);
 		expect(res.ok()).toBe(true);
 		const results = (await res.json()) as {
@@ -100,7 +100,7 @@ test.describe('metrics', () => {
 	test('the universe stats endpoint answers for staff', async ({ world }) => {
 		const { org, staff } = await canvassed(world);
 
-		const res = await staff.request.get(`/o/${org.slug}/s/api/universe/stats`);
+		const res = await staff.request.get(`/api/v1/organizations/${org.id}/universe-stats`);
 		expect(res.ok()).toBe(true);
 	});
 });
@@ -145,7 +145,7 @@ test.describe('search', () => {
 		const org = await world.createOrg();
 		const staff = await world.as(org, 'admin');
 
-		const res = await staff.request.get(`/o/${org.slug}/s/api/search?q=Liberty`);
+		const res = await staff.request.get(`/api/v1/organizations/${org.id}/search?q=Liberty`);
 		expect(res.ok()).toBe(true);
 		expect(JSON.stringify(await res.json())).not.toContain('Liberty Bell');
 	});
@@ -157,7 +157,7 @@ test.describe('search', () => {
 		const staff = await world.as(org, 'owner');
 
 		expect((await staff.page.goto(`/o/${org.slug}/s/universe/search`))?.status()).toBe(403);
-		const stolen = await staff.request.post(`/o/${org.slug}/s/api/query`, {
+		const stolen = await staff.request.post(`/api/v1/queries`, {
 			data: { queries: [{ select: ['*'], from: 'auth.account' }] }
 		});
 		expect(stolen.status()).toBe(403);
@@ -171,11 +171,11 @@ test.describe('search', () => {
 			},
 			{ role: 'Administrator' }
 		);
-		const injected = await admin.request.post(`/o/${org.slug}/s/api/query`, {
+		const injected = await admin.request.post(`/api/v1/queries`, {
 			data: { queries: [{ select: ['*'], from: 'auth.account' }] }
 		});
 		expect(injected.status()).toBe(400);
-		const ok = await admin.request.post(`/o/${org.slug}/s/api/query`, {
+		const ok = await admin.request.post(`/api/v1/queries`, {
 			data: { queries: [{ select: ['code'], from: 'universe.turf' }] }
 		});
 		expect(ok.status()).toBe(200);

@@ -132,7 +132,9 @@ describe('listListEntries', () => {
 
 		await listListEntries('u1', LIST, 1);
 
-		expect(String(paged()[0])).toContain('universe.org_location ol');
+		expect(String(paged()[0])).toContain('JOIN universe.org_contact c');
+		// The address version the list recorded, not the current one.
+		expect(String(paged()[0])).toContain('a.id = le.address_id');
 	});
 
 	it('orders with an entry id tiebreak, so pages cannot repeat or skip an entry', async () => {
@@ -258,7 +260,7 @@ describe('createList', () => {
 
 			const [sql, params] = run('INSERT INTO universe.list_entry')!;
 			expect(String(sql)).toContain(
-				'FROM (SELECT vl.id, vl.source FROM universe.v_locations vl WHERE (lower(vl.city) = lower($1))) matched'
+				'FROM (SELECT vl.id, vl.source, vl.address_id FROM universe.v_contacts vl WHERE (lower(vl.city) = lower($1))) matched'
 			);
 			expect(String(sql)).toContain('$2::uuid');
 			expect(params).toEqual(['Austin', LIST]);

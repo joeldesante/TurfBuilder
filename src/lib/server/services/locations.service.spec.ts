@@ -121,7 +121,7 @@ describe('listOrgLocations', () => {
 	it('counts and pages within the org', async () => {
 		await listOrgLocations('u1', ORG, 3);
 
-		expect(flat(sqlRun('COUNT(*)')![0])).toContain('universe.org_location');
+		expect(flat(sqlRun('COUNT(*)')![0])).toContain('universe.org_contact');
 		expect(sqlRun('COUNT(*)')![1]).toEqual([ORG]);
 		expect(sqlRun('LIMIT $2 OFFSET $3')![1]).toEqual([ORG, 100, 200]);
 	});
@@ -134,7 +134,7 @@ describe('listOrgLocations', () => {
 		await listOrgLocations('u1', ORG, 1);
 
 		expect(flat(sqlRun('LIMIT $2 OFFSET $3')![0])).toContain(
-			'ORDER BY ol.name NULLS LAST, ol.address_line_1 NULLS LAST, ol.id LIMIT'
+			'ORDER BY name NULLS LAST, address_line_1 NULLS LAST, c.id LIMIT'
 		);
 	});
 });

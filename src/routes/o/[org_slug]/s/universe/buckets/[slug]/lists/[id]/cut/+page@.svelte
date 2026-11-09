@@ -176,7 +176,7 @@
 
 	async function loadExistingTurfs() {
 		try {
-			const res = await fetch(`/o/${org_slug}/s/api/universe/lists/${data.listId}/turfs`);
+			const res = await fetch(`/api/v1/lists/${data.listId}/turfs`);
 			if (!res.ok) return;
 			const turfs: ExistingTurf[] = await res.json();
 			existingTurfs = turfs.filter((t) => t.bounds);
@@ -341,11 +341,11 @@
 		locationsError = null;
 		try {
 			const response = await fetch(
-				`/o/${org_slug}/s/api/universe/lists/${data.listId}/locations`
+				`/api/v1/lists/${data.listId}/locations`
 			);
 			if (!response.ok) {
 				const body = await response.json().catch(() => ({}));
-				locationsError = body.error ?? `Failed to load locations (${response.status})`;
+				locationsError = body.message ?? `Failed to load locations (${response.status})`;
 				return;
 			}
 			const data_: ListLocation[] = await response.json();
@@ -391,7 +391,7 @@
 
 		if (polygons.length === 0) return;
 
-		const response = await fetch(`/o/${org_slug}/s/api/turf/create`, {
+		const response = await fetch(`/api/v1/lists/${data.listId}/turfs`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -412,7 +412,7 @@
 
 	async function fetchInitialBounds(): Promise<maplibregl.LngLatBounds | null> {
 		try {
-			const res = await fetch(`/o/${org_slug}/s/api/universe/lists/${data.listId}/locations`);
+			const res = await fetch(`/api/v1/lists/${data.listId}/locations`);
 			if (!res.ok) return null;
 			const locs: ListLocation[] = await res.json();
 			if (locs.length === 0) return null;

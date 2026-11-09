@@ -43,11 +43,10 @@
 	}
 
 	interface Props {
-		orgSlug: string;
 		tableSchemas?: import('$lib/server/services/query-builder.service').TableSchema[];
 	}
 
-	const { orgSlug, tableSchemas = [] }: Props = $props();
+	const { tableSchemas = [] }: Props = $props();
 
 	let showSchema = $state(false);
 
@@ -148,7 +147,7 @@
 					};
 				})
 			};
-			const res = await fetch(`/o/${orgSlug}/s/api/query`, {
+			const res = await fetch(`/api/v1/queries`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)

@@ -155,7 +155,7 @@ test('renders location rows', async () => {
 	const locationEntries = [
 		{
 			record_id: 'rec-x',
-			record_source: 'org_location',
+			record_source: 'org_contact',
 			entity_id: 'ent-x',
 			name: 'City Hall',
 			address_line_1: '100 Main St',

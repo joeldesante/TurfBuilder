@@ -27,7 +27,7 @@ describe('convertBucketFilter', () => {
 		});
 	});
 
-	it('maps location fields and text qualifiers onto v_locations', () => {
+	it('maps location fields and text qualifiers onto v_contacts', () => {
 		const query = locations('ALL', [
 			{ filterId: 'city', qualifierId: 'is', value: 'Philadelphia' },
 			{ filterId: 'state', qualifierId: 'is_not', value: 'NJ' },
@@ -35,7 +35,7 @@ describe('convertBucketFilter', () => {
 			{ filterId: 'city', qualifierId: 'contains', value: 'del' }
 		]);
 
-		expect(query?.from).toBe('universe.v_locations vl');
+		expect(query?.from).toBe('universe.v_contacts vl');
 		expect(query?.where).toEqual({
 			type: 'group',
 			connector: 'AND',

@@ -2,22 +2,15 @@
 	import { invalidateAll } from '$app/navigation';
 	import TurfMapPage from '$pages/o/map/TurfMapPage.svelte';
 	import type { LocationFields, LocationEditProposal } from '$lib/schemas/location';
+	import { api } from '$lib/client/api';
 
 	const { data, params } = $props();
 
-	const base = $derived(`/o/${params.org_slug}/map/${data.turfId}/locations`);
+	const base = $derived(`/turfs/${data.turfId}/locations`);
 
-	/** Throws the server's message so the form surfaces it verbatim. */
-	async function send(url: string, method: string, body?: unknown) {
-		const res = await fetch(url, {
-			method,
-			headers: { 'Content-Type': 'application/json' },
-			body: body === undefined ? undefined : JSON.stringify(body)
-		});
-		if (!res.ok) {
-			const { error } = await res.json().catch(() => ({ error: 'Request failed.' }));
-			throw new Error(error);
-		}
+	/** Throws ApiError with the server's message, which the form shows as is. */
+	async function send(path: string, method: string, body?: unknown) {
+		await api(path, { method, body });
 		await invalidateAll();
 	}
 
@@ -34,7 +27,7 @@
 	}
 
 	async function handleProposeEdit(turfLocationId: string, proposal: LocationEditProposal) {
-		await send(`${base}/${turfLocationId}/edits`, 'POST', proposal);
+		await send(`/doors/${turfLocationId}/edits`, 'POST', proposal);
 	}
 </script>
 

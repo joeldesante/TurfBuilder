@@ -223,3 +223,75 @@ export async function requireOrgPermission(
 	);
 	if (!allowed) throw error(403, 'Forbidden');
 }
+
+/** Runs `sql` (one row or none, the id as $1 and the org as $2) in each of the user's orgs. */
+async function findOrgOf(userId: string, sql: string, id: string): Promise<string | null> {
+	const found = await findInMemberOrgs(userId, async (client, orgId) => {
+		const result = await client.query(sql, [id, orgId]);
+		return result.rowCount ? true : undefined;
+	});
+	return found?.orgId ?? null;
+}
+
+/**
+ * The org a location belongs to, by its entity id. Throws 404 unless it is a
+ * live contact in one of the user's orgs.
+ */
+export async function requireLocationOrg(userId: string, entityId: string): Promise<string> {
+	const orgId = await findOrgOf(
+		userId,
+		`SELECT 1 FROM universe.org_contact WHERE entity_id = $1 AND org_id = $2 AND valid_to IS NULL`,
+		entityId
+	);
+	if (!orgId) throw error(404, 'Location not found');
+	return orgId;
+}
+
+/** The org a turf belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireTurfOrg(userId: string, turfId: string): Promise<string> {
+	const orgId = await findOrgOf(
+		userId,
+		`SELECT 1 FROM universe.turf WHERE id = $1 AND org_id = $2`,
+		turfId
+	);
+	if (!orgId) throw error(404, 'Turf not found');
+	return orgId;
+}
+
+/** The org and turf of a turf door. Throws 404 unless it is in one of the user's orgs. */
+export async function requireDoorOrg(
+	userId: string,
+	doorId: string
+): Promise<{ orgId: string; turfId: string }> {
+	const found = await findInMemberOrgs(userId, async (client, orgId) => {
+		const result = await client.query<{ turf_id: string }>(
+			`SELECT turf_id FROM universe.turf_location WHERE id = $1 AND org_id = $2`,
+			[doorId, orgId]
+		);
+		return result.rows[0]?.turf_id;
+	});
+	if (!found) throw error(404, 'Door not found');
+	return { orgId: found.orgId, turfId: found.row };
+}
+
+/** The org a volunteer's location suggestion belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireSuggestionOrg(userId: string, suggestionId: string): Promise<string> {
+	const orgId = await findOrgOf(
+		userId,
+		`SELECT 1 FROM universe.location_suggestion WHERE id = $1 AND org_id = $2`,
+		suggestionId
+	);
+	if (!orgId) throw error(404, 'Suggestion not found');
+	return orgId;
+}
+
+/** The org a canvasser's location correction belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireLocationEditOrg(userId: string, editId: string): Promise<string> {
+	const orgId = await findOrgOf(
+		userId,
+		`SELECT 1 FROM universe.location_edit_suggestion WHERE id = $1 AND org_id = $2`,
+		editId
+	);
+	if (!orgId) throw error(404, 'Correction not found');
+	return orgId;
+}

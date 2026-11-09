@@ -5,7 +5,18 @@ import { generatePDF } from './pdf-engine.service';
 import { recordEvent } from './activity.service';
 import { openMapRenderer, type MapRenderer } from './map-engine.service';
 import TEMPLATE from './templates/list-document.html?raw';
+import { line1Sql, nameSql } from './contact-columns';
 import { logger } from '$lib/server/logger';
+
+/** The columns of LocationRow, from contact `c` at address version `a`. */
+const SNAPSHOT_COLUMNS = `
+	${nameSql('c')} AS name,
+	${line1Sql('a')} AS address_line_1,
+	a.locality AS city,
+	a.region AS state_or_region,
+	a.postcode AS postal_code,
+	ST_Y(a.coordinates) AS latitude,
+	ST_X(a.coordinates) AS longitude`;
 
 // The template shows maps at the full 7.3in content width and up to 3.75in
 // tall; this size keeps that ratio and prints at roughly 190 dpi.
@@ -247,23 +258,18 @@ async function loadList(client: PoolClient, orgId: string, listId: string) {
 		throw new ListDocumentError('PDFs can only be generated for location lists.');
 	}
 
-	// Joins the snapshotted records (not the view), like the list page, so the
-	// document shows the list as it was when it was created.
+	// Joins the contact and address versions the list recorded (not the view),
+	// like the list page, so the document shows the list as it was when it was
+	// created.
 	const entriesResult = await client.query<LocationRow>(
-		`SELECT
-			ol.name,
-			ol.address_line_1,
-			ol.city,
-			ol.state_or_region,
-			ol.postal_code,
-			ST_Y(ol.coordinates) AS latitude,
-			ST_X(ol.coordinates) AS longitude
+		`SELECT ${SNAPSHOT_COLUMNS}
 		 FROM universe.list_entry le
 		 JOIN universe.list l ON l.id = le.list_id AND l.org_id = $2
-		 LEFT JOIN universe.org_location ol
-			ON le.record_source = 'org_location' AND ol.id = le.record_id
+		 JOIN universe.org_contact c
+			ON le.record_source = 'org_contact' AND c.id = le.record_id AND c.org_id = $2
+		 JOIN universe.org_address a ON a.id = le.address_id AND a.org_id = $2
 		 WHERE le.list_id = $1
-		 ORDER BY ol.city, ol.name`,
+		 ORDER BY city, name`,
 		[listId, orgId]
 	);
 
@@ -275,24 +281,14 @@ async function loadList(client: PoolClient, orgId: string, listId: string) {
 		[listId, orgId]
 	);
 
-	// Current versions only, matching the turf page. This breaks the rule that
-	// turfs stay locked to the versions they were cut with; #188 changes it to
-	// read the referenced version as-is.
+	// The versions each door recorded when its turf was cut.
 	const turfLocationsResult = await client.query<LocationRow & { turf_id: string }>(
-		`SELECT
-			tl.turf_id,
-			ol.name,
-			ol.address_line_1,
-			ol.city,
-			ol.state_or_region,
-			ol.postal_code,
-			ST_Y(ol.coordinates) AS latitude,
-			ST_X(ol.coordinates) AS longitude
+		`SELECT tl.turf_id, ${SNAPSHOT_COLUMNS}
 		 FROM universe.turf_location tl
-		 JOIN universe.org_location ol ON tl.org_location_id = ol.id
+		 JOIN universe.org_contact c ON c.id = tl.contact_id AND c.org_id = $2
+		 JOIN universe.org_address a ON a.id = tl.address_id AND a.org_id = $2
 		 WHERE tl.turf_id = ANY($1) AND tl.org_id = $2
-		   AND ol.valid_to IS NULL
-		 ORDER BY ol.name`,
+		 ORDER BY name`,
 		[turfsResult.rows.map((t) => t.id), orgId]
 	);
 

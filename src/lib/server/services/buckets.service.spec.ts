@@ -575,7 +575,7 @@ describe('queryBucketEntitiesPage', () => {
 		const [sql, params] = mockClient.query.mock.calls[0];
 		expect(String(sql)).toContain(
 			'FROM (SELECT vl.id, vl.name, vl.address_line_1, vl.address_line_2, vl.city, vl.state_or_region, vl.postal_code' +
-				' FROM universe.v_locations vl WHERE (lower(vl.city) = lower($1))) q'
+				' FROM universe.v_contacts vl WHERE (lower(vl.city) = lower($1))) q'
 		);
 		expect(String(sql)).not.toContain(';');
 		expect(params).toEqual(['Austin']);
@@ -748,7 +748,7 @@ describe('converting buckets whose stored filter is malformed', () => {
 			enabled: true,
 			query: {
 				select: ['vl.id'],
-				from: 'universe.v_locations vl',
+				from: 'universe.v_contacts vl',
 				where: {
 					type: 'group',
 					connector: 'AND',

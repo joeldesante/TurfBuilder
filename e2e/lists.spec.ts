@@ -60,34 +60,30 @@ test.describe('lists', () => {
 		world,
 		db
 	}) => {
-		// Known violation: repointToVersion() moves list entries onto the new
-		// version (#188). Fixed when lists move onto contacts (plan step F);
-		// Playwright reports this test once it starts passing.
-		test.fail(true, '#188');
 		const { org, staff, bucket } = await setup(world);
 		const list = await world.createList(staff, bucket.id);
 		const { rows: before } = await db.query(
-			`SELECT ol.name FROM universe.list_entry le JOIN universe.org_location ol ON ol.id = le.record_id
-			 WHERE le.list_id = $1 ORDER BY ol.name`,
+			`SELECT c.metadata->>'name' AS name FROM universe.list_entry le
+			 JOIN universe.org_contact c ON c.id = le.record_id
+			 WHERE le.list_id = $1 ORDER BY name`,
 			[list.id]
 		);
 
 		// Rename one location the way staff do, through the locations endpoint.
 		const { rows: target } = await db.query(
-			`SELECT entity_id FROM universe.org_location WHERE org_id = $1 AND name = 'City Hall' AND valid_to IS NULL`,
+			`SELECT entity_id FROM universe.org_contact
+			 WHERE org_id = $1 AND metadata->>'name' = 'City Hall' AND valid_to IS NULL`,
 			[org.id]
 		);
-		const res = await staff.request.patch(
-			`/o/${org.slug}/s/api/universe/locations/${target[0].entity_id}`,
-			{
-				data: { name: 'Renamed Hall' }
-			}
-		);
+		const res = await staff.request.patch(`/api/v1/locations/${target[0].entity_id}`, {
+			data: { name: 'Renamed Hall' }
+		});
 		expect(res.ok()).toBe(true);
 
 		const { rows: after } = await db.query(
-			`SELECT ol.name FROM universe.list_entry le JOIN universe.org_location ol ON ol.id = le.record_id
-			 WHERE le.list_id = $1 ORDER BY ol.name`,
+			`SELECT c.metadata->>'name' AS name FROM universe.list_entry le
+			 JOIN universe.org_contact c ON c.id = le.record_id
+			 WHERE le.list_id = $1 ORDER BY name`,
 			[list.id]
 		);
 		expect(after).toEqual(before);

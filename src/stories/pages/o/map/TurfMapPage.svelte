@@ -278,7 +278,7 @@
 	}
 
 	async function pollStatuses() {
-		const res = await fetch(`/o/${orgSlug}/map/${turfId}/status`);
+		const res = await fetch(`/api/v1/turfs/${turfId}/doors`);
 		if (!res.ok) return;
 		const updates: Array<{ id: string; visited: boolean; contact_made: boolean | null }> =
 			await res.json();

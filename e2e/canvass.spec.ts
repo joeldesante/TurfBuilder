@@ -160,7 +160,7 @@ test.describe('walking the turf', () => {
 		expect(answers[1].response).toMatch(/Transit/);
 		expect(answers[2].response).toBe('Wants a crosswalk.');
 
-		const status = await page.request.get(`/o/${org.slug}/map/${turf.id}/status`);
+		const status = await page.request.get(`/api/v1/turfs/${turf.id}/doors`);
 		expect(status.ok()).toBe(true);
 	});
 
@@ -204,8 +204,8 @@ test.describe('suggesting doors and fixes', () => {
 		const pending = async () =>
 			(
 				await db.query(
-					`SELECT ol.name FROM universe.location_suggestion ls
-					 JOIN universe.org_location ol ON ol.entity_id = ls.entity_id AND ol.valid_to IS NULL
+					`SELECT c.metadata->>'name' AS name FROM universe.location_suggestion ls
+					 JOIN universe.org_contact c ON c.entity_id = ls.entity_id AND c.valid_to IS NULL
 					 WHERE ls.org_id = $1 AND ls.user_id = $2 AND ls.status = 'tentative'`,
 					[org.id, user.id]
 				)
@@ -264,7 +264,7 @@ test.describe('who may suggest a door', () => {
 			[turf.id]
 		);
 
-		const res = await volunteer.request.post(`/o/${org.slug}/map/${turf.id}/locations`, {
+		const res = await volunteer.request.post(`/api/v1/turfs/${turf.id}/locations`, {
 			data: door
 		});
 		expect(res.status()).toBeGreaterThanOrEqual(400);
@@ -278,7 +278,7 @@ test.describe('who may suggest a door', () => {
 			turf.id
 		]);
 
-		const res = await volunteer.request.post(`/o/${org.slug}/map/${turf.id}/locations`, {
+		const res = await volunteer.request.post(`/api/v1/turfs/${turf.id}/locations`, {
 			data: door
 		});
 		expect(res.status()).toBeGreaterThanOrEqual(400);
@@ -289,7 +289,7 @@ test.describe('who may suggest a door', () => {
 		const { org, turf } = await turfWithSurvey(world);
 		const stranger = await world.as(org, 'volunteer');
 
-		const res = await stranger.request.post(`/o/${org.slug}/map/${turf.id}/locations`, {
+		const res = await stranger.request.post(`/api/v1/turfs/${turf.id}/locations`, {
 			data: door
 		});
 		expect(res.status()).toBeGreaterThanOrEqual(400);

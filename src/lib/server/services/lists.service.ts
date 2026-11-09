@@ -9,6 +9,7 @@ import { recordEvent } from './activity.service';
 import type { FilterEntity, FilterGroup } from '$lib/shared/types/filters';
 import { findBucketById } from './buckets.service';
 import { buildFilterQuery } from './filters.service';
+import { line1Sql, nameSql } from './contact-columns';
 
 export interface List {
 	id: string;
@@ -61,9 +62,9 @@ export interface LocationEntry {
 export type ListEntry = PersonEntry | LocationEntry;
 
 /**
- * One page of a list's entries. Entries join back to the snapshotted version
- * rows (not the views), so they show the data as it was when the list was
- * created. For callers that already hold an org transaction and have checked
+ * One page of a list's entries. Entries join back to the versions the list
+ * recorded (for locations, the contact version and the address version), not
+ * the views, so they show the data as it was when the list was created. For callers that already hold an org transaction and have checked
  * the list belongs to `orgId`.
  */
 export async function queryListEntriesPage(
@@ -109,18 +110,19 @@ export async function queryListEntriesPage(
 					`SELECT
 						le.record_id,
 						le.record_source,
-						ol.entity_id::text AS entity_id,
-						ol.name,
-						ol.address_line_1,
-						ol.city,
-						ol.state_or_region,
-						ol.postal_code
+						c.entity_id::text AS entity_id,
+						${nameSql('c')} AS name,
+						${line1Sql('a')} AS address_line_1,
+						a.locality AS city,
+						a.region AS state_or_region,
+						a.postcode AS postal_code
 					FROM universe.list_entry le
 					JOIN universe.list l ON l.id = le.list_id AND l.org_id = $2
-					LEFT JOIN universe.org_location ol
-						ON le.record_source = 'org_location' AND ol.id = le.record_id
+					LEFT JOIN universe.org_contact c
+						ON le.record_source = 'org_contact' AND c.id = le.record_id AND c.org_id = $2
+					LEFT JOIN universe.org_address a ON a.id = le.address_id AND a.org_id = $2
 					WHERE le.list_id = $1
-					ORDER BY ol.city, ol.name, le.id
+					ORDER BY city, name, le.id
 					LIMIT $3 OFFSET $4`,
 					params
 				);
@@ -188,7 +190,12 @@ export async function createList(
 		own && own.filters.length > 0 ? { operator: 'AND', filters: [bucketGroup, own] } : bucketGroup;
 
 	// Compiled before anything is written, so a filter that cannot run fails the request cleanly.
-	const matches = buildFilterQuery(input.entity_type, effective, { orgId });
+	// A location entry records the address version too, since its contact only names the address.
+	const locations = input.entity_type === 'locations';
+	const matches = buildFilterQuery(input.entity_type, effective, {
+		orgId,
+		columns: locations ? ['id', 'source', 'address_id'] : ['id', 'source']
+	});
 
 	const created = await client.query<{ id: string }>(
 		`INSERT INTO universe.list (name, bucket, org_id, entity_type, expires_at, filters)
@@ -199,8 +206,9 @@ export async function createList(
 	const listId = created.rows[0].id;
 
 	await client.query(
-		`INSERT INTO universe.list_entry (id, list_id, record_id, record_source)
-		 SELECT gen_random_uuid(), $${matches.params.length + 1}::uuid, matched.id, matched.source
+		`INSERT INTO universe.list_entry (id, list_id, record_id, record_source, address_id)
+		 SELECT gen_random_uuid(), $${matches.params.length + 1}::uuid, matched.id, matched.source,
+		        ${locations ? 'matched.address_id' : 'NULL::uuid'}
 		 FROM (${matches.sql}) matched`,
 		[...matches.params, listId]
 	);

@@ -442,7 +442,6 @@
 	<TurfPreviewModal
 		turfId={previewTurf.id}
 		turfCode={previewTurf.code}
-		{orgSlug}
 		open={previewTurf !== null}
 		onClose={() => (previewTurf = null)}
 	/>

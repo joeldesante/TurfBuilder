@@ -250,17 +250,17 @@ export class World {
 	/** Imports locations from rows of CSV columns, as staff do from the manage page. Returns their entity ids, in order. */
 	async importLocations(staff: Session, org: TestOrg, rows: LocationRow[]): Promise<string[]> {
 		const before = await this.db.query<{ n: number }>(
-			`SELECT count(*)::int AS n FROM universe.org_location WHERE org_id = $1 AND valid_to IS NULL`,
+			`SELECT count(*)::int AS n FROM universe.org_contact WHERE org_id = $1 AND valid_to IS NULL`,
 			[org.id]
 		);
-		const res = await staff.request.post(`/o/${org.slug}/s/api/universe/locations/import`, {
+		const res = await staff.request.post(`/api/v1/organizations/${org.id}/location-imports`, {
 			multipart: {
 				file: { name: 'locations.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(rows)) }
 			}
 		});
 		if (!res.ok()) throw new Error(`Location import failed: ${res.status()} ${await res.text()}`);
 		const { rows: ids } = await this.db.query<{ entity_id: string }>(
-			`SELECT entity_id FROM universe.org_location WHERE org_id = $1 AND valid_to IS NULL
+			`SELECT entity_id FROM universe.org_contact WHERE org_id = $1 AND valid_to IS NULL
 			 ORDER BY created_at, id OFFSET $2`,
 			[org.id, before.rows[0].n]
 		);
@@ -369,12 +369,11 @@ export class World {
 			polygon = WORLD
 		}: { listId: string; surveyId: string; scriptId?: string | null; polygon?: object }
 	): Promise<{ id: string; code: string }> {
-		const res = await staff.request.post(`/o/${org.slug}/s/api/turf/create`, {
+		const res = await staff.request.post(`/api/v1/lists/${listId}/turfs`, {
 			data: {
 				polygons: [{ geometry: polygon }],
 				survey_id: surveyId,
-				script_id: scriptId,
-				list_id: listId
+				script_id: scriptId
 			}
 		});
 		if (!res.ok()) throw new Error(`Turf creation failed: ${res.status()} ${await res.text()}`);
@@ -385,9 +384,9 @@ export class World {
 	/** The turf_location ids of a turf's doors, in the order they were cut. */
 	async turfDoors(turfId: string): Promise<{ id: string; name: string | null }[]> {
 		const { rows } = await this.db.query<{ id: string; name: string | null }>(
-			`SELECT tl.id, ol.name FROM universe.turf_location tl
-			 JOIN universe.org_location ol ON ol.id = tl.org_location_id
-			 WHERE tl.turf_id = $1 ORDER BY ol.name`,
+			`SELECT tl.id, NULLIF(c.metadata->>'name', '') AS name FROM universe.turf_location tl
+			 JOIN universe.org_contact c ON c.id = tl.contact_id
+			 WHERE tl.turf_id = $1 ORDER BY name`,
 			[turfId]
 		);
 		return rows;
@@ -401,16 +400,13 @@ export class World {
 		turfLocationId: string,
 		{ contacted, answers = {} }: { contacted: boolean; answers?: Record<string, string> }
 	): Promise<void> {
-		const res = await canvasser.request.post(
-			`/o/${org.slug}/map/${turfId}/location/${turfLocationId}`,
-			{
-				data: {
-					contactStatus: contacted ? 'contacted' : 'no_contact',
-					attemptNote: '',
-					questions: Object.entries(answers).map(([db_id, response]) => ({ db_id, response }))
-				}
+		const res = await canvasser.request.post(`/api/v1/doors/${turfLocationId}/visits`, {
+			data: {
+				contactStatus: contacted ? 'contacted' : 'no_contact',
+				attemptNote: '',
+				questions: Object.entries(answers).map(([db_id, response]) => ({ db_id, response }))
 			}
-		);
+		});
 		if (!res.ok()) throw new Error(`Visit failed: ${res.status()} ${await res.text()}`);
 	}
 

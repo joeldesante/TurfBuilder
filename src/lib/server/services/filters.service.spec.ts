@@ -22,7 +22,7 @@ const f = (item: string, operation: string, value: unknown, extra = {}) => ({
 	...extra
 });
 
-const LOC = 'SELECT vl.id, vl.source FROM universe.v_locations vl';
+const LOC = 'SELECT vl.id, vl.source FROM universe.v_contacts vl';
 const PEOPLE = 'SELECT vp.id, vp.source FROM universe.v_people vp';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -169,7 +169,7 @@ describe('canvassing filters', () => {
 		expect(flat(query.sql)).toContain(
 			'EXISTS (SELECT tla.contact_made FROM universe.turf_location_attempt tla' +
 				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $1::uuid' +
-				' JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $1::uuid' +
+				' JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = $1::uuid' +
 				' WHERE tla.org_id = $1::uuid' +
 				' AND tol.entity_id = vl.entity_id AND tla.contact_made = $2)'
 		);
@@ -392,7 +392,7 @@ describe('survey response filters', () => {
 				' JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = $2::uuid' +
 				' JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = $2::uuid' +
 				' JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = $2::uuid' +
-				' JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = $2::uuid' +
+				' JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = $2::uuid' +
 				' WHERE sqr.org_id = $2::uuid' +
 				' AND sqr.survey_question_id = $3::uuid' +
 				' AND tol.entity_id = vl.entity_id AND '
@@ -599,7 +599,7 @@ describe('selected columns', () => {
 		expect(
 			buildFilterQuery('locations', group('AND'), { orgId: ORG, columns: ['id', 'name', 'city'] })
 				.sql
-		).toBe('SELECT vl.id, vl.name, vl.city FROM universe.v_locations vl');
+		).toBe('SELECT vl.id, vl.name, vl.city FROM universe.v_contacts vl');
 		expect(
 			buildFilterQuery('people', group('AND'), { orgId: ORG, columns: ['id', 'last_name'] }).sql
 		).toBe('SELECT vp.id, vp.last_name FROM universe.v_people vp');
@@ -877,7 +877,7 @@ describe('legacy bucket filters', () => {
 			people: { enabled: false, query: null },
 			locations: {
 				enabled: true,
-				query: { select: ['vl.id'], from: 'universe.v_locations vl', where: where as never }
+				query: { select: ['vl.id'], from: 'universe.v_contacts vl', where: where as never }
 			}
 		});
 		const group = (children: unknown[], negate = false) => ({
@@ -962,7 +962,7 @@ describe('reading a stored old filter', () => {
 		people: { enabled: false, query: null },
 		locations: {
 			enabled: true,
-			query: { select: ['vl.id'], from: 'universe.v_locations vl', where }
+			query: { select: ['vl.id'], from: 'universe.v_contacts vl', where }
 		}
 	});
 	const group = (children: unknown[]) => ({
