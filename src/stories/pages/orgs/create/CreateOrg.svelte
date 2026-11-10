@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import Button from '$components/actions/button/Button.svelte';
+	import Badge from '$components/data-display/badge/Badge.svelte';
+	import CollapsibleCard from '$components/layout/collapsible-card/CollapsibleCard.svelte';
+	import StepIndicator from '$components/layout/step-indicator/StepIndicator.svelte';
+	import ScrollHint from '$components/feedback/scroll-hint/ScrollHint.svelte';
 	import Spinner from '$components/feedback/spinner/Spinner.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
@@ -16,7 +20,7 @@
 		type OrganizationCategory
 	} from '$lib/shared/schemas/organizations';
 	import { slugFromName } from '$lib/shared/utils/slug';
-	import { ArrowLeftIcon } from 'phosphor-svelte';
+	import { ArrowLeftIcon, HeartIcon } from 'phosphor-svelte';
 
 	interface Props {
 		onCreate: (values: CreateOrganizationInput) => Promise<void>;
@@ -34,6 +38,24 @@
 
 	const { onCreate, checkSlug, slugCheckDelayMs = 350, backHref = '/orgs' }: Props = $props();
 
+	const VALUE_STATEMENT = {
+		intro:
+			'TurfBuilder is a mission-driven organization, which is why our hosted tools are available only to campaigns and groups working toward progressive change.',
+		eligibleLead: 'Eligible candidates include',
+		eligible: [
+			'Democrats,',
+			'Progressives running under any party line, and',
+			'Independents who can show they share progressive values and priorities.'
+		],
+		outro:
+			'PACs, committees, and grassroots movements qualify if their work primarily supports these candidates or advances progressive policy goals. Progressive 501(c)(4) nonprofits may use the platform, and 501(c)(3) organizations are approved at our discretion.',
+		closing:
+			'TurfBuilder is independent and not affiliated with any political party, but every organizer we serve shares a commitment to building progressive change, one door at a time.',
+		contactLead: 'Please contact',
+		contactEmail: 'support@turfbuilder.org',
+		contactTail: 'with comments, questions, or concerns.'
+	};
+
 	const SLUG_TAKEN = 'That slug is already taken.';
 
 	const form = new Form(
@@ -48,19 +70,19 @@
 	const CATEGORIES: { value: OrganizationCategory; label: string; description: string }[] = [
 		{
 			value: 'political',
-			label: 'Political or civic',
+			label: 'Political, Civic, or Social Change',
 			description:
-				'Candidates and campaigns, PACs, advocacy and lobbying groups, and non-profits working on elections or policy, partisan or non-partisan. Some extra rules apply to political organizations.'
+				'Candidates and campaigns, PACs, advocacy and lobbying groups, and non-profits working on elections, policy, or social change, partisan or non-partisan. Some extra rules apply to political organizations.'
 		},
 		{
 			value: 'nonprofit',
-			label: 'Non-profit',
+			label: 'Non-partisan',
 			description:
-				'Community, charitable, faith, and service organizations whose canvassing is not about elections or policy.'
+				'Community, charitable, faith, and service organizations whose canvassing is not about elections, politics, or social change.'
 		},
 		{
 			value: 'commercial',
-			label: 'Business',
+			label: 'Commercial Use',
 			description: 'Companies canvassing for sales, customer outreach, or market research.'
 		}
 	];
@@ -75,11 +97,14 @@
 		{ title: 'Name your organization', fields: ['name', 'slug'] }
 	] as const;
 
+	let valueStatementOpen = $state(true);
 	let step = $state(0);
 	let stepHeading = $state<HTMLHeadingElement>();
 	const isLastStep = $derived(step === STEPS.length - 1);
 	const isPolitical = $derived(form.values.category === 'political');
 
+	// The description field sits below the long values card.
+	let descriptionAnchor = $state<HTMLDivElement>();
 	function stepHasErrors(index: number) {
 		return STEPS[index].fields.some((field) => (form.errors[field]?.length ?? 0) > 0);
 	}
@@ -146,8 +171,9 @@
 	});
 </script>
 
-<div class="relative min-h-dvh flex items-center justify-center p-6">
-	<div class="absolute top-4 left-4">
+<div class="relative min-h-dvh flex flex-col sm:flex-row items-center sm:justify-center gap-4 p-6">
+	<!-- In the page flow on phones, where a floating button would sit on top of the heading. -->
+	<div class="self-start sm:absolute sm:top-4 sm:left-4">
 		<Button variant="ghost" href={backHref}>
 			<ArrowLeftIcon />
 			Back
@@ -170,28 +196,7 @@
 			novalidate
 			class="flex flex-col gap-6 w-full max-w-md mx-auto"
 		>
-			<div class="flex flex-col gap-3">
-				<ol class="flex gap-2" aria-label="Progress">
-					{#each STEPS as s, index (s.title)}
-						<li
-							class={['h-1 flex-1 rounded-full', index <= step ? 'bg-primary' : 'bg-outline'].join(
-								' '
-							)}
-							aria-current={index === step ? 'step' : undefined}
-						>
-							<span class="sr-only">{s.title}</span>
-						</li>
-					{/each}
-				</ol>
-				<p class="text-sm text-on-surface-subtle">Step {step + 1} of {STEPS.length}</p>
-				<h2
-					bind:this={stepHeading}
-					tabindex="-1"
-					class="text-xl font-semibold text-on-surface outline-none"
-				>
-					{STEPS[step].title}
-				</h2>
-			</div>
+			<StepIndicator steps={STEPS.map((s) => s.title)} current={step} bind:heading={stepHeading} />
 
 			{#if step === 0}
 				<RadioGroup
@@ -212,7 +217,7 @@
 				{#if isPolitical}
 					<div class="flex flex-col gap-4 border-l-2 border-outline pl-4">
 						<Checkbox bind:checked={form.values.is_candidate}>
-							We are a candidate, or a candidate's campaign, running for office
+							We are a candidate or campaign
 						</Checkbox>
 
 						{#if form.values.is_candidate}
@@ -226,35 +231,60 @@
 								<TextInput
 									bind:value={form.values.campaign_registration}
 									onfocusout={() => form.touch('campaign_registration')}
-									placeholder="FEC ID or link"
+									placeholder="FEC Committee ID"
 								/>
+								{#snippet labelAction()}
+									<Badge size="sm">Optional</Badge>
+								{/snippet}
 								{#snippet helperContent()}
-									Your FEC committee ID, or a link to your state or local filing if you are not
-									running for federal office.
+									No FEC Committee ID? You may leave this field blank.
 								{/snippet}
 							</FormField>
 						{/if}
 					</div>
 				{/if}
 			{:else if step === 1}
-				<FormField
-					label="Description"
-					id="org-description"
-					class={fieldClass}
-					errors={form.errors.description ?? []}
-					dirty={!!form.touched.description}
-				>
-					<Textarea
-						bind:value={form.values.description}
-						onfocusout={() => form.touch('description')}
-						rows={5}
-						maxlength={ORGANIZATION_DESCRIPTION_MAX}
-						placeholder="Who you are, what you work on, and who you plan to canvass."
-					/>
-					{#snippet helperContent()}
-						A few sentences is plenty.
-					{/snippet}
-				</FormField>
+				{#if isPolitical}
+					<CollapsibleCard title="Our Values" bind:open={valueStatementOpen}>
+						{#snippet icon()}<HeartIcon />{/snippet}
+						<p>{VALUE_STATEMENT.intro}</p>
+						<p>{VALUE_STATEMENT.eligibleLead}</p>
+						<ul class="list-disc pl-5 flex flex-col gap-1">
+							{#each VALUE_STATEMENT.eligible as item (item)}
+								<li>{item}</li>
+							{/each}
+						</ul>
+						<p>{VALUE_STATEMENT.outro}</p>
+						<p>{VALUE_STATEMENT.closing}</p>
+						<p>
+							{VALUE_STATEMENT.contactLead}
+							<a href="mailto:{VALUE_STATEMENT.contactEmail}" class="underline text-primary"
+								>{VALUE_STATEMENT.contactEmail}</a
+							>
+							{VALUE_STATEMENT.contactTail}
+						</p>
+					</CollapsibleCard>
+				{/if}
+				<div bind:this={descriptionAnchor}>
+					<FormField
+						label="Description"
+						id="org-description"
+						class={fieldClass}
+						errors={form.errors.description ?? []}
+						dirty={!!form.touched.description}
+					>
+						<Textarea
+							bind:value={form.values.description}
+							onfocusout={() => form.touch('description')}
+							rows={5}
+							maxlength={ORGANIZATION_DESCRIPTION_MAX}
+							placeholder="Who you are, what you work on, and who you plan to canvass."
+						/>
+						{#snippet helperContent()}
+							A few sentences is plenty.
+						{/snippet}
+					</FormField>
+				</div>
 			{:else}
 				<FormField
 					label="Name"
@@ -329,4 +359,10 @@
 			</div>
 		</form>
 	</div>
+
+	<ScrollHint
+		target={descriptionAnchor}
+		enabled={step === 1 && isPolitical && valueStatementOpen}
+		label="Scroll to description"
+	/>
 </div>

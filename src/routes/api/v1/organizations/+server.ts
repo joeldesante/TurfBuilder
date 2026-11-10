@@ -35,7 +35,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
  * @body category {'political'|'nonprofit'|'commercial'} - What kind of organization it is
  * @body description {string} - What the organization does, up to 1000 characters
  * @body is_candidate {boolean} - Optional. A candidate or campaign for office; political only
- * @body campaign_registration {string} - FEC ID or registration link. Required when `is_candidate` and political
+ * @body campaign_registration {string} - Optional. FEC ID or registration link; political candidates only
  * @returns 201 `{ id, name, slug, created_at }`. 400 for an invalid body, 401 when signed out, 403 when creation is disabled, 409 for a taken slug
  */
 export const POST: RequestHandler = async ({ locals, request }) => {

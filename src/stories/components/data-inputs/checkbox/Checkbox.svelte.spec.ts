@@ -72,6 +72,19 @@ describe('Checkbox', () => {
 			expect(checkbox.element().getAttribute('data-state')).toBe('checked');
 		});
 
+		it('toggles when its label is clicked, without an id or form field', async () => {
+			const screen = render(Checkbox, {
+				children: createChildrenSnippet('Terms')
+			});
+
+			const checkbox = screen.getByRole('checkbox');
+			expect(checkbox.element().getAttribute('data-state')).toBe('unchecked');
+			await screen.getByText('Terms').click();
+			expect(checkbox.element().getAttribute('data-state')).toBe('checked');
+			await screen.getByText('Terms').click();
+			expect(checkbox.element().getAttribute('data-state')).toBe('unchecked');
+		});
+
 		it('toggles back to unchecked on second click', async () => {
 			const screen = render(Checkbox, {
 				children: createChildrenSnippet('Terms')

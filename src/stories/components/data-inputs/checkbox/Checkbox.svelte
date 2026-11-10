@@ -41,14 +41,16 @@
 		| undefined
 	>('formField');
 
-	let checkboxId = $derived(id ?? ctx?.id);
+	// Without an id the label has nothing to point at, so clicking it would not toggle the box.
+	const generatedId = $props.id();
+	let checkboxId = $derived(id ?? ctx?.id ?? generatedId);
 	let isInvalid = $derived(invalid ?? ctx?.invalid ?? false);
 	let isDisabled = $derived(disabled || (ctx?.disabled ?? false));
 	let describedBy = $derived(ctx?.describedBy);
 
 	let boxClass = $derived(
 		[
-			'size-5 shrink-0 rounded-sm border inline-flex items-center justify-center',
+			'size-5 shrink-0 rounded-sm border inline-flex items-center justify-center cursor-pointer',
 			'focus-visible:outline-2 focus-visible:outline-offset-2',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			'data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-on-primary',

@@ -83,10 +83,18 @@ describe('POST /api/v1/organizations', () => {
 		});
 	});
 
-	it('answers 400 for a political candidate without a campaign registration', async () => {
-		await expect(
-			post({ name: 'Acme', slug: 'acme', ...profile, category: 'political', is_candidate: true })
-		).rejects.toMatchObject({ status: 400 });
+	it('accepts a political candidate without a campaign registration', async () => {
+		createOrganization.mockResolvedValue({ id: 'o1' });
+
+		const res = await post({
+			name: 'Acme',
+			slug: 'acme',
+			...profile,
+			category: 'political',
+			is_candidate: true
+		});
+
+		expect(res.status).toBe(201);
 	});
 
 	it('accepts a political candidate with a campaign registration', async () => {

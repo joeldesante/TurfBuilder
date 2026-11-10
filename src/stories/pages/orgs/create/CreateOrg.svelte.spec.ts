@@ -10,7 +10,7 @@ function continueButton() {
 }
 
 /** Answers the type and description steps, leaving the form on the name and slug step. */
-async function reachNameStep(category = 'Non-profit') {
+async function reachNameStep(category = 'Non-partisan') {
 	await page.getByRole('radio', { name: category, exact: true }).click();
 	await continueButton().click();
 	await page.getByLabelText('Description').fill(description);
@@ -49,7 +49,7 @@ describe('CreateOrg', () => {
 			await expect
 				.element(page.getByRole('heading', { level: 2 }))
 				.toHaveTextContent('What kind of organization is this?');
-			for (const name of ['Political or civic', 'Non-profit', 'Business']) {
+			for (const name of ['Political, Civic, or Social Change', 'Non-partisan', 'Commercial Use']) {
 				await expect.element(page.getByRole('radio', { name, exact: true })).not.toBeChecked();
 			}
 			await expect.element(page.getByRole('button', { name: 'Previous' })).not.toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('CreateOrg', () => {
 			render(CreateOrg, { onCreate: vi.fn() });
 
 			await expect
-				.element(page.getByRole('radio', { name: 'Business', exact: true }))
+				.element(page.getByRole('radio', { name: 'Commercial Use', exact: true }))
 				.toHaveAccessibleDescription(
 					'Companies canvassing for sales, customer outreach, or market research.'
 				);
@@ -76,7 +76,7 @@ describe('CreateOrg', () => {
 
 		it('asks for a description before moving on', async () => {
 			render(CreateOrg, { onCreate: vi.fn() });
-			await page.getByRole('radio', { name: 'Business', exact: true }).click();
+			await page.getByRole('radio', { name: 'Commercial Use', exact: true }).click();
 			await continueButton().click();
 
 			await continueButton().click();
@@ -87,7 +87,7 @@ describe('CreateOrg', () => {
 
 		it('does not flag fields on later steps while on an earlier one', async () => {
 			render(CreateOrg, { onCreate: vi.fn() });
-			await page.getByRole('radio', { name: 'Business', exact: true }).click();
+			await page.getByRole('radio', { name: 'Commercial Use', exact: true }).click();
 			await continueButton().click();
 
 			await expect.element(page.getByText('Step 2 of 3')).toBeVisible();
@@ -96,20 +96,20 @@ describe('CreateOrg', () => {
 
 		it('keeps answers when going back a step', async () => {
 			render(CreateOrg, { onCreate: vi.fn() });
-			await reachNameStep('Business');
+			await reachNameStep('Commercial Use');
 
 			await page.getByRole('button', { name: 'Previous' }).click();
 			await expect.element(page.getByLabelText('Description')).toHaveValue(description);
 			await page.getByRole('button', { name: 'Previous' }).click();
 
 			await expect
-				.element(page.getByRole('radio', { name: 'Business', exact: true }))
+				.element(page.getByRole('radio', { name: 'Commercial Use', exact: true }))
 				.toBeChecked();
 		});
 
 		it('moves focus to the new step heading', async () => {
 			render(CreateOrg, { onCreate: vi.fn() });
-			await page.getByRole('radio', { name: 'Business', exact: true }).click();
+			await page.getByRole('radio', { name: 'Commercial Use', exact: true }).click();
 			await continueButton().click();
 
 			await expect
@@ -123,31 +123,34 @@ describe('CreateOrg', () => {
 		it('only asks about running for office for political organizations', async () => {
 			render(CreateOrg, { onCreate: vi.fn() });
 
-			await page.getByRole('radio', { name: 'Non-profit', exact: true }).click();
+			await page.getByRole('radio', { name: 'Non-partisan', exact: true }).click();
 			await expect.element(page.getByRole('checkbox')).not.toBeInTheDocument();
 
-			await page.getByRole('radio', { name: 'Political or civic', exact: true }).click();
+			await page
+				.getByRole('radio', { name: 'Political, Civic, or Social Change', exact: true })
+				.click();
 			await expect.element(page.getByRole('checkbox')).toBeVisible();
 			await expect.element(page.getByLabelText('Campaign registration')).not.toBeInTheDocument();
 		});
 
-		it('asks a candidate for their campaign registration before moving on', async () => {
+		it('lets a candidate continue without a campaign registration', async () => {
 			render(CreateOrg, { onCreate: vi.fn() });
-			await page.getByRole('radio', { name: 'Political or civic', exact: true }).click();
+			await page
+				.getByRole('radio', { name: 'Political, Civic, or Social Change', exact: true })
+				.click();
 			await page.getByRole('checkbox').click();
 
 			await continueButton().click();
 
-			await expect
-				.element(page.getByText('Enter your FEC ID or a link to your campaign registration'))
-				.toBeVisible();
-			await expect.element(page.getByText('Step 1 of 3')).toBeVisible();
+			await expect.element(page.getByText('Step 2 of 3')).toBeVisible();
 		});
 
 		it('submits the registration for a candidate', async () => {
 			const onCreate = vi.fn().mockResolvedValue(undefined);
 			render(CreateOrg, { onCreate });
-			await page.getByRole('radio', { name: 'Political or civic', exact: true }).click();
+			await page
+				.getByRole('radio', { name: 'Political, Civic, or Social Change', exact: true })
+				.click();
 			await page.getByRole('checkbox').click();
 			await page.getByLabelText('Campaign registration').fill('C00123456');
 			await continueButton().click();
@@ -169,11 +172,54 @@ describe('CreateOrg', () => {
 
 		it('lets a political organization that is not a candidate continue without one', async () => {
 			render(CreateOrg, { onCreate: vi.fn() });
-			await page.getByRole('radio', { name: 'Political or civic', exact: true }).click();
+			await page
+				.getByRole('radio', { name: 'Political, Civic, or Social Change', exact: true })
+				.click();
 
 			await continueButton().click();
 
 			await expect.element(page.getByText('Step 2 of 3')).toBeVisible();
+		});
+	});
+
+	describe('value statement', () => {
+		it('shows the value statement above the description for political organizations', async () => {
+			render(CreateOrg, { onCreate: vi.fn() });
+			await page
+				.getByRole('radio', { name: 'Political, Civic, or Social Change', exact: true })
+				.click();
+			await continueButton().click();
+
+			await expect.element(page.getByRole('button', { name: 'Our Values' })).toBeVisible();
+			await expect.element(page.getByLabelText('Description')).toBeVisible();
+		});
+
+		it('collapses and expands from the heading', async () => {
+			render(CreateOrg, { onCreate: vi.fn() });
+			await page
+				.getByRole('radio', { name: 'Political, Civic, or Social Change', exact: true })
+				.click();
+			await continueButton().click();
+
+			const toggle = page.getByRole('button', { name: 'Our Values' });
+			await expect.element(page.getByText('Eligible candidates include')).toBeVisible();
+
+			await toggle.click();
+			await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
+			await expect.element(page.getByText('Eligible candidates include')).not.toBeInTheDocument();
+
+			await toggle.click();
+			await expect.element(page.getByText('Eligible candidates include')).toBeVisible();
+		});
+
+		it('does not show it for other organization types', async () => {
+			render(CreateOrg, { onCreate: vi.fn() });
+			await page.getByRole('radio', { name: 'Commercial Use', exact: true }).click();
+			await continueButton().click();
+
+			await expect
+				.element(page.getByRole('button', { name: 'Our Values' }))
+				.not.toBeInTheDocument();
 		});
 	});
 

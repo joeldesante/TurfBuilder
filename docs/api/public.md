@@ -439,7 +439,7 @@ creation is disabled in system settings and 409 when the slug is taken.
 | `category` | `'political'|'nonprofit'|'commercial'` |  | What kind of organization it is |
 | `description` | `string` |  | What the organization does, up to 1000 characters |
 | `is_candidate` | `boolean` |  | Optional. A candidate or campaign for office; political only |
-| `campaign_registration` | `string` |  | FEC ID or registration link. Required when `is_candidate` and political |
+| `campaign_registration` | `string` |  | Optional. FEC ID or registration link; political candidates only |
 
 **Response**
 
