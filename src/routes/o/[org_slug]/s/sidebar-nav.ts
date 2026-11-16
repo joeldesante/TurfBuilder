@@ -4,6 +4,7 @@ import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import PersonSimpleWalkIcon from 'phosphor-svelte/lib/PersonSimpleWalk';
 import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 import MapPinIcon from 'phosphor-svelte/lib/MapPinIcon';
+import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
 import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 import ShieldIcon from 'phosphor-svelte/lib/Shield';
 import ListChecksIcon from 'phosphor-svelte/lib/ListChecks';
@@ -145,6 +146,11 @@ export function buildStaffNav(
 								label: 'Contact schemas',
 								href: `/o/${orgSlug}/s/universe/data/contact-schemas`,
 								icon: ListChecksIcon
+							},
+							{
+								label: 'Map Editor',
+								href: `/o/${orgSlug}/s/universe/data/map-editor`,
+								icon: MapTrifoldIcon
 							}
 						]
 					},

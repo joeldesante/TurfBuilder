@@ -128,3 +128,74 @@ test('the headings are not options: picking is still by the options only', async
 	expect(onValueChange).toHaveBeenCalledWith('city');
 	expect((await getByRole('option').all()).length).toBe(0);
 });
+
+const many = Array.from({ length: 80 }, (_, i) => ({ value: `v${i}`, label: `Option ${i}` }));
+
+test('a long list scrolls inside the screen instead of running off it', async () => {
+	const { getByRole } = render(Dropdown, { props: { items: many, 'aria-label': 'Long' } });
+
+	await getByRole('button', { name: 'Long' }).click();
+
+	const list = getByRole('listbox').element() as HTMLElement;
+	expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
+	expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+	expect(getComputedStyle(list).overflowY).not.toBe('visible');
+});
+
+test('a long list has a search box that filters the options', async () => {
+	const { getByRole } = render(Dropdown, { props: { items: many, 'aria-label': 'Long' } });
+
+	await getByRole('button', { name: 'Long' }).click();
+	await getByRole('searchbox', { name: 'Search options' }).fill('Option 7');
+
+	await expect.element(getByRole('option', { name: 'Option 7', exact: true })).toBeVisible();
+	await expect.element(getByRole('option', { name: 'Option 3', exact: true })).not.toBeInTheDocument();
+});
+
+test('the search box takes focus and keeps typed spaces as text', async () => {
+	const { getByRole } = render(Dropdown, { props: { items: many, 'aria-label': 'Long' } });
+
+	await getByRole('button', { name: 'Long' }).click();
+	const box = getByRole('searchbox', { name: 'Search options' });
+	await expect.element(box).toHaveFocus();
+	await box.fill('Option 7');
+	await box.fill('Option 7 ');
+
+	await expect.element(box).toHaveValue('Option 7 ');
+});
+
+test('says so when nothing matches the search', async () => {
+	const { getByRole, getByText } = render(Dropdown, { props: { items: many, 'aria-label': 'Long' } });
+
+	await getByRole('button', { name: 'Long' }).click();
+	await getByRole('searchbox', { name: 'Search options' }).fill('zzz');
+
+	await expect.element(getByText('No options match "zzz".')).toBeVisible();
+});
+
+test('picks an option from the filtered list and clears the search for next time', async () => {
+	const onValueChange = vi.fn();
+	const { getByRole } = render(Dropdown, { props: { items: many, 'aria-label': 'Long', onValueChange } });
+
+	await getByRole('button', { name: 'Long' }).click();
+	await getByRole('searchbox', { name: 'Search options' }).fill('Option 42');
+	await getByRole('option', { name: 'Option 42' }).click();
+	expect(onValueChange).toHaveBeenCalledWith('v42');
+
+	await getByRole('button', { name: 'Long' }).click();
+	await expect.element(getByRole('searchbox', { name: 'Search options' })).toHaveValue('');
+});
+
+test('a short list has no search box unless asked for', async () => {
+	const short = render(Dropdown, { props: { ...base, value: 'and' } });
+	await short.getByRole('button', { name: 'Operator' }).click();
+	await expect.element(short.getByRole('searchbox')).not.toBeInTheDocument();
+});
+
+test('can be made searchable even when short', async () => {
+	const { getByRole } = render(Dropdown, { props: { ...base, searchable: true } });
+
+	await getByRole('button', { name: 'Operator' }).click();
+
+	await expect.element(getByRole('searchbox', { name: 'Search options' })).toBeVisible();
+});

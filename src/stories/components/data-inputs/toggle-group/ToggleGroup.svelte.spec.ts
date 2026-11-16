@@ -21,6 +21,18 @@ describe('ToggleGroup', () => {
 			expect(legend?.textContent).toContain('View');
 		});
 
+		it('keeps the label for screen readers only when hideLabel is set', async () => {
+			const screen = render(ToggleGroup, {
+				label: 'View',
+				items: testItems,
+				hideLabel: true
+			});
+
+			const legend = screen.container.querySelector('legend');
+			expect(legend?.textContent).toContain('View');
+			expect(legend?.classList.contains('sr-only')).toBe(true);
+		});
+
 		it('renders one toggle button per item', async () => {
 			const screen = render(ToggleGroup, {
 				label: 'View',

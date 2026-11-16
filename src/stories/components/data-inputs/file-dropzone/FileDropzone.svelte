@@ -2,6 +2,24 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import UploadSimpleIcon from 'phosphor-svelte/lib/UploadSimple';
 	import FileCsvIcon from 'phosphor-svelte/lib/FileCsv';
+	import FileCodeIcon from 'phosphor-svelte/lib/FileCode';
+
+	const FORMATS = {
+		csv: {
+			label: 'CSV',
+			article: 'a CSV',
+			extensions: ['.csv'],
+			mimeTypes: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'],
+			accept: '.csv,text/csv'
+		},
+		geojson: {
+			label: 'GeoJSON',
+			article: 'a GeoJSON',
+			extensions: ['.geojson', '.json'],
+			mimeTypes: ['application/geo+json', 'application/json'],
+			accept: '.geojson,.json,application/geo+json,application/json'
+		}
+	} as const;
 
 	/**
 	 * A drop zone with an upload button inside it, for choosing one CSV file. The button is the keyboard and screen reader route to the file browser; mouse users can also click anywhere in the zone. When
@@ -16,9 +34,13 @@
 		onUpload?: (file: File, onProgress: (percent: number) => void) => Promise<void>;
 		/** Disables the drop zone and the button. @default false */
 		disabled?: boolean;
+		/** The one file type the zone takes. @default 'csv' */
+		format?: keyof typeof FORMATS;
 	}
 
-	const { onUpload, disabled = false }: Props = $props();
+	const { onUpload, disabled = false, format = 'csv' }: Props = $props();
+
+	const spec = $derived(FORMATS[format]);
 
 	let fileInput = $state<HTMLInputElement | undefined>();
 	let dragging = $state(false);
@@ -31,14 +53,15 @@
 
 	const busy = $derived(disabled || status === 'uploading');
 
-	function isCsv(candidate: File): boolean {
-		return candidate.name.toLowerCase().endsWith('.csv');
+	function isAccepted(candidate: File): boolean {
+		const name = candidate.name.toLowerCase();
+		return spec.extensions.some((extension) => name.endsWith(extension));
 	}
 
 	async function accept(candidate: File | undefined) {
 		if (!candidate || busy) return;
-		if (!isCsv(candidate)) {
-			error = 'The file must be a CSV (a .csv file).';
+		if (!isAccepted(candidate)) {
+			error = `The file must be ${spec.article} (${spec.extensions.map((e) => `a ${e}`).join(' or ')} file).`;
 			return;
 		}
 		error = '';
@@ -63,12 +86,11 @@
 
 	// The browser hides file names until the drop, so a dragged file is judged by its type.
 	// An empty type is unknown and counts as fine; the name is checked on drop.
-	const CSV_TYPES = ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'];
 
 	function isWrongType(event: DragEvent): boolean {
 		const items = Array.from(event.dataTransfer?.items ?? []);
 		return items.some(
-			(item) => item.kind !== 'file' || (item.type !== '' && !CSV_TYPES.includes(item.type))
+			(item) => item.kind !== 'file' || (item.type !== '' && !(spec.mimeTypes as readonly string[]).includes(item.type))
 		);
 	}
 
@@ -139,7 +161,11 @@
 		{/if}
 
 		<div class="relative flex flex-col items-center gap-2">
-			<FileCsvIcon size={40} class="text-on-surface-subtle" />
+			{#if format === 'geojson'}
+				<FileCodeIcon size={40} class="text-on-surface-subtle" />
+			{:else}
+				<FileCsvIcon size={40} class="text-on-surface-subtle" />
+			{/if}
 			{#if status === 'uploading'}
 				<p class="text-sm font-medium text-on-surface">Uploading {file?.name}</p>
 				<p class="text-sm text-on-surface-subtle">{progress}%</p>
@@ -147,11 +173,11 @@
 				<p class="text-sm font-medium text-on-surface">{file?.name}</p>
 				<p class="text-sm text-on-surface-subtle">Uploaded</p>
 			{:else}
-				<p class="text-sm font-medium text-on-surface">Drop a CSV file here, or click Upload</p>
+				<p class="text-sm font-medium text-on-surface">Drop {spec.article} file here, or click Upload</p>
 			{/if}
 			<Button variant="outline" disabled={busy} onclick={handleButtonClick}>
 				<UploadSimpleIcon />
-				Upload CSV
+				Upload {spec.label}
 			</Button>
 		</div>
 	</div>
@@ -163,7 +189,7 @@
 	<input
 		bind:this={fileInput}
 		type="file"
-		accept=".csv,text/csv"
+		accept={spec.accept}
 		class="hidden"
 		data-testid="file-dropzone-input"
 		disabled={busy}

@@ -31,6 +31,29 @@ describe('InfraQuickMenu', () => {
 		expect(wrapper.className).not.toContain('max-md:right-');
 	});
 
+	test('can be dragged and remembers where it was left', async () => {
+		localStorage.removeItem('infra-quick-menu-position');
+		render(InfraQuickMenu, { props: { groups: everything } });
+
+		const button = page.getByRole('button', { name: 'Infrastructure menu' }).element();
+		const wrapper = button.closest('.fixed') as HTMLElement;
+		const rect = button.getBoundingClientRect();
+		const fire = (type: string, x: number, y: number, target: Element | Window = wrapper) =>
+			target.dispatchEvent(
+				new PointerEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true, pointerId: 1 })
+			);
+
+		fire('pointerdown', rect.left + 5, rect.top + 5, button);
+		fire('pointermove', rect.left - 95, rect.top - 95);
+		fire('pointerup', rect.left - 95, rect.top - 95);
+
+		const saved = JSON.parse(localStorage.getItem('infra-quick-menu-position')!);
+		expect(saved.x).toBeCloseTo(rect.left - 100, 0);
+		expect(saved.y).toBeCloseTo(rect.top - 100, 0);
+		expect(wrapper.style.left).toBe(`${saved.x}px`);
+		localStorage.removeItem('infra-quick-menu-position');
+	});
+
 	test('lists only the pages the admin can open', async () => {
 		render(InfraQuickMenu, { props: { groups: buildInfraNav(['access']), open: true } });
 
