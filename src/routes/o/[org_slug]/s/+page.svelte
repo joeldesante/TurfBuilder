@@ -2,7 +2,9 @@
 	import StaffDashboardPage from '$pages/o/s/dashboard/StaffDashboardPage.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { parseRange } from '$lib/dashboard-range';
+	import { LOGO_AT_ONCE, navigateWithLoader } from '$lib/client/navigate-with-loader';
 	const { data } = $props();
 
 	// ?bucket=<slug> selects a bucket so a shared link shows the same view.
@@ -14,11 +16,25 @@
 
 	// Sets or clears one param. goto, not pushState: the server load reads the
 	// params, so it has to run again.
-	function setParam(name: string, value: string | null) {
+	function withParam(name: string, value: string | null) {
 		const url = new URL(page.url);
 		if (value) url.searchParams.set(name, value);
 		else url.searchParams.delete(name);
-		goto(url, { keepFocus: true, noScroll: true });
+		return url;
+	}
+
+	function setParam(name: string, value: string | null) {
+		goto(withParam(name, value), { keepFocus: true, noScroll: true });
+	}
+
+	// A bucket's numbers and map can take a moment to load, so switching bucket
+	// happens behind the TurfBuilder loading cover.
+	async function changeBucket(slug: string | null) {
+		try {
+			await navigateWithLoader(withParam('bucket', slug), { keepFocus: true, noScroll: true }, LOGO_AT_ONCE);
+		} catch {
+			toast.error('The bucket could not be loaded. Try again.');
+		}
 	}
 </script>
 
@@ -32,7 +48,8 @@
 	{bucketSlug}
 	progress={data.progress}
 	mapPoints={data.points}
-	onBucketChange={(slug) => setParam('bucket', slug)}
+	mapLayers={data.mapLayers}
+	onBucketChange={changeBucket}
 	{range}
 	onRangeChange={(r) => setParam('range', r === 'all' ? null : r)}
 />

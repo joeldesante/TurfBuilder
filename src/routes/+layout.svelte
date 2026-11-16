@@ -13,7 +13,8 @@
 	import { api } from '$lib/client/api';
 	import { pageLoader } from '$lib/client/page-loader.svelte';
 	import { afterNavigate, beforeNavigate, onNavigate } from '$app/navigation';
-	import { fadesInto, hidesLoaderItself } from '$config/page-transitions';
+	import { entersLoaderRoute, fadesInto, hidesLoaderItself } from '$config/page-transitions';
+	import { LOGO_AT_ONCE } from '$lib/client/navigate-with-loader';
 	import { startAnalytics, identify, trackPageview } from '$lib/client/analytics';
 	let { children, data } = $props();
 
@@ -44,7 +45,16 @@
 	// Only a loader that was already up when the navigation began is this navigation's to put away.
 	// One a page raises itself while mounting (the org picker) is that page's to hide.
 	let loaderRaisedBeforeNavigation = false;
-	beforeNavigate(() => {
+	beforeNavigate((navigation) => {
+		// Slow parts of the app (a bucket) load behind the cover however they are reached: the
+		// sidebar, a link on a page, back and forward. See LOADER_INTO_ROUTE_PREFIXES.
+		if (
+			!pageLoader.active &&
+			navigation.type !== 'leave' &&
+			entersLoaderRoute(navigation.from, navigation.to)
+		) {
+			pageLoader.show(LOGO_AT_ONCE);
+		}
 		loaderRaisedBeforeNavigation = pageLoader.active;
 	});
 
