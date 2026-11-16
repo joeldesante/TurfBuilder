@@ -17,12 +17,6 @@
 
 ---
 
-## ActivityMap
-
-**Import:** `$components/data-display/activity-map/ActivityMap.svelte`
-
----
-
 ## AuditLogTable
 
 **Import:** `$components/data-display/audit-log-table/AuditLogTable.svelte`
@@ -282,9 +276,24 @@ Small pill label for status, categories, and location visit states.
 
 ---
 
-## LocationsMap
+## GeometryBadge
 
-**Import:** `$components/data-display/locations-map/LocationsMap.svelte`
+A small tag saying whether a map layer is made of shapes (polygons), lines or points.
+
+**Import:** `$components/data-display/geometry-badge/GeometryBadge.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `kind` | `GeometryKind` | **required** |  |
+| `count` | `number | undefined` | — | How many there are, shown after the name. |
+
+---
+
+## MapLayerToggles
+
+**Import:** `$components/data-display/map-layer-toggles/MapLayerToggles.svelte`
 
 ---
 
@@ -313,6 +322,18 @@ Small pill label for status, categories, and location visit states.
 | `locationName` | `string` | **required** |  |
 | `street` | `string | null | undefined` | `null` |  |
 | `locality` | `string | null | undefined` | `null` |  |
+
+---
+
+## MapView
+
+**Import:** `$components/data-display/map-view/MapView.svelte`
+
+---
+
+## OfficialBadge
+
+**Import:** `$components/data-display/official-badge/OfficialBadge.svelte`
 
 ---
 
@@ -363,6 +384,24 @@ screens. |
 ## Qrcode
 
 **Import:** `$components/data-display/qrcode/Qrcode.svelte`
+
+---
+
+## SourceBadge
+
+A small tag saying where a map layer comes from: the service that listed it, and the
+publisher when given. With `href` it is a link to the dataset's own page, opened in a
+new tab, so the data can be checked at its source.
+
+**Import:** `$components/data-display/source-badge/SourceBadge.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `provider` | `CatalogueProvider` | **required** |  |
+| `publisher` | `string | undefined` | — | The agency, city or organization that publishes it. |
+| `href` | `string | null | undefined` | `null` | The dataset's page at its source. |
 
 ---
 

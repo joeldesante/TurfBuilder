@@ -126,6 +126,25 @@ narrowed by the list's own filters. The list does not change afterwards.
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/buckets/{bucket_id}/location-map`
+
+What the bucket map draws for one viewport. Up to 2000 located matches come back as single points; a fuller viewport comes back as counted bubbles on a grid sized to the zoom (about 60 pixels a cell), with any cell holding one location still a point. A viewport across the antimeridian (west greater than east) is read as two boxes.
+
+**Auth:** Staff  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `west, south, east, north {number} - Required. Viewport corners in degrees` | `any` |  |
+| `zoom` | `number` | Required. The map's zoom, 0 to 24 |
+
+**Response**
+
+`{ points: Array<{ id, name, address_line_1, city, latitude, longitude }>, clusters: Array<{ id, latitude, longitude, count }> }`. Both empty when the bucket does not include locations. 400 for an invalid id or viewport, 401 when signed out, 403 without staff access, 404 when the bucket is not in the caller's organizations
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/buckets/{bucket_id}/locations`
 
 The locations a bucket's filter matches, one page at a time, ordered by name. An empty page when the bucket does not include locations.
@@ -227,13 +246,13 @@ Creates an empty survey in the bucket. Add questions with
 
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/contact-import-jobs/{job_id}`
 
-One contact import job and how far it has got: `rows_processed` of `rows_total`.
+One contact import job and how far it has got: `rows_processed` of `rows_total`; `rows_skipped` of those made no contact (a missing or invalid coordinate, or a required field left blank).
 
 **Auth:** staff (system.access)  
 
 **Response**
 
-`{ id, file_id, file_name, status, rows_total, rows_processed, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+`{ id, file_id, file_name, status, rows_total, rows_processed, rows_skipped, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
 
 ---
 
@@ -295,7 +314,7 @@ Starts importing an uploaded contact file. The job is saved first, as `queued`, 
 
 **Response**
 
-201 with `{ id, file_id, file_name, status, rows_total, rows_processed, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, body, schema or mapping, 401 when signed out, 403 without staff access, 404 when the file is not in the caller's organizations or has not finished uploading, 409 when the file is already being imported, 503 when the import could not be started (the job is then saved as `failed`)
+201 with `{ id, file_id, file_name, status, rows_total, rows_processed, rows_skipped, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, body, schema or mapping, 401 when signed out, 403 without staff access, 404 when the file is not in the caller's organizations or has not finished uploading, 409 when the file is already being imported, 503 when the import could not be started (the job is then saved as `failed`)
 
 ---
 
@@ -544,6 +563,45 @@ Closes an invite link so it can no longer be used to join.
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/layer-catalogue/ckan`
+
+Searches one official city CKAN portal for datasets that can be loaded as map layers. The
+portals do not allow browser requests, so the map editor asks through here. Only portals in
+the registry can be named.
+
+**Auth:** user  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| ``portal` the portal id, `q` the search text (optional), `start` the `next` cursor of the previous page` | `any` |  |
+
+**Response**
+
+`CkanSearchResult`. 400 for a bad query or unknown portal, 401 when signed out, 502 when the portal cannot be reached
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/layer-catalogue/data-gov`
+
+Searches data.gov for datasets that can be loaded as map layers. data.gov does not allow
+browser requests, so the map editor asks through here.
+
+**Auth:** user  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| ``q` the search text (optional), `after` the `next` cursor of the previous page, `official=1` for government publishers only` | `any` |  |
+
+**Response**
+
+`DataGovSearchResult`. 400 for a bad query, 401 when signed out, 502 when data.gov cannot be reached
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/lists/{list_id}/entries`
 
 A list's entries as they were when the list was created, one page at a time. People are ordered by last then first name, locations by city then name.
@@ -708,6 +766,50 @@ Sends a short test email to the signed-in admin, to prove outgoing mail works.
 **Response**
 
 `{ to }`. 403 without settings.manage, 409 when mail is not set up, 502 when the mail server refuses it
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/map-layers/{map_layer_id}`
+
+One map layer with its shapes. Maps fetch this when a layer is turned on, since the list leaves the shapes out.
+
+**Auth:** Staff  
+
+**Response**
+
+`{ id, name, color, label_field, position, geojson, created_at, updated_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/map-layers/{map_layer_id}`
+
+Changes how a map layer is drawn. Its shapes cannot be changed; add a new layer instead.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Optional. Display name |
+| `color` | `string` |  | Optional. Hex color, such as `#2f6fed` |
+| `label_field` | `string|null` |  | Optional. The feature property drawn as each shape's label; null for none |
+
+**Response**
+
+The layer, without its shapes. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/map-layers/{map_layer_id}`
+
+Deletes a map layer.
+
+**Auth:** Staff  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
 
 ---
 
@@ -992,7 +1094,7 @@ The organization's contact import jobs, running and waiting ones first, then the
 
 **Response**
 
-`Array<{ id, file_id, file_name, status, rows_total, rows_processed, error, created_at, started_at, updated_at, finished_at }>`. `status` is `queued`, `running`, `completed` or `failed`. `rows_total` is null when the file's rows were never counted. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+`Array<{ id, file_id, file_name, status, rows_total, rows_processed, rows_skipped, error, created_at, started_at, updated_at, finished_at }>`. `status` is `queued`, `running`, `completed` or `failed`. `rows_total` is null when the file's rows were never counted. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
 
 ---
 
@@ -1198,6 +1300,57 @@ place one on the admin map.
 **Response**
 
 201 with `{ entity_id, id }`, the location and its contact version. 400 for an invalid body, 401 when signed out, 403 without `location.create`, 404 when the caller is not a member
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/map-layer-order`
+
+Sets the order of the organization's map layers, top first.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `ids` | `string[]` |  | Every map layer id of the organization exactly once, top first |
+
+**Response**
+
+204. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 409 when a layer was added or deleted since the caller loaded the list
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/map-layers`
+
+The organization's map layers, top first, without their shapes: fetch one layer's GeoJSON from `GET /api/v1/map-layers/{map_layer_id}` when it is shown.
+
+**Auth:** Staff  
+
+**Response**
+
+`Array<{ id, name, color, label_field, position, created_at, updated_at }>`. `position` 0 is drawn on top. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/map-layers`
+
+Adds a map layer on top of the others.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Display name |
+| `color` | `string` |  | Hex color, such as `#2f6fed` |
+| `label_field` | `string|null` |  | Optional. The feature property drawn as each shape's label |
+| `geojson` | `object` |  | A GeoJSON FeatureCollection, Feature, or geometry |
+
+**Response**
+
+201 with the layer, without its shapes. 400 for an invalid body, 401 when signed out, 403 without staff access, 404 when the caller is not a member
 
 ---
 

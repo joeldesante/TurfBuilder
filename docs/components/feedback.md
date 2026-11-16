@@ -41,6 +41,12 @@
 
 ---
 
+## LayerDialog
+
+**Import:** `$components/feedback/layer-dialog/LayerDialog.svelte`
+
+---
+
 ## Loading
 
 **Import:** `$components/feedback/loading/Loading.svelte`

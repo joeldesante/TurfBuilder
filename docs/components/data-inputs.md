@@ -60,6 +60,23 @@
 
 ---
 
+## ColorSwatchPicker
+
+A row of color circles to choose one color from a fixed list.
+
+**Import:** `$components/data-inputs/color-swatch-picker/ColorSwatchPicker.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | **required** | The chosen color, as a hex value from `colors`. |
+| `label` | `string | undefined` | `'Color'` | Names the group for screen readers. |
+| `colors` | `readonly { name: string; value: string; }[] | undefined` | `LAYER_COLORS` |  |
+| `onChange` | `(value: string) => void` | **required** |  |
+
+---
+
 ## DatePicker
 
 **Import:** `$components/data-inputs/date-picker/DatePicker.svelte`
@@ -100,6 +117,8 @@
 | `placeholder` | `string | undefined` | `'Select...'` | Shown on the trigger while nothing is selected. |
 | `disabled` | `boolean | undefined` | `false` |  |
 | `onValueChange` | `((value: string) => void) | undefined` | — |  |
+| `searchable` | `boolean | undefined` | — | Whether the open list has a box to filter the options by typing. By default only long
+lists (more than 10 options) get one. |
 | `heading` | `string | undefined` | — | A heading shown above the options in the open list. |
 | `size` | `"md" | "sm" | undefined` | `'md'` | `sm` is a compact pill for tight spots such as toolbars. |
 | `class` | `string | undefined` | `''` |  |
@@ -121,6 +140,7 @@ and the whole zone fills left to right as the progress bar.
 | `onUpload` | `((file: File, onProgress: (percent: number) => void) => Promise<void>) | unde...` | — | Sends the file. Call `onProgress` with 0 to 100 as it goes. A rejection
 is shown under the zone, so its message must be safe to show a user. |
 | `disabled` | `boolean | undefined` | `false` | Disables the drop zone and the button. |
+| `format` | `"csv" | "geojson" | undefined` | `'csv'` | The one file type the zone takes. |
 
 ---
 
@@ -160,6 +180,25 @@ is shown under the zone, so its message must be safe to show a user. |
 | `disabled` | `boolean | undefined` | `false` |  |
 | `children` | `Snippet<[]>` | **required** |  |
 | `class` | `string | undefined` | `''` |  |
+
+---
+
+## LayerCatalogue
+
+Searches public map layers live: ArcGIS Hub (most cities and agencies), city portals on
+Socrata, data.gov and a few Census boundaries. Nothing is listed ahead of time, so it
+never goes out of date. Results cover everywhere by default, and can be narrowed to a US city or the map view, and by
+source, layer type and publisher. Picking one calls `onPick`.
+
+**Import:** `$components/data-inputs/layer-catalogue/LayerCatalogue.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `getViewBounds` | `(() => Bounds | null) | undefined` | — | The map's current view (west, south, east, north), to search near it. |
+| `loadingId` | `string | null | undefined` | `null` | The id of the entry being loaded. Disables the list while set. |
+| `onPick` | `(entry: CatalogueEntry) => void` | **required** |  |
 
 ---
 

@@ -211,6 +211,22 @@ items go back to `ids`. Without it the items cannot be dragged. |
 
 ---
 
+## SnippetHost
+
+Renders one snippet with one argument. Lets imperative code, such as a map
+popup that `mount()`s its own content, show a snippet a parent passed in.
+
+**Import:** `$components/layout/snippet-host/SnippetHost.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `snippet` | `Snippet<[T]>` | **required** |  |
+| `arg` | `T` | **required** |  |
+
+---
+
 ## TabBar
 
 **Import:** `$components/layout/tab-bar/TabBar.svelte`
