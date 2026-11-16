@@ -123,7 +123,9 @@ export function buildStaffNav(
 						items: [
 							...buckets.map((b) => ({
 								label: b.name,
-								href: `/o/${orgSlug}/s/universe/buckets/${b.slug}`,
+								// Straight to Locations when the bucket has them, which is where the bucket's own
+								// address redirects; skipping the redirect saves loading the bucket twice.
+								href: `/o/${orgSlug}/s/universe/buckets/${b.slug}${b.filter?.locations.enabled ? '/locations' : ''}`,
 								icon: CircleIcon
 							})),
 							{

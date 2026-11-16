@@ -115,13 +115,13 @@ describe('spatial filters', () => {
 	it('turns the radius into meters around the point', () => {
 		const query = loc(group('AND', f('radius_from_point', 'within', area)));
 
-		expect(query.sql).toContain('COALESCE(ST_DWithin(vl.coordinates::geography');
+		expect(query.sql).toContain('(vl.coordinates IS NOT NULL AND ST_DWithin(vl.coordinates::geography');
 		expect(query.params).toEqual([-75.22, 40.02, 2 * 1609.344]);
 	});
 
 	it('includes records with no position for "not within"', () => {
 		expect(loc(group('AND', f('radius_from_point', 'not_within', area))).sql).toContain(
-			'NOT COALESCE(ST_DWithin('
+			'NOT (vl.coordinates IS NOT NULL AND ST_DWithin('
 		);
 	});
 

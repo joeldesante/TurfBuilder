@@ -77,13 +77,29 @@
 		activeBucketSlug ? data.buckets.find((b: { id: string; name: string; slug: string }) => b.slug === activeBucketSlug) ?? null : null
 	);
 
+	// The bucket layout streams its location count, so the sidebar badge fills in once it arrives
+	// instead of holding up the page.
+	let locationCount = $state<number | null>(null);
+	let countSource: unknown = undefined;
+	$effect(() => {
+		const pending = $page.data.locationCount as Promise<number | null> | number | null | undefined;
+		// Moving between a bucket's pages keeps the same count; only a new one clears the badge.
+		if (pending === countSource) return;
+		countSource = pending;
+		locationCount = null;
+		// Only the latest count may land: a slow one for a bucket already left is dropped.
+		Promise.resolve(pending ?? null).then((count) => {
+			if (countSource === pending) locationCount = count;
+		});
+	});
+
 	const nav = $derived(
 		activeBucket
 			? buildBucketNav(
 					data.organization.slug,
 					activeBucket.slug,
 					activeBucket.filter,
-					$page.data.locationCount
+					locationCount
 				)
 			: buildStaffNav(data.organization.slug, data.activePlugins, data.organization, data.buckets)
 	);

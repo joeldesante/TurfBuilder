@@ -219,14 +219,16 @@ export async function getDashboard(
 	bucketSlug: string | null,
 	range: DashboardRange
 ): Promise<{ progress: DashboardProgress; points: DashboardPoint[] }> {
-	return withOrgTransaction(orgId, async (client) => {
+	const bucket = await withOrgTransaction(orgId, async (client) => {
 		if (!(await canOrg(client, userId, orgId, 'system.access'))) throw error(403, 'Forbidden');
-
-		const bucket = bucketSlug ? await findBucketBySlug(client, orgId, bucketSlug) : null;
-
-		return {
-			progress: await getDashboardProgress(client, orgId, bucket, range),
-			points: await getDashboardPoints(client, orgId, bucket, range)
-		};
+		return bucketSlug ? findBucketBySlug(client, orgId, bucketSlug) : null;
 	});
+
+	// Two transactions side by side rather than one after the other: each reads the whole scope,
+	// and over a large universe each takes a few hundred milliseconds.
+	const [progress, points] = await Promise.all([
+		withOrgTransaction(orgId, (client) => getDashboardProgress(client, orgId, bucket, range)),
+		withOrgTransaction(orgId, (client) => getDashboardPoints(client, orgId, bucket, range))
+	]);
+	return { progress, points };
 }
