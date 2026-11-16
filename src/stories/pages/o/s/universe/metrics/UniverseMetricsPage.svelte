@@ -7,7 +7,7 @@
 		MetricsBucket,
 		MetricsWorkflowSelection
 	} from '$components/universe/metrics-workflow-sidebar/MetricsWorkflowSidebar.svelte';
-	import LocationsMap from '$components/data-display/locations-map/LocationsMap.svelte';
+	import MapView from '$components/data-display/map-view/MapView.svelte';
 	import LocationResponseDetail from '$components/universe/location-response-detail/LocationResponseDetail.svelte';
 	import type { MetricsLocationResult } from '$components/universe/location-response-detail/LocationResponseDetail.svelte';
 
@@ -110,7 +110,7 @@
 			{#key activeTab.id}
 				<div class="flex">
 					<div class="flex-1 flex flex-col min-h-[480px]">
-						<LocationsMap
+						<MapView
 							locations={activeLocations}
 							bind:selectedLocationId={selectedLocationIds[activeTab.id]}
 							class="flex-1"

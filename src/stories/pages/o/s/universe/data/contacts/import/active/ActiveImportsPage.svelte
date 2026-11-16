@@ -179,7 +179,7 @@
 </div>
 
 <style>
-	/* The same sweep as the loading label on the map (LocationsMap): a gradient that is wider than
+	/* The same sweep as the loading label on the map (MapView): a gradient that is wider than
 	   the bar, drifting across it, so the fill looks like it is moving while it waits on the rows. */
 	.bar-running {
 		background: linear-gradient(

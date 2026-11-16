@@ -1,8 +1,6 @@
 <script lang="ts" module>
-	export interface LayerGeoJSON {
-		type: string;
-		[key: string]: unknown;
-	}
+	import type { LayerGeoJSON } from '$lib/shared/types/map-layers';
+	export type { LayerGeoJSON };
 
 	const GEOJSON_TYPES = [
 		'FeatureCollection',

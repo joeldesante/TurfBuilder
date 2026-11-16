@@ -62,10 +62,10 @@
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import Badge from '$components/data-display/badge/Badge.svelte';
-	import LocationsMap, {
+	import MapView, {
 		type MapLocation,
 		type MapBounds
-	} from '$components/data-display/locations-map/LocationsMap.svelte';
+	} from '$components/data-display/map-view/MapView.svelte';
 	import LocationForm from '$components/data-inputs/location-form/LocationForm.svelte';
 	import ConfirmDialog from '$components/feedback/confirm-dialog/ConfirmDialog.svelte';
 	import type { LocationFields } from '$lib/schemas/location';
@@ -296,7 +296,7 @@
 		{/if}
 
 		<div class="flex flex-col lg:flex-row">
-			<LocationsMap
+			<MapView
 				bind:selectedLocationId
 				locations={mapLocations}
 				locationsLoading={viewportLoading}
@@ -350,7 +350,7 @@
 						{/if}
 					</div>
 				{/snippet}
-			</LocationsMap>
+			</MapView>
 
 			{#if draft || editing}
 				<aside

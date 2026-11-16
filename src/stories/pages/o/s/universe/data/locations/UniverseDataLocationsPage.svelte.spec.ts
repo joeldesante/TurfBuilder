@@ -1,77 +1,16 @@
 import { render } from 'vitest-browser-svelte';
 import { expect, test, vi, beforeEach } from 'vitest';
 
-const { mapHandlers, mapApi } = vi.hoisted(() => ({
-	mapHandlers: {} as Record<string, ((event?: unknown) => void)[]>,
-	mapApi: {
-		getCanvas: vi.fn(() => ({ style: {} as CSSStyleDeclaration })),
-		getLayer: vi.fn(() => ({})),
-		getSource: vi.fn(() => ({ setData: vi.fn() })),
-		addSource: vi.fn(),
-		addLayer: vi.fn(),
-		removeLayer: vi.fn(),
-		removeSource: vi.fn(),
-		addControl: vi.fn(),
-		flyTo: vi.fn(),
-		getBounds: vi.fn(() => ({
-			getWest: () => -75.3,
-			getSouth: () => 39.9,
-			getEast: () => -75.1,
-			getNorth: () => 40.1
-		}))
-	}
-}));
-
-vi.mock('maplibre-gl', () => {
-	// Constructor mocks use function expressions because arrow functions cannot
-	// be called with `new`.
-	const LngLatBounds = vi.fn(function () {
-		const instance = { extend: () => instance };
-		return instance;
-	});
-
-	const Map = vi.fn(function () {
-		return {
-			on: vi.fn((event: string, handler: () => void) => {
-				(mapHandlers[event] ??= []).push(handler);
-			}),
-			off: vi.fn(),
-			once: vi.fn(),
-			remove: vi.fn(),
-			setStyle: vi.fn(),
-			fitBounds: vi.fn(),
-			...mapApi
-		};
-	});
-
-	const Marker = vi.fn(function () {
-		const instance = {
-			setLngLat: () => instance,
-			setPopup: () => instance,
-			addTo: () => instance,
-			on: () => instance,
-			getLngLat: () => ({ lng: 0, lat: 0 }),
-			getPopup: () => ({ isOpen: () => false }),
-			togglePopup: vi.fn(),
-			remove: vi.fn()
-		};
-		return instance;
-	});
-
-	const Popup = vi.fn(function () {
-		const instance = { setDOMContent: () => instance };
-		return instance;
-	});
-
-	const namespace = { Map, Marker, Popup, LngLatBounds };
-	return { ...namespace, default: namespace };
-});
+vi.mock('maplibre-gl', async () =>
+	(await import('$components/__tests__/maplibre-mock')).maplibreMock()
+);
 
 vi.mock('$lib/map-style', () => ({ getMapStyle: vi.fn().mockResolvedValue({}) }));
 vi.mock('$lib/theme.svelte', () => ({
 	themeStore: { theme: 'light', setTheme: vi.fn(), init: vi.fn() }
 }));
 
+import { fireMapEvent, mapState, resetMapState } from '$components/__tests__/maplibre-mock';
 import UniverseDataLocationsPage from './UniverseDataLocationsPage.svelte';
 
 const locations = [
@@ -110,18 +49,19 @@ const locations = [
 const base = { orgSlug: 'acme', orgId: 'o1', totalCount: 2, locations };
 
 beforeEach(() => {
-	for (const key of Object.keys(mapHandlers)) delete mapHandlers[key];
+	resetMapState();
 	vi.clearAllMocks();
 });
 
 /** Fires the map 'load' event, which is what arms pin-drop mode. */
 async function armPinDrop() {
 	await vi.waitFor(() => {
-		if (!mapHandlers['load']) throw new Error('map not initialized yet');
+		if (!mapState.handlers['load']) throw new Error('map not initialized yet');
 	});
-	for (const handler of mapHandlers['load']) handler();
+	for (const handler of mapState.handlers['load']) handler();
 	await vi.waitFor(() => {
-		if (!mapHandlers['click']) throw new Error('pin drop not armed yet');
+		// MapView's own click handler is first; the pin drop handler joins it once armed.
+		if ((mapState.handlers['click'] ?? []).length < 2) throw new Error('pin drop not armed yet');
 	});
 }
 
@@ -239,7 +179,7 @@ test('switches to the map view', async () => {
 
 	await getByRole('button', { name: 'Map' }).click();
 
-	await expect.element(getByTestId('locations-map')).toBeInTheDocument();
+	await expect.element(getByTestId('map-view')).toBeInTheDocument();
 });
 
 test('opens the map in placing mode from the add button', async () => {
@@ -259,7 +199,7 @@ test('shows the form once a pin is dropped', async () => {
 
 	await getByRole('button', { name: 'Add location' }).click();
 	await armPinDrop();
-	mapHandlers['click'][0]({ lngLat: { lat: 40.1, lng: -75.9 } });
+	fireMapEvent('click', { lngLat: { lat: 40.1, lng: -75.9 } });
 
 	await expect.element(getByLabelText('Business name')).toBeVisible();
 });
@@ -272,7 +212,7 @@ test('creates a location from the dropped pin', async () => {
 
 	await getByRole('button', { name: 'Add location' }).click();
 	await armPinDrop();
-	mapHandlers['click'][0]({ lngLat: { lat: 40.1, lng: -75.9 } });
+	fireMapEvent('click', { lngLat: { lat: 40.1, lng: -75.9 } });
 
 	await getByLabelText('Business name').fill('New Bodega');
 	await getByRole('button', { name: 'Add location', exact: true }).nth(1).click();
@@ -332,9 +272,9 @@ test('links back a page from the last one', async () => {
 async function openMap(getByRole: ReturnType<typeof render>['getByRole']) {
 	await getByRole('button', { name: 'Map' }).click();
 	await vi.waitFor(() => {
-		if (!mapHandlers['load']) throw new Error('map not initialized yet');
+		if (!mapState.handlers['load']) throw new Error('map not initialized yet');
 	});
-	for (const handler of mapHandlers['load']) handler();
+	for (const handler of mapState.handlers['load']) handler();
 }
 
 // The whole point of the viewport loader: the map draws what is on screen, not
@@ -370,7 +310,7 @@ test('draws the locations the viewport loader returned', async () => {
 	await vi.waitFor(() => {
 		expect(onViewportLoad).toHaveBeenCalled();
 	});
-	for (const handler of mapHandlers['idle'] ?? []) handler();
+	for (const handler of mapState.handlers['idle'] ?? []) handler();
 
 	await expect.element(getByText('1 location loaded')).toBeVisible();
 });
@@ -399,7 +339,7 @@ test('reloads the viewport after a location is created', async () => {
 		expect(onViewportLoad).toHaveBeenCalledTimes(1);
 	});
 
-	mapHandlers['click'][0]({ lngLat: { lat: 40.1, lng: -75.9 } });
+	fireMapEvent('click', { lngLat: { lat: 40.1, lng: -75.9 } });
 	await getByLabelText('Business name').fill('New Bodega');
 	await getByRole('button', { name: 'Add location', exact: true }).nth(1).click();
 

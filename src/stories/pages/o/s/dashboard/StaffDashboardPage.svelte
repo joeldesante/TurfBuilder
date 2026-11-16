@@ -3,7 +3,8 @@
 	import Button from '$components/actions/button/Button.svelte';
 	import DropdownMenu, { type DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import ToggleGroup from '$components/data-inputs/toggle-group/ToggleGroup.svelte';
-	import ActivityMap from '$components/data-display/activity-map/ActivityMap.svelte';
+	import MapView, { type MapLayerData, type MapLocation } from '$components/data-display/map-view/MapView.svelte';
+	import type { MapLayerSummary } from '$lib/shared/types/map-layers';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import GlobeIcon from 'phosphor-svelte/lib/Globe';
@@ -19,6 +20,8 @@
 		progress: DashboardProgress;
 		/** Locations for the map. */
 		mapPoints: DashboardPoint[];
+		/** The organization's map layers, top first. Each can be turned on and off on the map. */
+		mapLayers?: MapLayerSummary[];
 		/** Slug of the bucket to show, from the URL. Null or unknown shows the entire universe. */
 		bucketSlug?: string | null;
 		/** Called with the chosen bucket's slug, or null for the entire universe, so the route can put it in the URL. */
@@ -29,7 +32,7 @@
 		onRangeChange?: (range: DashboardRange) => void;
 	}
 
-	const { orgSlug, buckets, progress, mapPoints, bucketSlug = null, onBucketChange, range = 'all', onRangeChange }: Props = $props();
+	const { orgSlug, buckets, progress, mapPoints, mapLayers = [], bucketSlug = null, onBucketChange, range = 'all', onRangeChange }: Props = $props();
 
 	const ALL = 'all';
 
@@ -57,6 +60,14 @@
 		onBucketChange?.(buckets.find((b) => b.id === id)?.slug ?? null);
 	}
 	let selectedId = $state<string | null>(null);
+
+	const mapLocations = $derived<MapLocation[]>(
+		mapPoints.map((p) => ({ id: p.id, name: p.name, latitude: p.latitude, longitude: p.longitude }))
+	);
+	const layers = $derived<MapLayerData[]>(
+		mapLayers.map((l) => ({ id: l.id, name: l.name, color: l.color, labelField: l.label_field }))
+	);
+	const statusById = $derived(new Map(mapPoints.map((p) => [p.id, p.status])));
 
 	const base = $derived(`/o/${orgSlug}/s`);
 	const universe = $derived(bucket === ALL);
@@ -151,16 +162,20 @@
 	<div class="grid gap-6 xl:grid-cols-3">
 		<section class="flex flex-col gap-3 rounded-lg border border-outline-subtle bg-surface-container-lowest p-5 {selected ? 'xl:col-span-2' : 'xl:col-span-3'}">
 			<h2 class="text-base font-semibold">Where canvassers have been</h2>
-			<ActivityMap points={mapPoints} bind:selectedId class="h-[560px] overflow-hidden rounded-sm" />
+			<MapView
+				locations={mapLocations}
+				bind:selectedLocationId={selectedId}
+				markerStyle="dot"
+				{layers}
+				layerToggles
+				popup={null}
+				variantFor={(loc) => statusById.get(loc.id) ?? 'unvisited'}
+				class="h-[560px] overflow-hidden rounded-sm"
+			/>
 			<div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-on-surface-subtle">
-				<span class="flex items-center gap-2">
-					Fewer visits
-					<span class="h-2.5 w-28 rounded-sm bg-gradient-to-r from-surface-container via-[#00bc7d] to-[#004f3b]"></span>
-					More visits
-				</span>
 				<span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-location-contacted"></span>Talked to someone</span>
-				<span class="flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-on-surface-subtle"></span>No one to talk to</span>
-				<span class="flex items-center gap-1.5"><span class="size-2 rounded-full border-[1.5px] border-[#2b7fff] bg-surface"></span>Not visited yet</span>
+				<span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-location-no-contact"></span>No one to talk to</span>
+				<span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-location-unvisited"></span>Not visited yet</span>
 			</div>
 		</section>
 

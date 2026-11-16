@@ -45,9 +45,9 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
 	import GpsIcon from 'phosphor-svelte/lib/Gps';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
-	import LocationsMap, {
+	import MapView, {
 		type MapLocation
-	} from '$components/data-display/locations-map/LocationsMap.svelte';
+	} from '$components/data-display/map-view/MapView.svelte';
 	import { type Variant } from '$components/data-display/map-marker/MapMarker.svelte';
 	import Badge from '$components/data-display/badge/Badge.svelte';
 	import Button from '$components/actions/button/Button.svelte';
@@ -102,7 +102,7 @@
 		hostile: { label: 'Hostile', variant: 'location-hostile' }
 	};
 
-	let mapRef = $state<ReturnType<typeof LocationsMap> | undefined>();
+	let mapRef = $state<ReturnType<typeof MapView> | undefined>();
 	let selectedLocationId = $state<string | null>(null);
 
 	type GeolocateState = 'idle' | 'locating' | 'tracking' | 'error';
@@ -365,7 +365,7 @@
 	</div>
 {/if}
 
-<LocationsMap
+<MapView
 	bind:this={mapRef}
 	bind:selectedLocationId
 	locations={mapLocations}

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import ReorderList from '$components/layout/reorder-list/ReorderList.svelte';
 	import Pagination from '$components/data-display/pagination/Pagination.svelte';
-	import LocationsMap, {
+	import MapView, {
 		type MapLocation
-	} from '$components/data-display/locations-map/LocationsMap.svelte';
+	} from '$components/data-display/map-view/MapView.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import DataTable, {
 		type DataTableColumn
@@ -296,7 +296,7 @@
 			No contacts here have a position to show on the map.
 		</p>
 	{:else}
-		<LocationsMap locations={markers} autoFit class="h-[32rem] w-full" />
+		<MapView locations={markers} autoFit class="h-[32rem] w-full" />
 	{/if}
 {:else}
 	<Pagination {page} {totalCount} {pageSize} noun="contacts" href={pageHref} />

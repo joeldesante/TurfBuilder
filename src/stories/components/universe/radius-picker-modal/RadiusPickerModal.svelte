@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import Button from '$components/actions/button/Button.svelte';
-	import LocationsMap from '$components/data-display/locations-map/LocationsMap.svelte';
+	import MapView from '$components/data-display/map-view/MapView.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import type { RadiusValue } from '$lib/shared/types/filters';
@@ -78,7 +78,7 @@
 			</div>
 
 			<div class="min-h-0 flex-1">
-				<LocationsMap
+				<MapView
 					class="h-full w-full"
 					pinDropMode
 					autoFit={false}
