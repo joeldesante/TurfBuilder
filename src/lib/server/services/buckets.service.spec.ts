@@ -42,6 +42,7 @@ import {
 	getBucket,
 	replaceBucket,
 	updateBucket,
+	deleteBucket,
 	listBucketLocations,
 	listBucketPeople,
 	bucketSections,
@@ -86,7 +87,7 @@ describe('listBuckets', () => {
 	it("selects only the org's buckets", async () => {
 		await listBuckets('u1', ORG);
 
-		expect(sqlRun('FROM universe.bucket WHERE org_id = $1')![1]).toEqual([ORG]);
+		expect(sqlRun('WHERE org_id = $1 AND deleted_at IS NULL')![1]).toEqual([ORG]);
 	});
 
 	it('returns 404 for a non-member and queries nothing', async () => {
@@ -156,6 +157,56 @@ describe('getBucket', () => {
 		stub(() => ({ rowCount: 1, rows: [{ id: BUCKET, filter: null, filters: invalidFilters }] }));
 
 		expect(await getBucket('u1', BUCKET)).toMatchObject({ id: BUCKET, filters: null });
+	});
+});
+
+describe('deleteBucket', () => {
+	it('marks the bucket deleted instead of removing it', async () => {
+		await deleteBucket('u1', BUCKET);
+
+		const [sql, values] = sqlRun('UPDATE universe.bucket SET deleted_at')!;
+		expect(sql).toContain('deleted_at IS NULL');
+		expect(values).toEqual([BUCKET, ORG]);
+		expect(sqlRun('DELETE FROM universe.bucket')).toBeUndefined();
+	});
+
+	it('returns 404 when the bucket is already deleted', async () => {
+		stub((sql) => (sql.includes('SET deleted_at') ? { rowCount: 0, rows: [] } : found));
+
+		await expect(deleteBucket('u1', BUCKET)).rejects.toMatchObject({ status: 404 });
+	});
+
+	it('returns 404 when no org of the caller has it', async () => {
+		stub(() => found, false);
+
+		await expect(deleteBucket('u1', BUCKET)).rejects.toMatchObject({ status: 404 });
+		expect(sqlRun('SET deleted_at')).toBeUndefined();
+	});
+
+	it('returns 403 without staff access and deletes nothing', async () => {
+		canOrg.mockResolvedValue(false);
+
+		await expect(deleteBucket('u1', BUCKET)).rejects.toMatchObject({ status: 403 });
+		expect(sqlRun('SET deleted_at')).toBeUndefined();
+	});
+});
+
+describe('deleted buckets are left out', () => {
+	it.each([
+		['listBuckets', () => listBuckets('u1', ORG)],
+		['getBucket', () => getBucket('u1', BUCKET)],
+		['updateBucket', () => updateBucket('u1', BUCKET, { name: 'x' })],
+		['listBucketNavigation', () => getBucketNavigation('u1', ORG)],
+		['finding by slug', () => getBucketPage('u1', ORG, 'voters')]
+	])('%s only reads live buckets', async (_name, run) => {
+		await run().catch(() => {});
+
+		const reads = mockClient.query.mock.calls
+			.map((c) => String(c[0]))
+			.filter((sql) => /FROM universe\.bucket|UPDATE universe\.bucket/.test(sql))
+			.filter((sql) => !sql.includes('SELECT 1 FROM universe.bucket'));
+		expect(reads.length).toBeGreaterThan(0);
+		for (const sql of reads) expect(sql).toContain('deleted_at IS NULL');
 	});
 });
 

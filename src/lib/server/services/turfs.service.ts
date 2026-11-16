@@ -350,7 +350,7 @@ export async function getTurfReport(
 			   JOIN auth.user u ON t.author_id = u.id
 			   LEFT JOIN universe.survey s ON t.survey_id = s.id AND s.org_id = t.org_id
 			   JOIN universe.list l ON l.id = t.list_id AND l.org_id = t.org_id
-			   JOIN universe.bucket b ON b.id = l.bucket AND b.org_id = t.org_id
+			   JOIN universe.bucket b ON b.id = l.bucket AND b.org_id = t.org_id AND b.deleted_at IS NULL
 			  WHERE t.id = $1 AND t.org_id = $2 AND t.list_id = $3 AND b.slug = $4`,
 			[turfId, orgId, listId, bucketSlug]
 		);

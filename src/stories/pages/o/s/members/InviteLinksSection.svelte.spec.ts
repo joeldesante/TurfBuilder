@@ -57,23 +57,53 @@ describe('InviteLinksSection', () => {
 		await expect.element(copyButtons.first()).toBeVisible();
 	});
 
-	it('renders the Generate Link button', async () => {
-		render(InviteLinksSection, defaultProps);
-		await expect.element(page.getByRole('button', { name: /generate link/i })).toBeVisible();
+	it('puts the Generate Link button in the section header, beside the heading', async () => {
+		const { container } = render(InviteLinksSection, defaultProps);
+		const button = page.getByRole('button', { name: 'Generate Link' });
+		await expect.element(button).toBeVisible();
+		const header = container.querySelector('#invite-links-heading')!.parentElement!;
+		expect(header.contains(button.element())).toBe(true);
 	});
 
-	it('calls onCreate with null when no expiry date is set', async () => {
+	it('does not show the expiration modal until Generate Link is pressed', async () => {
+		render(InviteLinksSection, defaultProps);
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	it('asks for an optional expiration date in a modal', async () => {
+		render(InviteLinksSection, defaultProps);
+		await page.getByRole('button', { name: 'Generate Link' }).click();
+		const dialog = page.getByRole('dialog');
+		await expect.element(dialog).toBeVisible();
+		await expect.element(dialog.getByText('Expiration date (optional)')).toBeVisible();
+	});
+
+	it('calls onCreate with null when no expiry date is set, and closes the modal', async () => {
 		const onCreate = vi.fn().mockResolvedValue(undefined);
 		render(InviteLinksSection, { ...defaultProps, onCreate });
-		await page.getByRole('button', { name: /generate link/i }).click();
+		await page.getByRole('button', { name: 'Generate Link' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Generate Link' }).click();
 		expect(onCreate).toHaveBeenCalledWith(null);
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
 	});
 
-	it('shows an error message when onCreate rejects', async () => {
+	it('closes the modal without creating a link when cancelled', async () => {
+		const onCreate = vi.fn();
+		render(InviteLinksSection, { ...defaultProps, onCreate });
+		await page.getByRole('button', { name: 'Generate Link' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+		expect(onCreate).not.toHaveBeenCalled();
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	it('shows the error inside the modal and keeps it open when onCreate rejects', async () => {
 		const onCreate = vi.fn().mockRejectedValue(new Error('Failed to generate link.'));
 		render(InviteLinksSection, { ...defaultProps, onCreate });
-		await page.getByRole('button', { name: /generate link/i }).click();
-		await expect.element(page.getByText('Failed to generate link.')).toBeVisible();
+		await page.getByRole('button', { name: 'Generate Link' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Generate Link' }).click();
+		await expect
+			.element(page.getByRole('dialog').getByText('Failed to generate link.'))
+			.toBeVisible();
 	});
 
 	it('shows an error message when onRevoke rejects', async () => {
@@ -85,14 +115,14 @@ describe('InviteLinksSection', () => {
 
 	it('does not show the slug invite URL when slug invite is disabled', async () => {
 		render(InviteLinksSection, { ...defaultProps, slugInviteEnabled: false });
-		await expect.element(page.getByRole('button', { name: 'Copy slug invite URL' })).not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: 'Copy slug invite URL' }))
+			.not.toBeInTheDocument();
 	});
 
 	it('shows the slug invite copy button when slug invite is enabled', async () => {
 		render(InviteLinksSection, { ...defaultProps, slugInviteEnabled: true });
-		await expect
-			.element(page.getByRole('button', { name: 'Copy slug invite URL' }))
-			.toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Copy slug invite URL' })).toBeVisible();
 	});
 
 	it('calls onToggleSlug with true when the switch is toggled on', async () => {
@@ -113,5 +143,62 @@ describe('InviteLinksSection', () => {
 	it('does not render the links table when inviteLinks is empty', async () => {
 		render(InviteLinksSection, { ...defaultProps, inviteLinks: [] });
 		await expect.element(page.getByText('V1StGXR8_Z5jdHi6B-myT')).not.toBeInTheDocument();
+	});
+
+	describe('QR codes', () => {
+		it('has a QR code button on each link', async () => {
+			render(InviteLinksSection, defaultProps);
+			expect((await page.getByRole('button', { name: 'Show QR code' }).all()).length).toBe(2);
+		});
+
+		it('shows the QR code for that link in a modal with a download button', async () => {
+			render(InviteLinksSection, defaultProps);
+			await page.getByRole('button', { name: 'Show QR code' }).first().click();
+
+			const dialog = page.getByRole('dialog');
+			await expect.element(dialog.getByText('Invite link QR code')).toBeVisible();
+			await expect
+				.element(dialog.getByRole('img', { name: /V1StGXR8_Z5jdHi6B-myT/ }))
+				.toBeVisible();
+			await expect.element(dialog.getByRole('button', { name: 'Download PNG' })).toBeVisible();
+		});
+
+		it('shows the code for the link that was chosen, not the first', async () => {
+			render(InviteLinksSection, defaultProps);
+			await page.getByRole('button', { name: 'Show QR code' }).nth(1).click();
+
+			await expect
+				.element(page.getByRole('dialog').getByRole('img', { name: /abc123xyz_DEFGH456789/ }))
+				.toBeVisible();
+		});
+
+		it('has no slug QR code button while the slug invite is off', async () => {
+			render(InviteLinksSection, defaultProps);
+			await expect
+				.element(page.getByRole('button', { name: 'Show slug invite QR code' }))
+				.not.toBeInTheDocument();
+		});
+
+		it('shows the QR code for the organization slug invite when it is on', async () => {
+			render(InviteLinksSection, { ...defaultProps, slugInviteEnabled: true });
+			await page.getByRole('button', { name: 'Show slug invite QR code' }).click();
+
+			const dialog = page.getByRole('dialog');
+			await expect.element(dialog.getByText('Organization invite QR code')).toBeVisible();
+			await expect.element(dialog.getByRole('img', { name: /\/invite\/test-org$/ })).toBeVisible();
+			await expect.element(dialog.getByRole('button', { name: 'Download PNG' })).toBeVisible();
+		});
+
+		it('leaves the link QR buttons at one per link when the slug invite is on', async () => {
+			render(InviteLinksSection, { ...defaultProps, slugInviteEnabled: true });
+			expect((await page.getByRole('button', { name: 'Show QR code' }).all()).length).toBe(2);
+		});
+
+		it('closes the modal from Close', async () => {
+			render(InviteLinksSection, defaultProps);
+			await page.getByRole('button', { name: 'Show QR code' }).first().click();
+			await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
+			await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+		});
 	});
 });

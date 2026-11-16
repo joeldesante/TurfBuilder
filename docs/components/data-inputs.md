@@ -100,7 +100,27 @@
 | `placeholder` | `string | undefined` | `'Select...'` | Shown on the trigger while nothing is selected. |
 | `disabled` | `boolean | undefined` | `false` |  |
 | `onValueChange` | `((value: string) => void) | undefined` | — |  |
+| `heading` | `string | undefined` | — | A heading shown above the options in the open list. |
+| `size` | `"md" | "sm" | undefined` | `'md'` | `sm` is a compact pill for tight spots such as toolbars. |
 | `class` | `string | undefined` | `''` |  |
+
+---
+
+## FileDropzone
+
+A drop zone with an upload button inside it, for choosing one CSV file. The button is the keyboard and screen reader route to the file browser; mouse users can also click anywhere in the zone. When
+`onUpload` is given the file is sent as soon as it is dropped or chosen,
+and the whole zone fills left to right as the progress bar.
+
+**Import:** `$components/data-inputs/file-dropzone/FileDropzone.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `onUpload` | `((file: File, onProgress: (percent: number) => void) => Promise<void>) | unde...` | — | Sends the file. Call `onProgress` with 0 to 100 as it goes. A rejection
+is shown under the zone, so its message must be safe to show a user. |
+| `disabled` | `boolean | undefined` | `false` | Disables the drop zone and the button. |
 
 ---
 

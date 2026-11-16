@@ -82,6 +82,18 @@ The bucket. 400 for an invalid id or body, 401 when signed out, 403 without staf
 
 ---
 
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/buckets/{bucket_id}`
+
+Deletes a bucket. The bucket is marked deleted, not removed: it disappears from every list and its pages answer 404, while its lists, surveys, scripts, and turfs stay as they are. Its slug can be used again.
+
+**Auth:** Staff  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations or is already deleted
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/buckets/{bucket_id}/lists`
 
 The lists in a bucket, newest first.
@@ -212,6 +224,124 @@ Creates an empty survey in the bucket. Add questions with
 **Response**
 
 201 with the survey. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when the bucket is not in the caller's organizations
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/contact-import-jobs/{job_id}`
+
+One contact import job and how far it has got: `rows_processed` of `rows_total`.
+
+**Auth:** staff (system.access)  
+
+**Response**
+
+`{ id, file_id, file_name, status, rows_total, rows_processed, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/contact-imports/{import_id}`
+
+Reports that a contact import upload finished, how many data rows the file has, and where its rows start, which lists the file. Safe to repeat.
+
+**Auth:** staff (system.access)  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `rowCount` | `number` | ✓ | Data rows, not counting the header row |
+| `rowIndex` | `object` | ✓ | `{ interval: 1000, offsets: number[] }`. `offsets[k]` is the byte offset where data row `k * 1000` begins, counting from the first row under the header. There is one offset per started thousand rows, in increasing order, each inside the file |
+
+**Response**
+
+`{ id, file_name, size_bytes, row_count, uploaded_at, expires_at, preserved }`. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/contact-imports/{import_id}`
+
+Archives an uploaded contact import file: it drops out of the list and can no longer be loaded. Only the record is marked; the file itself stays in storage.
+
+**Auth:** staff (system.access)  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations or is already archived
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/contact-imports/{import_id}/download`
+
+A short-lived link to read an uploaded contact import CSV from, and the file's row index. The browser fetches the file from the link, so it never passes through this server, and can read just a slice of it with a `Range` request.
+
+**Auth:** staff (system.access)  
+
+**Response**
+
+`{ url, row_index }`. `url` is valid for a few minutes. `row_index` is `{ interval, offsets }`, where `offsets[k]` is the byte offset of data row `k * interval` (counting from the first row under the header), or null when none was recorded. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations or has not finished uploading, 503 when object storage is not set up
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/contact-imports/{import_id}/jobs`
+
+Starts importing an uploaded contact file. The job is saved first, as `queued`, and then the import function is called, which moves it to `running` and writes the rows in batches. Watch it with `GET /api/v1/contact-import-jobs/[job_id]`.
+
+**Auth:** staff (system.access)  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `schemaId` | `string` | ✓ | The contact schema the contacts go into |
+| `mapping` | `object` | ✓ | Which CSV column fills each field: a schema field's id or a contact data id (`contact.latitude`) to the column's position from 0. Every required field needs a column |
+
+**Response**
+
+201 with `{ id, file_id, file_name, status, rows_total, rows_processed, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, body, schema or mapping, 401 when signed out, 403 without staff access, 404 when the file is not in the caller's organizations or has not finished uploading, 409 when the file is already being imported, 503 when the import could not be started (the job is then saved as `failed`)
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/contact-schemas/{contact_schema_id}`
+
+One contact schema.
+
+**Auth:** Staff  
+
+**Response**
+
+`{ id, org_id, schema_name, fields, identifier_field_id, contact_count, created_at, updated_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/contact-schemas/{contact_schema_id}`
+
+Changes a contact schema's name, its fields, its identifier, or any of them. When `fields` is sent it is the full list: a field whose id exists is updated (so a rename keeps its id and every value and filter that uses it), a new id adds a field, and an id left out removes the field.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `schema_name` | `string` |  | Optional. Display name, unique within the organization |
+| `fields` | `object[]` |  | Optional. The full list of `{ id, name, type, required }` |
+| `identifier_field_id` | `string|null` |  | Optional. A text field that labels a contact, which becomes required. Null goes back to the full address |
+
+**Response**
+
+The schema. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations, 409 for a taken name or for a field changing type once contacts use the schema
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/contact-schemas/{contact_schema_id}`
+
+Deletes a contact schema that no contact uses.
+
+**Auth:** Staff  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations, 409 while any contact uses it
 
 ---
 
@@ -856,6 +986,99 @@ organization.
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/contact-import-jobs`
+
+The organization's contact import jobs, running and waiting ones first, then the newest. At most 100.
+
+**Auth:** org staff (system.access)  
+
+**Response**
+
+`Array<{ id, file_id, file_name, status, rows_total, rows_processed, error, created_at, started_at, updated_at, finished_at }>`. `status` is `queued`, `running`, `completed` or `failed`. `rows_total` is null when the file's rows were never counted. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/contact-imports`
+
+The organization's uploaded contact import files that finished uploading, newest first.
+
+**Auth:** org staff (system.access)  
+
+**Response**
+
+`Array<{ id, file_name, size_bytes, row_count, uploaded_at, expires_at, preserved }>`. `row_count` is null until counted; `expires_at` is when the file is due to be purged unless `preserved`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/contact-imports`
+
+Starts a contact import upload: records the file and answers a presigned PUT the browser sends the CSV to. The file is listed once `PATCH /api/v1/contact-imports/[import_id]` reports it finished.
+
+**Auth:** org staff (system.access)  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `fileName` | `string` | ✓ | The file's name, max 255 characters |
+| `contentLength` | `number` | ✓ | Byte size, max 50,000,000 |
+
+**Response**
+
+201 with `{ id, url, key }`. Send the file to `url` with `Content-Type: text/csv`. 400 for an invalid body or id, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 503 when object storage is not set up
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/contact-schema-order`
+
+Sets the order of the organization's contact schemas, which is the order of the tabs on the contacts page.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `ids` | `string[]` |  | Every contact schema id of the organization exactly once, in the new order |
+
+**Response**
+
+204. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 409 when a schema was added or deleted since the caller loaded the list
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/contact-schemas`
+
+The organization's contact schemas by name, each with how many contacts use it.
+
+**Auth:** Staff  
+
+**Response**
+
+`Array<{ id, org_id, schema_name, fields, identifier_field_id, contact_count, created_at, updated_at }>`. `fields` is the ordered list of `{ id, name, type, required }`, with `type` one of `text`, `boolean`, or `number`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/contact-schemas`
+
+Creates a contact schema with its fields.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `schema_name` | `string` |  | Display name, unique within the organization |
+| `fields` | `object[]` |  | The fields, in order: `{ id, name, type, required }`. The id is a new uuid made by the caller. Names must differ, whatever their capital letters |
+| `identifier_field_id` | `string|null` |  | Optional. The id of a text field in `fields` that labels a contact; it is always required. Null or left out uses the full address |
+
+**Response**
+
+201 with the schema. 400 for an invalid body, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 409 for a taken name
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/invitations`
 
 Pending email invitations and open invite links.
@@ -870,7 +1093,7 @@ Pending email invitations and open invite links.
 
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/invite-links`
 
-The organization's invite links, newest first, and whether its open slug invite is on.
+The organization's open invite links (not expired or closed), newest first, and whether its open slug invite is on.
 
 **Auth:** member.invite  
 

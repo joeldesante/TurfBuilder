@@ -67,7 +67,7 @@ export async function searchOrganization(
 				? await client.query<{ id: string; title: string; subtitle: string; bucket_slug: string }>(
 						`SELECT s.id, s.name AS title, COALESCE(s.description, '') AS subtitle, b.slug AS bucket_slug
 						   FROM universe.survey s
-						   JOIN universe.bucket b ON b.id = s.bucket_id AND b.org_id = s.org_id
+						   JOIN universe.bucket b ON b.id = s.bucket_id AND b.org_id = s.org_id AND b.deleted_at IS NULL
 						  WHERE s.org_id = $1
 						    AND to_tsvector('simple', s.name || ' ' || COALESCE(s.description, ''))
 						        @@ to_tsquery('simple', $2)
@@ -81,7 +81,7 @@ export async function searchOrganization(
 					`SELECT t.id, t.code AS title, t.list_id, b.slug AS bucket_slug
 					   FROM universe.turf t
 					   JOIN universe.list l ON l.id = t.list_id AND l.org_id = t.org_id
-					   JOIN universe.bucket b ON b.id = l.bucket AND b.org_id = t.org_id
+					   JOIN universe.bucket b ON b.id = l.bucket AND b.org_id = t.org_id AND b.deleted_at IS NULL
 					  WHERE t.org_id = $1 AND t.code ILIKE '%' || $2 || '%'
 					  LIMIT 5`,
 					[orgId, text]

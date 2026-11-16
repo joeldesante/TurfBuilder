@@ -9,6 +9,16 @@ export function formatBytes(bytes: number): string {
 		value /= 1024;
 		unit++;
 	}
-	const text = unit === 0 || value >= 10 ? Math.round(value).toString() : value.toFixed(1).replace(/\.0$/, '');
+	const text =
+		unit === 0 || value >= 10 ? Math.round(value).toString() : value.toFixed(1).replace(/\.0$/, '');
 	return `${text} ${UNITS[unit]}`;
+}
+
+/** A byte count in megabytes, always: "0.12 MB", "3.4 MB", "48 MB". Under 0.01 MB reads "<0.01 MB". */
+export function formatMegabytes(bytes: number): string {
+	if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
+	const mb = bytes / 1_048_576;
+	if (mb < 0.01) return '<0.01 MB';
+	const text = mb >= 10 ? Math.round(mb).toString() : mb.toFixed(2).replace(/\.?0+$/, '');
+	return `${text} MB`;
 }

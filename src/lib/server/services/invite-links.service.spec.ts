@@ -98,6 +98,17 @@ describe('listInviteLinks', () => {
 		});
 		expect(sqlRun('FROM org_invite_link')![1]).toEqual([ORG]);
 	});
+
+	// An infra admin closing a link sets its expiry to now rather than deleting
+	// it, so a revoked link has to drop out of the list by being expired.
+	it('lists only open links: no expiry, or one still ahead', async () => {
+		stub();
+
+		await listInviteLinks('u1', ORG);
+
+		const sql = String(sqlRun('FROM org_invite_link')![0]);
+		expect(sql).toContain('expires_at IS NULL OR expires_at > now()');
+	});
 });
 
 describe('createInviteLink', () => {

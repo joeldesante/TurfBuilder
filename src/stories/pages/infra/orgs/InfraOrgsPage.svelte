@@ -2,13 +2,21 @@
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Pagination from '$components/data-display/pagination/Pagination.svelte';
 	import Badge from '$components/data-display/badge/Badge.svelte';
+	import DataTable, {
+		type DataTableColumn
+	} from '$components/data-display/data-table/DataTable.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import Select from '$components/data-inputs/select/Select.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
 	import { formatDate, formatDaysAgo } from '$lib/shared/utils/format-date';
 	import type { Page } from '$lib/shared/utils/pagination';
-	import type { OrgFilters, OrgSort, OrgStatusFilter, PlatformOrgRow } from '$lib/shared/types/platform-organizations';
+	import type {
+		OrgFilters,
+		OrgSort,
+		OrgStatusFilter,
+		PlatformOrgRow
+	} from '$lib/shared/types/platform-organizations';
 
 	interface Props {
 		page: Page<PlatformOrgRow>;
@@ -62,8 +70,76 @@
 		return query ? `?${query}` : '?';
 	}
 
+	const columns: DataTableColumn<PlatformOrgRow>[] = [
+		{ id: 'organization', header: 'Organization', cell: organizationCell },
+		{ id: 'owner', header: 'Owner', cell: ownerCell, hideBelow: 'lg' },
+		{ id: 'members', header: 'Members', cell: membersCell, align: 'right', tabular: true },
+		{
+			id: 'events',
+			header: 'Events, 30 days',
+			cell: eventsCell,
+			align: 'right',
+			tabular: true,
+			hideBelow: 'md'
+		},
+		{
+			id: 'lastActive',
+			header: 'Last active',
+			cell: lastActiveCell,
+			nowrap: true,
+			hideBelow: 'sm',
+			class: 'text-on-surface-subtle'
+		},
+		{
+			id: 'created',
+			header: 'Created',
+			cell: createdCell,
+			nowrap: true,
+			hideBelow: 'xl',
+			class: 'text-on-surface-subtle'
+		}
+	];
+
 	const filtered = $derived(Boolean(filters.q) || (filters.status && filters.status !== 'all'));
 </script>
+
+{#snippet organizationCell({ row: org }: { value: unknown; row: PlatformOrgRow })}
+	<a href={`/infra/orgs/${org.id}`} class="block min-w-0 no-underline">
+		<span class="flex flex-wrap items-center gap-2">
+			<span class="font-medium text-on-surface">{org.name}</span>
+			{#if org.deleted}<Badge size="sm" variant="error">Deleted</Badge>
+			{:else if org.suspended}<Badge size="sm" variant="error">Suspended</Badge>{/if}
+		</span>
+		<span class="block truncate text-xs text-on-surface-subtle">/{org.slug}</span>
+	</a>
+{/snippet}
+
+{#snippet ownerCell({ row: org }: { value: unknown; row: PlatformOrgRow })}
+	{#if org.owner}
+		<a href={`/infra/users/${org.owner.id}`}>{org.owner.name}</a>
+	{:else}
+		<span class="text-on-surface-subtle">No owner</span>
+	{/if}
+{/snippet}
+
+{#snippet membersCell({ row: org }: { value: unknown; row: PlatformOrgRow })}
+	{org.memberCount.toLocaleString()}
+	{#if org.pendingInvitations > 0}
+		<span class="block text-xs text-on-surface-subtle">{org.pendingInvitations} invited</span>
+	{/if}
+{/snippet}
+
+{#snippet eventsCell({ row: org }: { value: unknown; row: PlatformOrgRow })}
+	{org.events30d.toLocaleString()}
+{/snippet}
+
+{#snippet lastActiveCell({ row: org }: { value: unknown; row: PlatformOrgRow })}
+	{formatDaysAgo(org.lastActiveDay)}
+{/snippet}
+
+{#snippet createdCell({ row: org }: { value: unknown; row: PlatformOrgRow })}
+	{formatDate(org.createdAt)}
+{/snippet}
 
 <PageHeader
 	title="Organizations"
@@ -81,70 +157,55 @@
 	>
 		<label class="relative flex-1">
 			<span class="sr-only">Search organizations</span>
-			<MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-on-surface-subtle" />
+			<MagnifyingGlassIcon
+				class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-on-surface-subtle"
+			/>
 			<TextInput bind:value={q} type="search" placeholder="Name or slug" class="pl-9" />
 		</label>
 		<div class="grid grid-cols-2 gap-2 sm:flex">
-			<Select bind:value={status} items={statusItems} aria-label="Show" onchange={apply} class="sm:w-60" />
-			<Select bind:value={sort} items={sortItems} aria-label="Sort" onchange={apply} class="sm:w-44" />
+			<Select
+				bind:value={status}
+				items={statusItems}
+				aria-label="Show"
+				onchange={apply}
+				class="sm:w-60"
+			/>
+			<Select
+				bind:value={sort}
+				items={sortItems}
+				aria-label="Sort"
+				onchange={apply}
+				class="sm:w-44"
+			/>
 		</div>
 		<Button type="submit" variant="outline">Search</Button>
 	</form>
 
 	{#if page.items.length === 0}
 		<div class="rounded-xl border border-outline-subtle px-6 py-12 text-center">
-			<p class="font-medium text-on-surface">{filtered ? 'No organizations match.' : 'No organizations yet.'}</p>
+			<p class="font-medium text-on-surface">
+				{filtered ? 'No organizations match.' : 'No organizations yet.'}
+			</p>
 			{#if filtered}
 				<Button class="mt-4" variant="outline" onclick={() => onfilter({})}>Clear filters</Button>
 			{/if}
 		</div>
 	{:else}
 		<div class="overflow-x-auto rounded-xl border border-outline-subtle">
-			<table class="w-full text-sm">
-				<thead class="text-left text-on-surface-subtle">
-					<tr class="border-b border-outline-subtle">
-						<th scope="col" class="px-4 py-2 font-medium">Organization</th>
-						<th scope="col" class="hidden px-4 py-2 font-medium lg:table-cell">Owner</th>
-						<th scope="col" class="px-4 py-2 text-right font-medium">Members</th>
-						<th scope="col" class="hidden px-4 py-2 text-right font-medium md:table-cell">Events, 30 days</th>
-						<th scope="col" class="hidden px-4 py-2 font-medium sm:table-cell">Last active</th>
-						<th scope="col" class="hidden px-4 py-2 font-medium xl:table-cell">Created</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each page.items as org (org.id)}
-						<tr class="border-b border-outline-subtle last:border-0 hover:bg-surface-container-low">
-							<td class="px-4 py-2.5">
-								<a href={`/infra/orgs/${org.id}`} class="block min-w-0 no-underline">
-									<span class="flex flex-wrap items-center gap-2">
-										<span class="font-medium text-on-surface">{org.name}</span>
-										{#if org.deleted}<Badge size="sm" variant="error">Deleted</Badge>
-										{:else if org.suspended}<Badge size="sm" variant="error">Suspended</Badge>{/if}
-									</span>
-									<span class="block truncate text-xs text-on-surface-subtle">/{org.slug}</span>
-								</a>
-							</td>
-							<td class="hidden px-4 py-2.5 lg:table-cell">
-								{#if org.owner}
-									<a href={`/infra/users/${org.owner.id}`}>{org.owner.name}</a>
-								{:else}
-									<span class="text-on-surface-subtle">No owner</span>
-								{/if}
-							</td>
-							<td class="px-4 py-2.5 text-right tabular-nums">
-								{org.memberCount.toLocaleString()}
-								{#if org.pendingInvitations > 0}
-									<span class="block text-xs text-on-surface-subtle">{org.pendingInvitations} invited</span>
-								{/if}
-							</td>
-							<td class="hidden px-4 py-2.5 text-right tabular-nums md:table-cell">{org.events30d.toLocaleString()}</td>
-							<td class="hidden whitespace-nowrap px-4 py-2.5 text-on-surface-subtle sm:table-cell">{formatDaysAgo(org.lastActiveDay)}</td>
-							<td class="hidden whitespace-nowrap px-4 py-2.5 text-on-surface-subtle xl:table-cell">{formatDate(org.createdAt)}</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-			<Pagination page={page.page} totalCount={page.totalCount} pageSize={page.pageSize} noun="organizations" href={pageHref} />
+			<DataTable
+				data={page.items}
+				{columns}
+				getRowId={(org) => org.id}
+				label="Organizations"
+				bordered={false}
+			/>
+			<Pagination
+				page={page.page}
+				totalCount={page.totalCount}
+				pageSize={page.pageSize}
+				noun="organizations"
+				href={pageHref}
+			/>
 		</div>
 	{/if}
 </div>

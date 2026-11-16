@@ -6,7 +6,7 @@ import { createInviteLink, listInviteLinks } from '$lib/server/services/invite-l
 import { createInviteLinkSchema } from '$lib/shared/schemas/members';
 
 /**
- * The organization's invite links, newest first, and whether its open slug invite is on.
+ * The organization's open invite links (not expired or closed), newest first, and whether its open slug invite is on.
  *
  * @auth member.invite
  * @returns `{ links: Array<{ id, created_at, expires_at }>, slugInviteEnabled }`. 400 for an invalid id, 401 when signed out, 403 without `member.invite`, 404 when the caller is not a member

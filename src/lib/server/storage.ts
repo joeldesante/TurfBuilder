@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+	S3Client,
+	PutObjectCommand,
+	GetObjectCommand,
+	DeleteObjectCommand
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '$env/dynamic/private';
 import { POOL } from '$lib/server/database';
@@ -80,12 +85,17 @@ async function getClient(): Promise<{ client: S3Client; bucket: string }> {
 /** Whether the settings and credentials needed to reach the bucket are all present. */
 export async function isStorageConfigured(): Promise<boolean> {
 	const settings = await loadSpacesSettings();
-	return Boolean(settings.endpoint && settings.bucket && env.SPACES_ACCESS_KEY_ID && env.SPACES_SECRET_ACCESS_KEY);
+	return Boolean(
+		settings.endpoint && settings.bucket && env.SPACES_ACCESS_KEY_ID && env.SPACES_SECRET_ACCESS_KEY
+	);
 }
 
 /** Which storage credentials the environment provides, without their values. */
 export function storageCredentialsPresent(): { accessKeyId: boolean; secretAccessKey: boolean } {
-	return { accessKeyId: Boolean(env.SPACES_ACCESS_KEY_ID), secretAccessKey: Boolean(env.SPACES_SECRET_ACCESS_KEY) };
+	return {
+		accessKeyId: Boolean(env.SPACES_ACCESS_KEY_ID),
+		secretAccessKey: Boolean(env.SPACES_SECRET_ACCESS_KEY)
+	};
 }
 
 /**
@@ -95,7 +105,9 @@ export function storageCredentialsPresent(): { accessKeyId: boolean; secretAcces
 export async function testStorage(): Promise<void> {
 	const { client, bucket } = await getClient();
 	const key = `health/probe-${crypto.randomUUID()}.txt`;
-	await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: 'ok', ContentType: 'text/plain' }));
+	await client.send(
+		new PutObjectCommand({ Bucket: bucket, Key: key, Body: 'ok', ContentType: 'text/plain' })
+	);
 	await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
@@ -114,6 +126,11 @@ export function locationPhotoKey(orgId: string, contentType: string): string {
 /** Builds the object key for a generated list document, under the same org prefix. */
 export function listDocumentKey(orgId: string, listId: string, documentId: string): string {
 	return `orgs/${orgId}/lists/${listId}/documents/${documentId}.pdf`;
+}
+
+/** Builds the object key for an uploaded contact import file, under the same org prefix. */
+export function contactImportKey(orgId: string, importId: string): string {
+	return `orgs/${orgId}/contact-imports/${importId}.csv`;
 }
 
 /** True when a key belongs to the given org. Guards the read endpoint. */
@@ -147,6 +164,41 @@ export async function presignPhotoUpload(
 	);
 
 	return { url, key };
+}
+
+/**
+ * Issues a presigned PUT for one contact import CSV. As with photos, the
+ * content type and length are pinned into the signature.
+ */
+export async function presignContactImportUpload(
+	orgId: string,
+	importId: string,
+	contentLength: number
+): Promise<{ url: string; key: string }> {
+	const { client, bucket } = await getClient();
+	const key = contactImportKey(orgId, importId);
+
+	const url = await getSignedUrl(
+		client,
+		new PutObjectCommand({
+			Bucket: bucket,
+			Key: key,
+			ContentType: 'text/csv',
+			ContentLength: contentLength
+		}),
+		{ expiresIn: SIGNED_URL_TTL_SECONDS }
+	);
+
+	return { url, key };
+}
+
+/** Issues a short-lived presigned GET so the browser can read a stored contact import CSV. */
+export async function presignContactImportDownload(key: string): Promise<string> {
+	const { client, bucket } = await getClient();
+
+	return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
+		expiresIn: SIGNED_URL_TTL_SECONDS
+	});
 }
 
 /**

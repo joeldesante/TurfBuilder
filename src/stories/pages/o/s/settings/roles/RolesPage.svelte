@@ -1,6 +1,9 @@
 <script lang="ts">
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
+	import DataTable, {
+		type DataTableColumn
+	} from '$components/data-display/data-table/DataTable.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/Plus';
 	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import ShieldIcon from 'phosphor-svelte/lib/Shield';
@@ -50,62 +53,67 @@
 			deletingId = null;
 		}
 	}
+
+	const columns: DataTableColumn<Role>[] = [
+		{ id: 'name', header: 'Role', cell: nameCell },
+		{
+			id: 'permissions',
+			header: 'Permissions',
+			cell: permissionsCell,
+			class: 'text-on-surface-subtle'
+		},
+		{ id: 'default', header: 'Default', cell: defaultCell, class: 'text-on-surface-subtle' },
+		{ id: 'actions', header: 'Actions', srOnlyHeader: true, align: 'right', cell: actionsCell }
+	];
 </script>
+
+{#snippet nameCell({ row: role }: { value: unknown; row: Role })}
+	<a
+		href={roleDetailHref(role.id)}
+		class="font-medium text-on-surface hover:underline flex items-center gap-2"
+	>
+		{#if role.is_owner}
+			<ShieldIcon class="size-4 text-primary" />
+		{/if}
+		{role.name}
+	</a>
+{/snippet}
+
+{#snippet permissionsCell({ row: role }: { value: unknown; row: Role })}
+	{#if role.is_owner}
+		All permissions
+	{:else}
+		{role.permissions?.length ?? 0}
+	{/if}
+{/snippet}
+
+{#snippet defaultCell({ row: role }: { value: unknown; row: Role })}
+	{role.is_default ? 'Yes' : '—'}
+{/snippet}
+
+{#snippet actionsCell({ row: role }: { value: unknown; row: Role })}
+	{#if !role.is_owner && !role.is_default}
+		<Button
+			variant="ghost"
+			size="sm"
+			iconOnly
+			aria-label="Delete role"
+			loading={deletingId === role.id}
+			onclick={() => handleDelete(role.id)}
+		>
+			<TrashIcon />
+		</Button>
+	{/if}
+{/snippet}
 
 <PageHeader title="Roles" subheading="Manage roles and their permissions for this organization." />
 
-<div class="p-6 space-y-6 max-w-3xl">
-	<div class="rounded-lg border border-outline overflow-hidden">
-		<table class="w-full text-sm">
-			<thead class="bg-surface-container text-on-surface-subtle text-left">
-				<tr>
-					<th class="px-4 py-3 font-medium">Role</th>
-					<th class="px-4 py-3 font-medium">Permissions</th>
-					<th class="px-4 py-3 font-medium">Default</th>
-					<th class="px-4 py-3"></th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-outline">
-				{#each roles as role}
-					<tr class="hover:bg-surface-container/50">
-						<td class="px-4 py-3">
-							<a
-								href={roleDetailHref(role.id)}
-								class="font-medium text-on-surface hover:underline flex items-center gap-2"
-							>
-								{#if role.is_owner}
-									<ShieldIcon class="size-4 text-primary" />
-								{/if}
-								{role.name}
-							</a>
-						</td>
-						<td class="px-4 py-3 text-on-surface-subtle">
-							{#if role.is_owner}
-								All permissions
-							{:else}
-								{role.permissions?.length ?? 0}
-							{/if}
-						</td>
-						<td class="px-4 py-3 text-on-surface-subtle">
-							{role.is_default ? 'Yes' : '—'}
-						</td>
-						<td class="px-4 py-3 text-right">
-							{#if !role.is_owner && !role.is_default}
-								<Button
-									variant="ghost"
-									size="sm"
-									iconOnly
-									aria-label="Delete role"
-									loading={deletingId === role.id}
-									onclick={() => handleDelete(role.id)}
-								>
-									<TrashIcon />
-								</Button>
-							{/if}
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+<div class="p-6 space-y-6">
+	<DataTable
+		data={roles}
+		{columns}
+		getRowId={(role) => role.id}
+		label="Roles"
+		empty="No roles yet."
+	/>
 </div>

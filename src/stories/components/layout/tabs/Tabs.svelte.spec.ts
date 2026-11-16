@@ -1,5 +1,5 @@
 import { render } from 'vitest-browser-svelte';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import Tabs from './Tabs.svelte';
 
 const tabs = [
@@ -42,4 +42,25 @@ test('has one pill, behind the active tab, and moves it when the active tab chan
 
 	await expect.poll(() => pills()[0]?.closest('a')?.textContent).toContain('Members');
 	expect(pills()).toHaveLength(1);
+});
+
+test('renders a tab without an href as a button that reports its id', async () => {
+	const onSelect = vi.fn();
+	const buttonTabs = [
+		{ id: 'mapping', label: 'Mapping' },
+		{ id: 'spreadsheet', label: 'Spreadsheet' }
+	];
+	const { getByRole } = render(Tabs, {
+		props: { tabs: buttonTabs, active: 'mapping', label: 'Views', onSelect }
+	});
+
+	await getByRole('button', { name: 'Spreadsheet' }).click();
+
+	expect(onSelect).toHaveBeenCalledWith('spreadsheet');
+	await expect
+		.element(getByRole('button', { name: 'Mapping' }))
+		.toHaveAttribute('aria-current', 'true');
+	await expect
+		.element(getByRole('button', { name: 'Spreadsheet' }))
+		.not.toHaveAttribute('aria-current');
 });

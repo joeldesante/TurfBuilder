@@ -5,6 +5,9 @@
 		type MapLocation
 	} from '$components/data-display/locations-map/LocationsMap.svelte';
 	import Button from '$components/actions/button/Button.svelte';
+	import DataTable, {
+		type DataTableColumn
+	} from '$components/data-display/data-table/DataTable.svelte';
 	import Tabs from '$components/layout/tabs/Tabs.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
@@ -67,7 +70,6 @@
 	}: Props = $props();
 
 	const base = $derived(`/o/${orgSlug}/s/universe/data/contacts`);
-	const columns = $derived(selected ? selected.fields : []);
 	const fieldsBySchema = $derived(new Map(schemas.map((s) => [s.id, s.fields])));
 	const viewParam = $derived(view === 'map' ? 'view=map' : '');
 	// Links keep the search and filters, so switching tab, view, or page does not lose them.
@@ -162,6 +164,34 @@
 				? 'border-primary text-on-surface'
 				: 'border-transparent text-on-surface-subtle hover:text-on-surface'
 		}`;
+
+	type Contact = SchemaContact | AllContact;
+
+	/** The identifier, then one column per field of the chosen schema, or the schema and a summary on the All tab. */
+	const tableColumns = $derived<DataTableColumn<Contact>[]>([
+		{
+			id: 'identifier',
+			header: 'Identifier',
+			accessorFn: (contact) => contact.identifier ?? '',
+			class: 'font-medium'
+		},
+		...(selected
+			? selected.fields.map((field) => ({
+					id: `field-${field.id}`,
+					header: field.name,
+					accessorFn: (contact: Contact) => show(contact.metadata[field.id])
+				}))
+			: [
+					{
+						id: 'schema',
+						header: 'Schema',
+						accessorFn: (contact: Contact) =>
+							'schema_name' in contact ? (contact.schema_name ?? 'None') : '',
+						class: 'text-on-surface-subtle'
+					},
+					{ id: 'details', header: 'Details', accessorFn: (contact: Contact) => details(contact) }
+				])
+	]);
 
 	const schemaIds = $derived(schemas.map((s) => s.id));
 	const schemaName = (id: string) => schemas.find((s) => s.id === id)?.schema_name ?? '';
@@ -276,37 +306,13 @@
 			{selected ? 'No contacts use this schema yet.' : 'No contacts yet.'}
 		</p>
 	{:else}
-		<table class="w-full text-sm">
-			<thead class="text-left text-xs font-medium text-on-surface-subtle uppercase tracking-wide">
-				<tr>
-					<th class="px-4 py-2">Identifier</th>
-					{#if selected}
-						{#each columns as column (column.id)}
-							<th class="px-4 py-2">{column.name}</th>
-						{/each}
-					{:else}
-						<th class="px-4 py-2">Schema</th>
-						<th class="px-4 py-2">Details</th>
-					{/if}
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-outline-subtle">
-				{#each contacts as contact (contact.id)}
-					<tr>
-						<td class="px-4 py-3 font-medium text-on-surface">{contact.identifier ?? ''}</td>
-						{#if selected}
-							{#each columns as column (column.id)}
-								<td class="px-4 py-3 text-on-surface">{show(contact.metadata[column.id])}</td>
-							{/each}
-						{:else}
-							<td class="px-4 py-3 text-on-surface-subtle">
-								{'schema_name' in contact ? (contact.schema_name ?? 'None') : ''}
-							</td>
-							<td class="px-4 py-3 text-on-surface">{details(contact)}</td>
-						{/if}
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+		<div class="px-4 pb-4">
+			<DataTable
+				data={contacts}
+				columns={tableColumns}
+				getRowId={(contact) => contact.id}
+				label="Contacts"
+			/>
+		</div>
 	{/if}
 {/if}

@@ -1,6 +1,9 @@
 <script lang="ts">
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
 	import Button from '$components/actions/button/Button.svelte';
+	import DataTable, {
+		type DataTableColumn
+	} from '$components/data-display/data-table/DataTable.svelte';
 	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/Plus';
 	import TrashIcon from 'phosphor-svelte/lib/Trash';
@@ -148,9 +151,71 @@
 		return count === 0 ? 'Not used' : `${count} ${count === 1 ? 'contact' : 'contacts'}`;
 	}
 
+	const columns: DataTableColumn<ContactSchema>[] = [
+		{ id: 'schema', header: 'Schema', accessorKey: 'schema_name', class: 'font-medium' },
+		{ id: 'fields', header: 'Fields', cell: fieldsCell, class: 'text-on-surface-subtle' },
+		{
+			id: 'identifier',
+			header: 'Identifier',
+			cell: identifierCell,
+			class: 'text-on-surface-subtle'
+		},
+		{ id: 'usage', header: 'In use', cell: usageCell, class: 'text-on-surface-subtle' },
+		{
+			id: 'actions',
+			header: 'Actions',
+			srOnlyHeader: true,
+			align: 'right',
+			nowrap: true,
+			cell: actionsCell
+		}
+	];
+
 	const inputClass =
 		'w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface';
 </script>
+
+{#snippet fieldsCell({ row: schema }: { value: unknown; row: ContactSchema })}
+	{#each schema.fields as field, i (field.id)}
+		{i > 0 ? ', ' : ''}{field.name} ({CONTACT_SCHEMA_FIELD_TYPE_LABELS[field.type]}{field.required
+			? ', required'
+			: ''})
+	{:else}
+		None
+	{/each}
+{/snippet}
+
+{#snippet identifierCell({ row: schema }: { value: unknown; row: ContactSchema })}
+	{schema.fields.find((f) => f.id === schema.identifier_field_id)?.name ?? 'Full address'}
+{/snippet}
+
+{#snippet usageCell({ row: schema }: { value: unknown; row: ContactSchema })}
+	{usage(schema.contact_count)}
+{/snippet}
+
+{#snippet actionsCell({ row: schema }: { value: unknown; row: ContactSchema })}
+	<Button
+		variant="ghost"
+		size="sm"
+		iconOnly
+		aria-label="Edit {schema.schema_name}"
+		onclick={() => open(schema)}
+	>
+		<PencilSimpleIcon />
+	</Button>
+	<Button
+		variant="ghost"
+		size="sm"
+		iconOnly
+		aria-label="Delete {schema.schema_name}"
+		title={schema.contact_count > 0 ? 'Used by contacts, so it cannot be deleted.' : undefined}
+		disabled={schema.contact_count > 0}
+		loading={deletingId === schema.id}
+		onclick={() => remove(schema.id)}
+	>
+		<TrashIcon />
+	</Button>
+{/snippet}
 
 <PageHeader
 	title="Contact schemas"
@@ -163,10 +228,10 @@
 	{/snippet}
 </PageHeader>
 
-<div class="p-6 space-y-6 max-w-3xl">
+<div class="p-6 space-y-6">
 	{#if editing !== null}
 		<form
-			class="rounded-lg border border-outline p-4 space-y-4"
+			class="max-w-3xl rounded-lg border border-outline p-4 space-y-4"
 			onsubmit={save}
 			aria-label={editing === 'new' ? 'New schema' : 'Edit schema'}
 		>
@@ -252,64 +317,6 @@
 	{#if schemas.length === 0}
 		<p class="text-sm text-on-surface-subtle">No contact schemas yet.</p>
 	{:else}
-		<div class="rounded-lg border border-outline overflow-hidden">
-			<table class="w-full text-sm">
-				<thead class="bg-surface-container text-on-surface-subtle text-left">
-					<tr>
-						<th class="px-4 py-3 font-medium">Schema</th>
-						<th class="px-4 py-3 font-medium">Fields</th>
-						<th class="px-4 py-3 font-medium">Identifier</th>
-						<th class="px-4 py-3 font-medium">In use</th>
-						<th class="px-4 py-3"></th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-outline">
-					{#each schemas as schema (schema.id)}
-						<tr>
-							<td class="px-4 py-3 font-medium text-on-surface">{schema.schema_name}</td>
-							<td class="px-4 py-3 text-on-surface-subtle">
-								{#each schema.fields as field, i (field.id)}
-									{i > 0 ? ', ' : ''}{field.name} ({CONTACT_SCHEMA_FIELD_TYPE_LABELS[
-										field.type
-									]}{field.required ? ', required' : ''})
-								{:else}
-									None
-								{/each}
-							</td>
-							<td class="px-4 py-3 text-on-surface-subtle">
-								{schema.fields.find((f) => f.id === schema.identifier_field_id)?.name ??
-									'Full address'}
-							</td>
-							<td class="px-4 py-3 text-on-surface-subtle">{usage(schema.contact_count)}</td>
-							<td class="px-4 py-3 text-right whitespace-nowrap">
-								<Button
-									variant="ghost"
-									size="sm"
-									iconOnly
-									aria-label="Edit {schema.schema_name}"
-									onclick={() => open(schema)}
-								>
-									<PencilSimpleIcon />
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									iconOnly
-									aria-label="Delete {schema.schema_name}"
-									title={schema.contact_count > 0
-										? 'Used by contacts, so it cannot be deleted.'
-										: undefined}
-									disabled={schema.contact_count > 0}
-									loading={deletingId === schema.id}
-									onclick={() => remove(schema.id)}
-								>
-									<TrashIcon />
-								</Button>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+		<DataTable data={schemas} {columns} getRowId={(schema) => schema.id} label="Contact schemas" />
 	{/if}
 </div>

@@ -89,7 +89,9 @@ describe('MembersPage', () => {
 	it('shows no page links when every member fits on one page', async () => {
 		render(MembersPage, baseProps);
 		await expect.element(page.getByText('Showing 1–3 of 3 members.').first()).toBeVisible();
-		await expect.element(page.getByRole('link', { name: 'Next page' }).first()).not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('link', { name: 'Next page' }).first())
+			.not.toBeInTheDocument();
 	});
 
 	it('pages through a large membership', async () => {
@@ -98,5 +100,61 @@ describe('MembersPage', () => {
 		await expect
 			.element(page.getByRole('link', { name: 'Next page' }).first())
 			.toHaveAttribute('href', '?page=3');
+	});
+
+	describe('assigning a role', () => {
+		const manage = { ...baseProps, canManageRoles: true };
+
+		it('shows plain text, not a dropdown, without permission to manage roles', async () => {
+			render(MembersPage, { props: baseProps });
+			await expect
+				.element(page.getByRole('button', { name: 'Role for Alice Johnson' }))
+				.not.toBeInTheDocument();
+		});
+
+		it("shows each member's role in a dropdown", async () => {
+			render(MembersPage, { props: manage });
+			await expect
+				.element(page.getByRole('button', { name: 'Role for Bob Smith' }))
+				.toHaveTextContent('Member');
+			await expect
+				.element(page.getByRole('button', { name: 'Role for Carol White' }))
+				.toHaveTextContent('— No role —');
+		});
+
+		it('assigns the chosen role', async () => {
+			const onAssignRole = vi.fn().mockResolvedValue(undefined);
+			render(MembersPage, { props: { ...manage, onAssignRole } });
+
+			await page.getByRole('button', { name: 'Role for Carol White' }).click();
+			await page.getByRole('option', { name: 'Owner' }).click();
+
+			expect(onAssignRole).toHaveBeenCalledWith('3', 'r1');
+		});
+
+		it('removes a role by choosing no role', async () => {
+			const onAssignRole = vi.fn().mockResolvedValue(undefined);
+			render(MembersPage, { props: { ...manage, onAssignRole } });
+
+			await page.getByRole('button', { name: 'Role for Bob Smith' }).click();
+			await page.getByRole('option', { name: '— No role —' }).click();
+
+			expect(onAssignRole).toHaveBeenCalledWith('2', null);
+		});
+
+		it('goes back to the real role when the change is refused', async () => {
+			const onAssignRole = vi.fn().mockRejectedValue(new Error('refused'));
+			render(MembersPage, { props: { ...manage, onAssignRole } });
+
+			await page.getByRole('button', { name: 'Role for Bob Smith' }).click();
+			await page
+				.getByRole('option', { name: 'Owner' })
+				.click()
+				.catch(() => {});
+
+			await expect
+				.element(page.getByRole('button', { name: 'Role for Bob Smith' }))
+				.toHaveTextContent('Member');
+		});
 	});
 });

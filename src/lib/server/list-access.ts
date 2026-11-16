@@ -110,7 +110,7 @@ export async function requireListAccess(
 export async function requireBucketOrg(userId: string, bucketId: string): Promise<string> {
 	const found = await findInMemberOrgs(userId, async (client, orgId) => {
 		const result = await client.query(
-			`SELECT 1 FROM universe.bucket WHERE id = $1 AND org_id = $2`,
+			`SELECT 1 FROM universe.bucket WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
 			[bucketId, orgId]
 		);
 		return result.rowCount ? true : undefined;
@@ -307,5 +307,27 @@ export async function requireLocationEditOrg(userId: string, editId: string): Pr
 		editId
 	);
 	if (!orgId) throw error(404, 'Correction not found');
+	return orgId;
+}
+
+/** The org a contact import job belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireContactImportJobOrg(userId: string, jobId: string): Promise<string> {
+	const orgId = await findOrgOf(
+		userId,
+		`SELECT 1 FROM universe.contact_import_job WHERE id = $1 AND org_id = $2`,
+		jobId
+	);
+	if (!orgId) throw error(404, 'Import job not found');
+	return orgId;
+}
+
+/** The org an uploaded contact import file belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireContactImportOrg(userId: string, importId: string): Promise<string> {
+	const orgId = await findOrgOf(
+		userId,
+		`SELECT 1 FROM universe.contact_import_file WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+		importId
+	);
+	if (!orgId) throw error(404, 'Import not found');
 	return orgId;
 }

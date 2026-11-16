@@ -1,13 +1,49 @@
 <script module lang="ts">
 	import type { Snippet } from 'svelte';
 
+	export type DataTableBreakpoint = 'sm' | 'md' | 'lg' | 'xl';
+
 	export interface DataTableColumn<T> {
 		id: string;
 		accessorKey?: string;
+		/** Reads the cell's value from a row. Defaults to `accessorKey`, then to `row[id]`. */
+		accessorFn?: (row: T) => unknown;
 		header: string;
+		/** Keeps the header for screen readers but hides it, for columns of icons or actions. */
+		srOnlyHeader?: boolean;
 		cell?: Snippet<[{ value: unknown; row: T }]>;
 		enableSorting?: boolean;
 		size?: number;
+		/** Which side the column's text sits on. @default 'left' */
+		align?: 'left' | 'right';
+		/** Hides the column on screens narrower than this breakpoint. */
+		hideBelow?: DataTableBreakpoint;
+		/** Keeps each cell on one line. */
+		nowrap?: boolean;
+		/** Gives digits equal width, so numbers line up. */
+		tabular?: boolean;
+		/** Extra classes for the column's cells. */
+		class?: string;
+	}
+
+	const HIDE_BELOW: Record<DataTableBreakpoint, string> = {
+		sm: 'hidden sm:table-cell',
+		md: 'hidden md:table-cell',
+		lg: 'hidden lg:table-cell',
+		xl: 'hidden xl:table-cell'
+	};
+
+	/** The classes every column's header and cells share. */
+	export function columnClass<T>(col: DataTableColumn<T> | undefined): string {
+		if (!col) return '';
+		return [
+			col.align === 'right' ? 'text-right' : 'text-left',
+			col.hideBelow ? HIDE_BELOW[col.hideBelow] : '',
+			col.nowrap ? 'whitespace-nowrap' : '',
+			col.tabular ? 'tabular-nums' : ''
+		]
+			.filter(Boolean)
+			.join(' ');
 	}
 </script>
 
@@ -37,6 +73,16 @@
 		selectable?: boolean;
 		pageSize?: number;
 		selected?: RowSelectionState;
+		/** A stable id for a row, so rows keep their place when the data changes. Defaults to the row's position. */
+		getRowId?: (row: TData, index: number) => string;
+		/** What the table says when there are no rows. @default 'Nothing to show.' */
+		empty?: string;
+		/** Names the table for screen readers. */
+		label?: string;
+		/** Draws the border and rounded corners. Turn off inside something that already has them. @default true */
+		bordered?: boolean;
+		/** Extra classes for a row, such as a tint. */
+		rowClass?: (row: TData) => string;
 		class?: string;
 	}
 
@@ -48,6 +94,11 @@
 		selectable = false,
 		pageSize = 20,
 		selected = $bindable({}),
+		getRowId,
+		empty = 'Nothing to show.',
+		label,
+		bordered = true,
+		rowClass,
 		class: className = ''
 	}: Props = $props();
 
@@ -75,9 +126,11 @@
 			(col) =>
 				({
 					id: col.id,
-					...(col.accessorKey
-						? { accessorKey: col.accessorKey }
-						: { accessorFn: (row: TData) => (row as Record<string, unknown>)[col.id] }),
+					...(col.accessorFn
+						? { accessorFn: col.accessorFn }
+						: col.accessorKey
+							? { accessorKey: col.accessorKey }
+							: { accessorFn: (row: TData) => (row as Record<string, unknown>)[col.id] }),
 					header: col.header,
 					enableSorting: col.enableSorting ?? enableSorting,
 					size: col.size
@@ -95,6 +148,7 @@
 		const t = createTable<TData>({
 			data: _data,
 			columns: _cols,
+			...(getRowId ? { getRowId } : {}),
 			getCoreRowModel: getCoreRowModel(),
 			...(enableSorting ? { getSortedRowModel: getSortedRowModel() } : {}),
 			...(enablePagination ? { getPaginationRowModel: getPaginationRowModel() } : {}),
@@ -104,18 +158,13 @@
 			state: {} as TableState,
 			onStateChange: () => {},
 			onSortingChange: (updater) => {
-				sortingState =
-					typeof updater === 'function' ? updater(sortingState) : updater;
+				sortingState = typeof updater === 'function' ? updater(sortingState) : updater;
 			},
 			onRowSelectionChange: (updater) => {
-				rowSelection =
-					typeof updater === 'function' ? updater(rowSelection) : updater;
+				rowSelection = typeof updater === 'function' ? updater(rowSelection) : updater;
 			},
 			onPaginationChange: (updater) => {
-				const next =
-					typeof updater === 'function'
-						? updater({ pageIndex, pageSize })
-						: updater;
+				const next = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater;
 				pageIndex = next.pageIndex;
 			},
 			renderFallbackValue: null
@@ -139,15 +188,18 @@
 	});
 </script>
 
-<div class="overflow-auto rounded-lg border border-outline {className}">
-	<table class="w-full text-sm">
+<div class="overflow-auto {bordered ? 'rounded-lg border border-outline' : ''} {className}">
+	<table aria-label={label} class="w-full text-sm">
 		<thead>
-			{#each tableInstance.getHeaderGroups() as headerGroup}
-				<tr class="border-b border-outline bg-surface-container">
-					{#each headerGroup.headers as header}
+			{#each tableInstance.getHeaderGroups() as headerGroup (headerGroup.id)}
+				<tr class="border-b border-outline-subtle bg-surface-container">
+					{#each headerGroup.headers as header (header.id)}
+						{@const col = columns.find((c) => c.id === header.column.id)}
 						<th
 							scope="col"
-							class="px-4 py-3 text-left font-medium text-on-surface-variant whitespace-nowrap"
+							class="cursor-default select-none px-4 py-3 font-medium text-on-surface-subtle whitespace-nowrap {columnClass(
+								col
+							)}"
 							style={header.column.getSize() !== 150
 								? `width: ${header.column.getSize()}px`
 								: undefined}
@@ -173,6 +225,8 @@
 										<ArrowsDownUpIcon class="size-3.5 opacity-40" />
 									{/if}
 								</button>
+							{:else if col?.srOnlyHeader}
+								<span class="sr-only">{header.column.columnDef.header as string}</span>
 							{:else}
 								{header.column.columnDef.header as string}
 							{/if}
@@ -182,10 +236,15 @@
 			{/each}
 		</thead>
 		<tbody>
-			{#each tableInstance.getRowModel().rows as row}
-				<tr class="border-b border-outline last:border-0 hover:bg-surface-container-low">
-					{#each row.getVisibleCells() as cell}
-						<td class="px-4 py-3 text-on-surface">
+			{#each tableInstance.getRowModel().rows as row (row.id)}
+				<tr
+					class="border-b border-outline-subtle last:border-0 hover:bg-surface-container-low {rowClass?.(
+						row.original
+					) ?? ''}"
+				>
+					{#each row.getVisibleCells() as cell (cell.id)}
+						{@const col = columns.find((c) => c.id === cell.column.id)}
+						<td class="px-4 py-3 text-on-surface {columnClass(col)} {col?.class ?? ''}">
 							{#if cell.column.id === '__select__'}
 								<Checkbox
 									checked={row.getIsSelected()}
@@ -193,24 +252,29 @@
 									onCheckedChange={() => row.toggleSelected()}
 									aria-label="Select row"
 								/>
+							{:else if col?.cell}
+								{@render col.cell({
+									value: cell.getValue() as unknown,
+									row: row.original
+								})}
 							{:else}
-								{@const col = columns.find((c) => c.id === cell.column.id)}
-								{#if col?.cell}
-									{@render col.cell({
-										value: cell.getValue() as unknown,
-										row: row.original
-									})}
-								{:else}
-									{String(cell.getValue() ?? '')}
-								{/if}
+								{String(cell.getValue() ?? '')}
 							{/if}
 						</td>
 					{/each}
 				</tr>
+			{:else}
+				<tr>
+					<td
+						colspan={tableInstance.getVisibleLeafColumns().length}
+						class="px-4 py-8 text-center text-on-surface-subtle"
+					>
+						{empty}
+					</td>
+				</tr>
 			{/each}
 		</tbody>
 	</table>
-
 	{#if enablePagination}
 		{@const pageCount = tableInstance.getPageCount()}
 		{@const currentPage = tableInstance.getState().pagination.pageIndex}

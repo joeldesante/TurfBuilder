@@ -204,7 +204,7 @@ export async function getOrg(userId: string, orgId: string): Promise<PlatformOrg
 		const counts = await client.query<Record<string, string>>(
 			`SELECT
 			   (SELECT COUNT(*) FROM universe.org_entity WHERE org_id = $1) AS records,
-			   (SELECT COUNT(*) FROM universe.bucket WHERE org_id = $1) AS buckets,
+			   (SELECT COUNT(*) FROM universe.bucket WHERE org_id = $1 AND deleted_at IS NULL) AS buckets,
 			   (SELECT COUNT(*) FROM universe.list WHERE org_id = $1) AS lists,
 			   (SELECT COUNT(*) FROM universe.turf WHERE org_id = $1) AS turfs,
 			   (SELECT COUNT(*) FROM universe.survey WHERE org_id = $1) AS surveys,

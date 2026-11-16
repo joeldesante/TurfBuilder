@@ -89,7 +89,7 @@ export async function getSurveyResults(
 
 	return withOrgTransaction(orgId, async (client) => {
 		const bucket = await client.query(
-			`SELECT 1 FROM universe.bucket WHERE id = $1 AND org_id = $2`,
+			`SELECT 1 FROM universe.bucket WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
 			[query.bucketId, orgId]
 		);
 		if (bucket.rowCount === 0) throw error(404, 'Bucket not found.');

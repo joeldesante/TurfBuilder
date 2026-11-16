@@ -17,14 +17,19 @@ import type { InviteLink, InviteSettings } from '$lib/shared/types/members';
 
 const PERMISSION = 'member.invite';
 
-/** The org's invite links, newest first, and whether its slug invite is on. */
+/**
+ * The org's open invite links, newest first, and whether its slug invite is on.
+ * A link that has expired is left out, which includes one an infra admin closed:
+ * that stays on record with an expiry of the moment it was closed.
+ */
 export async function listInviteLinks(userId: string, orgId: string): Promise<InviteSettings> {
 	await requireOrgPermission(userId, orgId, PERMISSION);
 
 	const [links, slug] = await Promise.all([
 		POOL.query<InviteLink>(
 			`SELECT id, created_at, expires_at FROM org_invite_link
-			 WHERE org_id = $1 ORDER BY created_at DESC, id`,
+			 WHERE org_id = $1 AND (expires_at IS NULL OR expires_at > now())
+			 ORDER BY created_at DESC, id`,
 			[orgId]
 		),
 		POOL.query<{ enabled: boolean }>(`SELECT enabled FROM org_slug_invite WHERE org_id = $1`, [

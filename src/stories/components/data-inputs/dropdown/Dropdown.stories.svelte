@@ -18,3 +18,4 @@
 <Story name="Default" args={{ value: 'all' }} />
 <Story name="Placeholder" args={{ value: '', placeholder: 'Choose one...' }} />
 <Story name="Disabled" args={{ value: 'all', disabled: true }} />
+<Story name="Small" args={{ value: 'all', size: 'sm' }} />

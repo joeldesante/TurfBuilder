@@ -267,7 +267,7 @@ export async function getBucketList(
 		const result = await client.query<BucketList>(
 			`SELECT l.id, l.name, l.entity_type, l.expires_at, l.created_at, l.bucket AS bucket_id
 			 FROM universe.list l
-			 JOIN universe.bucket b ON b.id = l.bucket AND b.org_id = l.org_id
+			 JOIN universe.bucket b ON b.id = l.bucket AND b.org_id = l.org_id AND b.deleted_at IS NULL
 			 WHERE l.id = $1 AND l.org_id = $2 AND b.slug = $3`,
 			[listId, orgId, bucketSlug]
 		);

@@ -323,7 +323,8 @@ async function selectBucket(
 	value: string
 ): Promise<BucketRow | null> {
 	const result = await client.query<BucketRow>(
-		`SELECT ${COLUMNS} FROM universe.bucket WHERE org_id = $1 AND ${column} = $2`,
+		`SELECT ${COLUMNS} FROM universe.bucket
+		  WHERE org_id = $1 AND ${column} = $2 AND deleted_at IS NULL`,
 		[orgId, value]
 	);
 	return result.rows[0] ?? null;
@@ -416,7 +417,7 @@ export async function getBucketPage(
  */
 export async function listBucketNavigation(client: PoolClient, orgId: string) {
 	const result = await client.query<BucketRow>(
-		`SELECT ${COLUMNS} FROM universe.bucket WHERE org_id = $1 ORDER BY name`,
+		`SELECT ${COLUMNS} FROM universe.bucket WHERE org_id = $1 AND deleted_at IS NULL ORDER BY name`,
 		[orgId]
 	);
 
@@ -470,7 +471,8 @@ export async function listBuckets(userId: string, orgId: string): Promise<Bucket
 
 	return withOrgTransaction(orgId, async (client) => {
 		const result = await client.query<BucketRow>(
-			`SELECT ${COLUMNS} FROM universe.bucket WHERE org_id = $1 ORDER BY created_at DESC`,
+			`SELECT ${COLUMNS} FROM universe.bucket
+			 WHERE org_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`,
 			[orgId]
 		);
 		const buckets: Bucket[] = [];
@@ -511,7 +513,8 @@ export async function getBucket(userId: string, bucketId: string): Promise<Bucke
 		await requireStaff(client, userId, orgId);
 
 		const result = await client.query<BucketRow>(
-			`SELECT ${COLUMNS} FROM universe.bucket WHERE id = $1 AND org_id = $2`,
+			`SELECT ${COLUMNS} FROM universe.bucket
+			 WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
 			[bucketId, orgId]
 		);
 		if (result.rowCount === 0) throw error(404, 'Bucket not found');
@@ -549,7 +552,7 @@ export async function updateBucket(
 				 SET name = COALESCE($3, name),
 				     slug = COALESCE($4, slug),
 				     filters = COALESCE($5::jsonb, filters)
-				 WHERE id = $1 AND org_id = $2
+				 WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL
 				 RETURNING ${COLUMNS}`,
 				[
 					bucketId,
@@ -569,6 +572,27 @@ export async function updateBucket(
 }
 
 /**
+ * Deletes a bucket without removing it: the row is marked deleted, so it drops
+ * out of every list and its pages answer 404, while its lists, surveys, scripts,
+ * and turfs stay as they are. Its slug is free to use again. 404 when it is in
+ * none of the caller's orgs or is already deleted, 403 without staff access.
+ */
+export async function deleteBucket(userId: string, bucketId: string): Promise<void> {
+	const orgId = await requireBucketOrg(userId, bucketId);
+
+	await withOrgTransaction(orgId, async (client) => {
+		await requireStaff(client, userId, orgId);
+
+		const result = await client.query(
+			`UPDATE universe.bucket SET deleted_at = now()
+			 WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+			[bucketId, orgId]
+		);
+		if (result.rowCount === 0) throw error(404, 'Bucket not found');
+	});
+}
+
+/**
  * One page of the records a bucket's filters match. An empty page when the
  * bucket does not include that kind of record.
  */
@@ -584,7 +608,8 @@ async function listBucketEntities(
 		await requireStaff(client, userId, orgId);
 
 		const result = await client.query<BucketRow>(
-			`SELECT ${COLUMNS} FROM universe.bucket WHERE id = $1 AND org_id = $2`,
+			`SELECT ${COLUMNS} FROM universe.bucket
+			 WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
 			[bucketId, orgId]
 		);
 		if (result.rowCount === 0) throw error(404, 'Bucket not found');

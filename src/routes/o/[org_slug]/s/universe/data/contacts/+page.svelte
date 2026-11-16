@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import UniverseDataContactsPage from '$pages/o/s/universe/data/contacts/UniverseDataContactsPage.svelte';
 	import { toast } from 'svelte-sonner';
 	import { api, errorMessage } from '$lib/client/api';
@@ -20,6 +21,14 @@
 		await goto(`/o/${data.organization.slug}/s/universe/data/contacts${query ? `?${query}` : ''}`, {
 			keepFocus: true
 		});
+	}
+
+	async function handleImport() {
+		await goto(
+			resolve('/o/[org_slug]/s/universe/data/contacts/import', {
+				org_slug: data.organization.slug
+			})
+		);
 	}
 
 	async function handleReorder(ids: string[]) {
@@ -57,4 +66,5 @@
 	page={data.page}
 	pageSize={data.pageSize}
 	onReorder={handleReorder}
+	onImport={handleImport}
 />

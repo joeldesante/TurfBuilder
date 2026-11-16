@@ -129,7 +129,11 @@
 	{#if loading}
 		<SpinnerGapIcon class="animate-spin" aria-hidden="true" />
 	{/if}
-	{@render children()}
+	<!-- An icon-only button has only its icon to show, so the spinner takes the icon's place and the
+	     button keeps its size. Other buttons keep their label beside the spinner. -->
+	{#if !(loading && iconOnly)}
+		{@render children()}
+	{/if}
 {/snippet}
 
 {#if href && !disabled}

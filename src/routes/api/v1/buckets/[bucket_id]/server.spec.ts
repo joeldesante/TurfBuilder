@@ -11,15 +11,21 @@ vi.mock('pg', () => ({
 	})
 }));
 
-const { getBucket, replaceBucket, updateBucket } = vi.hoisted(() => ({
+const { deleteBucket, getBucket, replaceBucket, updateBucket } = vi.hoisted(() => ({
+	deleteBucket: vi.fn(),
 	getBucket: vi.fn(),
 	replaceBucket: vi.fn(),
 	updateBucket: vi.fn()
 }));
 
-vi.mock('$lib/server/services/buckets.service', () => ({ getBucket, replaceBucket, updateBucket }));
+vi.mock('$lib/server/services/buckets.service', () => ({
+	deleteBucket,
+	getBucket,
+	replaceBucket,
+	updateBucket
+}));
 
-import { GET, PUT, PATCH } from './+server';
+import { GET, PUT, PATCH, DELETE } from './+server';
 
 const BUCKET = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const params = { bucket_id: BUCKET };
@@ -85,7 +91,17 @@ describe('PUT /api/v1/buckets/[bucket_id]', () => {
 
 	it('answers 400 for filters that are not valid', async () => {
 		await expect(
-			withBody(PUT, { ...valid, filters: { v: 2, people: null, locations: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: '' }] } } })
+			withBody(PUT, {
+				...valid,
+				filters: {
+					v: 2,
+					people: null,
+					locations: {
+						operator: 'AND',
+						filters: [{ item: 'city', operation: 'equals', value: '' }]
+					}
+				}
+			})
 		).rejects.toMatchObject({ status: 400 });
 	});
 
@@ -116,5 +132,37 @@ describe('PATCH /api/v1/buckets/[bucket_id]', () => {
 		await withBody(PATCH, { name: 'A' });
 
 		expect(updateBucket).toHaveBeenCalledWith('u1', BUCKET, { name: 'A' });
+	});
+});
+
+describe('DELETE /api/v1/buckets/[bucket_id]', () => {
+	it('answers 401 when signed out', async () => {
+		await expect(DELETE({ params, locals: {} } as never)).rejects.toMatchObject({ status: 401 });
+		expect(deleteBucket).not.toHaveBeenCalled();
+	});
+
+	it('answers 400 for a malformed id', async () => {
+		await expect(
+			DELETE({ params: { bucket_id: 'nope' }, locals: signedIn } as never)
+		).rejects.toMatchObject({ status: 400 });
+		expect(deleteBucket).not.toHaveBeenCalled();
+	});
+
+	it('answers 204 with no body after deleting the bucket', async () => {
+		deleteBucket.mockResolvedValue(undefined);
+
+		const res = await DELETE({ params, locals: signedIn } as never);
+
+		expect(res.status).toBe(204);
+		expect(await res.text()).toBe('');
+		expect(deleteBucket).toHaveBeenCalledWith('u1', BUCKET);
+	});
+
+	it('passes on a 404 from the service', async () => {
+		deleteBucket.mockRejectedValue({ status: 404 });
+
+		await expect(DELETE({ params, locals: signedIn } as never)).rejects.toMatchObject({
+			status: 404
+		});
 	});
 });

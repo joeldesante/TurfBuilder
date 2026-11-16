@@ -18,6 +18,7 @@ import ScrollIcon from 'phosphor-svelte/lib/ScrollIcon';
 import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets';
 import FunnelIcon from 'phosphor-svelte/lib/Funnel';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
+import GearIcon from 'phosphor-svelte/lib/Gear';
 // import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
 import ChartPieSliceIcon from 'phosphor-svelte/lib/ChartPieSlice';
 
@@ -78,6 +79,14 @@ export function buildBucketNav(
 				label: 'Data',
 				icon: FilesIcon,
 				items: [{ label: 'Lists', href: `${base}/lists`, icon: ListBulletsIcon }]
+			}
+		},
+		{
+			kind: 'section',
+			section: {
+				label: 'Manage',
+				icon: GearIcon,
+				items: [{ label: 'Settings', href: `${base}/settings`, icon: GearIcon }]
 			}
 		}
 	];
