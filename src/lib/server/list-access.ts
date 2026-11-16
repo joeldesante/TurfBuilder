@@ -331,3 +331,14 @@ export async function requireContactImportOrg(userId: string, importId: string):
 	if (!orgId) throw error(404, 'Import not found');
 	return orgId;
 }
+
+/** The org a map layer belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireMapLayerOrg(userId: string, layerId: string): Promise<string> {
+	const orgId = await findOrgOf(
+		userId,
+		`SELECT 1 FROM public.map_layer WHERE id = $1 AND organization_id = $2`,
+		layerId
+	);
+	if (!orgId) throw error(404, 'Map layer not found');
+	return orgId;
+}
