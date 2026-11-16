@@ -44,12 +44,17 @@ import {
 	updateBucket,
 	deleteBucket,
 	listBucketLocations,
+	getBucketMapOverview,
+	getBucketMapViewport,
+	clusterCellDegrees,
+	MAX_MAP_POINTS,
 	listBucketPeople,
 	bucketSections,
 	convertAllBucketFilters,
 	findBucketBySlug,
 	findBucketForPage,
 	getBucketPage,
+	countBucketLocations,
 	getBucketNavigation,
 	listBucketNavigation,
 	queryBucketEntitiesPage,
@@ -351,6 +356,7 @@ describe('listBucketLocations and listBucketPeople', () => {
 			if (sql.startsWith('SELECT id, org_id')) {
 				return { rowCount: 1, rows: [{ id: BUCKET, filter, filters }] };
 			}
+			if (sql.includes('MATERIALIZED')) return { rowCount: 1, rows: [{ id: 'l1', total_count: String(total) }] };
 			if (sql.includes('COUNT(*)')) return { rows: [{ count: String(total) }] };
 			return { rowCount: 1, rows: [{ id: 'l1' }] };
 		});
@@ -375,7 +381,7 @@ describe('listBucketLocations and listBucketPeople', () => {
 		const count = sqlRun('COUNT(*)')!;
 		expect(String(count[0])).toContain('SELECT vl.id, vl.name, vl.address_line_1');
 		expect(String(count[0])).toContain('lower(vl.city) = lower($1)');
-		expect(count[1]).toEqual(['Austin']);
+		expect(count[1]).toEqual(['Austin', 100, 0]);
 	});
 
 	it("reads the bucket's filters within its org", async () => {
@@ -413,7 +419,7 @@ describe('listBucketLocations and listBucketPeople', () => {
 
 		await listBucketLocations('u1', BUCKET, 1);
 
-		expect(sqlRun('COUNT(*)')![1]).toEqual(['Austin']);
+		expect(sqlRun('COUNT(*)')![1]).toEqual(['Austin', 100, 0]);
 	});
 
 	it('answers 422 for a bucket whose old filter cannot be converted', async () => {
@@ -435,6 +441,101 @@ describe('listBucketLocations and listBucketPeople', () => {
 		stub(undefined, false);
 
 		await expect(listBucketLocations('u1', BUCKET, 1)).rejects.toMatchObject({ status: 404 });
+	});
+});
+
+describe('the bucket map', () => {
+	const point = (id: string) => ({ id, name: null, address_line_1: null, city: null, latitude: 30, longitude: -97 });
+	const viewport = { west: -98, south: 29, east: -96, north: 31, zoom: 10 };
+
+	/** Answers the bucket lookup, then `rest` for every other query. */
+	function stubMap(rest: (sql: string) => unknown, filters: unknown = stored) {
+		stub((sql) => {
+			if (sql.startsWith('SELECT id, org_id')) {
+				return { rowCount: 1, rows: [{ id: BUCKET, filter: null, filters }] };
+			}
+			return rest(sql);
+		});
+	}
+
+	it('sizes a bubble cell to about 60 pixels at the zoom', () => {
+		expect(clusterCellDegrees(0)).toBeCloseTo((360 / 512) * 60);
+		expect(clusterCellDegrees(1)).toBeCloseTo(clusterCellDegrees(0) / 2);
+	});
+
+	it("opens on the count and box of the bucket's located matches", async () => {
+		stubMap(() => ({ rows: [{ total: 3, west: -98, south: 29, east: -96, north: 31 }] }));
+
+		expect(await getBucketMapOverview('u1', BUCKET)).toEqual({
+			total: 3,
+			bounds: { west: -98, south: 29, east: -96, north: 31 }
+		});
+		const [sql, params] = sqlRun('ST_Extent')!;
+		expect(String(sql)).toContain('lower(vl.city) = lower($1)');
+		expect(String(sql)).toContain('coordinates IS NOT NULL');
+		expect(params).toEqual(['Austin']);
+	});
+
+	it('opens with no box when nothing has a position', async () => {
+		stubMap(() => ({ rows: [{ total: 0, west: null, south: null, east: null, north: null }] }));
+
+		expect(await getBucketMapOverview('u1', BUCKET)).toEqual({ total: 0, bounds: null });
+	});
+
+	it('sends a viewport with few enough locations as single points, within the box', async () => {
+		stubMap(() => ({ rows: [point('l1')] }));
+
+		expect(await getBucketMapViewport('u1', BUCKET, viewport)).toEqual({
+			points: [point('l1')],
+			clusters: []
+		});
+		const [sql, params] = sqlRun('ST_MakeEnvelope')!;
+		expect(String(sql)).toContain(`LIMIT ${MAX_MAP_POINTS + 1}`);
+		expect(params).toEqual(['Austin', -98, 29, -96, 31]);
+		expect(sqlRun('GROUP BY')).toBeUndefined();
+	});
+
+	it('merges a fuller viewport into bubbles, keeping a lone location as a point', async () => {
+		stubMap((sql) =>
+			sql.includes('GROUP BY')
+				? {
+						rows: [
+							{ cell_x: 1, cell_y: 2, count: 40, latitude: 30, longitude: -97, id: 'l1', name: null, address_line_1: null, city: null },
+							{ cell_x: 3, cell_y: 4, count: 1, latitude: 30.5, longitude: -96.5, id: 'l9', name: 'Deli', address_line_1: '1 Main', city: 'Austin' }
+						]
+					}
+				: { rows: Array.from({ length: MAX_MAP_POINTS + 1 }, (_, i) => point(`l${i}`)) }
+		);
+
+		const result = await getBucketMapViewport('u1', BUCKET, viewport);
+
+		expect(result.clusters).toEqual([{ id: '10:1:2', latitude: 30, longitude: -97, count: 40 }]);
+		expect(result.points).toEqual([
+			{ id: 'l9', name: 'Deli', address_line_1: '1 Main', city: 'Austin', latitude: 30.5, longitude: -96.5 }
+		]);
+		expect(sqlRun('GROUP BY')![1]).toEqual(['Austin', -98, 29, -96, 31, clusterCellDegrees(10)]);
+	});
+
+	it('reads a viewport across the antimeridian as two boxes', async () => {
+		stubMap(() => ({ rows: [] }));
+
+		await getBucketMapViewport('u1', BUCKET, { ...viewport, west: 170, east: -170 });
+
+		expect(sqlRun('ST_MakeEnvelope')![1]).toEqual(['Austin', 170, 29, 180, 31, -180, 29, -170, 31]);
+	});
+
+	it('draws nothing when the bucket does not include locations', async () => {
+		stubMap(() => ({ rows: [] }), { ...stored, locations: null });
+
+		expect(await getBucketMapViewport('u1', BUCKET, viewport)).toEqual({ points: [], clusters: [] });
+		expect(sqlRun('ST_MakeEnvelope')).toBeUndefined();
+	});
+
+	it('answers 403 without staff access', async () => {
+		stubMap(() => ({ rows: [] }));
+		canOrg.mockResolvedValue(false);
+
+		await expect(getBucketMapViewport('u1', BUCKET, viewport)).rejects.toMatchObject({ status: 403 });
 	});
 });
 
@@ -596,14 +697,21 @@ describe('queryBucketEntitiesPage', () => {
 	};
 	const rows = [{ id: 'a' }];
 
-	/** Answers the COUNT with `total` and the page query with `rows`. */
+	/**
+	 * Answers like Postgres with `total` matches: the page query returns `rows` with the total on
+	 * each, or nothing past the end; the plain count returns `total`.
+	 */
 	function answer(total: number) {
-		mockClient.query.mockImplementation(async (text: string) =>
-			text.includes('COUNT(*)') ? { rows: [{ count: String(total) }] } : { rows }
-		);
+		mockClient.query.mockImplementation(async (text: string, values: unknown[]) => {
+			if (text.includes('MATERIALIZED')) {
+				const offset = values[values.length - 1] as number;
+				return { rows: offset < total ? rows.map((r) => ({ ...r, total_count: String(total) })) : [] };
+			}
+			return { rows: [{ count: String(total) }] };
+		});
 	}
-	const pageCall = () =>
-		mockClient.query.mock.calls.find((c) => !String(c[0]).includes('COUNT(*)'))!;
+	const pageCalls = () => mockClient.query.mock.calls.filter((c) => String(c[0]).includes('MATERIALIZED'));
+	const pageCall = () => pageCalls()[0];
 	const run = (page: number, kind: 'locations' | 'people' = 'locations', size?: number) =>
 		queryBucketEntitiesPage(
 			mockClient as never,
@@ -620,16 +728,24 @@ describe('queryBucketEntitiesPage', () => {
 		expect(await run(2)).toEqual({ items: rows, totalCount: 250, page: 2, pageSize: 100 });
 	});
 
+	it('gets the page and the total in one query that finds the matches before sorting them', async () => {
+		await run(2);
+
+		expect(mockClient.query).toHaveBeenCalledTimes(1);
+		expect(String(pageCall()[0])).toContain('WITH matches AS MATERIALIZED (');
+		expect(String(pageCall()[0])).toContain('COUNT(*) OVER ()');
+	});
+
 	it('selects the columns the locations page shows', async () => {
 		await run(1);
 
 		const [sql, params] = mockClient.query.mock.calls[0];
 		expect(String(sql)).toContain(
-			'FROM (SELECT vl.id, vl.name, vl.address_line_1, vl.address_line_2, vl.city, vl.state_or_region, vl.postal_code' +
-				' FROM universe.v_contacts vl WHERE (lower(vl.city) = lower($1))) q'
+			'MATERIALIZED (SELECT vl.id, vl.name, vl.address_line_1, vl.address_line_2, vl.city, vl.state_or_region, vl.postal_code' +
+				' FROM universe.v_contacts vl WHERE (lower(vl.city) = lower($1)))'
 		);
 		expect(String(sql)).not.toContain(';');
-		expect(params).toEqual(['Austin']);
+		expect(params).toEqual(['Austin', 100, 0]);
 	});
 
 	it('selects the columns the people page shows', async () => {
@@ -677,8 +793,16 @@ describe('queryBucketEntitiesPage', () => {
 	it('returns page 1 when nothing matches', async () => {
 		answer(0);
 
-		expect(await run(5)).toMatchObject({ totalCount: 0, page: 1 });
-		expect(pageCall()[1]).toEqual(['Austin', 100, 0]);
+		expect(await run(5)).toEqual({ items: [], totalCount: 0, page: 1, pageSize: 100 });
+		expect(pageCalls()).toHaveLength(1);
+	});
+
+	it('counts, then fetches the last page, for a page past the end', async () => {
+		expect(await run(99)).toEqual({ items: rows, totalCount: 250, page: 3, pageSize: 100 });
+		expect(pageCalls().map((c) => c[1])).toEqual([
+			['Austin', 100, 9800],
+			['Austin', 100, 200]
+		]);
 	});
 });
 
@@ -958,23 +1082,33 @@ describe('getBucketPage', () => {
 		await expect(getBucketPage('u1', ORG, 'nope')).rejects.toMatchObject({ status: 404 });
 	});
 
-	it('returns the bucket with how many locations it matches', async () => {
-		stub((sql) =>
-			sql.includes('COUNT(*)')
-				? { rowCount: 1, rows: [{ count: '7' }] }
-				: { rowCount: 1, rows: [row] }
-		);
+	it('returns the bucket without counting its locations', async () => {
+		stub(() => ({ rowCount: 1, rows: [row] }));
 
 		const page = await getBucketPage('u1', ORG, 'voters');
 
 		expect(page.bucket).toMatchObject({ id: BUCKET, slug: 'voters', problem: null });
-		expect(page.locationCount).toBe(7);
+		expect(sqlRun('COUNT(*)')).toBeUndefined();
+	});
+});
+
+describe('countBucketLocations', () => {
+	it("counts the bucket's location matches within its org", async () => {
+		stub((sql) =>
+			sql.includes('COUNT(*)')
+				? { rowCount: 1, rows: [{ count: '7' }] }
+				: { rowCount: 1, rows: [{ id: BUCKET, filter: null, filters: stored }] }
+		);
+
+		expect(await countBucketLocations('u1', BUCKET)).toBe(7);
+		expect(sqlRun('SELECT id, org_id')![1]).toEqual([BUCKET, ORG]);
 	});
 
-	it('has no location count for a bucket without locations', async () => {
-		stub(() => ({ rowCount: 1, rows: [{ ...row, filters: { ...stored, locations: null } }] }));
+	it('is null for a bucket without locations', async () => {
+		stub(() => ({ rowCount: 1, rows: [{ id: BUCKET, filter: null, filters: { ...stored, locations: null } }] }));
 
-		expect((await getBucketPage('u1', ORG, 'voters')).locationCount).toBeNull();
+		expect(await countBucketLocations('u1', BUCKET)).toBeNull();
+		expect(sqlRun('COUNT(*)')).toBeUndefined();
 	});
 });
 

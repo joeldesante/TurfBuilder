@@ -1,5 +1,5 @@
 import { render } from 'vitest-browser-svelte';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import BucketLocationsPage from './BucketLocationsPage.svelte';
 
 const sampleLocations = [
@@ -68,4 +68,33 @@ test('shows page controls above and below the list', async () => {
 	});
 	await expect.element(getByRole('navigation', { name: 'Pagination' }).first()).toBeVisible();
 	await expect.element(getByRole('navigation', { name: 'Pagination' }).nth(1)).toBeVisible();
+});
+
+test('offers List and Map tabs, with List current', async () => {
+	const { getByRole } = render(BucketLocationsPage, {
+		props: { bucketName: 'Downtown District', enabled: true, locations: sampleLocations, basePath: '/b/locations' }
+	});
+
+	await expect.element(getByRole('link', { name: 'List' })).toHaveAttribute('aria-current', 'page');
+	await expect.element(getByRole('link', { name: 'Map' })).toHaveAttribute('href', '/b/locations?view=map');
+});
+
+test('offers no tabs when the bucket has no locations filter', async () => {
+	const { getByRole } = render(BucketLocationsPage, {
+		props: { bucketName: 'Downtown District', enabled: false, locations: [] }
+	});
+
+	await expect.element(getByRole('link', { name: 'Map' })).not.toBeInTheDocument();
+});
+
+test('switches view through onViewChange when given, so the route can show the loader', async () => {
+	const onViewChange = vi.fn();
+	const { getByRole } = render(BucketLocationsPage, {
+		props: { bucketName: 'Downtown District', enabled: true, locations: sampleLocations, onViewChange }
+	});
+
+	await getByRole('button', { name: 'Map' }).click();
+
+	expect(onViewChange).toHaveBeenCalledWith('map');
+	await expect.element(getByRole('link', { name: 'Map' })).not.toBeInTheDocument();
 });

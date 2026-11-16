@@ -9,6 +9,13 @@ import { clampPage, pageOffset, PAGE_SIZE } from '$lib/shared/utils/pagination';
 import type { Page } from '$lib/shared/utils/pagination';
 import { buildFilterQuery, convertStoredBucketFilter, LegacyFilterError } from './filters.service';
 import type { FilterQuery } from './filters.service';
+import { envelopes } from './locations.service';
+import type { BucketMapViewportQuery } from '$lib/shared/schemas/bucket-map';
+import type {
+	BucketMapOverview,
+	BucketMapPoint,
+	BucketMapViewport
+} from '$lib/shared/types/bucket-map';
 import { logger, zodIssues } from '$lib/server/logger';
 
 export interface BucketInput {
@@ -272,21 +279,37 @@ export async function queryBucketEntitiesPage(
 	pageSize = PAGE_SIZE
 ): Promise<Page<Record<string, unknown>>> {
 	const query: FilterQuery = buildFilterQuery(kind, group, { orgId, columns: PAGE_COLUMNS[kind] });
-
-	const countResult = await client.query<{ count: string }>(
-		`SELECT COUNT(*)::text AS count FROM (${query.sql}) q`,
-		query.params
-	);
-	const totalCount = parseInt(countResult.rows[0].count, 10);
-	const page = clampPage(requested, totalCount, pageSize);
-
 	const n = query.params.length;
-	const result = await client.query(
-		`SELECT * FROM (${query.sql}) q ORDER BY ${ORDER[kind]} LIMIT $${n + 1} OFFSET $${n + 2}`,
-		[...query.params, pageSize, pageOffset(page, pageSize)]
-	);
 
-	return { items: result.rows, totalCount, page, pageSize };
+	// One pass for the page and the total. MATERIALIZED makes Postgres find the matches first and
+	// sort only those; left to itself it walks every record in name order to fill the page, which
+	// sorted all 400,000 contacts to show 100 of them. The window count sees every match, not just
+	// the page, because it runs before LIMIT.
+	const pageOf = (page: number) =>
+		client.query<Record<string, unknown> & { total_count: string }>(
+			`WITH matches AS MATERIALIZED (${query.sql})
+			 SELECT *, COUNT(*) OVER ()::text AS total_count FROM matches
+			 ORDER BY ${ORDER[kind]} LIMIT $${n + 1} OFFSET $${n + 2}`,
+			[...query.params, pageSize, pageOffset(page, pageSize)]
+		);
+
+	let page = Math.max(1, Math.floor(requested) || 1);
+	let result = await pageOf(page);
+	let totalCount = result.rows.length > 0 ? parseInt(result.rows[0].total_count, 10) : 0;
+
+	// A page past the end comes back empty and so cannot say the total: count, and fetch the last page.
+	if (result.rows.length === 0 && page > 1) {
+		const countResult = await client.query<{ count: string }>(
+			`SELECT COUNT(*)::text AS count FROM (${query.sql}) q`,
+			query.params
+		);
+		totalCount = parseInt(countResult.rows[0].count, 10);
+		page = clampPage(requested, totalCount, pageSize);
+		if (totalCount > 0) result = await pageOf(page);
+	}
+
+	const items = result.rows.map(({ total_count: _, ...row }) => row);
+	return { items, totalCount, page: totalCount === 0 ? 1 : page, pageSize };
 }
 
 /** How many entities of one kind a bucket's filter group matches. Must run inside withOrgTransaction. */
@@ -386,28 +409,35 @@ export async function findBucketForPage(
 }
 
 /**
- * What every page inside a bucket needs: the bucket by slug and, when it
- * includes locations, how many it matches. 403 without staff access, 404 when
- * the organization has no bucket by that slug.
+ * What every page inside a bucket needs: the bucket by slug. 403 without staff
+ * access, 404 when the organization has no bucket by that slug. How many
+ * locations it matches is countBucketLocations(), kept apart so a page does not
+ * wait for the count.
  */
 export async function getBucketPage(
 	userId: string,
 	orgId: string,
 	slug: string
-): Promise<{ bucket: BucketForPage; locationCount: number | null }> {
+): Promise<{ bucket: BucketForPage }> {
 	return withOrgTransaction(orgId, async (client) => {
 		await requireStaff(client, userId, orgId);
 
 		const bucket = await findBucketForPage(client, orgId, slug);
 		if (!bucket) throw error(404, 'Bucket not found');
 
-		const locations = bucket.filters?.locations;
-		const locationCount = locations
-			? await countBucketEntities(client, orgId, 'locations', locations)
-			: null;
-
-		return { bucket, locationCount };
+		return { bucket };
 	});
+}
+
+/**
+ * How many locations a bucket matches, or null when it does not include
+ * locations. 404 when it is in none of the caller's orgs, 403 without staff
+ * access.
+ */
+export function countBucketLocations(userId: string, bucketId: string): Promise<number | null> {
+	return withBucketGroup<number | null>(userId, bucketId, 'locations', null, (client, orgId, group) =>
+		countBucketEntities(client, orgId, 'locations', group)
+	);
 }
 
 /**
@@ -593,15 +623,17 @@ export async function deleteBucket(userId: string, bucketId: string): Promise<vo
 }
 
 /**
- * One page of the records a bucket's filters match. An empty page when the
- * bucket does not include that kind of record.
+ * Runs `fn` with the filter group a bucket uses for one kind of record, or
+ * answers `empty` when the bucket does not include that kind. 404 when the
+ * bucket is in none of the caller's orgs, 403 without staff access.
  */
-async function listBucketEntities(
+async function withBucketGroup<T>(
 	userId: string,
 	bucketId: string,
 	kind: FilterEntity,
-	requested: number
-): Promise<Page<Record<string, unknown>>> {
+	empty: T,
+	fn: (client: PoolClient, orgId: string, group: FilterGroup) => Promise<T>
+): Promise<T> {
 	const orgId = await requireBucketOrg(userId, bucketId);
 
 	return withOrgTransaction(orgId, async (client) => {
@@ -616,10 +648,190 @@ async function listBucketEntities(
 
 		const filters = await resolveOrFail(client, orgId, result.rows[0]);
 		const group = filters[kind];
-		if (!group) return { items: [], totalCount: 0, page: 1, pageSize: PAGE_SIZE };
+		if (!group) return empty;
 
-		return queryBucketEntitiesPage(client, orgId, kind, group, requested);
+		return fn(client, orgId, group);
 	});
+}
+
+/**
+ * One page of the records a bucket's filters match. An empty page when the
+ * bucket does not include that kind of record.
+ */
+function listBucketEntities(
+	userId: string,
+	bucketId: string,
+	kind: FilterEntity,
+	requested: number
+): Promise<Page<Record<string, unknown>>> {
+	return withBucketGroup(
+		userId,
+		bucketId,
+		kind,
+		{ items: [], totalCount: 0, page: 1, pageSize: PAGE_SIZE },
+		(client, orgId, group) => queryBucketEntitiesPage(client, orgId, kind, group, requested)
+	);
+}
+
+// ---------------------------------------------------------------------------
+// The bucket map
+//
+// A bucket can match far more locations than a browser can draw, so the map
+// asks for one viewport at a time. A viewport with few enough locations gets
+// them as single points; a fuller one gets them merged into counted bubbles on
+// a grid sized to the zoom, so every location is still accounted for.
+// ---------------------------------------------------------------------------
+
+/** A viewport holding at most this many locations gets them all as single points. */
+export const MAX_MAP_POINTS = 2000;
+
+/** The width of a bubble's grid cell on screen, in pixels. */
+const CLUSTER_CELL_PX = 60;
+
+/**
+ * The grid cell size in degrees of longitude for a zoom: CLUSTER_CELL_PX on
+ * screen. MapLibre draws the world 512 pixels wide at zoom 0.
+ */
+export function clusterCellDegrees(zoom: number): number {
+	return (360 / (512 * 2 ** zoom)) * CLUSTER_CELL_PX;
+}
+
+/** The bucket's locations with a position, as one subquery over the bucket's filters. */
+function positionedLocations(orgId: string, group: FilterGroup) {
+	const query = buildFilterQuery('locations', group, {
+		orgId,
+		columns: ['id', 'name', 'address_line_1', 'city', 'coordinates']
+	});
+	return {
+		sql: `SELECT * FROM (${query.sql}) q WHERE coordinates IS NOT NULL`,
+		params: query.params
+	};
+}
+
+/**
+ * The bucket map's opening view: how many located matches there are and the
+ * box around them. Empty when the bucket does not include locations. 404 when
+ * it is in none of the caller's orgs, 403 without staff access.
+ */
+export function getBucketMapOverview(userId: string, bucketId: string): Promise<BucketMapOverview> {
+	return withBucketGroup(
+		userId,
+		bucketId,
+		'locations',
+		{ total: 0, bounds: null },
+		async (client, orgId, group) => {
+			const located = positionedLocations(orgId, group);
+			const result = await client.query<{
+				total: number;
+				west: number | null;
+				south: number | null;
+				east: number | null;
+				north: number | null;
+			}>(
+				`SELECT count(*)::int AS total,
+				        ST_XMin(ST_Extent(coordinates)) AS west, ST_YMin(ST_Extent(coordinates)) AS south,
+				        ST_XMax(ST_Extent(coordinates)) AS east, ST_YMax(ST_Extent(coordinates)) AS north
+				 FROM (${located.sql}) located`,
+				located.params
+			);
+			const row = result.rows[0];
+			return {
+				total: row.total,
+				bounds:
+					row.west === null
+						? null
+						: { west: row.west, south: row.south!, east: row.east!, north: row.north! }
+			};
+		}
+	);
+}
+
+/**
+ * What the bucket map draws for one viewport. Up to MAX_MAP_POINTS located
+ * matches come back as single points. Past that they are merged per grid cell
+ * (see clusterCellDegrees); a cell holding one location still comes back as a
+ * point. Empty when the bucket does not include locations. 404 when it is in
+ * none of the caller's orgs, 403 without staff access.
+ */
+export function getBucketMapViewport(
+	userId: string,
+	bucketId: string,
+	viewport: BucketMapViewportQuery
+): Promise<BucketMapViewport> {
+	return withBucketGroup(
+		userId,
+		bucketId,
+		'locations',
+		{ points: [], clusters: [] },
+		async (client, orgId, group) => {
+			const located = positionedLocations(orgId, group);
+			const n = located.params.length;
+			const boxes = envelopes(viewport);
+			const inView = boxes
+				.map((_, i) => {
+					const p = n + 1 + i * 4;
+					return `coordinates && ST_MakeEnvelope($${p}, $${p + 1}, $${p + 2}, $${p + 3}, 4326)`;
+				})
+				.join(' OR ');
+			const visible = `SELECT * FROM (${located.sql}) located WHERE ${inView}`;
+			const params = [...located.params, ...boxes.flat()];
+
+			// One past the limit says whether the viewport is too full for single points.
+			const points = await client.query<BucketMapPoint>(
+				`SELECT id, name, address_line_1, city,
+				        ST_Y(coordinates) AS latitude, ST_X(coordinates) AS longitude
+				 FROM (${visible}) v
+				 LIMIT ${MAX_MAP_POINTS + 1}`,
+				params
+			);
+			if (points.rows.length <= MAX_MAP_POINTS) return { points: points.rows, clusters: [] };
+
+			const cell = clusterCellDegrees(viewport.zoom);
+			const cells = await client.query<{
+				cell_x: number;
+				cell_y: number;
+				count: number;
+				latitude: number;
+				longitude: number;
+				id: string | null;
+				name: string | null;
+				address_line_1: string | null;
+				city: string | null;
+			}>(
+				`SELECT floor(ST_X(coordinates) / $${params.length + 1})::bigint AS cell_x,
+				        floor(ST_Y(coordinates) / $${params.length + 1})::bigint AS cell_y,
+				        count(*)::int AS count,
+				        avg(ST_Y(coordinates)) AS latitude, avg(ST_X(coordinates)) AS longitude,
+				        (array_agg(id))[1]::text AS id, (array_agg(name))[1] AS name,
+				        (array_agg(address_line_1))[1] AS address_line_1, (array_agg(city))[1] AS city
+				 FROM (${visible}) v
+				 GROUP BY cell_x, cell_y`,
+				[...params, cell]
+			);
+
+			const result: BucketMapViewport = { points: [], clusters: [] };
+			for (const c of cells.rows) {
+				if (c.count === 1) {
+					result.points.push({
+						id: c.id!,
+						name: c.name,
+						address_line_1: c.address_line_1,
+						city: c.city,
+						latitude: c.latitude,
+						longitude: c.longitude
+					});
+				} else {
+					result.clusters.push({
+						id: `${viewport.zoom.toFixed(0)}:${c.cell_x}:${c.cell_y}`,
+						latitude: c.latitude,
+						longitude: c.longitude,
+						count: c.count
+					});
+				}
+			}
+			return result;
+		}
+	);
 }
 
 /** One page of the locations a bucket matches. 404 when it is in none of the caller's orgs. */
