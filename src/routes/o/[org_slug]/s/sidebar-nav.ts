@@ -4,9 +4,9 @@ import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import PersonSimpleWalkIcon from 'phosphor-svelte/lib/PersonSimpleWalk';
 import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 import MapPinIcon from 'phosphor-svelte/lib/MapPinIcon';
-import MapPinAreaIcon from 'phosphor-svelte/lib/MapPinArea';
 import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 import ShieldIcon from 'phosphor-svelte/lib/Shield';
+import ListChecksIcon from 'phosphor-svelte/lib/ListChecks';
 // import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
 import GlobeIcon from 'phosphor-svelte/lib/Globe';
 // import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
@@ -127,16 +127,15 @@ export function buildStaffNav(
 						label: 'Data',
 						icon: DatabaseIcon,
 						items: [
-							{ label: 'People', href: `/o/${orgSlug}/s/universe/data/people`, icon: UsersIcon },
 							{
-								label: 'Locations',
-								href: `/o/${orgSlug}/s/universe/data/locations`,
-								icon: MapPinIcon
+								label: 'Contacts',
+								href: `/o/${orgSlug}/s/universe/data/contacts`,
+								icon: UsersIcon
 							},
 							{
-								label: 'Pending Locations',
-								href: `/o/${orgSlug}/s/universe/data/locations/suggestions`,
-								icon: MapPinAreaIcon
+								label: 'Contact schemas',
+								href: `/o/${orgSlug}/s/universe/data/contact-schemas`,
+								icon: ListChecksIcon
 							}
 						]
 					},

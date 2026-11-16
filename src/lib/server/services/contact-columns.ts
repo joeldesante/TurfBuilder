@@ -52,3 +52,22 @@ export function locationColumns(c: string, a: string): string {
 export function currentAddressJoin(c: string, a: string): string {
 	return `JOIN universe.org_address ${a} ON ${a}.entity_id = ${c}.address_entity_id AND ${a}.org_id = ${c}.org_id AND ${a}.valid_to IS NULL`;
 }
+
+/**
+ * What labels contact alias `c`: the value stored under its schema's
+ * identifier field id (schema alias `cs`, which may be a LEFT JOIN that found nothing), else the
+ * full address text of address alias `a`, else its coordinates.
+ */
+export function identifierSql(c: string, cs: string, a: string): string {
+	return `COALESCE(
+		NULLIF(${c}.metadata ->> ${cs}.identifier_field_id::text, ''),
+		NULLIF(concat_ws(', ', ${line1Sql(a)}, ${line2Sql(a)}, ${a}.locality, ${a}.region, ${a}.postcode), ''),
+		CASE WHEN ${a}.coordinates IS NULL THEN NULL
+		     ELSE round(ST_Y(${a}.coordinates)::numeric, 6)::text || ', ' || round(ST_X(${a}.coordinates)::numeric, 6)::text END
+	)`;
+}
+
+/** Like `currentAddressJoin`, but keeps the contact when its address row is missing. */
+export function currentAddressLeftJoin(c: string, a: string): string {
+	return `LEFT JOIN universe.org_address ${a} ON ${a}.entity_id = ${c}.address_entity_id AND ${a}.org_id = ${c}.org_id AND ${a}.valid_to IS NULL`;
+}

@@ -17,7 +17,6 @@ test('renders name field and submit button', async () => {
 test('asks for a name when submitted without one', async () => {
 	const { screen, onCreate } = setup();
 
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 	await screen.getByRole('button', { name: 'Create Bucket' }).click();
 
 	await expect.element(screen.getByText('Enter a name')).toBeVisible();
@@ -28,34 +27,17 @@ test('rejects a name that has no letters or numbers to make a slug from', async 
 	const { screen, onCreate } = setup();
 
 	await screen.getByLabelText('Name').fill('!!!');
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 	await screen.getByRole('button', { name: 'Create Bucket' }).click();
 
 	await expect.element(screen.getByText('Use at least one letter or number')).toBeVisible();
 	expect(onCreate).not.toHaveBeenCalled();
 });
 
-test('asks for a kind of record when none is included', async () => {
-	const { screen, onCreate } = setup();
-
-	await screen.getByLabelText('Name').fill('Voters');
-	await screen.getByRole('button', { name: 'Create Bucket' }).click();
-
-	await expect.element(screen.getByText('Include at least one kind of record.')).toBeVisible();
-	expect(onCreate).not.toHaveBeenCalled();
-
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
-	await screen.getByRole('button', { name: 'Create Bucket' }).click();
-	await vi.waitFor(() => expect(onCreate).toHaveBeenCalled());
-});
-
-test('shows a filter editor for each kind of record included', async () => {
+test('has no record kinds to tick, and always shows the contact filters', async () => {
 	const { screen } = setup();
 
-	await expect.element(screen.getByRole('region', { name: 'Locations filters' })).not.toBeInTheDocument();
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
-
-	await expect.element(screen.getByRole('region', { name: 'Locations filters' })).toBeVisible();
+	await expect.element(screen.getByRole('checkbox')).not.toBeInTheDocument();
+	await expect.element(screen.getByRole('region', { name: 'Contacts filters' })).toBeVisible();
 });
 
 test('does not offer people, which are not supported yet', async () => {
@@ -64,21 +46,19 @@ test('does not offer people, which are not supported yet', async () => {
 	await expect.element(screen.getByRole('checkbox', { name: 'People' })).not.toBeInTheDocument();
 });
 
-test('offers the editor only the filters for locations', async () => {
+test('offers the editor only the filters for contacts', async () => {
 	const { screen } = setup();
 
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 	await screen.getByRole('button', { name: 'Add Filter' }).click();
 
 	await expect.element(screen.getByRole('button', { name: /^City/ })).toBeVisible();
 	await expect.element(screen.getByRole('button', { name: /^Age/ })).not.toBeInTheDocument();
 });
 
-test('calls onCreate with the name, derived slug, and filters for the kinds included', async () => {
+test('calls onCreate with the name, derived slug, and filters', async () => {
 	const { screen, onCreate } = setup();
 
 	await screen.getByLabelText('Name').fill('Registered Voters');
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 	await screen.getByRole('button', { name: 'Create Bucket' }).click();
 
 	await vi.waitFor(() =>
@@ -94,7 +74,6 @@ test('includes the filters added in the editor', async () => {
 	const { screen, onCreate } = setup();
 
 	await screen.getByLabelText('Name').fill('Austin');
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 	await screen.getByRole('button', { name: 'Add Filter' }).click();
 	await screen.getByRole('button', { name: /^City/ }).click();
 	await screen.getByRole('textbox', { name: 'Value' }).fill('Austin');
@@ -105,25 +84,27 @@ test('includes the filters added in the editor', async () => {
 		expect(onCreate).toHaveBeenCalledWith('Austin', 'austin', {
 			v: 2,
 			people: null,
-			locations: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: 'Austin' }] }
+			locations: {
+				operator: 'AND',
+				filters: [{ item: 'city', operation: 'equals', value: 'Austin' }]
+			}
 		})
 	);
 });
 
 test('shows error message when onCreate rejects', async () => {
-	const { screen } = setup(vi.fn().mockRejectedValue(new Error('A bucket with that slug already exists')));
+	const { screen } = setup(
+		vi.fn().mockRejectedValue(new Error('A bucket with that slug already exists'))
+	);
 
 	await screen.getByLabelText('Name').fill('Duplicate');
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 	await screen.getByRole('button', { name: 'Create Bucket' }).click();
 
 	await expect.element(screen.getByText('A bucket with that slug already exists')).toBeVisible();
 });
 
-test('says what the bucket will contain above each editor', async () => {
+test('says what the bucket will contain above the editor', async () => {
 	const { screen } = setup();
-
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 
 	await expect.element(screen.getByText('This bucket will contain')).toBeVisible();
 });

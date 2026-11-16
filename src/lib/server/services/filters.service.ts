@@ -10,6 +10,8 @@ import type {
 	BucketFilters,
 	FilterEntity,
 	ContactMadeValue,
+	ContactSchemaValue,
+	SchemaFieldValue,
 	Filter,
 	FilterGroup,
 	FilterOperation,
@@ -111,6 +113,46 @@ function presence(column: string, filter: Filter): string {
 
 function unsupported(filter: Filter): Error {
 	return error(400, `The operation "${filter.operation}" is not supported for "${filter.item}"`);
+}
+
+const NUMBER_OPERATORS: Record<string, string> = {
+	equals: '=',
+	not_equals: '<>',
+	greater_than: '>',
+	less_than: '<',
+	greater_than_or_equal: '>=',
+	less_than_or_equal: '<='
+};
+
+/**
+ * A contact of a schema whose field holds a value that compares a given way.
+ * The field is named by id and its value is read from the contact's metadata
+ * under that id. The comparison follows the type of the value sent, and a value
+ * of any other type, or none, never matches, so a field that was removed or
+ * retyped selects nothing rather than raising an error. For "is not", a contact
+ * with no value does match, as it is not equal to anything.
+ */
+function schemaField(filter: Filter, ctx: Context): string {
+	const v = filter.value as SchemaFieldValue;
+	const field = `${ctx.param(v.fieldId)}::text`;
+	const raw = `(${ctx.alias}.metadata ->> ${field})`;
+	const kind = `jsonb_typeof(${ctx.alias}.metadata -> ${field})`;
+	const scope = `${ctx.alias}.schema_id = ${ctx.param(v.schemaId)}::uuid`;
+	const noValue = filter.operation === 'not_equals' ? 'true' : 'false';
+
+	if (typeof v.value === 'number') {
+		const operator = NUMBER_OPERATORS[filter.operation];
+		if (!operator) throw unsupported(filter);
+		return `(${scope} AND CASE WHEN ${kind} = 'number' THEN ${raw}::numeric ${operator} ${ctx.param(v.value)}::numeric ELSE ${noValue} END)`;
+	}
+
+	if (typeof v.value === 'boolean') {
+		if (filter.operation !== 'equals' && filter.operation !== 'not_equals') throw unsupported(filter);
+		const operator = NUMBER_OPERATORS[filter.operation];
+		return `(${scope} AND CASE WHEN ${kind} = 'boolean' THEN ${raw}::boolean ${operator} ${ctx.param(v.value)}::boolean ELSE ${noValue} END)`;
+	}
+
+	return `(${scope} AND ${textCondition(raw, { ...filter, value: String(v.value) }, ctx)})`;
 }
 
 /** Wraps a condition for within / not_within. A record with no position is not within anything. */
@@ -300,6 +342,18 @@ const HANDLERS: Record<string, Handler> = {
 	},
 	survey_question_response: {
 		build: (f, ctx) => surveyResponse(f, ctx)
+	},
+	contact_schema: {
+		build: (f, ctx) => {
+			if (f.operation !== 'equals' && f.operation !== 'not_equals') throw unsupported(f);
+			const { schemaId } = f.value as ContactSchemaValue;
+			// IS DISTINCT FROM keeps contacts with no schema, which are not of this one.
+			const operator = f.operation === 'equals' ? '=' : 'IS DISTINCT FROM';
+			return `${ctx.alias}.schema_id ${operator} ${ctx.param(schemaId)}::uuid`;
+		}
+	},
+	schema_field: {
+		build: (f, ctx) => schemaField(f, ctx)
 	},
 	location_name: {
 		build: (f, ctx) => textCondition(`${ctx.alias}.name`, f, ctx)

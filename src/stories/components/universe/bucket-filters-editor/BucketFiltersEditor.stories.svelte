@@ -5,7 +5,9 @@
 
 	// Stands in for the API so the filters that name a bucket or survey have choices.
 	const source: FilterSource = {
-		listBuckets: async () => [{ id: '11111111-1111-4111-8111-111111111111', name: 'Philadelphia voters' }],
+		listBuckets: async () => [
+			{ id: '11111111-1111-4111-8111-111111111111', name: 'Philadelphia voters' }
+		],
 		listLists: async () => [],
 		listSurveys: async () => [],
 		listQuestions: async () => []
@@ -18,9 +20,9 @@
 	});
 </script>
 
-<Story name="Nothing Included" args={{ filters: { v: 2, people: null, locations: null } }} />
+<Story name="No Filters Yet" args={{ filters: { v: 2, people: null, locations: null } }} />
 <Story
-	name="Locations With Filters"
+	name="With Filters"
 	args={{
 		filters: {
 			v: 2,
@@ -32,16 +34,6 @@
 					{ item: 'zip_code', operation: 'starts_with', value: '191' }
 				]
 			}
-		}
-	}}
-/>
-<Story
-	name="People And Locations"
-	args={{
-		filters: {
-			v: 2,
-			people: { operator: 'AND', filters: [{ item: 'age', operation: 'greater_than', value: 65 }] },
-			locations: { operator: 'AND', filters: [] }
 		}
 	}}
 />

@@ -98,4 +98,31 @@ describe('TabBar', () => {
 		await screen.getByRole('button', { name: 'Cancel' }).click();
 		expect(onClose).not.toHaveBeenCalled();
 	});
+
+	it('moves the selected state when the active tab changes', async () => {
+		const screen = render(TabBar, {
+			tabs,
+			activeId: '1',
+			onSelect: () => {},
+			onAdd: () => {},
+			onClose: () => {},
+			onReorder: () => {}
+		});
+
+		await screen.rerender({
+			tabs,
+			activeId: '2',
+			onSelect: () => {},
+			onAdd: () => {},
+			onClose: () => {},
+			onReorder: () => {}
+		});
+
+		await expect
+			.element(screen.getByRole('tab', { name: /Tab 2/ }))
+			.toHaveAttribute('aria-selected', 'true');
+		await expect
+			.element(screen.getByRole('tab', { name: /Tab 1/ }))
+			.toHaveAttribute('aria-selected', 'false');
+	});
 });

@@ -4,6 +4,7 @@ import type {
 	Filter,
 	FilterEntity,
 	RadiusValue,
+	SchemaFieldValue,
 	SurveyResponseValue
 } from '../types/filters';
 import { FILTER_OPERATION_LABELS, isAnsweredOperation } from './filters';
@@ -27,6 +28,10 @@ export interface SentenceNames {
 	list?: string;
 	survey?: string;
 	question?: string;
+	/** The contact schema a filter names. */
+	schema?: string;
+	/** The name of a schema field, as it is now. */
+	field?: string;
 }
 
 export interface DescribeOptions {
@@ -47,9 +52,11 @@ const clauseBreak = (): SentencePart => ({ text: ' ', break: true });
 /** A badge standing in for a setting that has not been given yet. */
 const missing = (label: string): SentencePart => badge(label, { incomplete: true });
 
-const ENTITY_NAMES: Record<FilterEntity, string> = { people: 'People', locations: 'Locations' };
+// Every location is a contact now, so the editor calls them contacts. The data
+// model still keys them as `locations`.
+const ENTITY_NAMES: Record<FilterEntity, string> = { people: 'People', locations: 'Contacts' };
 
-/** The kind of record as the editor names it: "People", "Locations", or "Records" when not known. */
+/** The kind of record as the editor names it: "People", "Contacts", or "Records" when not known. */
 export function entityName(entity?: FilterEntity): string {
 	return entity ? ENTITY_NAMES[entity] : 'Records';
 }
@@ -154,6 +161,35 @@ function surveyParts(filter: Filter, names: SentenceNames): Parts {
 	};
 }
 
+function contactSchemaParts(filter: Filter, names: SentenceNames): Parts {
+	const v = isObject(filter.value) ? filter.value : {};
+	return {
+		schema: typeof v.schemaId === 'string' && v.schemaId
+			? [badge(names.schema ?? 'a schema that no longer exists')]
+			: [missing('no schema chosen')]
+	};
+}
+
+function schemaFieldParts(filter: Filter, names: SentenceNames): Parts {
+	const v = isObject(filter.value) ? (filter.value as Partial<SchemaFieldValue>) : {};
+	const compared = v.value;
+	const value =
+		compared === null || compared === undefined || compared === ''
+			? [missing('no value yet')]
+			: typeof compared === 'boolean'
+				? [badge(compared ? 'yes' : 'no')]
+				: [badge(String(compared))];
+	return {
+		schema: v.schemaId
+			? [badge(names.schema ?? 'a schema that no longer exists')]
+			: [missing('no schema chosen')],
+		field: v.fieldId
+			? [badge(names.field ?? 'a field that no longer exists')]
+			: [missing('no field chosen')],
+		value
+	};
+}
+
 function contactMadeParts(filter: Filter, names: SentenceNames): Parts {
 	const v = isObject(filter.value) ? (filter.value as Partial<ContactMadeValue>) : null;
 	if (!v || typeof v.contacted !== 'boolean') {
@@ -221,6 +257,10 @@ function valueParts(filter: Filter, entry: FilterRegistryEntry, names: SentenceN
 			return surveyParts(filter, names);
 		case 'contact_made':
 			return contactMadeParts(filter, names);
+		case 'contact_schema':
+			return contactSchemaParts(filter, names);
+		case 'schema_field':
+			return schemaFieldParts(filter, names);
 	}
 }
 

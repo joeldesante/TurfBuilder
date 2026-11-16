@@ -148,6 +148,20 @@ export async function requireScriptOrg(userId: string, scriptId: string): Promis
 	return found.orgId;
 }
 
+/** The org a contact schema belongs to. Throws 404 unless it is in one of the user's orgs. */
+export async function requireContactSchemaOrg(userId: string, schemaId: string): Promise<string> {
+	const found = await findInMemberOrgs(userId, async (client, orgId) => {
+		const result = await client.query(
+			`SELECT 1 FROM universe.contact_schema WHERE id = $1 AND org_id = $2`,
+			[schemaId, orgId]
+		);
+		return result.rowCount ? true : undefined;
+	});
+	if (!found) throw error(404, 'Contact schema not found');
+
+	return found.orgId;
+}
+
 /** The org a permission role belongs to. Throws 404 unless it is in one of the user's orgs. */
 export async function requireRoleOrg(userId: string, roleId: string): Promise<string> {
 	const found = await findInMemberOrgs(userId, async (client, orgId) => {

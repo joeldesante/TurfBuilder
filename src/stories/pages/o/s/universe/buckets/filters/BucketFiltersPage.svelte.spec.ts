@@ -30,7 +30,7 @@ test('shows the filters the bucket has now', async () => {
 
 	await expect.element(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
 	await expect.element(screen.getByText('Voters')).toBeVisible();
-	await expect.element(screen.getByText(/Locations whose city is Austin/)).toBeVisible();
+	await expect.element(screen.getByText(/Contacts whose city is Austin/)).toBeVisible();
 });
 
 test('says changes apply to the bucket but not to lists already made', async () => {
@@ -65,7 +65,10 @@ test('saves the edited filters, and says so', async () => {
 		expect(onSave).toHaveBeenCalledWith({
 			v: 2,
 			people: null,
-			locations: { operator: 'AND', filters: [{ item: 'city', operation: 'equals', value: 'Dallas' }] }
+			locations: {
+				operator: 'AND',
+				filters: [{ item: 'city', operation: 'equals', value: 'Dallas' }]
+			}
 		})
 	);
 	await expect.element(screen.getByText('Filters saved.')).toBeVisible();
@@ -94,26 +97,13 @@ test('discarding puts the saved filters back', async () => {
 	expect(onSave).not.toHaveBeenCalled();
 });
 
-test('removing a kind of record counts as a change that can be saved', async () => {
-	const { screen, onSave } = setup();
-
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
-	await screen.getByRole('button', { name: 'Save Filters' }).click();
-
-	await vi.waitFor(() =>
-		expect(onSave).toHaveBeenCalledWith({
-			v: 2,
-			people: null,
-			locations: null
-		})
-	);
-});
-
 test('does not offer people, which are not supported yet', async () => {
 	const { screen } = setup();
 
 	await expect.element(screen.getByRole('checkbox', { name: 'People' })).not.toBeInTheDocument();
-	await expect.element(screen.getByRole('region', { name: 'People filters' })).not.toBeInTheDocument();
+	await expect
+		.element(screen.getByRole('region', { name: 'People filters' }))
+		.not.toBeInTheDocument();
 });
 
 test('says why a bucket whose old filters could not be converted has no filters, and starts empty', async () => {
@@ -122,14 +112,18 @@ test('says why a bucket whose old filters could not be converted has no filters,
 		props: {
 			bucketName: 'Voters',
 			filters: null,
-			problem: 'This bucket\'s filters could not be converted: locations: Cannot convert a "attempt" condition',
+			problem:
+				'This bucket\'s filters could not be converted: locations: Cannot convert a "attempt" condition',
 			onSave: vi.fn()
 		}
 	});
 
 	await expect.element(screen.getByRole('alert')).toHaveTextContent('could not be converted');
-	await expect.element(screen.getByRole('alert')).toHaveTextContent('Cannot convert a "attempt" condition');
-	await expect.element(screen.getByRole('checkbox', { name: 'Locations' })).not.toBeChecked();
+	await expect
+		.element(screen.getByRole('alert'))
+		.toHaveTextContent('Cannot convert a "attempt" condition');
+	await expect.element(screen.getByRole('region', { name: 'Contacts filters' })).toBeVisible();
+	await expect.element(screen.getByText('Add Filter')).toBeVisible();
 });
 
 test('lets an unconverted bucket be rebuilt and saved, after which the warning goes', async () => {
@@ -139,7 +133,6 @@ test('lets an unconverted bucket be rebuilt and saved, after which the warning g
 		props: { bucketName: 'Voters', filters: null, problem: 'could not be converted', onSave }
 	});
 
-	await screen.getByRole('checkbox', { name: 'Locations' }).click();
 	await screen.getByRole('button', { name: 'Save Filters' }).click();
 
 	await vi.waitFor(() =>

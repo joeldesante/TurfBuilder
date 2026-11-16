@@ -1,4 +1,10 @@
-import type { ContactMadeValue, Filter, SurveyResponseValue } from '$lib/shared/types/filters';
+import type { ContactSchema } from '$lib/shared/types/contact-schemas';
+import type {
+	ContactMadeValue,
+	Filter,
+	SchemaFieldValue,
+	SurveyResponseValue
+} from '$lib/shared/types/filters';
 import type { SentenceNames } from '$lib/shared/utils/filter-sentence';
 
 export interface SourceBucket {
@@ -31,6 +37,12 @@ export interface FilterSource {
 	listLists(bucketId: string): Promise<SourceList[]>;
 	listSurveys(bucketId: string): Promise<SourceSurvey[]>;
 	listQuestions(surveyId: string): Promise<SourceQuestion[]>;
+	/**
+	 * The organization's contact schemas, with their fields. Optional so the
+	 * stand-ins that predate schemas still fit; without it, filters that name a
+	 * schema have no choices.
+	 */
+	listSchemas?(): Promise<ContactSchema[]>;
 }
 
 /** Fetches JSON, failing with a message fit to show the user. */
@@ -51,7 +63,8 @@ export function createFilterSource(orgId: string): FilterSource {
 		listBuckets: () => getJson(`/api/v1/organizations/${orgId}/buckets`),
 		listLists: (bucketId) => getJson(`/api/v1/buckets/${bucketId}/lists`),
 		listSurveys: (bucketId) => getJson(`/api/v1/buckets/${bucketId}/surveys`),
-		listQuestions: (surveyId) => getJson(`/api/v1/surveys/${surveyId}/questions`)
+		listQuestions: (surveyId) => getJson(`/api/v1/surveys/${surveyId}/questions`),
+		listSchemas: () => getJson(`/api/v1/organizations/${orgId}/contact-schemas`)
 	};
 }
 
@@ -130,6 +143,17 @@ export async function resolveSentenceNames(
 		if (survey) names.survey = survey.name;
 		const question = await find(() => source.listQuestions(value.surveyId ?? ''), value.questionId);
 		if (question) names.question = question.question_text;
+	}
+
+	if (filter.item === 'contact_schema' || filter.item === 'schema_field') {
+		const schemaId = (filter.value as Partial<SchemaFieldValue>).schemaId;
+		const schema = await find(() => source.listSchemas?.() ?? Promise.resolve([]), schemaId);
+		if (schema) {
+			names.schema = schema.schema_name;
+			const fieldId = (filter.value as Partial<SchemaFieldValue>).fieldId;
+			const field = schema.fields.find((f) => f.id === fieldId);
+			if (field) names.field = field.name;
+		}
 	}
 
 	return names;

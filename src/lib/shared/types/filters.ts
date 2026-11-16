@@ -31,6 +31,23 @@ export interface SurveyResponseValue {
 	response: string;
 }
 
+/** Value of a contact schema filter: the schema (the kind of contact) a contact must, or must not, use. */
+export interface ContactSchemaValue {
+	schemaId: string;
+}
+
+/**
+ * Value of a schema field filter: the field picked through its schema (both by
+ * id, so renaming either changes nothing here), and what its stored value is
+ * compared against. The type of `value` says how: text, number, or true/false.
+ */
+export interface SchemaFieldValue {
+	schemaId: string;
+	fieldId: string;
+	/** Null until one is entered. */
+	value: string | number | boolean | null;
+}
+
 /** Which of a location's canvassing attempts a filter looks at. */
 export interface AttemptScope {
 	/** `any`: every attempt counts. `latest`: only the most recent. `nth_from_last`: only the `n`th most recent. */

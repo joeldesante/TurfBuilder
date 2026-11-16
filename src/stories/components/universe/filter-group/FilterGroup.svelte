@@ -48,7 +48,7 @@
 	const entity = useFilterEntity();
 
 	// A nested group counts as one condition of the group around it, true or false as a whole.
-	// So the root says which records it selects ("Locations where no condition below is true"),
+	// So the root says which records it selects ("Contacts where no condition below is true"),
 	// and a nested group says when it is true ("This group is true when ...").
 	const nested = $derived(path.length > 0);
 	const heading = $derived(label ?? (nested ? 'This group is true when' : undefined));

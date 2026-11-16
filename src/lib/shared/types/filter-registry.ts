@@ -3,7 +3,7 @@ import type { FilterEntity, FilterOperation } from './filters';
 export type FilterCategory = 'geographical' | 'survey' | 'canvassing' | 'meta';
 
 /** The kind of value a filter compares against, which decides the input the UI shows. */
-export type FilterValueType = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'radius' | 'polygon' | 'survey_response' | 'contact_made';
+export type FilterValueType = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'radius' | 'polygon' | 'survey_response' | 'contact_made' | 'contact_schema' | 'schema_field';
 
 export interface FilterRegistryEntry {
 	/** Stable identifier; stored in saved filters, so never rename one. */
@@ -24,6 +24,8 @@ export interface FilterRegistryEntry {
 	 * - polygon: `{region}`
 	 * - survey_response: `{question}`, `{survey}`, `{response}`
 	 * - contact_made: `{outcome}`, `{attempt}`, `{scope}`, `{range}`
+ * - contact_schema: `{schema}`
+ * - schema_field: `{schema}`, `{field}`, `{value}` (what the field is compared with)
 	 *
 	 * `{value}` is also available for every type and stands for all of its parts.
 	 *

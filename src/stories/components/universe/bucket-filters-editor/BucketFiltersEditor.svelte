@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Checkbox from '$components/data-inputs/checkbox/Checkbox.svelte';
 	import EntityFilterEditor from '$components/universe/entity-filter-editor/EntityFilterEditor.svelte';
 	import type { FilterSource } from '$lib/client/filter-source';
 	import type { BucketFilters, FilterEntity, FilterGroup } from '$lib/shared/types/filters';
@@ -17,44 +16,32 @@
 		label?: string;
 	}
 
-	let { filters = $bindable(), orgId, source, label = 'This bucket will contain' }: Props = $props();
+	let {
+		filters = $bindable(),
+		orgId,
+		source,
+		label = 'This bucket will contain'
+	}: Props = $props();
 
+	// Every record is a contact with a schema, so a bucket always filters its
+	// contacts; there is nothing to tick. The data model still calls them
+	// "locations".
 	const KINDS = (
-		[
-			{ kind: 'people', name: 'People' },
-			{ kind: 'locations', name: 'Locations' }
-		] as { kind: FilterEntity; name: string }[]
+		[{ kind: 'locations', name: 'Contacts' }] as { kind: FilterEntity; name: string }[]
 	).filter(({ kind }) => SELECTABLE_ENTITIES.includes(kind));
 
-	// The filters of a kind that is unticked, kept so ticking it again brings them back.
-	let stash = $state<Record<FilterEntity, FilterGroup | null>>({ people: null, locations: null });
-
-	function include(kind: FilterEntity, on: boolean) {
-		if (on) {
-			filters = { ...filters, [kind]: stash[kind] ?? { operator: 'AND', filters: [] } };
-		} else {
-			stash[kind] = filters[kind];
-			filters = { ...filters, [kind]: null };
+	// A bucket saved or built without a filter for the kind gets an empty one, so
+	// the editor is always there to fill in.
+	$effect(() => {
+		for (const { kind } of KINDS) {
+			if (filters[kind] === null) {
+				filters = { ...filters, [kind]: { operator: 'AND', filters: [] } };
+			}
 		}
-	}
+	});
 </script>
 
 <div class="flex flex-col gap-6">
-	<div class="border rounded p-4">
-		<h2>What entities would you like to include in this bucket?</h2>
-		<div class="flex flex-row gap-6 my-2">
-			{#each KINDS as { kind, name } (kind)}
-				<Checkbox
-					id="entity-{kind}"
-					checked={filters[kind] !== null}
-					onCheckedChange={(checked: boolean) => include(kind, checked)}
-				>
-					{name}
-				</Checkbox>
-			{/each}
-		</div>
-	</div>
-
 	{#each KINDS as { kind, name } (kind)}
 		{#if filters[kind] !== null}
 			<section class="flex flex-col gap-2" aria-label="{name} filters">

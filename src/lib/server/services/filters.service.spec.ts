@@ -1056,3 +1056,97 @@ describe('reading a stored old filter', () => {
 		);
 	});
 });
+
+describe('contact schema filters', () => {
+	const SCHEMA = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
+	const FIELD = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
+	it('selects contacts of a schema, by its id', () => {
+		expect(loc(group('AND', f('contact_schema', 'equals', { schemaId: SCHEMA })))).toEqual({
+			sql: `${LOC} WHERE (vl.schema_id = $1::uuid)`,
+			params: [SCHEMA]
+		});
+	});
+
+	it('"is not" keeps contacts with no schema, which are not of this one', () => {
+		const { sql } = loc(group('AND', f('contact_schema', 'not_equals', { schemaId: SCHEMA })));
+
+		expect(sql).toContain('vl.schema_id IS DISTINCT FROM $1::uuid');
+	});
+
+	it('refuses an operation that does not apply to a schema', () => {
+		expect(() =>
+			loc(group('AND', f('contact_schema', 'contains', { schemaId: SCHEMA })))
+		).toThrow();
+	});
+});
+
+describe('schema field filters', () => {
+	const SCHEMA = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
+	const FIELD = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
+	const field = (operation: string, value: unknown, extra = {}) =>
+		loc(
+			group('AND', f('schema_field', operation, { schemaId: SCHEMA, fieldId: FIELD, value }, extra))
+		);
+
+	it('reads the value under the field id, in the schema, passing both as parameters', () => {
+		const { sql, params } = field('equals', 'Baptist');
+
+		expect(sql).toContain('vl.schema_id = $2::uuid');
+		expect(sql).toContain('(vl.metadata ->> $1::text)');
+		expect(sql).not.toContain(FIELD);
+		expect(params).toEqual([FIELD, SCHEMA, 'Baptist']);
+	});
+
+	it('compares text without regard to case, and can contain or start', () => {
+		expect(field('equals', 'Baptist').sql).toContain(
+			'lower((vl.metadata ->> $1::text)) = lower($3)'
+		);
+		expect(field('contains', 'bap').params.at(-1)).toBe('%bap%');
+		expect(field('starts_with', 'Bap').sql).toContain('ILIKE');
+	});
+
+	it('compares a number only where a number is stored, so other values never match or fail the query', () => {
+		const { sql, params } = field('greater_than', 40);
+
+		expect(sql).toContain("CASE WHEN jsonb_typeof(vl.metadata -> $1::text) = 'number'");
+		expect(sql).toContain('(vl.metadata ->> $1::text)::numeric > $3::numeric ELSE false END');
+		expect(params).toEqual([FIELD, SCHEMA, 40]);
+	});
+
+	it('maps each number operation, and lets a missing value satisfy "is not"', () => {
+		expect(field('less_than_or_equal', 3).sql).toContain('<= $3::numeric');
+		expect(field('greater_than_or_equal', 3).sql).toContain('>= $3::numeric');
+		expect(field('not_equals', 3).sql).toContain('<> $3::numeric ELSE true END');
+		expect(field('equals', 3).sql).toContain('= $3::numeric ELSE false END');
+	});
+
+	it('compares a true/false value only where one is stored', () => {
+		const { sql, params } = field('equals', true);
+
+		expect(sql).toContain("jsonb_typeof(vl.metadata -> $1::text) = 'boolean'");
+		expect(sql).toContain('::boolean = $3::boolean');
+		expect(params).toEqual([FIELD, SCHEMA, true]);
+		expect(field('not_equals', false).sql).toContain('<> $3::boolean ELSE true END');
+	});
+
+	it('refuses an operation the value type does not allow', () => {
+		expect(() => field('greater_than', true)).toThrow();
+		expect(() => field('contains', 5)).toThrow();
+		expect(() => field('greater_than', 'abc')).toThrow();
+	});
+
+	it('numbers its parameters together with the other filters in the group', () => {
+		const { sql, params } = loc(
+			group(
+				'AND',
+				f('city', 'equals', 'Austin'),
+				f('schema_field', 'equals', { schemaId: SCHEMA, fieldId: FIELD, value: 'x' })
+			)
+		);
+
+		expect(params).toEqual(['Austin', FIELD, SCHEMA, 'x']);
+		expect(sql).toContain('vl.city');
+		expect(sql).toContain('$2::text');
+	});
+});
