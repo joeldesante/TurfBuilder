@@ -106,7 +106,7 @@ export async function insertContact(
 
 /**
  * Closes the current version of a contact and inserts a successor with the
- * given (complete) fields. Moving a business to another address is a new
+ * given (complete) fields. Moving a contact to another address is a new
  * version pointing at the new address.
  *
  * @returns the superseded version id (null if there was no live version) and

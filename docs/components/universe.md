@@ -29,6 +29,47 @@
 
 ---
 
+## ContactSchemaPicker
+
+**Import:** `$components/universe/contact-schema-picker/ContactSchemaPicker.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `source` | `FilterSource` | **required** | Where the organization's contact schemas come from. |
+| `value` | `ContactSchemaValue | null` | **required** | The current choice; null until a schema is picked. |
+| `onchange` | `(value: ContactSchemaValue) => void` | **required** |  |
+
+---
+
+## CsvColumnMapper
+
+Matches a CSV's columns to what a contact holds. One row for each place a column can go,
+with a dropdown of the file's columns to fill it: the coordinates (required) and the
+address that every contact has, then the fields of the schema. Every place is on screen
+whatever the file contains, so a file with no coordinates shows plainly that they are
+still to be mapped.
+
+**Import:** `$components/universe/csv-column-mapper/CsvColumnMapper.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `headers` | `string[]` | **required** | The CSV's column names, in order. |
+| `samples` | `string[][]` | **required** | A few rows from the file, to show what each column holds. |
+| `fields` | `ContactSchemaField[]` | **required** | The fields of the chosen schema. |
+| `schemaName` | `string | undefined` | `'Schema'` | The schema's name, which heads its fields. |
+| `mapping` | `ColumnMapping` | **required** | Which column fills each field: the field's id (a schema field's, or a contact data
+field's such as `contact.latitude`) to the column's position from 0. A field with no
+entry has no column. A column can fill any number of fields. |
+| `onchange` | `(mapping: ColumnMapping) => void` | **required** |  |
+| `errors` | `Record<string, string[]> | undefined` | `{}` | What is wrong with each field, by `mapping.<field id>`, as a `Form` reports it. The
+first message for a field shows under its row. |
+
+---
+
 ## DragHandle
 
 **Import:** `$components/universe/drag-handle/DragHandle.svelte`
@@ -186,7 +227,6 @@ it was never configured. Read once, when the row is created. |
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `orgSlug` | `string` | **required** |  |
 | `buckets` | `MetricsBucket[]` | **required** |  |
 | `onGenerate` | `(selection: MetricsWorkflowSelection) => void` | **required** |  |
 
@@ -201,7 +241,7 @@ it was never configured. Read once, when the row is created. |
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `open` | `boolean` | **required** |  |
-| `value` | `import("/Volumes/Storage/Development/TurfBuilder/node_modules/@types/geojson/...` | `null` | The region already chosen, if any. |
+| `value` | `import("/Users/joeldesante/Development/TurfBuilder/node_modules/@types/geojso...` | `null` | The region already chosen, if any. |
 | `onOpenChange` | `(open: boolean) => void` | **required** |  |
 | `onapply` | `(value: GeoJSON.Polygon) => void` | **required** |  |
 
@@ -219,6 +259,21 @@ it was never configured. Read once, when the row is created. |
 | `value` | `RadiusValue | null | undefined` | `null` | The area already chosen, if any. |
 | `onOpenChange` | `(open: boolean) => void` | **required** |  |
 | `onapply` | `(value: RadiusValue) => void` | **required** |  |
+
+---
+
+## SchemaFieldPicker
+
+**Import:** `$components/universe/schema-field-picker/SchemaFieldPicker.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `source` | `FilterSource` | **required** | Where the organization's contact schemas, with their fields, come from. |
+| `value` | `SchemaFieldValue | null` | **required** | The current choice; null until a schema is picked. |
+| `onchange` | `(value: SchemaFieldValue) => void` | **required** |  |
+| `ontypechange` | `((type: ContactSchemaFieldType | null) => void) | undefined` | — | Tells the editor what kind of field is chosen, since that decides how it can be compared. Null when none is. |
 
 ---
 

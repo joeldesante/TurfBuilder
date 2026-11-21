@@ -19,6 +19,15 @@ const svc = vi.hoisted(() => ({
 	revokeInviteLink: vi.fn(async () => undefined)
 }));
 vi.mock('$lib/server/services/platform-organizations.service', () => svc);
+// The flat member and invite link endpoints serve staff too; their services
+// hand infra admins on to platform-organizations.service.
+vi.mock('$lib/server/services/members.service', () => ({
+	removeMember: svc.removeMember,
+	setMemberRole: vi.fn()
+}));
+vi.mock('$lib/server/services/invite-links.service', () => ({
+	revokeInviteLink: svc.revokeInviteLink
+}));
 vi.mock('$lib/server/services/organizations.service', () => ({
 	getOrganization: vi.fn(),
 	replaceOrganization: vi.fn(),
@@ -42,12 +51,20 @@ const ORG = 'a1b2c3d4-e5f6-4890-abcd-ef1234567890';
 const MEMBER = 'b1b2c3d4-e5f6-4890-abcd-ef1234567890';
 const signedIn = { user: { id: 'u1' } };
 
-function call(handler: Handler, params: Record<string, string>, body?: unknown, locals: unknown = signedIn) {
+function call(
+	handler: Handler,
+	params: Record<string, string>,
+	body?: unknown,
+	locals: unknown = signedIn
+) {
 	return handler({
 		params,
 		locals,
 		url: new URL('http://x?page=2'),
-		request: new Request('http://x', { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
+		request: new Request('http://x', {
+			method: 'POST',
+			body: body === undefined ? undefined : JSON.stringify(body)
+		})
 	} as never);
 }
 
@@ -63,7 +80,9 @@ const byOrgId: [string, Handler, ReturnType<typeof vi.fn>, unknown[], number][] 
 
 describe.each(byOrgId)('%s', (_name, handler, service, args, status) => {
 	it('answers 401 when signed out', async () => {
-		await expect(call(handler, { organization_id: ORG }, undefined, {})).rejects.toMatchObject({ status: 401 });
+		await expect(call(handler, { organization_id: ORG }, undefined, {})).rejects.toMatchObject({
+			status: 401
+		});
 	});
 
 	it('answers 400 for a malformed id', async () => {
@@ -80,20 +99,26 @@ describe.each(byOrgId)('%s', (_name, handler, service, args, status) => {
 
 describe('with a body', () => {
 	it('deletes once the slug is sent', async () => {
-		await expect(call(org.DELETE, { organization_id: ORG }, {})).rejects.toMatchObject({ status: 400 });
+		await expect(call(org.DELETE, { organization_id: ORG }, {})).rejects.toMatchObject({
+			status: 400
+		});
 		const res = await call(org.DELETE, { organization_id: ORG }, { confirmSlug: 'riverside' });
 		expect(svc.deleteOrg).toHaveBeenCalledWith('u1', ORG, 'riverside');
 		expect(res.status).toBe(204);
 	});
 
 	it('suspends with a reason', async () => {
-		await expect(call(suspension.PUT, { organization_id: ORG }, { reason: ' ' })).rejects.toMatchObject({ status: 400 });
+		await expect(
+			call(suspension.PUT, { organization_id: ORG }, { reason: ' ' })
+		).rejects.toMatchObject({ status: 400 });
 		await call(suspension.PUT, { organization_id: ORG }, { reason: 'Unpaid' });
 		expect(svc.suspendOrg).toHaveBeenCalledWith('u1', ORG, 'Unpaid');
 	});
 
 	it('transfers ownership to a member', async () => {
-		await expect(call(ownership.PUT, { organization_id: ORG }, { memberId: 'x' })).rejects.toMatchObject({ status: 400 });
+		await expect(
+			call(ownership.PUT, { organization_id: ORG }, { memberId: 'x' })
+		).rejects.toMatchObject({ status: 400 });
 		await call(ownership.PUT, { organization_id: ORG }, { memberId: MEMBER });
 		expect(svc.transferOwnership).toHaveBeenCalledWith('u1', ORG, MEMBER);
 	});
@@ -107,13 +132,17 @@ describe('flat endpoints', () => {
 	});
 
 	it('cancels an invitation', async () => {
-		await expect(call(invitation.DELETE, { invitation_id: 'x' })).rejects.toMatchObject({ status: 400 });
+		await expect(call(invitation.DELETE, { invitation_id: 'x' })).rejects.toMatchObject({
+			status: 400
+		});
 		await call(invitation.DELETE, { invitation_id: MEMBER });
 		expect(svc.cancelInvitation).toHaveBeenCalledWith('u1', MEMBER);
 	});
 
 	it('revokes an invite link by its token id', async () => {
-		await expect(call(inviteLink.DELETE, { invite_link_id: 'bad id!' })).rejects.toMatchObject({ status: 400 });
+		await expect(call(inviteLink.DELETE, { invite_link_id: 'bad id!' })).rejects.toMatchObject({
+			status: 400
+		});
 		await call(inviteLink.DELETE, { invite_link_id: 'aB3_xY-9' });
 		expect(svc.revokeInviteLink).toHaveBeenCalledWith('u1', 'aB3_xY-9');
 	});

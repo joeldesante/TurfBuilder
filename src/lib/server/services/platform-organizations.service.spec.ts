@@ -17,9 +17,14 @@ vi.mock('$lib/server/database', () => ({
 	withOrgTransaction: vi.fn(async (_org: string, fn: (c: unknown) => unknown) => fn(mocks.client)),
 	withTransaction: vi.fn(async (fn: (c: unknown) => unknown) => fn(mocks.client))
 }));
-vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
+vi.mock('$lib/server/permissions', () => ({
+	requireInfraPermission: mocks.requireInfraPermission
+}));
 vi.mock('./audit.service', () => ({ audit: mocks.audit, listAuditEventsFor: vi.fn() }));
-vi.mock('./activity.service', () => ({ queryActivityPage: vi.fn(), recordEvent: mocks.recordEvent }));
+vi.mock('./activity.service', () => ({
+	queryActivityPage: vi.fn(),
+	recordEvent: mocks.recordEvent
+}));
 
 import {
 	deleteOrg,
@@ -58,8 +63,10 @@ function respond(overrides: (sql: string) => unknown = () => undefined) {
 	const handler = (sql: string) => {
 		const custom = overrides(sql);
 		if (custom !== undefined) return Promise.resolve(custom);
-		if (sql.includes('COUNT(*) AS count FROM auth.organization')) return Promise.resolve({ rows: [{ count: '1' }] });
-		if (sql.includes('FROM auth.organization o')) return Promise.resolve({ rows: [orgRow], rowCount: 1 });
+		if (sql.includes('COUNT(*) AS count FROM auth.organization'))
+			return Promise.resolve({ rows: [{ count: '1' }] });
+		if (sql.includes('FROM auth.organization o'))
+			return Promise.resolve({ rows: [orgRow], rowCount: 1 });
 		return Promise.resolve({ rows: [], rowCount: 0 });
 	};
 	mocks.pool.query.mockImplementation(handler);
@@ -91,7 +98,9 @@ describe('listing organizations', () => {
 	it('picks the page first, then computes the costly columns for that page only', async () => {
 		await queryOrgsPage({ sort: 'members' }, 2);
 
-		const page = mocks.pool.query.mock.calls.map((c) => flat(c[0])).find((q) => q.startsWith('WITH p AS'))!;
+		const page = mocks.pool.query.mock.calls
+			.map((c) => flat(c[0]))
+			.find((q) => q.startsWith('WITH p AS'))!;
 		const [inner, outer] = page.split('SELECT o.id, o.name');
 		// Only the sort key is computed while choosing the page.
 		expect(inner).toContain('AS sort_key');
@@ -105,15 +114,36 @@ describe('listing organizations', () => {
 
 	it('maps rows to the shared shape', async () => {
 		const page = await queryOrgsPage({}, 1);
-		expect(page.items[0]).toMatchObject({ memberCount: 12, pendingInvitations: 1, events30d: 40, suspended: false });
+		expect(page.items[0]).toMatchObject({
+			memberCount: 12,
+			pendingInvitations: 1,
+			events30d: 40,
+			suspended: false
+		});
 	});
 });
 
 describe('getOrg', () => {
 	it('reads universe counts inside the org', async () => {
 		respond((sql) => {
-			if (sql.includes('AS records')) return { rows: [{ records: '500', buckets: '2', lists: '3', turfs: '9', surveys: '1', visits: '80', visits_30d: '20', conversations: '30', documents: '4' }] };
-			if (sql.includes('AS active')) return { rows: [{ active: '5', dormant: '4', never: '3', created_by: null }] };
+			if (sql.includes('AS records'))
+				return {
+					rows: [
+						{
+							records: '500',
+							buckets: '2',
+							lists: '3',
+							turfs: '9',
+							surveys: '1',
+							visits: '80',
+							visits_30d: '20',
+							conversations: '30',
+							documents: '4'
+						}
+					]
+				};
+			if (sql.includes('AS active'))
+				return { rows: [{ active: '5', dormant: '4', never: '3', created_by: null }] };
 			return undefined;
 		});
 
@@ -122,7 +152,11 @@ describe('getOrg', () => {
 		expect(org.counts).toMatchObject({ members: 12, records: 500, visits30d: 20, documents: 4 });
 		expect(org.memberActivity).toEqual({ active: 5, dormant: 4, never: 3 });
 		expect(org.createdBy).toEqual({ id: 'u1', name: 'Grace' });
-		expect(mocks.client.query.mock.calls.some((c) => flat(c[0]).includes('universe.turf_location_attempt'))).toBe(true);
+		expect(
+			mocks.client.query.mock.calls.some((c) =>
+				flat(c[0]).includes('universe.turf_location_attempt')
+			)
+		).toBe(true);
 	});
 
 	it('answers 404 for an unknown org', async () => {
@@ -136,10 +170,16 @@ describe('changes', () => {
 		await suspendOrg(ADMIN, ORG, 'Unpaid');
 		expect(mocks.requireInfraPermission).toHaveBeenCalledWith(ADMIN, 'orgs.manage');
 		// Written on the same transaction as the change.
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'org.suspend', { type: 'organization', id: ORG }, {
-			name: 'Riverside',
-			reason: 'Unpaid'
-		}, mocks.client);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'org.suspend',
+			{ type: 'organization', id: ORG },
+			{
+				name: 'Riverside',
+				reason: 'Unpaid'
+			},
+			mocks.client
+		);
 	});
 
 	it('deleting needs the slug typed back and only marks the row', async () => {
@@ -153,7 +193,8 @@ describe('changes', () => {
 
 	it('transferring ownership demotes the old owners and grants the admin role', async () => {
 		respond((sql) => {
-			if (sql.includes('SELECT m.user_id, m.role, u.name')) return { rows: [{ user_id: 'u2', role: 'member', name: 'Alan' }] };
+			if (sql.includes('SELECT m.user_id, m.role, u.name'))
+				return { rows: [{ user_id: 'u2', role: 'member', name: 'Alan' }] };
 			if (sql.includes("SET role = 'admin'")) return { rows: [{ user_id: 'u1' }] };
 			if (sql.includes('FROM permission_role')) return { rows: [{ id: 'role-admin' }] };
 			return undefined;
@@ -162,10 +203,20 @@ describe('changes', () => {
 		await transferOwnership(ADMIN, ORG, MEMBER);
 
 		const sqls = mocks.client.query.mock.calls.map((c) => flat(c[0]));
-		expect(sqls.some((s) => s.includes("UPDATE auth.member SET role = 'owner' WHERE id = $1"))).toBe(true);
-		const grant = mocks.client.query.mock.calls.find((c) => flat(c[0]).startsWith('INSERT INTO user_role_membership'));
+		expect(
+			sqls.some((s) => s.includes("UPDATE auth.member SET role = 'owner' WHERE id = $1"))
+		).toBe(true);
+		const grant = mocks.client.query.mock.calls.find((c) =>
+			flat(c[0]).startsWith('INSERT INTO user_role_membership')
+		);
 		expect(grant?.[1]).toEqual(['u2', MEMBER, 'role-admin', ADMIN]);
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'org.ownership.transfer', { type: 'organization', id: ORG }, expect.objectContaining({ newOwner: 'u2', previousOwners: ['u1'] }), mocks.client);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'org.ownership.transfer',
+			{ type: 'organization', id: ORG },
+			expect.objectContaining({ newOwner: 'u2', previousOwners: ['u1'] }),
+			mocks.client
+		);
 	});
 
 	it('will not remove the only owner', async () => {
@@ -195,6 +246,10 @@ describe('changes', () => {
 		});
 
 		await removeMember(ADMIN, MEMBER);
-		expect(mocks.recordEvent).toHaveBeenCalledWith('member.left', { userId: 'u3', orgId: ORG, metadata: { removedBy: ADMIN } });
+		expect(mocks.recordEvent).toHaveBeenCalledWith('member.left', {
+			userId: 'u3',
+			orgId: ORG,
+			metadata: { removedBy: ADMIN }
+		});
 	});
 });

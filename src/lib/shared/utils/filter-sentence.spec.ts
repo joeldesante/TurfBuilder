@@ -51,7 +51,7 @@ describe('every registry filter', () => {
 
 describe('the entity', () => {
 	it('names the kind of record', () => {
-		expect(sentenceText(say('city', { value: 'Austin' }, { entity: 'locations' }))).toContain('Locations');
+		expect(sentenceText(say('city', { value: 'Austin' }, { entity: 'locations' }))).toContain('Contacts');
 		expect(sentenceText(say('first_name', { value: 'Al' }, { entity: 'people' }))).toContain('People');
 	});
 
@@ -64,8 +64,8 @@ describe('text filters', () => {
 	it('reads the operation and value', () => {
 		const parts = say('city', { operation: 'contains', value: 'phil' }, { entity: 'locations' });
 
-		expect(sentenceText(parts)).toBe('Locations whose city contains phil');
-		expect(badges(parts)).toEqual(['Locations', 'contains', 'phil']);
+		expect(sentenceText(parts)).toBe('Contacts whose city contains phil');
+		expect(badges(parts)).toEqual(['Contacts', 'contains', 'phil']);
 	});
 
 	it('says when case must match', () => {
@@ -201,7 +201,7 @@ describe('contact made filters', () => {
 
 	it('reads the default as contact made on any attempt', () => {
 		expect(sentenceText(say('contact_made', { value: contact() }, { entity: 'locations' }))).toBe(
-			'Locations where contact was made on any attempt'
+			'Contacts where contact was made on any attempt'
 		);
 	});
 
@@ -256,6 +256,64 @@ describe('contact made filters', () => {
 	it('highlights every setting', () => {
 		const parts = say('contact_made', { value: contact({ position: 'latest', from: '2026-01-01' }) }, { entity: 'locations' });
 
-		expect(badges(parts)).toEqual(['Locations', 'contact was made', 'the latest attempt', 'Jan 1, 2026']);
+		expect(badges(parts)).toEqual(['Contacts', 'contact was made', 'the latest attempt', 'Jan 1, 2026']);
+	});
+});
+
+describe('schema filters', () => {
+	const SCHEMA = 'a1a1a1a1-a1a1-41a1-81a1-a1a1a1a1a1a1';
+	const FIELD = 'b2b2b2b2-b2b2-42b2-82b2-b2b2b2b2b2b2';
+	const forFilter = (filter: Filter, names = {}) =>
+		describeFilter(getFilter(filter.item)!, filter, { entity: 'locations', names });
+
+	it('says which schema contacts use, by its name', () => {
+		const parts = forFilter(
+			{ item: 'contact_schema', operation: 'equals', value: { schemaId: SCHEMA } },
+			{ schema: 'Church' }
+		);
+
+		expect(sentenceText(parts)).toBe('Contacts whose schema is Church');
+	});
+
+	it('says "is not" and shows a missing choice as incomplete', () => {
+		expect(
+			sentenceText(
+				forFilter(
+					{ item: 'contact_schema', operation: 'not_equals', value: { schemaId: SCHEMA } },
+					{ schema: 'Church' }
+				)
+			)
+		).toBe('Contacts whose schema is not Church');
+		expect(
+			sentenceText(forFilter({ item: 'contact_schema', operation: 'equals', value: {} }))
+		).toContain('no schema chosen');
+	});
+
+	it('reads a field filter with the schema, the field name, and the value', () => {
+		const parts = forFilter(
+			{
+				item: 'schema_field',
+				operation: 'equals',
+				value: { schemaId: SCHEMA, fieldId: FIELD, value: 'Baptist' }
+			},
+			{ schema: 'Church', field: 'Denomination' }
+		);
+
+		expect(sentenceText(parts)).toBe('Contacts in Church whose Denomination is Baptist');
+	});
+
+	it('reads numbers and true/false values, and a field that was deleted', () => {
+		const base = { schemaId: SCHEMA, fieldId: FIELD };
+		const text = (operation: Filter['operation'], value: unknown, names = {}) =>
+			sentenceText(
+				forFilter({ item: 'schema_field', operation, value: { ...base, value } }, names)
+			);
+
+		expect(text('greater_than', 40, { schema: 'Church', field: 'Members' })).toBe(
+			'Contacts in Church whose Members is greater than 40'
+		);
+		expect(text('equals', true, { schema: 'Church', field: 'Open' })).toContain('Open is yes');
+		expect(text('equals', 'x', { schema: 'Church' })).toContain('a field that no longer exists');
+		expect(text('equals', 'x')).toContain('a schema that no longer exists');
 	});
 });

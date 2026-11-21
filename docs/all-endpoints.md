@@ -82,6 +82,18 @@ The bucket. 400 for an invalid id or body, 401 when signed out, 403 without staf
 
 ---
 
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/buckets/{bucket_id}`
+
+Deletes a bucket. The bucket is marked deleted, not removed: it disappears from every list and its pages answer 404, while its lists, surveys, scripts, and turfs stay as they are. Its slug can be used again.
+
+**Auth:** Staff  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations or is already deleted
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/buckets/{bucket_id}/lists`
 
 The lists in a bucket, newest first.
@@ -113,6 +125,25 @@ narrowed by the list's own filters. The list does not change afterwards.
 **Response**
 
 201 with `{ id }`. 400 for an invalid id or body, a kind of record the bucket does not include, or a filter that cannot run; 401 when signed out; 403 without staff access; 404 when the bucket is not in the caller's organizations; 422 when the bucket's old filter cannot be converted; 501 for a filter that is not supported yet
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/buckets/{bucket_id}/location-map`
+
+What the bucket map draws for one viewport. Up to 2000 located matches come back as single points; a fuller viewport comes back as counted bubbles on a grid sized to the zoom (about 60 pixels a cell), with any cell holding one location still a point. A viewport across the antimeridian (west greater than east) is read as two boxes.
+
+**Auth:** Staff  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `west, south, east, north {number} - Required. Viewport corners in degrees` | `any` |  |
+| `zoom` | `number` | Required. The map's zoom, 0 to 24 |
+
+**Response**
+
+`{ points: Array<{ id, name, address_line_1, city, latitude, longitude }>, clusters: Array<{ id, latitude, longitude, count }> }`. Both empty when the bucket does not include locations. 400 for an invalid id or viewport, 401 when signed out, 403 without staff access, 404 when the bucket is not in the caller's organizations
 
 ---
 
@@ -152,6 +183,37 @@ The people a bucket's filter matches, one page at a time, ordered by last then f
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/buckets/{bucket_id}/scripts`
+
+The scripts in a bucket, most recently changed first, without their text.
+
+**Auth:** Staff  
+
+**Response**
+
+`Array<{ id, bucket_id, name, updated_at }>`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the bucket is not in the caller's organizations
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/buckets/{bucket_id}/scripts`
+
+Creates a script in the bucket.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Display name, 1 to 255 characters |
+| `contents` | `string` |  | Optional. The script text; empty when omitted |
+
+**Response**
+
+201 with `{ id, bucket_id, name, updated_at, contents }`. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when the bucket is not in the caller's organizations
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/buckets/{bucket_id}/surveys`
 
 The surveys in a bucket, by name.
@@ -181,6 +243,164 @@ Creates an empty survey in the bucket. Add questions with
 **Response**
 
 201 with the survey. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when the bucket is not in the caller's organizations
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/contact-import-jobs/{job_id}`
+
+One contact import job and how far it has got: `rows_processed` of `rows_total`; `rows_skipped` of those made no contact (a missing or invalid coordinate, or a required field left blank).
+
+**Auth:** staff (system.access)  
+
+**Response**
+
+`{ id, file_id, file_name, status, rows_total, rows_processed, rows_skipped, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/contact-imports/{import_id}`
+
+Reports that a contact import upload finished, how many data rows the file has, and where its rows start, which lists the file. Safe to repeat.
+
+**Auth:** staff (system.access)  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `rowCount` | `number` | ✓ | Data rows, not counting the header row |
+| `rowIndex` | `object` | ✓ | `{ interval: 1000, offsets: number[] }`. `offsets[k]` is the byte offset where data row `k * 1000` begins, counting from the first row under the header. There is one offset per started thousand rows, in increasing order, each inside the file |
+
+**Response**
+
+`{ id, file_name, size_bytes, row_count, uploaded_at, expires_at, preserved }`. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/contact-imports/{import_id}`
+
+Archives an uploaded contact import file: it drops out of the list and can no longer be loaded. Only the record is marked; the file itself stays in storage.
+
+**Auth:** staff (system.access)  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations or is already archived
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/contact-imports/{import_id}/download`
+
+A short-lived link to read an uploaded contact import CSV from, and the file's row index. The browser fetches the file from the link, so it never passes through this server, and can read just a slice of it with a `Range` request.
+
+**Auth:** staff (system.access)  
+
+**Response**
+
+`{ url, row_index }`. `url` is valid for a few minutes. `row_index` is `{ interval, offsets }`, where `offsets[k]` is the byte offset of data row `k * interval` (counting from the first row under the header), or null when none was recorded. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations or has not finished uploading, 503 when object storage is not set up
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/contact-imports/{import_id}/jobs`
+
+Starts importing an uploaded contact file. The job is saved first, as `queued`, and then the import function is called, which moves it to `running` and writes the rows in batches. Watch it with `GET /api/v1/contact-import-jobs/[job_id]`.
+
+**Auth:** staff (system.access)  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `schemaId` | `string` | ✓ | The contact schema the contacts go into |
+| `mapping` | `object` | ✓ | Which CSV column fills each field: a schema field's id or a contact data id (`contact.latitude`) to the column's position from 0. Every required field needs a column |
+
+**Response**
+
+201 with `{ id, file_id, file_name, status, rows_total, rows_processed, rows_skipped, error, created_at, started_at, updated_at, finished_at }`. 400 for an invalid id, body, schema or mapping, 401 when signed out, 403 without staff access, 404 when the file is not in the caller's organizations or has not finished uploading, 409 when the file is already being imported, 503 when the import could not be started (the job is then saved as `failed`)
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/contact-schemas/{contact_schema_id}`
+
+One contact schema.
+
+**Auth:** Staff  
+
+**Response**
+
+`{ id, org_id, schema_name, fields, identifier_field_id, contact_count, created_at, updated_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/contact-schemas/{contact_schema_id}`
+
+Changes a contact schema's name, its fields, its identifier, or any of them. When `fields` is sent it is the full list: a field whose id exists is updated (so a rename keeps its id and every value and filter that uses it), a new id adds a field, and an id left out removes the field.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `schema_name` | `string` |  | Optional. Display name, unique within the organization |
+| `fields` | `object[]` |  | Optional. The full list of `{ id, name, type, required }` |
+| `identifier_field_id` | `string|null` |  | Optional. A text field that labels a contact, which becomes required. Null goes back to the full address |
+
+**Response**
+
+The schema. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations, 409 for a taken name or for a field changing type once contacts use the schema
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/contact-schemas/{contact_schema_id}`
+
+Deletes a contact schema that no contact uses.
+
+**Auth:** Staff  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations, 409 while any contact uses it
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/doors/{door_id}/edits`
+
+Proposes a correction to a door whose record is wrong. Staff review it
+before it changes the location; photos travel with it as evidence.
+
+**Auth:** turf member, while the turf is open  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `Any` | `any` |  | subset of the location fields, plus `note` &#123;string&#125;; latitude and longitude together or not at all |
+
+**Response**
+
+201 with `{ id }`. 400 for an invalid id, an invalid body, or one with nothing in it, 401 when signed out, 403 when the turf is closed or the caller is not on it, 404 when the door is in none of the caller's organizations, 422 for a pin outside the turf, 429 with 25 corrections awaiting review
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/doors/{door_id}/visits`
+
+Records the caller's visit to a door, replacing their earlier one there,
+and the survey answers when someone answered.
+
+**Auth:** turf member  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `contactStatus` | `'no_contact'|'contacted'` |  | Required. The outcome |
+| `attemptNote` | `string` |  | Optional. A note about the visit |
+| `questions` | `any` |  | &#123;Array&lt;&#123; db_id: uuid, response: string &#125;>&#125; - Required. Answers, saved only when contacted |
+
+**Response**
+
+204 No Content. 400 for an invalid id or body, 401 when signed out, 403 unless the caller joined the turf, 404 when the door is in none of the caller's organizations
 
 ---
 
@@ -303,6 +523,24 @@ Every infrastructure role, with the permissions it grants and how many hold it.
 
 ---
 
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/integrations/{integration_id}`
+
+Turns an integration on or off for every organization on the instance.
+
+**Auth:** infra settings.manage  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `enabled` | `any` |  | &#123;boolean&#125; |
+
+**Response**
+
+`{ enabled }`. 400 for an invalid id or body, 401 when signed out, 403 without `settings.manage`, 404 for an unknown integration
+
+---
+
 ### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/invitations/{invitation_id}`
 
 Cancels a pending email invitation.
@@ -319,11 +557,50 @@ Cancels a pending email invitation.
 
 Closes an invite link so it can no longer be used to join.
 
-**Auth:** infra orgs.manage  
+**Auth:** member.invite, or infra orgs.manage for any organization  
 
 **Response**
 
 204. 400 for an invalid id, 403 without orgs.manage, 404 when there is no open link with that id
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/layer-catalogue/ckan`
+
+Searches one official city CKAN portal for datasets that can be loaded as map layers. The
+portals do not allow browser requests, so the map editor asks through here. Only portals in
+the registry can be named.
+
+**Auth:** user  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| ``portal` the portal id, `q` the search text (optional), `start` the `next` cursor of the previous page` | `any` |  |
+
+**Response**
+
+`CkanSearchResult`. 400 for a bad query or unknown portal, 401 when signed out, 502 when the portal cannot be reached
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/layer-catalogue/data-gov`
+
+Searches data.gov for datasets that can be loaded as map layers. data.gov does not allow
+browser requests, so the map editor asks through here.
+
+**Auth:** user  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| ``q` the search text (optional), `after` the `next` cursor of the previous page, `official=1` for government publishers only` | `any` |  |
+
+**Response**
+
+`DataGovSearchResult`. 400 for a bad query, 401 when signed out, 502 when data.gov cannot be reached
 
 ---
 
@@ -345,6 +622,143 @@ A list's entries as they were when the list was created, one page at a time. Peo
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/lists/{list_id}/locations`
+
+Every location on a list with its pin, as the list recorded it, and the
+latest outcome there on the list's turfs. For the list map and turf cutting.
+
+**Auth:** Staff  
+
+**Response**
+
+`Array<{ record_id, record_source, name, address_line_1, city, state_or_region, postal_code, latitude, longitude, contact_made }>`. 400 for an invalid id or a list of people, 401 when signed out, 403 without staff access, 404 when the list is in none of the caller's organizations
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/lists/{list_id}/turfs`
+
+The list's turfs with their outlines, newest first, for the list map.
+
+**Auth:** Staff  
+
+**Response**
+
+`Array<{ id, code, created_at, expires_at, author, survey_name, bounds }>`, `bounds` as GeoJSON text. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the list is in none of the caller's organizations
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/lists/{list_id}/turfs`
+
+Cuts one turf per polygon from the list. Each turf's doors are the list's
+locations inside its polygon, at the versions the list recorded, and each
+gets a six-character join code.
+
+**Auth:** Staff  
+**Permission:** `turf.create`
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `polygons` | `any` |  | &#123;Array&lt;&#123; geometry: GeoJSON &#125;>&#125; - Required, at least one |
+| `survey_id` | `string` |  | Required. The survey canvassers fill in |
+| `script_id` | `string|null` |  | Optional. The script canvassers read |
+| `expires_at` | `string` |  | Optional. ISO date; 7 days from now when missing |
+
+**Response**
+
+201 with `{ turfs: Array<{ id, code, list_id, survey_id, script_id, expires_at, created_at }> }`. 400 for an invalid id or body, 401 when signed out, 403 without `turf.create`, 404 when the list is in none of the caller's organizations
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/location-edits/{edit_id}/approval`
+
+Applies a canvasser's correction as a new version of the location.
+
+**Auth:** Staff  
+**Permission:** `location.update`
+
+**Response**
+
+`{ entity_id }`. 400 for an invalid id, 401 when signed out, 403 without `location.update`, 404 when it is in none of the caller's organizations, 409 when already reviewed or the location is gone
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/location-edits/{edit_id}/rejection`
+
+Declines a canvasser's correction. It is kept, marked rejected.
+
+**Auth:** Staff  
+**Permission:** `location.update`
+
+**Response**
+
+204 No Content. 400 for an invalid id, 401 when signed out, 403 without `location.update`, 404 when it is in none of the caller's organizations, 409 when already reviewed
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/location-suggestions/{suggestion_id}`
+
+Rejects a volunteer's added location and removes it, with its turf door and
+anything recorded there. An approved location cannot be removed this way.
+
+**Auth:** Staff  
+**Permission:** `location.delete`
+
+**Response**
+
+204 No Content. 400 for an invalid id, 401 when signed out, 403 without `location.delete`, 404 when it is in none of the caller's organizations, 409 when already reviewed
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/location-suggestions/{suggestion_id}/approval`
+
+Approves a volunteer's added location: it joins buckets and future lists.
+Lists made already are snapshots and do not gain it.
+
+**Auth:** Staff  
+**Permission:** `location.create`
+
+**Response**
+
+`{ entity_id }`. 400 for an invalid id, 401 when signed out, 403 without `location.create`, 404 when it is in none of the caller's organizations, 409 when already reviewed
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/locations/{entity_id}`
+
+Changes the given fields of a location as a new version, so the old values
+stay recoverable. Lists and turfs keep the version they recorded.
+
+**Auth:** Staff  
+**Permission:** `location.update`
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `Any` | `any` |  | subset of the location fields (see POST /api/v1/organizations/[organization_id]/locations); omitted keys keep their value, keys sent as null are cleared |
+
+**Response**
+
+`{ entity_id, id }`, the location and its new contact version. 400 for an invalid id or body, 401 when signed out, 403 without `location.update`, 404 when it is in none of the caller's organizations or was deleted
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/locations/{entity_id}`
+
+Soft-deletes a location. Its history, the lists and turfs it is on, and the
+canvassing recorded there all stay.
+
+**Auth:** Staff  
+**Permission:** `location.delete`
+
+**Response**
+
+204 No Content. 400 for an invalid id, 401 when signed out, 403 without `location.delete`, 404 when it is in none of the caller's organizations or was already deleted
+
+---
+
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/mail-tests`
 
 Sends a short test email to the signed-in admin, to prove outgoing mail works.
@@ -357,15 +771,107 @@ Sends a short test email to the signed-in admin, to prove outgoing mail works.
 
 ---
 
-### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/members/{member_id}`
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/map-layers/{map_layer_id}`
 
-Removes someone from their organization.
+One map layer with its shapes. Maps fetch this when a layer is turned on, since the list leaves the shapes out.
 
-**Auth:** infra orgs.manage  
+**Auth:** Staff  
 
 **Response**
 
-204. 400 for an invalid id, 403 without orgs.manage, 404 for an unknown member, 409 for the only owner
+`{ id, name, color, label_field, position, geojson, created_at, updated_at }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/map-layers/{map_layer_id}`
+
+Changes how a map layer is drawn. Its shapes cannot be changed; add a new layer instead.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Optional. Display name |
+| `color` | `string` |  | Optional. Hex color, such as `#2f6fed` |
+| `label_field` | `string|null` |  | Optional. The feature property drawn as each shape's label; null for none |
+
+**Response**
+
+The layer, without its shapes. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/map-layers/{map_layer_id}`
+
+Deletes a map layer.
+
+**Auth:** Staff  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/members/{member_id}`
+
+Gives the member one organization role in place of the ones they hold.
+
+**Auth:** member.update  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `role_id` | `string|null` |  | The role, or null for only the default role |
+
+**Response**
+
+204. 400 for an invalid id or body, a role from another organization, or when it would leave no administrator, 401 when signed out, 403 without `member.update`, 404 when the member is not in the caller's organizations
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/members/{member_id}`
+
+Removes someone from their organization. Staff cannot remove themselves.
+
+**Auth:** member.delete, or infra orgs.manage for any organization  
+
+**Response**
+
+204. 400 for an invalid id or when removing yourself, 401 when signed out, 403 without permission, 404 for a member the caller cannot see, 409 for the only owner
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/members/{member_id}/permissions/{permission_id}`
+
+Grants or denies one permission to the member, whatever their roles say.
+
+**Auth:** member.update  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `value` | `boolean` |  | true grants, false denies |
+
+**Response**
+
+204. 400 for an invalid id or body, or an unknown permission, 401 when signed out, 403 without `member.update`, 404 when the member is not in the caller's organizations
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/members/{member_id}/permissions/{permission_id}`
+
+Drops the member's override, so their roles decide this permission again.
+
+**Auth:** member.update  
+
+**Response**
+
+204, also when there was no override. 400 for an invalid id, 401 when signed out, 403 without `member.update`, 404 when the member is not in the caller's organizations
 
 ---
 
@@ -582,6 +1088,99 @@ organization.
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/contact-import-jobs`
+
+The organization's contact import jobs, running and waiting ones first, then the newest. At most 100.
+
+**Auth:** org staff (system.access)  
+
+**Response**
+
+`Array<{ id, file_id, file_name, status, rows_total, rows_processed, rows_skipped, error, created_at, started_at, updated_at, finished_at }>`. `status` is `queued`, `running`, `completed` or `failed`. `rows_total` is null when the file's rows were never counted. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/contact-imports`
+
+The organization's uploaded contact import files that finished uploading, newest first.
+
+**Auth:** org staff (system.access)  
+
+**Response**
+
+`Array<{ id, file_name, size_bytes, row_count, uploaded_at, expires_at, preserved }>`. `row_count` is null until counted; `expires_at` is when the file is due to be purged unless `preserved`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/contact-imports`
+
+Starts a contact import upload: records the file and answers a presigned PUT the browser sends the CSV to. The file is listed once `PATCH /api/v1/contact-imports/[import_id]` reports it finished.
+
+**Auth:** org staff (system.access)  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `fileName` | `string` | ✓ | The file's name, max 255 characters |
+| `contentLength` | `number` | ✓ | Byte size, max 50,000,000 |
+
+**Response**
+
+201 with `{ id, url, key }`. Send the file to `url` with `Content-Type: text/csv`. 400 for an invalid body or id, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 503 when object storage is not set up
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/contact-schema-order`
+
+Sets the order of the organization's contact schemas, which is the order of the tabs on the contacts page.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `ids` | `string[]` |  | Every contact schema id of the organization exactly once, in the new order |
+
+**Response**
+
+204. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 409 when a schema was added or deleted since the caller loaded the list
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/contact-schemas`
+
+The organization's contact schemas by name, each with how many contacts use it.
+
+**Auth:** Staff  
+
+**Response**
+
+`Array<{ id, org_id, schema_name, fields, identifier_field_id, contact_count, created_at, updated_at }>`. `fields` is the ordered list of `{ id, name, type, required }`, with `type` one of `text`, `boolean`, or `number`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/contact-schemas`
+
+Creates a contact schema with its fields.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `schema_name` | `string` |  | Display name, unique within the organization |
+| `fields` | `object[]` |  | The fields, in order: `{ id, name, type, required }`. The id is a new uuid made by the caller. Names must differ, whatever their capital letters |
+| `identifier_field_id` | `string|null` |  | Optional. The id of a text field in `fields` that labels a contact; it is always required. Null or left out uses the full address |
+
+**Response**
+
+201 with the schema. 400 for an invalid body, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 409 for a taken name
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/invitations`
 
 Pending email invitations and open invite links.
@@ -591,6 +1190,77 @@ Pending email invitations and open invite links.
 **Response**
 
 `{ invitations: OrgInvitation[], links: OrgInviteLink[] }`. 400 for an invalid id, 403 without infra access, 404 for an unknown org
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/invite-links`
+
+The organization's open invite links (not expired or closed), newest first, and whether its open slug invite is on.
+
+**Auth:** member.invite  
+
+**Response**
+
+`{ links: Array<{ id, created_at, expires_at }>, slugInviteEnabled }`. 400 for an invalid id, 401 when signed out, 403 without `member.invite`, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/invite-links`
+
+Creates an invite link. Anyone with `/invite/{id}` can join until it expires.
+
+**Auth:** member.invite  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `expires_at` | `string|null` |  | Optional. A date (`2026-12-31`) or ISO datetime; omitted or null never expires |
+
+**Response**
+
+201 with `{ id, created_at, expires_at }`. 400 for an invalid id or body, 401 when signed out, 403 without `member.invite`, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/location-imports`
+
+Imports locations from a CSV upload, each a business at a new address.
+Invalid rows, including rows without a pin, are skipped and reported.
+
+**Auth:** Staff  
+**Permission:** `location.create`
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `multipart` | `any` |  | form with `file`, a .csv with a header row: name, address_line_1, address_line_2, city, state_or_region, postal_code, country_code, latitude, longitude (latitude and longitude required) |
+
+**Response**
+
+201 with `{ imported, skipped, errors: Array<{ row, reason }> }`. 400 without a .csv file or for an invalid id, 401 when signed out, 403 without `location.create`, 404 when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/location-markers`
+
+The organization's current locations inside a map viewport, for the admin
+map. Separate from the paginated collection, which is one alphabetical page
+and so cannot say what is on screen. A viewport across the antimeridian
+(west greater than east) is read as two boxes.
+
+**Auth:** Staff  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `west, south, east, north {number} - Required. Viewport corners in degrees` | `any` |  |
+
+**Response**
+
+`{ locations: Array<like GET .../locations items>, truncated: boolean }`, at most 2000 locations; `truncated` when there were more. 400 for an invalid id or viewport, 401 when signed out, 403 without `location.read`, 404 when the caller is not a member
 
 ---
 
@@ -609,6 +1279,80 @@ The organization's current locations, one page at a time, ordered by name.
 **Response**
 
 `{ items: Array<{ id, entity_id, name, address_line_1, address_line_2, city, state_or_region, postal_code, country_code, latitude, longitude, photo_keys, suggestion_status }>, totalCount, page, pageSize }`. 400 for an invalid id, 401 when signed out, 403 without `location.read`, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/locations`
+
+Creates a location (a business at a new address), live at once, as staff
+place one on the admin map.
+
+**Auth:** Staff  
+**Permission:** `location.create`
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name, address_line_1, address_line_2, city, state_or_region, postal_code {string|null} - Optional` | `any` |  |  |
+| `country_code` | `string|null` |  | Optional. Two letters; the organization's usual country when missing |
+| `latitude, longitude {number} - Required` | `any` |  |  |
+| `photo_keys` | `string[]` |  | Optional. Object storage keys, at most 3 |
+
+**Response**
+
+201 with `{ entity_id, id }`, the location and its contact version. 400 for an invalid body, 401 when signed out, 403 without `location.create`, 404 when the caller is not a member
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/map-layer-order`
+
+Sets the order of the organization's map layers, top first.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `ids` | `string[]` |  | Every map layer id of the organization exactly once, top first |
+
+**Response**
+
+204. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when the caller is not a member, 409 when a layer was added or deleted since the caller loaded the list
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/map-layers`
+
+The organization's map layers, top first, without their shapes: fetch one layer's GeoJSON from `GET /api/v1/map-layers/{map_layer_id}` when it is shown.
+
+**Auth:** Staff  
+
+**Response**
+
+`Array<{ id, name, color, label_field, position, created_at, updated_at }>`. `position` 0 is drawn on top. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/map-layers`
+
+Adds a map layer on top of the others.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Display name |
+| `color` | `string` |  | Hex color, such as `#2f6fed` |
+| `label_field` | `string|null` |  | Optional. The feature property drawn as each shape's label |
+| `geojson` | `object` |  | A GeoJSON FeatureCollection, Feature, or geometry |
+
+**Response**
+
+201 with the layer, without its shapes. 400 for an invalid body, 401 when signed out, 403 without staff access, 404 when the caller is not a member
 
 ---
 
@@ -667,6 +1411,106 @@ The organization's current people, one page at a time, ordered by last then firs
 
 ---
 
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/people-imports`
+
+Imports people from a CSV upload. Invalid rows are skipped and reported.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `multipart` | `any` |  | form with `file`, a .csv with a header row: first_name, last_name, middle_name, suffix, preferred_name, dob (YYYY-MM-DD), phone, email, gender |
+
+**Response**
+
+201 with `{ imported, skipped, errors: Array<{ row, reason }> }`. 400 without a .csv file or for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/photo-uploads`
+
+Starts a location photo upload: answers a presigned PUT the browser sends
+the file to, and the key to save on the location (`photo_keys`).
+
+**Auth:** org member  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `contentType` | `string` | ✓ | image/jpeg, image/webp, or image/png |
+| `contentLength` | `number` | ✓ | Byte size, max 5,000,000 |
+
+**Response**
+
+201 with `{ url, key }`. 400 for an invalid body or id, 401 when signed out, 404 when the caller is not a member, 503 when object storage is not set up
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}`
+
+Installs the plugin, or enables it again with the config it had.
+
+**Auth:** plugin.manage  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without `plugin.manage`, 404 for an unknown plugin or when the caller is not a member
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}`
+
+Uninstalls the plugin. Its config is kept for a later reinstall.
+
+**Auth:** plugin.manage  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without `plugin.manage`, 404 for an unknown plugin or when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}/api/{...path}`
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}/api/{...path}`
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}/api/{...path}`
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}/api/{...path}`
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}/api/{...path}`
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/plugins/{slug}/config`
+
+Replaces an installed plugin's config.
+
+**Auth:** plugin.manage  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `The` | `any` |  | config object, checked against the plugin's `configSchema` when it has one |
+
+**Response**
+
+204. 400 for an invalid id or config, 401 when signed out, 403 without `plugin.manage`, 404 for an unknown or uninstalled plugin, or when the caller is not a member
+
+---
+
 ### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/restorations`
 
 Restores a deleted organization.
@@ -676,6 +1520,76 @@ Restores a deleted organization.
 **Response**
 
 204. 400 for an invalid id, 403 without orgs.manage, 404 for an unknown org, 409 when not deleted
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/roles`
+
+The organization's permission roles, highest priority (lowest weight) first.
+
+**Auth:** role.read  
+
+**Response**
+
+`Array<{ id, name, is_default, weight, permissions: string[] }>`. 400 for an invalid id, 401 when signed out, 403 without `role.read`, 404 when the caller is not a member
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/roles`
+
+Creates a role that grants nothing yet; set its permissions with
+`PUT /api/v1/roles/{role_id}/permissions`.
+
+**Auth:** role.create  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Display name, 1 to 255 characters |
+| `weight` | `number` |  | Optional. Priority from 1 to 10000, lower first; defaults to 500 |
+
+**Response**
+
+201 with the role. 400 for an invalid id or body, 401 when signed out, 403 without `role.create`, 404 when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/search`
+
+The staff search box: up to five surveys, turfs, members, locations, and
+people matching `q`, each only when the caller may read that kind.
+
+**Auth:** Staff  
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `q` | `string` | The text; under two characters returns nothing |
+
+**Response**
+
+`{ surveys, turfs, members, locations, people }`, each `Array<{ id, title, subtitle, href }>`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/organizations/{organization_id}/slug-invite`
+
+Turns the open slug invite on or off. While on, anyone with
+`/invite/{org_slug}` can join.
+
+**Auth:** member.invite  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `enabled` | `any` |  | &#123;boolean&#125; |
+
+**Response**
+
+`{ enabled }`. 400 for an invalid id or body, 401 when signed out, 403 without `member.invite`, 404 when the caller is not a member
 
 ---
 
@@ -706,6 +1620,161 @@ Lifts the suspension.
 **Response**
 
 204. 400 for an invalid id, 403 without orgs.manage, 404 for an unknown org, 409 when not suspended
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/organizations/{organization_id}/turf-memberships`
+
+Joins the caller to the turf with this code, so it shows on their map.
+Joining a turf they are already on changes nothing.
+
+**Auth:** member  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `code` | `string` |  | The turf's 6-character join code |
+
+**Response**
+
+201 with `{ id }`, the turf's id. 400 for an invalid id or body, 401 when signed out, 404 for an unknown code or when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/organizations/{organization_id}/universe-stats`
+
+How many people and locations the organization has now.
+
+**Auth:** Staff  
+
+**Response**
+
+`{ people: number, locations: number }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when the caller is not a member
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/photos/{...key}`
+
+Shows a stored location photo by redirecting to a short-lived presigned
+link. The key is the one the upload answered (`orgs/{org id}/locations/...`).
+
+**Auth:** org member  
+
+**Response**
+
+302 to the presigned link. 401 when signed out, 404 when the key is not a location photo in one of the caller's orgs, 503 when object storage is not set up
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/queries`
+
+Runs Quick Search queries: plain selects of named columns from the tables
+the query builder allows, for infra admins.
+
+**Auth:** infra admin  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `queries` | `any` |  | &#123;Array&lt;&#123; select: string[], from: string, ... &#125;>&#125; - Required |
+
+**Response**
+
+`{ results: Array<{ fields: string[], rows: object[] }> }`. 400 for a query the builder refuses or that fails, 401 when signed out, 403 for anyone else
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/roles/{role_id}`
+
+One permission role with the keys it grants.
+
+**Auth:** role.read  
+
+**Response**
+
+`{ id, name, is_default, weight, permissions: string[] }`. 400 for an invalid id, 401 when signed out, 403 without `role.read`, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/roles/{role_id}`
+
+Renames a role.
+
+**Auth:** role.update  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Display name, 1 to 255 characters |
+
+**Response**
+
+The role. 400 for an invalid id or body, 401 when signed out, 403 without `role.update`, 404 when it is not in the caller's organizations, 409 for the default role
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/roles/{role_id}`
+
+Deletes a role. Its members keep any other roles they hold.
+
+**Auth:** role.delete  
+
+**Response**
+
+204. 400 for an invalid id, 401 when signed out, 403 without `role.delete`, 404 when it is not in the caller's organizations, 409 for the default role
+
+---
+
+### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/api/v1/roles/{role_id}/permissions`
+
+Makes the role grant exactly the keys sent. The administrator role (weight 0)
+keeps `system.access` even when it is left out.
+
+**Auth:** role.update  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `permissions` | `string[]` |  | Every `resource.action` key the role grants |
+
+**Response**
+
+The role. 400 for an invalid id, body, or unknown key, 401 when signed out, 403 without `role.update`, 404 when it is not in the caller's organizations
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/scripts/{script_id}`
+
+One script with its text.
+
+**Auth:** Staff  
+
+**Response**
+
+`{ id, bucket_id, name, updated_at, contents }`. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/scripts/{script_id}`
+
+Updates the given fields of a script and leaves the rest as they are.
+
+**Auth:** Staff  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | `string` |  | Optional. Display name, 1 to 255 characters |
+| `contents` | `string` |  | Optional. The script text |
+
+**Response**
+
+The script as `GET` returns it. 400 for an invalid id or body, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations
 
 ---
 
@@ -827,6 +1896,27 @@ The questions as `GET` returns them. 400 for an invalid id or body, or an `id` t
 
 ---
 
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/surveys/{survey_id}/results`
+
+The answers to a survey on the turfs cut from a bucket's lists, grouped by
+door and question, for the results map.
+
+**Auth:** Staff  
+**Permission:** `response.read`
+
+**Query Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `bucketId` | `string` | Required. The bucket |
+| `startDate, endDate {string} - Optional. YYYY-MM-DD, inclusive` | `any` |  |
+
+**Response**
+
+`Array<{ id, name, address_line_1, city, latitude, longitude, questions: Array<{ id, text, type, choices, orderIndex, responses: Array<{ value, respondedAt, respondedBy }> }> }>`. 400 for an invalid id or query, 401 when signed out, 403 without `response.read`, 404 when the survey or bucket is in none of the caller's organizations
+
+---
+
 ### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/system-health`
 
 How the running instance is doing: Node and Postgres versions, database size and largest tables,
@@ -867,6 +1957,84 @@ Saves any subset of settings. Each value is checked against its own definition, 
 **Response**
 
 `{ saved: string[], restartRequired: boolean }`. 400 with `errors` mapping each bad key to a message, 403 without settings.manage
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/turfs/{turf_id}`
+
+A turf's outline and doors, as the turf recorded them, with the latest
+outcome at each, for the map preview.
+
+**Auth:** Staff  
+
+**Response**
+
+`{ turf: { id, code, bounds }, locations: Array<{ id, name, address_line_1, city, state_or_region, latitude, longitude, contact_made }> }`, `bounds` as GeoJSON text. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is in none of the caller's organizations
+
+---
+
+### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/api/v1/turfs/{turf_id}/doors`
+
+Whether each door on the turf has been visited, and the latest outcome, for
+the canvasser's map.
+
+**Auth:** turf member  
+
+**Response**
+
+`Array<{ id, visited: boolean, contact_made: boolean | null }>`. 400 for an invalid id, 401 when signed out, 403 unless the caller joined the turf, 404 when it is in none of the caller's organizations
+
+---
+
+### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/api/v1/turfs/{turf_id}/locations`
+
+Adds a location a volunteer found in the field that was not on the turf. It
+goes onto the turf at once, so they can knock it now, but it is tentative:
+it stays out of buckets, lists, and future turfs until staff approve it.
+
+**Auth:** turf member, while the turf is open  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `Location` | `any` |  | fields (see POST /api/v1/organizations/[organization_id]/locations); the pin must be inside the turf |
+
+**Response**
+
+201 with `{ turf_location_id, entity_id }`. 400 for an invalid id or body, 401 when signed out, 403 when the turf is closed or the caller is not on it, 404 when it is in none of the caller's organizations, 422 for a pin outside the turf, 429 with 25 additions awaiting review
+
+---
+
+### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/api/v1/turfs/{turf_id}/locations/{entity_id}`
+
+Corrects a location the caller added to the turf, while it is still
+awaiting review and the turf is open. The turf's door follows the correction.
+
+**Auth:** the volunteer who added it  
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `Any` | `any` |  | subset of the location fields |
+
+**Response**
+
+`{ entity_id, id }`. 400 for an invalid id or body, 401 when signed out, 403 once reviewed, when the turf has closed, or for someone else's addition, 404 when the turf is in none of the caller's organizations, 422 for a pin moved outside the turf
+
+---
+
+### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/api/v1/turfs/{turf_id}/locations/{entity_id}`
+
+Withdraws a location the caller added by mistake, with its door and
+anything recorded there, under the same conditions as correcting it.
+
+**Auth:** the volunteer who added it  
+
+**Response**
+
+204 No Content. 400 for an invalid id, 401 when signed out, 403 once reviewed, when the turf has closed, or for someone else's addition, 404 when the turf is in none of the caller's organizations
 
 ---
 
@@ -1156,310 +2324,6 @@ Emails the user a new link to verify their address.
 
 ---
 
-# Volunteer API
-
-Endpoints used by canvassers in the field. Require org membership but not staff access.
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/join`
-
-Adds the authenticated user to a turf using a 6-character join code.
-If the user is already in the turf the insert is silently ignored.
-
-**Auth:** Org member  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `code` | `string` | ✓ | 6-character alphanumeric turf join code |
-
-**Response**
-
-&#123; id: string &#125; UUID of the turf that was joined
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/map/{id}/location/{location_id}`
-
-Records a door-knock attempt for a specific address within a turf.
-Creates or updates the attempt record, then saves survey responses when contact was made.
-Caller must be an assigned turf member.
-
-**Auth:** Org member  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `contactStatus` | `'no_contact'|'contacted'` | ✓ | Outcome of the canvassing visit |
-| `attemptNote` | `string` |  | Optional free-text note about the visit |
-| `questions` | `any` |  | &#123;Array&lt;&#123;db_id: uuid, response: string&#125;>&#125; required - Survey question responses (only saved when contacted) |
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/map/{id}/locations`
-
-Records a business a volunteer found in the field that was not in the turf.
-
-Colocated under map/[id]/ rather than /s/api/ because the staff layout
-requires an organization role, which volunteers do not have.
-
-The location is created tentative and attached to the turf immediately, so
-the volunteer can knock it and submit a response right away even though it
-never matched the bucket criteria the turf was cut from. It stays invisible
-to search, buckets, lists, and future turf cuts until an organizer approves
-it, which universe.v_locations enforces.
-
-**Auth:** org, plus turf membership and an unexpired turf  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `Location` | `any` |  | fields; latitude and longitude must fall inside the turf |
-
-**Response**
-
-&#123; turf_location_id, entity_id &#125;
-
----
-
-### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/map/{id}/locations/{entity_id}`
-
-Corrects a location the volunteer added during this canvassing session.
-
-Editable only while they authored it, it is still tentative, and the turf is
-still open — see findEditableSuggestion. Once an organizer approves it or
-the turf expires, the volunteer loses the handle.
-
-The correction is a new version, so the original text the volunteer typed is
-still recoverable.
-
-**Auth:** org, plus authorship of a tentative suggestion on an unexpired turf  
-
-**Response**
-
-&#123; entity_id, id &#125;
-
----
-
-### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/map/{id}/locations/{entity_id}`
-
-Withdraws a location the volunteer added by mistake.
-
-A hard delete, unlike the admin soft delete: an unreviewed suggestion has no
-history worth keeping, and leaving it would put a phantom door on the turf.
-The cascade takes the location, its turf assignment, and any attempt or
-survey responses recorded against it.
-
-**Auth:** org, plus authorship of a tentative suggestion on an unexpired turf  
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/map/{id}/locations/{location_id}/edits`
-
-Proposes a correction to a door whose record is wrong.
-
-The proposal is parked for review rather than applied: the location is
-already part of the official dataset, so a canvasser cannot change it
-directly. Photos travel with the proposal as the evidence an organizer
-checks before accepting it.
-
-Note the path parameter is the turf_location id, matching the rest of the
-canvassing routes, rather than a location entity id.
-
-**Auth:** org, plus turf membership and an unexpired turf  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `Any` | `any` |  | subset of the location fields, plus an optional note |
-
-**Response**
-
-&#123; id &#125;
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/map/{id}/status`
-
-Returns visit status for all locations in a turf. Caller must be a turf member.
-Used by the volunteer map page to show which addresses have been visited.
-
-**Auth:** Org member  
-
-**Response**
-
-Array of &#123; id, visited: boolean, contact_made: boolean | null &#125;
-
----
-
-# Surveys
-
-Staff endpoints for creating and managing survey templates and questions.
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/surveys`
-
-Lists surveys for the organization, optionally filtered by bucket.
-
-**Auth:** Staff  
-**Permission:** `survey:read`
-
-**Query Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `bucketId` | `string` | optional - bucket UUID to filter by |
-| `bucketSlug` | `string` | optional - bucket slug to filter by (alternative to bucketId) |
-
-**Response**
-
-Array of &#123; id: string, name: string, description: string | null &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/surveys`
-
-Creates a new survey template for the organization with no questions.
-Questions are added separately via the /questions endpoint.
-
-**Auth:** Staff  
-**Permission:** `survey:create`
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `name` | `string` | ✓ | Survey name, 1–255 characters |
-
-**Response**
-
-&#123; id: string &#125; UUID of the created survey
-
----
-
-### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/surveys/{id}`
-
-Updates the name and optional description of an existing survey.
-
-**Auth:** Staff  
-**Permission:** `survey:update`
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `name` | `string` | ✓ | Survey name, 1–255 characters |
-| `description` | `string` |  | Survey description, max 2000 characters |
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/surveys/{id}/questions`
-
-Upserts questions for a survey. Questions with a `db_id` are updated;
-those without are created. Typically called after `questions/purge` to
-fully replace the question set.
-
-**Auth:** Staff  
-**Permission:** `survey:update`
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `questions` | `Array` | ✓ | Array of question objects: db_id? (uuid), type (string), text (string), choices (string[]), index (number) |
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/surveys/{id}/questions/purge`
-
-Deletes all questions for a survey except those listed in `exclude`.
-Called before re-saving the full question set to remove questions the
-editor dropped. Pass all retained question IDs in `exclude`.
-
-**Auth:** Staff  
-**Permission:** `survey:update`
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `exclude` | `string[]` |  | UUIDs of questions to keep; all others are deleted |
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-# Turfs
-
-Staff endpoints for creating canvassing territories from GeoJSON polygons.
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/turf/create`
-
-Creates one or more turfs from GeoJSON polygon geometries.
-
-Turfs are always cut from a universe list: locations are sourced from
-`universe.list_entry` for that list using ST_Contains, and the created
-turfs belong to the list. Each turf receives a unique 6-character join
-code. Defaults to a 7-day expiry.
-
-**Auth:** Staff  
-**Permission:** `turf:create`
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `polygons` | `any` |  | &#123;Array&lt;&#123;geometry: GeoJSON&#125;>&#125; required - GeoJSON polygon geometries |
-| `survey_id` | `string` | ✓ | UUID of the survey to attach to all created turfs |
-| `script_id` | `string` |  | UUID of the script to attach to all created turfs |
-| `expires_at` | `string` |  | ISO 8601 expiration date; defaults to 7 days from now |
-| `list_id` | `string` | ✓ | UUID of the universe list this cut derives from |
-
-**Response**
-
-&#123; turfs: Turf[] &#125; Array of created turf records
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/turfs/{id}/preview`
-
-Returns the polygon bounds and all assigned locations for a turf, for map preview.
-
-**Auth:** Staff  
-**Permission:** `turf:read`
-
-**Response**
-
-&#123; bounds: string, locations: LocationPreview[] &#125;
-
----
-
 # List Documents
 
 Staff endpoints for generating, polling, downloading, and deleting the printable PDF of a location list.
@@ -1538,601 +2402,5 @@ generated; a people list fails with a message saying so.
 **Response**
 
 202 `{ id, list_id, status: 'pending', created_at }` with a `Location` header pointing at the document. 400 for an unknown timezone
-
----
-
-# Members
-
-Staff endpoints for managing organization membership and role assignments.
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/members`
-
-Returns all members of the organization with their assigned role info.
-
-**Auth:** Staff  
-**Permission:** `member:read`
-
-**Response**
-
-&#123; members: Array&lt;&#123; id, name, email, role_id, role_name &#125;> &#125;
-
----
-
-### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/api/members/{user_id}`
-
----
-
-### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/members/{user_id}`
-
----
-
-### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/members/{user_id}/permissions`
-
----
-
-# Roles & Permissions
-
-Owner-only endpoints for managing custom staff roles and their permission sets.
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/roles`
-
-Returns all roles for the organization, each with their permission set.
-
-**Auth:** role.read  
-
-**Response**
-
-Array of &#123; id, name, is_default, permissions: string[] &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/roles`
-
-Creates a new role for the organization.
-
-**Auth:** role.create  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `name` | `string` | ✓ | Display name for the new role |
-| `weight` | `number` |  | optional - Priority weight (lower = higher priority) |
-
-**Response**
-
-&#123; id, name, is_default &#125;
-
----
-
-### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/api/roles/{id}`
-
-Renames a role. The default (Everyone) role cannot be renamed.
-
-**Auth:** role.update  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `name` | `string` | ✓ | New display name for the role |
-
-**Response**
-
-&#123; id, name, is_default &#125;
-
----
-
-### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/roles/{id}`
-
-Permanently deletes a role. The default (Everyone) role cannot be deleted.
-
-**Auth:** role.delete  
-
-**Response**
-
-204 No Content on success
-
----
-
-### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/roles/{id}/permissions`
-
-Replaces the full permission set for a role.
-
-**Auth:** role.update  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `permissions` | `string[]` | ✓ | Full list of resource.action keys to grant |
-
-**Response**
-
-&#123; ok: true &#125;
-
----
-
-# Invite Links
-
-Owner-only endpoints for token-based and slug-based org invite links.
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/invite-links`
-
-Returns all token-based invite links for the org plus the slug invite toggle state.
-
-**Auth:** member.invite  
-
-**Response**
-
-&#123; links: Array&lt;&#123; id, created_at, expires_at &#125;>, slugInviteEnabled: boolean &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/invite-links`
-
-Creates a new token-based invite link for the organization.
-Accessible at `/invite/{token}` once created.
-
-**Auth:** member.invite  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `expires_at` | `string | null` |  | ISO 8601 expiration date, or null for no expiry |
-
-**Response**
-
-&#123; id, created_at, expires_at &#125;
-
----
-
-### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/invite-links/{id}`
-
-Permanently revokes an invite link. The link can no longer be used to join the org.
-
-**Auth:** member.invite  
-
-**Response**
-
-&#123; ok: true &#125;
-
----
-
-### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/invite-links/slug`
-
-Enables or disables the org slug-based open invite.
-When enabled, anyone with the link can join at `/invite/{org_slug}`.
-
-**Auth:** member.invite  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `enabled` | `boolean` | ✓ | Whether the slug-based open invite is active |
-
-**Response**
-
-&#123; ok: true, enabled: boolean &#125;
-
----
-
-# Plugins
-
-Staff endpoints for installing, configuring, and routing to plugin-defined API handlers.
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/{...path}`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/{...path}`
-
----
-
-### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/{...path}`
-
----
-
-### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/{...path}`
-
----
-
-### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/{...path}`
-
----
-
-### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/config`
-
-Updates the stored configuration for an installed plugin.
-If the plugin defines a `configSchema` (Zod), the body is validated before saving.
-
-**Auth:** Staff  
-**Permission:** `plugin:manage`
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `(plugin-defined) - JSON config object validated against the plugin's configSchema if present` | `any` |  |  |
-
-**Response**
-
-&#123; ok: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/install`
-
-Installs and enables a plugin for the organization. Creates or re-enables
-the plugin_installation record. The plugin appears in the staff nav immediately.
-
-**Auth:** Staff  
-**Permission:** `plugin:manage`
-
-**Response**
-
-&#123; ok: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/plugins/{slug}/uninstall`
-
-Disables a plugin for the organization. The plugin is removed from the staff nav.
-Config and any plugin-stored data are retained for potential re-installation.
-
-**Auth:** Staff  
-**Permission:** `plugin:manage`
-
-**Response**
-
-&#123; ok: true &#125;
-
----
-
-# Other
-
-Miscellaneous endpoints.
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/dashboard`
-
-Returns dashboard analytics for the organization.
-
-**Auth:** Staff  
-
-**Query Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `range` | `string` | One of: 1w, 1m, 3m, 6m, 1y (default: 1m) |
-
-**Response**
-
-&#123; timeSeries: &#123; date: string, count: number &#125;[], outcomes: &#123; contact_made: boolean | null, count: number &#125;[] &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/data`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/query`
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/scripts`
-
-Lists scripts for the organization, optionally filtered by bucket slug.
-
-**Auth:** Staff  
-
-**Query Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `bucket` | `string` | optional - bucket slug to filter by |
-
-**Response**
-
-Array of &#123; id: string, name: string &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/scripts`
-
----
-
-### ![PUT](https://img.shields.io/badge/PUT-f59e0b?style=flat-square) `/o/{org_slug}/s/api/scripts/{id}`
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/search`
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/lists/{id}/locations`
-
-Returns all location entries from a universe list with their coordinates.
-Only works for lists with entity_type = 'locations'.
-
-**Auth:** Staff  
-**Permission:** `turf:create`
-
-**Response**
-
-Array of location entries with lat/lng for map display
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/lists/{id}/turfs`
-
-Returns all turfs for a universe list, including polygon geometry (GeoJSON),
-for the list overview map.
-
-**Auth:** Staff  
-**Permission:** `turf:read`
-
-**Response**
-
-Array of turfs with GeoJSON bounds and metadata
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/locations`
-
-Locations drawn on the admin map, for the viewport the map is showing.
-
-The map queries by viewport rather than reusing the list page's rows because
-that page is a paginated alphabetical window: a location outside the first
-page is a location the map would never draw, including the one the organizer
-just placed.
-
-**Auth:** location.read  
-
-**Query Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `west,south,east,north {number} required - Viewport corners in degrees` | `any` |  |
-
-**Response**
-
-&#123; locations, truncated &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations`
-
-Creates a single location in the organization's universe, as authored from
-the admin map. Bulk paths live under ./import.
-
-The location is live immediately: no location_suggestion row is written, so
-nothing filters it out of universe.v_locations.
-
-**Auth:** location.create  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `name` | `string` |  | optional - Business name |
-| `address_line_1` | `string` |  | optional - Street address |
-| `city` | `string` |  | optional |
-| `state_or_region` | `string` |  | optional |
-| `postal_code` | `string` |  | optional |
-| `country_code` | `string` |  | optional - Two-letter code |
-| `latitude` | `number` |  | required |
-| `longitude` | `number` |  | required |
-| `photo_keys` | `string[]` |  | optional - Spaces object keys, max 3 |
-
-**Response**
-
-&#123; entity_id, id &#125;
-
----
-
-### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/api/universe/locations/{entity_id}`
-
-Updates a location by superseding its current version.
-
-Nothing is overwritten: the live row is closed and a successor inserted, and
-everything pointing at the old version row is repointed by
-createLocationVersion.
-
-**Auth:** location.update  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `Any` | `any` |  | subset of the location fields; omitted keys keep their current |
-
-**Response**
-
-&#123; entity_id, id &#125;
-
----
-
-### ![DELETE](https://img.shields.io/badge/DELETE-ef4444?style=flat-square) `/o/{org_slug}/s/api/universe/locations/{entity_id}`
-
-Soft-deletes a location by closing its current version without a successor.
-
-Version history, turf assignments, and past canvassing responses are all
-retained; the location simply stops appearing in universe.v_locations and in
-the operational queries, which filter on valid_to.
-
-**Auth:** location.delete  
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/edits/{id}/approve`
-
-Accepts a canvasser's correction into the official dataset.
-
-The correction becomes a new version of the location, so the values it
-replaces stay recoverable.
-
-**Auth:** location.update  
-
-**Response**
-
-&#123; entity_id &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/edits/{id}/reject`
-
-Declines a canvasser's correction.
-
-The proposal is kept and marked rejected rather than deleted: unlike a
-rejected new location, nothing bogus entered the dataset, and the record of
-what was reported and turned down is worth having.
-
-**Auth:** location.update  
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/import`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/import/overture`
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/suggestions/{id}/approve`
-
-Accepts a volunteer's field addition into the organization's universe.
-
-Flipping the status is the whole operation: the turf assignment already
-exists, and universe.v_locations stops excluding the location the moment it
-is no longer tentative, so it becomes visible to search, buckets, and future
-turf cuts at once.
-
-It is deliberately not backfilled into already-cut lists — those are frozen
-snapshots — so it joins the next cut instead.
-
-**Auth:** location.create  
-
-**Response**
-
-&#123; entity_id &#125;
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/locations/suggestions/{id}/reject`
-
-Rejects a volunteer's field addition and removes it entirely.
-
-Unlike the admin delete, which is soft, this is a hard delete: a rejected
-addition is bad data, and so is anything recorded against it. Deleting the
-entity cascades through the location versions, the turf assignment, the
-canvassing attempt, and its survey responses.
-
-The status guard means an already-approved location cannot be destroyed
-through this path; use the delete endpoint, which preserves history.
-
-**Auth:** location.delete  
-
-**Response**
-
-&#123; success: true &#125;
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/metrics/results`
-
-Returns survey responses recorded against a bucket + survey combination,
-grouped by location and question, for display on the metrics results map.
-
-**Auth:** Staff  
-**Permission:** `response:read`
-
-**Query Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `bucketId` | `string` | bucket UUID |
-| `surveyId` | `string` | survey UUID |
-| `startDate` | `string` | optional - YYYY-MM-DD, inclusive lower bound |
-| `endDate` | `string` | optional - YYYY-MM-DD, inclusive upper bound |
-
-**Response**
-
-Array of locations, each with a nested array of questions and their responses
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/s/api/universe/people/import`
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/s/api/universe/stats`
-
----
-
-### ![PATCH](https://img.shields.io/badge/PATCH-a855f7?style=flat-square) `/o/{org_slug}/s/universe/data/integrations/api`
-
----
-
-### ![GET](https://img.shields.io/badge/GET-22c55e?style=flat-square) `/o/{org_slug}/uploads/{...key}`
-
-Redirects to a short-lived presigned GET for a stored photo.
-
-Objects are private, so this is the only way to display one. The key prefix
-check is what stops a member of one org reading another org's photos by
-pasting a key; without it the bucket would have to be public.
-
-**Auth:** Org member  
-
-**Response**
-
-302 to a presigned URL
-
----
-
-### ![POST](https://img.shields.io/badge/POST-3b82f6?style=flat-square) `/o/{org_slug}/uploads/presign`
-
-Issues a presigned PUT so the browser can upload a location photo straight
-to Spaces.
-
-Lives outside /s/ because volunteers attach photos to their suggestions and
-do not have a staff role.
-
-Org membership is the only check needed: the key is server-generated and
-unguessable, and attaching it to a location still has to pass that
-endpoint's own authorization.
-
-**Auth:** Org member  
-
-**Request Body**
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `contentType` | `string` | ✓ | image/jpeg, image/webp, or image/png |
-| `contentLength` | `number` | ✓ | Byte size, max 5,000,000 |
-
-**Response**
-
-&#123; url, key &#125;
 
 ---

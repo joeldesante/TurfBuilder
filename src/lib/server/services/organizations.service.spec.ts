@@ -41,6 +41,7 @@ vi.mock('$lib/auth', () => ({
 import {
 	createOrganization,
 	getOrganization,
+	isOrgCreationAllowed,
 	isSlugAvailable,
 	replaceOrganization,
 	updateOrganization
@@ -64,6 +65,18 @@ function stub({ role = 'owner' as string | null, creation = 'true', slugTaken = 
 beforeEach(() => {
 	vi.clearAllMocks();
 	stub();
+});
+
+describe('isOrgCreationAllowed', () => {
+	it('is true only when the setting is exactly "true"', async () => {
+		expect(await isOrgCreationAllowed()).toBe(true);
+
+		stub({ creation: 'false' });
+		expect(await isOrgCreationAllowed()).toBe(false);
+
+		mockClient.query.mockResolvedValue({ rows: [] });
+		expect(await isOrgCreationAllowed()).toBe(false);
+	});
 });
 
 describe('createOrganization', () => {

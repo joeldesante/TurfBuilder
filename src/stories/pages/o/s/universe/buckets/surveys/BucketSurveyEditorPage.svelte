@@ -20,10 +20,20 @@
 		surveyDescription: string;
 		bucketName: string;
 		questions: SurveyQuestion[];
-		onSave: (data: { name: string; description: string; questions: SurveyQuestion[] }) => Promise<void>;
+		onSave: (data: {
+			name: string;
+			description: string;
+			questions: SurveyQuestion[];
+		}) => Promise<void>;
 	}
 
-	const { surveyName, surveyDescription, bucketName, questions: initialQuestions, onSave }: Props = $props();
+	const {
+		surveyName,
+		surveyDescription,
+		bucketName,
+		questions: initialQuestions,
+		onSave
+	}: Props = $props();
 
 	interface SurveyState {
 		name: string;
@@ -31,11 +41,13 @@
 		questions: SurveyQuestion[];
 	}
 
-	let survey: SurveyState = $state(untrack(() => ({
-		name: surveyName,
-		description: surveyDescription,
-		questions: initialQuestions.map((q, i) => ({ ...q, index: i }))
-	})));
+	let survey: SurveyState = $state(
+		untrack(() => ({
+			name: surveyName,
+			description: surveyDescription,
+			questions: initialQuestions.map((q, i) => ({ ...q, index: i }))
+		}))
+	);
 
 	let saveStatus: 'saving' | 'saved' | null = $state('saved');
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -44,11 +56,18 @@
 	const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 	async function handleSave() {
-		if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+			debounceTimer = null;
+		}
 		saveStatus = 'saving';
 		const start = Date.now();
 		try {
-			await onSave({ name: survey.name, description: survey.description, questions: survey.questions });
+			await onSave({
+				name: survey.name,
+				description: survey.description,
+				questions: survey.questions
+			});
 			await sleep(Math.max(0, 1000 - (Date.now() - start)));
 			saveStatus = 'saved';
 		} catch {
@@ -171,14 +190,17 @@
 					<p>{index + 1}.</p>
 					<TextInput
 						value={question.text}
+						aria-label="Question {index + 1}"
 						oninput={(e: Event) =>
 							updateQuestionText(index, (e.currentTarget as HTMLInputElement).value)}
 					/>
 				</div>
-				<Button onclick={() => deleteQuestion(index)}>Delete</Button>
+				<Button onclick={() => deleteQuestion(index)} aria-label="Delete question {index + 1}"
+					>Delete</Button
+				>
 			</div>
 
-			<FormField label="Question type" labelVisibility="sr-only">
+			<FormField label="Question {index + 1} type" labelVisibility="sr-only">
 				<Select
 					value={question.type}
 					items={[
@@ -197,12 +219,17 @@
 						Users will submit a text response...
 					</p>
 				{:else if question.type === 'radio' || question.type === 'check'}
-					<Button variant="outline" onclick={() => addQuestionChoice(index, 'New Choice')}>Add Choice</Button>
+					<Button
+						variant="outline"
+						aria-label="Add a choice to question {index + 1}"
+						onclick={() => addQuestionChoice(index, 'New Choice')}>Add Choice</Button
+					>
 					<ul class="space-y-2 mt-2">
 						{#each question.choices as choice, choiceIndex}
 							<li class="flex items-center gap-2">
 								<TextInput
 									value={choice}
+									aria-label="Question {index + 1} choice {choiceIndex + 1}"
 									oninput={(e: Event) =>
 										updateQuestionChoice(
 											index,
@@ -210,7 +237,11 @@
 											(e.currentTarget as HTMLInputElement).value
 										)}
 								/>
-								<Button variant="outline" onclick={() => deleteQuestionChoice(index, choiceIndex)}>Delete</Button>
+								<Button
+									variant="outline"
+									aria-label="Delete choice {choiceIndex + 1} of question {index + 1}"
+									onclick={() => deleteQuestionChoice(index, choiceIndex)}>Delete</Button
+								>
 							</li>
 						{/each}
 					</ul>

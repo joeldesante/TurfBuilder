@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
+import { env } from '$env/dynamic/private';
 import { POOL } from '$lib/server/database';
 import { fillTemplate } from '$lib/shared/utils/email-template';
 import { logger } from '$lib/server/logger';
@@ -9,7 +10,12 @@ interface MailSettings {
 	domain: string;
 	applicationName: string;
 	sesRegion: string;
+	smtpHost: string;
+	smtpPort: number;
+	smtpSecure: boolean;
 }
+
+type Transport = 'direct' | 'ses' | 'smtp';
 
 export interface EmailTemplate {
 	subject: string;
@@ -19,7 +25,8 @@ export interface EmailTemplate {
 async function loadMailSettings(): Promise<MailSettings> {
 	const result = await POOL.query<{ key: string; value: string }>(
 		`SELECT key, value FROM system_setting WHERE key IN (
-			'mail.transport', 'mail.domain', 'application_name', 'mail.ses.region'
+			'mail.transport', 'mail.domain', 'application_name', 'mail.ses.region',
+			'mail.smtp.host', 'mail.smtp.port', 'mail.smtp.secure'
 		)`
 	);
 	const map = Object.fromEntries(result.rows.map((r) => [r.key, r.value]));
@@ -27,7 +34,10 @@ async function loadMailSettings(): Promise<MailSettings> {
 		transport: map['mail.transport'] ?? 'direct',
 		domain: map['mail.domain'] ?? '',
 		applicationName: map['application_name'] ?? '',
-		sesRegion: map['mail.ses.region'] ?? ''
+		sesRegion: map['mail.ses.region'] ?? '',
+		smtpHost: map['mail.smtp.host'] ?? '',
+		smtpPort: Number(map['mail.smtp.port'] ?? 587) || 587,
+		smtpSecure: map['mail.smtp.secure'] === 'true'
 	};
 }
 
@@ -55,9 +65,9 @@ async function sendDirect(
 	html: string
 ): Promise<boolean> {
 	// `direct: true` is a valid nodemailer transport option not reflected in @types/nodemailer
-	const transporter = nodemailer.createTransport(
-		{ direct: true } as Parameters<typeof nodemailer.createTransport>[0]
-	);
+	const transporter = nodemailer.createTransport({ direct: true } as Parameters<
+		typeof nodemailer.createTransport
+	>[0]);
 	await transporter.sendMail({ from: fromAddress(settings), to, subject, html });
 	return true;
 }
@@ -91,11 +101,50 @@ async function sendSES(
 	return true;
 }
 
+async function sendSMTP(
+	settings: MailSettings,
+	to: string,
+	subject: string,
+	html: string
+): Promise<boolean> {
+	if (!settings.smtpHost) {
+		logger.warn('[mail] SMTP host is not configured (mail.smtp.host), so the email was not sent');
+		return false;
+	}
+
+	// Credentials live in the environment, never the database.
+	const user = env.MAIL_SMTP_USER;
+	const pass = env.MAIL_SMTP_PASSWORD;
+	const transporter = nodemailer.createTransport({
+		host: settings.smtpHost,
+		port: settings.smtpPort,
+		secure: settings.smtpSecure,
+		auth: user ? { user, pass } : undefined
+	});
+	await transporter.sendMail({ from: fromAddress(settings), to, subject, html });
+	return true;
+}
+
+function transportOf(settings: MailSettings): Transport {
+	return settings.transport === 'ses' || settings.transport === 'smtp'
+		? settings.transport
+		: 'direct';
+}
+
+const SENDERS: Record<Transport, typeof sendDirect> = {
+	direct: sendDirect,
+	ses: sendSES,
+	smtp: sendSMTP
+};
+
 /** Whether outgoing mail is set up well enough to try sending. */
 export async function isMailConfigured(): Promise<boolean> {
 	const settings = await loadMailSettings();
 	if (!settings.domain) return false;
-	return settings.transport !== 'ses' || Boolean(settings.sesRegion);
+	const transport = transportOf(settings);
+	if (transport === 'ses') return Boolean(settings.sesRegion);
+	if (transport === 'smtp') return Boolean(settings.smtpHost);
+	return true;
 }
 
 async function logEmail(
@@ -127,7 +176,7 @@ export async function deliverEmail(
 	html: string
 ): Promise<'sent' | 'skipped'> {
 	const settings = await loadMailSettings();
-	const transport = settings.transport === 'ses' ? 'ses' : 'direct';
+	const transport = transportOf(settings);
 
 	// Checked once here for both transports, so one misconfiguration is one warning.
 	if (!settings.domain) {
@@ -136,7 +185,7 @@ export async function deliverEmail(
 		return 'skipped';
 	}
 
-	const send = transport === 'ses' ? sendSES : sendDirect;
+	const send = SENDERS[transport];
 	const startedAt = performance.now();
 
 	let sent: boolean;
@@ -151,11 +200,22 @@ export async function deliverEmail(
 		throw e;
 	}
 
-	await logEmail(to, template, subject, sent ? 'sent' : 'skipped', sent ? null : 'Mail is not configured.');
+	await logEmail(
+		to,
+		template,
+		subject,
+		sent ? 'sent' : 'skipped',
+		sent ? null : 'Mail is not configured.'
+	);
 	if (sent) {
 		// No recipient or subject: both are personal data. The email_log table has them.
 		logger.info(
-			{ template, transport, htmlBytes: html.length, durationMs: Math.round(performance.now() - startedAt) },
+			{
+				template,
+				transport,
+				htmlBytes: html.length,
+				durationMs: Math.round(performance.now() - startedAt)
+			},
 			'[mail] Sent email'
 		);
 	}

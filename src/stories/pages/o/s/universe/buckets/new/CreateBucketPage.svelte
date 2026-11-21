@@ -25,7 +25,7 @@
 		async (values) => {
 			await onCreate(values.name, slugFromName(values.name), values.filters);
 		},
-		{ filters: { v: 2, people: null, locations: null } }
+		{ filters: { v: 2, people: null, locations: { operator: 'AND', filters: [] } } }
 	);
 
 	const slug = $derived(slugFromName(form.values.name));

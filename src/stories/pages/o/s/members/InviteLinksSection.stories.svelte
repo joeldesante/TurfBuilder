@@ -16,7 +16,11 @@
 
 	const sampleLinks = [
 		{ id: 'V1StGXR8_Z5jdHi6B-myT', created_at: '2026-03-01T00:00:00Z', expires_at: null },
-		{ id: 'abc123xyz_DEFGH456789', created_at: '2026-03-10T00:00:00Z', expires_at: '2026-04-10T00:00:00Z' }
+		{
+			id: 'abc123xyz_DEFGH456789',
+			created_at: '2026-03-10T00:00:00Z',
+			expires_at: '2026-04-10T00:00:00Z'
+		}
 	];
 
 	async function noop() {}

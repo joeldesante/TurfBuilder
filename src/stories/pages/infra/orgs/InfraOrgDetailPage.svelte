@@ -31,7 +31,9 @@
 	import Tabs from '$components/layout/tabs/Tabs.svelte';
 	import Badge from '$components/data-display/badge/Badge.svelte';
 	import Button from '$components/actions/button/Button.svelte';
-	import DropdownMenu, { type DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
+	import DropdownMenu, {
+		type DropdownMenuEntry
+	} from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import ConfirmDialog from '$components/feedback/confirm-dialog/ConfirmDialog.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
@@ -39,6 +41,9 @@
 	import Select from '$components/data-inputs/select/Select.svelte';
 	import CopyButton from '$components/actions/copy-button/CopyButton.svelte';
 	import Pagination from '$components/data-display/pagination/Pagination.svelte';
+	import DataTable, {
+		type DataTableColumn
+	} from '$components/data-display/data-table/DataTable.svelte';
 	import StatTile from '$components/data-display/stat-tile/StatTile.svelte';
 	import LineChart from '$components/data-display/charts/LineChart/LineChart.svelte';
 	import DonutChart from '$components/data-display/charts/DonutChart/DonutChart.svelte';
@@ -48,7 +53,12 @@
 	import { formatDate, formatDateTime, formatDaysAgo } from '$lib/shared/utils/format-date';
 	import type { Page } from '$lib/shared/utils/pagination';
 	import type { TimeSeries } from '$lib/shared/types/charts';
-	import type { OrgInvitation, OrgInviteLink, OrgMember, PlatformOrgDetail } from '$lib/shared/types/platform-organizations';
+	import type {
+		OrgInvitation,
+		OrgInviteLink,
+		OrgMember,
+		PlatformOrgDetail
+	} from '$lib/shared/types/platform-organizations';
 	import type { ActivityEntry } from '$lib/shared/types/activity';
 	import type { AuditEntry } from '$lib/shared/types/audit';
 
@@ -81,15 +91,58 @@
 
 	const canManage = $derived(permissions.includes('orgs.manage'));
 
+	const memberColumns = $derived<DataTableColumn<OrgMember>[]>([
+		{ id: 'member', header: 'Member', cell: memberCell },
+		{ id: 'role', header: 'Role', cell: roleCell },
+		{
+			id: 'joined',
+			header: 'Joined',
+			hideBelow: 'sm',
+			nowrap: true,
+			class: 'text-on-surface-subtle',
+			cell: joinedCell
+		},
+		{
+			id: 'lastActive',
+			header: 'Last active',
+			nowrap: true,
+			class: 'text-on-surface-subtle',
+			cell: lastActiveCell
+		},
+		...(canManage
+			? [
+					{
+						id: 'actions',
+						header: 'Actions',
+						srOnlyHeader: true,
+						align: 'right' as const,
+						cell: memberActionsCell
+					}
+				]
+			: [])
+	]);
+
 	const tabs = $derived([
 		{ id: 'overview', label: 'Overview', href: '?tab=overview' },
 		{ id: 'members', label: 'Members', href: '?tab=members', count: org.counts.members },
-		{ id: 'invitations', label: 'Invitations', href: '?tab=invitations', count: org.pendingInvitations || undefined },
+		{
+			id: 'invitations',
+			label: 'Invitations',
+			href: '?tab=invitations',
+			count: org.pendingInvitations || undefined
+		},
 		{ id: 'activity', label: 'Activity', href: '?tab=activity' },
 		{ id: 'audit', label: 'Audit', href: '?tab=audit' }
 	]);
 
-	type DialogId = 'suspend' | 'unsuspend' | 'transfer' | 'delete' | 'restore' | 'remove-member' | null;
+	type DialogId =
+		| 'suspend'
+		| 'unsuspend'
+		| 'transfer'
+		| 'delete'
+		| 'restore'
+		| 'remove-member'
+		| null;
 	let dialog = $state<DialogId>(null);
 	let busy = $state(false);
 	let dialogError = $state<string | null>(null);
@@ -103,7 +156,9 @@
 	let ownerQuery = $state('');
 	let ownerResults = $state<OwnerCandidate[] | null>(null);
 	let searchingOwners = $state(false);
-	const ownerCandidates = $derived((ownerResults ?? []).filter((m) => !m.memberRole.includes('owner')));
+	const ownerCandidates = $derived(
+		(ownerResults ?? []).filter((m) => !m.memberRole.includes('owner'))
+	);
 
 	async function searchOwners() {
 		if (!ownerQuery.trim()) return;
@@ -165,12 +220,24 @@
 
 	const menu = $derived<DropdownMenuEntry[]>(
 		(<(DropdownMenuEntry | null)[]>[
-			canManage && !org.deleted && !org.suspended ? { label: 'Suspend', variant: 'destructive' as const, onclick: () => open('suspend') } : null,
-			canManage && org.suspended && !org.deleted ? { label: 'Lift suspension', onclick: () => open('unsuspend') } : null,
-			canManage && !org.deleted ? { label: 'Transfer ownership', onclick: () => open('transfer') } : null,
+			canManage && !org.deleted && !org.suspended
+				? { label: 'Suspend', variant: 'destructive' as const, onclick: () => open('suspend') }
+				: null,
+			canManage && org.suspended && !org.deleted
+				? { label: 'Lift suspension', onclick: () => open('unsuspend') }
+				: null,
+			canManage && !org.deleted
+				? { label: 'Transfer ownership', onclick: () => open('transfer') }
+				: null,
 			canManage && org.deleted ? { label: 'Restore', onclick: () => open('restore') } : null,
 			canManage && !org.deleted ? { separator: true as const } : null,
-			canManage && !org.deleted ? { label: 'Delete organization', variant: 'destructive' as const, onclick: () => open('delete') } : null
+			canManage && !org.deleted
+				? {
+						label: 'Delete organization',
+						variant: 'destructive' as const,
+						onclick: () => open('delete')
+					}
+				: null
 		]).filter((entry): entry is DropdownMenuEntry => entry !== null)
 	);
 
@@ -183,7 +250,44 @@
 	]);
 </script>
 
-<PageHeader title={org.name} breadcrumbs={[{ label: 'Organizations', href: '/infra/orgs' }, { label: org.name }]}>
+{#snippet memberCell({ row: m }: { row: OrgMember })}
+	<a href={`/infra/users/${m.userId}`} class="font-medium">{m.name}</a>
+	<span class="block text-xs text-on-surface-subtle">{m.email}</span>
+{/snippet}
+
+{#snippet roleCell({ row: m }: { row: OrgMember })}
+	{m.roleName ?? 'Member'}{m.memberRole.includes('owner') ? ', owner' : ''}
+{/snippet}
+
+{#snippet joinedCell({ row: m }: { row: OrgMember })}
+	{formatDate(m.joinedAt)}
+{/snippet}
+
+{#snippet lastActiveCell({ row: m }: { row: OrgMember })}
+	{formatDaysAgo(m.lastActiveDay)}
+{/snippet}
+
+{#snippet memberActionsCell({ row: m }: { row: OrgMember })}
+	{#if !m.memberRole.includes('owner')}
+		<Button
+			size="sm"
+			variant="outline"
+			aria-label={`Remove ${m.name}`}
+			loading={rowBusy === m.memberId}
+			onclick={() => {
+				memberToRemove = m;
+				open('remove-member');
+			}}
+		>
+			Remove
+		</Button>
+	{/if}
+{/snippet}
+
+<PageHeader
+	title={org.name}
+	breadcrumbs={[{ label: 'Organizations', href: '/infra/orgs' }, { label: org.name }]}
+>
 	{#snippet actions()}
 		{#if menu.length > 0}
 			<DropdownMenu items={menu} align="end">
@@ -206,14 +310,25 @@
 	</section>
 
 	{#if org.suspended}
-		<div class="rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container" role="status">
-			<p class="font-medium">Suspended {org.suspendedAt ? formatDate(org.suspendedAt) : ''}. Members cannot open it.</p>
+		<div
+			class="rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container"
+			role="status"
+		>
+			<p class="font-medium">
+				Suspended {org.suspendedAt ? formatDate(org.suspendedAt) : ''}. Members cannot open it.
+			</p>
 			{#if org.suspendedReason}<p class="mt-1">{org.suspendedReason}</p>{/if}
 		</div>
 	{/if}
 	{#if org.deleted}
-		<div class="rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container" role="status">
-			<p class="font-medium">Deleted {org.deletedAt ? formatDate(org.deletedAt) : ''}. Its data is kept and can be restored.</p>
+		<div
+			class="rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container"
+			role="status"
+		>
+			<p class="font-medium">
+				Deleted {org.deletedAt ? formatDate(org.deletedAt) : ''}. Its data is kept and can be
+				restored.
+			</p>
 		</div>
 	{/if}
 
@@ -227,21 +342,37 @@
 					<li class="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2.5 text-sm">
 						<a href={`/infra/users/${leader.userId}`} class="font-medium">{leader.name}</a>
 						<span class="text-on-surface-subtle">{leader.email}</span>
-						<span class="text-on-surface-subtle">{leader.owner ? 'Owner' : (leader.roleName ?? 'Administrator')}</span>
+						<span class="text-on-surface-subtle"
+							>{leader.owner ? 'Owner' : (leader.roleName ?? 'Administrator')}</span
+						>
 					</li>
 				{:else}
-					<li class="px-4 py-6 text-center text-sm text-on-surface-subtle">Nobody holds an owner or administrator role.</li>
+					<li class="px-4 py-6 text-center text-sm text-on-surface-subtle">
+						Nobody holds an owner or administrator role.
+					</li>
 				{/each}
 			</ul>
 			<p class="mt-2 text-sm text-on-surface-subtle">
 				Created {formatDate(org.createdAt)}{#if org.createdBy}
-					by <a href={`/infra/users/${org.createdBy.id}`}>{org.createdBy.name}</a>{/if}. Last active {formatDaysAgo(org.lastActiveDay)}.
+					by <a href={`/infra/users/${org.createdBy.id}`}>{org.createdBy.name}</a>{/if}. Last active {formatDaysAgo(
+					org.lastActiveDay
+				)}.
 			</p>
 		</section>
 
 		<section aria-label="Figures" class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-			<StatTile label="Members" value={org.counts.members} format="compact" hint={`${org.counts.activeMembers30d.toLocaleString()} active in 30 days`} />
-			<StatTile label="Visits" value={org.counts.visits} format="compact" hint={`${org.counts.visits30d.toLocaleString()} in 30 days`} />
+			<StatTile
+				label="Members"
+				value={org.counts.members}
+				format="compact"
+				hint={`${org.counts.activeMembers30d.toLocaleString()} active in 30 days`}
+			/>
+			<StatTile
+				label="Visits"
+				value={org.counts.visits}
+				format="compact"
+				hint={`${org.counts.visits30d.toLocaleString()} in 30 days`}
+			/>
 			<StatTile label="Conversations" value={org.counts.conversations} format="compact" />
 			<StatTile label="Locations" value={org.counts.records} format="compact" />
 			<StatTile label="Lists" value={org.counts.lists} format="compact" />
@@ -259,7 +390,12 @@
 				granularity="week"
 				csvFilename={`${org.slug}-activity`}
 			/>
-			<DonutChart title="Member activity" data={memberActivity} centerLabel="Members" csvFilename={`${org.slug}-member-activity`} />
+			<DonutChart
+				title="Member activity"
+				data={memberActivity}
+				centerLabel="Members"
+				csvFilename={`${org.slug}-member-activity`}
+			/>
 		</section>
 
 		<section aria-label="Plugins">
@@ -269,69 +405,52 @@
 			{:else}
 				<ul class="mt-2 flex flex-wrap gap-2">
 					{#each org.plugins as plugin (plugin.slug)}
-						<li><Badge size="sm" variant={plugin.enabled ? 'success' : 'default'}>{plugin.slug}{plugin.enabled ? '' : ' (off)'}</Badge></li>
+						<li>
+							<Badge size="sm" variant={plugin.enabled ? 'success' : 'default'}
+								>{plugin.slug}{plugin.enabled ? '' : ' (off)'}</Badge
+							>
+						</li>
 					{/each}
 				</ul>
 			{/if}
 		</section>
 	{:else if tab === 'members'}
 		{#if rowError}
-			<p class="rounded-lg bg-error-container px-4 py-2 text-sm text-on-error-container" role="alert">{rowError}</p>
+			<p
+				class="rounded-lg bg-error-container px-4 py-2 text-sm text-on-error-container"
+				role="alert"
+			>
+				{rowError}
+			</p>
 		{/if}
 		<div class="rounded-xl border border-outline-subtle">
 			{#if !members || members.items.length === 0}
 				<p class="px-4 py-8 text-center text-sm text-on-surface-subtle">No members.</p>
 			{:else}
-				<div class="overflow-x-auto">
-					<table class="w-full text-sm">
-						<thead class="text-left text-on-surface-subtle">
-							<tr class="border-b border-outline-subtle">
-								<th scope="col" class="px-4 py-2 font-medium">Member</th>
-								<th scope="col" class="px-4 py-2 font-medium">Role</th>
-								<th scope="col" class="hidden px-4 py-2 font-medium sm:table-cell">Joined</th>
-								<th scope="col" class="px-4 py-2 font-medium">Last active</th>
-								{#if canManage}<th scope="col" class="px-4 py-2"><span class="sr-only">Actions</span></th>{/if}
-							</tr>
-						</thead>
-						<tbody>
-							{#each members.items as m (m.memberId)}
-								<tr class="border-b border-outline-subtle last:border-0">
-									<td class="px-4 py-2.5">
-										<a href={`/infra/users/${m.userId}`} class="font-medium">{m.name}</a>
-										<span class="block text-xs text-on-surface-subtle">{m.email}</span>
-									</td>
-									<td class="px-4 py-2.5">{m.roleName ?? 'Member'}{m.memberRole.includes('owner') ? ', owner' : ''}</td>
-									<td class="hidden whitespace-nowrap px-4 py-2.5 text-on-surface-subtle sm:table-cell">{formatDate(m.joinedAt)}</td>
-									<td class="whitespace-nowrap px-4 py-2.5 text-on-surface-subtle">{formatDaysAgo(m.lastActiveDay)}</td>
-									{#if canManage}
-										<td class="px-4 py-2.5 text-right">
-											{#if !m.memberRole.includes('owner')}
-												<Button
-													size="sm"
-													variant="outline"
-													aria-label={`Remove ${m.name}`}
-													loading={rowBusy === m.memberId}
-													onclick={() => {
-														memberToRemove = m;
-														open('remove-member');
-													}}
-												>
-													Remove
-												</Button>
-											{/if}
-										</td>
-									{/if}
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-				<Pagination page={members.page} totalCount={members.totalCount} pageSize={members.pageSize} noun="members" href={pageHref} />
+				<DataTable
+					data={members.items}
+					columns={memberColumns}
+					getRowId={(m) => m.memberId}
+					bordered={false}
+					label="Members"
+				/>
+				<Pagination
+					page={members.page}
+					totalCount={members.totalCount}
+					pageSize={members.pageSize}
+					noun="members"
+					href={pageHref}
+				/>
 			{/if}
 		</div>
 	{:else if tab === 'invitations'}
 		{#if rowError}
-			<p class="rounded-lg bg-error-container px-4 py-2 text-sm text-on-error-container" role="alert">{rowError}</p>
+			<p
+				class="rounded-lg bg-error-container px-4 py-2 text-sm text-on-error-container"
+				role="alert"
+			>
+				{rowError}
+			</p>
 		{/if}
 		<section aria-label="Email invitations">
 			<h2 class="text-sm font-medium text-on-surface">Email invitations</h2>
@@ -345,13 +464,21 @@
 							</p>
 						</div>
 						{#if canManage}
-							<Button size="sm" variant="outline" aria-label={`Cancel invitation for ${inv.email}`} loading={rowBusy === inv.id} onclick={() => rowAction(inv.id, () => actions.cancelInvitation(inv.id))}>
+							<Button
+								size="sm"
+								variant="outline"
+								aria-label={`Cancel invitation for ${inv.email}`}
+								loading={rowBusy === inv.id}
+								onclick={() => rowAction(inv.id, () => actions.cancelInvitation(inv.id))}
+							>
 								Cancel
 							</Button>
 						{/if}
 					</li>
 				{:else}
-					<li class="px-4 py-6 text-center text-sm text-on-surface-subtle">No pending invitations.</li>
+					<li class="px-4 py-6 text-center text-sm text-on-surface-subtle">
+						No pending invitations.
+					</li>
 				{/each}
 			</ul>
 		</section>
@@ -361,34 +488,66 @@
 				{#each invitations?.links ?? [] as link (link.id)}
 					<li class="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
 						<div class="min-w-0">
-							<p class="font-medium text-on-surface">Link made {formatDate(link.createdAt)}{link.createdBy ? ` by ${link.createdBy}` : ''}</p>
+							<p class="font-medium text-on-surface">
+								Link made {formatDate(link.createdAt)}{link.createdBy
+									? ` by ${link.createdBy}`
+									: ''}
+							</p>
 							<p class="text-xs text-on-surface-subtle">
 								{link.expiresAt ? `Expires ${formatDateTime(link.expiresAt)}` : 'Does not expire'}
 							</p>
 						</div>
 						{#if canManage}
-							<Button size="sm" variant="outline" aria-label={`Turn off link made ${formatDate(link.createdAt)}`} loading={rowBusy === link.id} onclick={() => rowAction(link.id, () => actions.revokeLink(link.id))}>
+							<Button
+								size="sm"
+								variant="outline"
+								aria-label={`Turn off link made ${formatDate(link.createdAt)}`}
+								loading={rowBusy === link.id}
+								onclick={() => rowAction(link.id, () => actions.revokeLink(link.id))}
+							>
 								Turn off
 							</Button>
 						{/if}
 					</li>
 				{:else}
-					<li class="px-4 py-6 text-center text-sm text-on-surface-subtle">No open invite links.</li>
+					<li class="px-4 py-6 text-center text-sm text-on-surface-subtle">
+						No open invite links.
+					</li>
 				{/each}
 			</ul>
 		</section>
 	{:else if tab === 'activity'}
 		<div class="rounded-xl border border-outline-subtle">
-			<ActivityFeed items={activity?.items ?? []} showOrg={false} userHref={(id) => `/infra/users/${id}`} />
+			<ActivityFeed
+				items={activity?.items ?? []}
+				showOrg={false}
+				userHref={(id) => `/infra/users/${id}`}
+			/>
 			{#if activity}
-				<Pagination page={activity.page} totalCount={activity.totalCount} pageSize={activity.pageSize} noun="events" href={pageHref} />
+				<Pagination
+					page={activity.page}
+					totalCount={activity.totalCount}
+					pageSize={activity.pageSize}
+					noun="events"
+					href={pageHref}
+				/>
 			{/if}
 		</div>
 	{:else if tab === 'audit'}
 		<div class="rounded-xl border border-outline-subtle">
-			<AuditLogTable items={audit?.items ?? []} showTarget={false} emptyText="No admin has changed this organization." />
+			<AuditLogTable
+				items={audit?.items ?? []}
+				showTarget={false}
+				emptyText="No admin has changed this organization."
+			/>
 			{#if audit}
-				<Pagination page={audit.page} totalCount={audit.totalCount} pageSize={audit.pageSize} noun="changes" href={pageHref} />
+				<Pagination
+					page={audit.page}
+					totalCount={audit.totalCount}
+					pageSize={audit.pageSize}
+					noun="changes"
+					href={pageHref}
+				/>
 			{/if}
 		</div>
 	{/if}
@@ -451,7 +610,13 @@
 				searchOwners();
 			}}
 		>
-			<TextInput type="search" bind:value={ownerQuery} placeholder="Name or email" aria-label="Find a member" class="min-w-0 flex-1" />
+			<TextInput
+				type="search"
+				bind:value={ownerQuery}
+				placeholder="Name or email"
+				aria-label="Find a member"
+				class="min-w-0 flex-1"
+			/>
 			<Button type="submit" variant="outline" loading={searchingOwners}>Search</Button>
 		</form>
 		{#if ownerResults !== null}
@@ -462,7 +627,10 @@
 					<Select
 						bind:value={newOwnerId}
 						placeholder="Choose a member"
-						items={ownerCandidates.map((m) => ({ value: m.memberId, label: `${m.name} (${m.email})` }))}
+						items={ownerCandidates.map((m) => ({
+							value: m.memberId,
+							label: `${m.name} (${m.email})`
+						}))}
 					/>
 				</FormField>
 			{/if}

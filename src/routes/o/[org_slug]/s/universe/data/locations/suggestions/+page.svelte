@@ -2,41 +2,34 @@
 	import { invalidateAll } from '$app/navigation';
 	import LocationSuggestionsPage from '$pages/o/s/universe/data/locations/LocationSuggestionsPage.svelte';
 
+	import { api } from '$lib/client/api';
+
 	const { data } = $props();
 
-	const base = $derived(`/o/${data.organization.slug}/s/api/universe/locations/suggestions`);
-
-	/** Throws the server's message so the page surfaces it verbatim. */
-	async function send(url: string) {
-		const res = await fetch(url, { method: 'POST' });
-		if (!res.ok) {
-			const { error } = await res.json().catch(() => ({ error: 'Request failed.' }));
-			throw new Error(error);
-		}
+	/** Throws ApiError with the server's message, which the page shows as is. */
+	async function send(path: string, method: 'PUT' | 'DELETE') {
+		await api(path, { method });
 		await invalidateAll();
 	}
 
 	async function handleApprove(id: string) {
-		await send(`${base}/${id}/approve`);
+		await send(`/location-suggestions/${id}/approval`, 'PUT');
 	}
 
 	async function handleReject(id: string) {
-		await send(`${base}/${id}/reject`);
+		await send(`/location-suggestions/${id}`, 'DELETE');
 	}
 
-	const editsBase = $derived(`/o/${data.organization.slug}/s/api/universe/locations/edits`);
-
 	async function handleApproveEdit(id: string) {
-		await send(`${editsBase}/${id}/approve`);
+		await send(`/location-edits/${id}/approval`, 'PUT');
 	}
 
 	async function handleRejectEdit(id: string) {
-		await send(`${editsBase}/${id}/reject`);
+		await send(`/location-edits/${id}/rejection`, 'PUT');
 	}
 </script>
 
 <LocationSuggestionsPage
-	orgSlug={data.organization.slug}
 	suggestions={data.suggestions}
 	edits={data.edits}
 	canApprove={data.canApprove}

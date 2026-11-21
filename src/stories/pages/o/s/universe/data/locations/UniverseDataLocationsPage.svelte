@@ -23,6 +23,8 @@
 
 	export interface Props {
 		orgSlug: string;
+		/** The organization photos are uploaded to. */
+		orgId: string;
 		totalCount: number;
 		/** One page of the list, already ordered and sliced by the server. */
 		locations: LocationRow[];
@@ -60,16 +62,17 @@
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import Badge from '$components/data-display/badge/Badge.svelte';
-	import LocationsMap, {
+	import MapView, {
 		type MapLocation,
 		type MapBounds
-	} from '$components/data-display/locations-map/LocationsMap.svelte';
+	} from '$components/data-display/map-view/MapView.svelte';
 	import LocationForm from '$components/data-inputs/location-form/LocationForm.svelte';
 	import ConfirmDialog from '$components/feedback/confirm-dialog/ConfirmDialog.svelte';
 	import type { LocationFields } from '$lib/schemas/location';
 
 	const {
 		orgSlug,
+		orgId,
 		totalCount,
 		locations,
 		page = 1,
@@ -85,7 +88,6 @@
 	}: Props = $props();
 
 	const importItems = $derived([
-		{ label: 'Overture', href: `/o/${orgSlug}/s/universe/data/locations/import/overture` },
 		{
 			label: 'Google Sheets',
 			href: `/o/${orgSlug}/s/universe/data/locations/import/google-sheets`
@@ -294,7 +296,7 @@
 		{/if}
 
 		<div class="flex flex-col lg:flex-row">
-			<LocationsMap
+			<MapView
 				bind:selectedLocationId
 				locations={mapLocations}
 				locationsLoading={viewportLoading}
@@ -348,7 +350,7 @@
 						{/if}
 					</div>
 				{/snippet}
-			</LocationsMap>
+			</MapView>
 
 			{#if draft || editing}
 				<aside
@@ -374,7 +376,7 @@
 									latitude: editing.latitude ?? 0,
 									longitude: editing.longitude ?? 0
 								}}
-								{orgSlug}
+								{orgId}
 								submitLabel="Save changes"
 								onSubmit={handleUpdate}
 								onCancel={() => (editing = null)}
@@ -383,7 +385,7 @@
 					{:else if draft}
 						<LocationForm
 							coordinates={draft}
-							{orgSlug}
+							{orgId}
 							submitLabel="Add location"
 							onSubmit={handleCreate}
 							onCancel={cancelPlacing}

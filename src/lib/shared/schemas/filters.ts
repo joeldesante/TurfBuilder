@@ -71,6 +71,22 @@ const surveyResponseValue = z.object({
 /** Whether a question was answered at all takes no response to compare with. */
 const surveyQuestionValue = surveyResponseValue.extend({ response: z.string() });
 
+const contactSchemaValue = z.object({ schemaId: z.uuid() });
+
+const schemaFieldValue = z.object({
+	schemaId: z.uuid(),
+	fieldId: z.uuid(),
+	// Text, a number, or true/false, whichever the field holds. An empty text is not a value.
+	value: z.union([z.string().min(1), z.number().finite(), z.boolean()])
+});
+
+/** How a schema field value can be compared, by what kind of value it is. */
+const SCHEMA_FIELD_OPERATIONS: Record<'string' | 'number' | 'boolean', readonly string[]> = {
+	string: ['equals', 'not_equals', 'contains', 'starts_with'],
+	number: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_than_or_equal', 'less_than_or_equal'],
+	boolean: ['equals', 'not_equals']
+};
+
 /** The shape of the value for each kind of filter, ignoring which options a `select` allows. */
 const VALUE_SCHEMAS: Record<Exclude<FilterValueType, 'select'>, z.ZodType> = {
 	text: z.string().min(1),
@@ -80,7 +96,9 @@ const VALUE_SCHEMAS: Record<Exclude<FilterValueType, 'select'>, z.ZodType> = {
 	radius: radiusValue,
 	polygon: polygonValue,
 	survey_response: surveyResponseValue,
-	contact_made: contactMadeValue
+	contact_made: contactMadeValue,
+	contact_schema: contactSchemaValue,
+	schema_field: schemaFieldValue
 };
 
 export function valueSchemaFor(entry: FilterRegistryEntry): z.ZodType {
@@ -124,6 +142,19 @@ export const filterSchema: z.ZodType<Filter> = z
 				path: ['value', ...issue.path],
 				message: issue.code === 'custom' ? issue.message : `${entry.name} needs a valid value`
 			});
+		}
+
+		// A schema field value is compared in the ways its own type allows: text is not
+		// greater than another text, and true/false has no "contains".
+		if (entry.valueType === 'schema_field' && value.success) {
+			const kind = typeof (value.data as { value: unknown }).value as 'string' | 'number' | 'boolean';
+			if (!SCHEMA_FIELD_OPERATIONS[kind].includes(filter.operation)) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['operation'],
+					message: `"${filter.operation}" does not apply to a ${kind === 'string' ? 'text' : kind} field`
+				});
+			}
 		}
 
 		if (filter.caseSensitive !== undefined && entry.valueType !== 'text') {

@@ -1,9 +1,10 @@
-import { getTableSchemas } from '$lib/server/services/query-builder.service';
+import { error } from '@sveltejs/kit';
+import { getQueryBuilderSchemas } from '$lib/server/services/query-builder.service';
 
 export async function load({ locals }) {
-	const tableSchemas = await getTableSchemas(['universe', 'public']);
+	if (!locals.user) throw error(401, 'Unauthorized');
 	return {
 		orgSlug: locals.organization!.slug,
-		tableSchemas
+		tableSchemas: await getQueryBuilderSchemas(locals.user.id)
 	};
 }

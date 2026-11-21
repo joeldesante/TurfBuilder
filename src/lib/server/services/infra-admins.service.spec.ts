@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: { DATABASE_URL: 'postgresql://test:test@localhost/test' } }));
+vi.mock('$env/dynamic/private', () => ({
+	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
+}));
 
 const mocks = vi.hoisted(() => ({
 	pool: { query: vi.fn() },
@@ -33,15 +35,19 @@ function holds(byUser: Record<string, string[]>) {
 /** The role grants `rolePerms`; every other query finds a row. */
 function stubPool(rolePerms: string[]) {
 	mocks.pool.query.mockImplementation(async (sql: string) => {
-		if (sql.includes('FROM permission_role_entry pre')) return { rows: rolePerms.map((key) => ({ key })) };
-		if (sql.includes('SELECT name FROM permission_role')) return { rowCount: 1, rows: [{ name: 'Support' }] };
-		if (sql.includes('SELECT pr.name FROM user_role_membership')) return { rowCount: 1, rows: [{ name: 'Support' }] };
+		if (sql.includes('FROM permission_role_entry pre'))
+			return { rows: rolePerms.map((key) => ({ key })) };
+		if (sql.includes('SELECT name FROM permission_role'))
+			return { rowCount: 1, rows: [{ name: 'Support' }] };
+		if (sql.includes('SELECT pr.name FROM user_role_membership'))
+			return { rowCount: 1, rows: [{ name: 'Support' }] };
 		if (sql.includes('SELECT urm.user_id')) return { rows: [{ user_id: ACTOR }] };
 		return { rowCount: 1, rows: [{}] };
 	});
 }
 
-const writes = () => mocks.pool.query.mock.calls.filter((c) => /^\s*(INSERT|DELETE)/.test(String(c[0])));
+const writes = () =>
+	mocks.pool.query.mock.calls.filter((c) => /^\s*(INSERT|DELETE)/.test(String(c[0])));
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -85,13 +91,22 @@ describe('grantInfraRole', () => {
 		await grantInfraRole(ACTOR, TARGET, ROLE);
 
 		expect(writes()).toHaveLength(1);
-		expect(mocks.audit).toHaveBeenCalledWith(ACTOR, 'infra_role.grant', { type: 'user', id: TARGET }, expect.anything(), mocks.pool);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ACTOR,
+			'infra_role.grant',
+			{ type: 'user', id: TARGET },
+			expect.anything(),
+			mocks.pool
+		);
 	});
 });
 
 describe('revokeInfraRole', () => {
 	it('refuses to take a role from a stronger admin', async () => {
-		holds({ [ACTOR]: ['access', 'users.manage'], [TARGET]: ['access', 'users.manage', 'settings.manage'] });
+		holds({
+			[ACTOR]: ['access', 'users.manage'],
+			[TARGET]: ['access', 'users.manage', 'settings.manage']
+		});
 		stubPool([]);
 
 		await expect(revokeInfraRole(ACTOR, TARGET, ROLE)).rejects.toMatchObject({ status: 403 });

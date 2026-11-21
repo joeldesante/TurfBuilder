@@ -228,3 +228,53 @@ describe('a bucket\'s filters', () => {
 		expect(bucketFiltersSchema.safeParse(doc({ people: group('AND', f('age', 'less_than', 'old')) })).success).toBe(false);
 	});
 });
+
+describe('contact schema and schema field filters', () => {
+	const SCHEMA = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
+	const FIELD = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
+	const field = (operation: string, value: unknown) =>
+		f('schema_field', operation, { schemaId: SCHEMA, fieldId: FIELD, value });
+
+	it('accepts a schema, and refuses one that is not an id or is missing', () => {
+		expect(isValidFilterGroup(group(f('contact_schema', 'equals', { schemaId: SCHEMA })))).toBe(
+			true
+		);
+		expect(isValidFilterGroup(group(f('contact_schema', 'not_equals', { schemaId: SCHEMA })))).toBe(
+			true
+		);
+		expect(isValidFilterGroup(group(f('contact_schema', 'equals', { schemaId: 'x' })))).toBe(false);
+		expect(isValidFilterGroup(group(f('contact_schema', 'equals', {})))).toBe(false);
+		expect(isValidFilterGroup(group(f('contact_schema', 'contains', { schemaId: SCHEMA })))).toBe(
+			false
+		);
+	});
+
+	it('accepts text, number, and true/false values with the comparisons that suit them', () => {
+		expect(isValidFilterGroup(group(field('contains', 'bap')))).toBe(true);
+		expect(isValidFilterGroup(group(field('greater_than', 3)))).toBe(true);
+		expect(isValidFilterGroup(group(field('equals', false)))).toBe(true);
+		expect(isValidFilterGroup(group(field('not_equals', 0)))).toBe(true);
+	});
+
+	it('refuses a comparison the value type does not allow', () => {
+		expect(isValidFilterGroup(group(field('greater_than', 'abc')))).toBe(false);
+		expect(isValidFilterGroup(group(field('contains', 5)))).toBe(false);
+		expect(isValidFilterGroup(group(field('greater_than', true)))).toBe(false);
+		expect(paths(group(field('contains', 5)))).toContain('filters.0.operation');
+	});
+
+	it('refuses an empty text, no value, or ids that are not ids', () => {
+		expect(isValidFilterGroup(group(field('equals', '')))).toBe(false);
+		expect(isValidFilterGroup(group(field('equals', null)))).toBe(false);
+		expect(
+			isValidFilterGroup(
+				group(f('schema_field', 'equals', { schemaId: 'x', fieldId: FIELD, value: 'a' }))
+			)
+		).toBe(false);
+		expect(
+			isValidFilterGroup(
+				group(f('schema_field', 'equals', { schemaId: SCHEMA, fieldId: 'x', value: 'a' }))
+			)
+		).toBe(false);
+	});
+});

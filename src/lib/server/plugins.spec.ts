@@ -33,6 +33,8 @@ vi.mock('$plugins/registry', () => ({
 
 import { getActivePlugins } from './plugins';
 
+const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockClient.release.mockReset();
@@ -41,12 +43,10 @@ beforeEach(() => {
 describe('getActivePlugins', () => {
 	it('returns installed plugins found in the registry', async () => {
 		mockClient.query.mockResolvedValue({
-			rows: [
-				{ plugin_slug: 'plugin-a', config: { key: 'value' } }
-			]
+			rows: [{ plugin_slug: 'plugin-a', config: { key: 'value' } }]
 		});
 
-		const result = await getActivePlugins('org-123');
+		const result = await getActivePlugins(ORG);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].manifest.slug).toBe('plugin-a');
@@ -55,12 +55,10 @@ describe('getActivePlugins', () => {
 
 	it('excludes plugins not found in the registry', async () => {
 		mockClient.query.mockResolvedValue({
-			rows: [
-				{ plugin_slug: 'unknown-plugin', config: {} }
-			]
+			rows: [{ plugin_slug: 'unknown-plugin', config: {} }]
 		});
 
-		const result = await getActivePlugins('org-123');
+		const result = await getActivePlugins(ORG);
 		expect(result).toHaveLength(0);
 	});
 
@@ -72,32 +70,41 @@ describe('getActivePlugins', () => {
 			]
 		});
 
-		const result = await getActivePlugins('org-123');
+		const result = await getActivePlugins(ORG);
 		expect(result).toHaveLength(2);
 	});
 
 	it('returns empty array when no plugins are installed', async () => {
 		mockClient.query.mockResolvedValue({ rows: [] });
 
-		const result = await getActivePlugins('org-123');
+		const result = await getActivePlugins(ORG);
 		expect(result).toHaveLength(0);
 	});
 
 	it('queries with the correct orgId parameter', async () => {
 		mockClient.query.mockResolvedValue({ rows: [] });
 
-		await getActivePlugins('org-abc-123');
+		await getActivePlugins('b1b2c3d4-e5f6-7890-abcd-ef1234567890');
 
-		expect(mockClient.query).toHaveBeenCalledWith(
-			expect.stringContaining('plugin_installation'),
-			['org-abc-123']
-		);
+		expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('plugin_installation'), [
+			'b1b2c3d4-e5f6-7890-abcd-ef1234567890'
+		]);
+	});
+
+	it("reads inside the org's transaction, since the table has forced row-level security", async () => {
+		mockClient.query.mockResolvedValue({ rows: [] });
+
+		await getActivePlugins(ORG);
+
+		const sql = mockClient.query.mock.calls.map((c) => String(c[0]));
+		const select = sql.findIndex((q) => q.includes('plugin_installation'));
+		expect(sql.slice(0, select).join('\n')).toContain('app.current_org_id');
 	});
 
 	it('releases the db client after the query', async () => {
 		mockClient.query.mockResolvedValue({ rows: [] });
 
-		await getActivePlugins('org-123');
+		await getActivePlugins(ORG);
 
 		expect(mockClient.release).toHaveBeenCalledTimes(1);
 	});
@@ -105,7 +112,7 @@ describe('getActivePlugins', () => {
 	it('releases the db client even when the query throws', async () => {
 		mockClient.query.mockRejectedValue(new Error('DB error'));
 
-		await expect(getActivePlugins('org-123')).rejects.toThrow('DB error');
+		await expect(getActivePlugins(ORG)).rejects.toThrow('DB error');
 		expect(mockClient.release).toHaveBeenCalledTimes(1);
 	});
 });

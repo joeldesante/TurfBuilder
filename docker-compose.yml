@@ -52,15 +52,35 @@ services:
       - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
       - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
       - BETTER_AUTH_URL=http://localhost:5173
+      # The functions dev server (npm run dev) runs on the host, not in this container.
+      - FUNCTIONS_API_URL=http://host.docker.internal:3233
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - SPACES_ACCESS_KEY_ID=${SPACES_ACCESS_KEY_ID}
-      - SPACES_SECRET_ACCESS_KEY=${SPACES_SECRET_ACCESS_KEY}
+      # Object storage comes from the s3 service below unless .env sets real keys.
+      # s3mock accepts any credentials.
+      - SPACES_ACCESS_KEY_ID=${SPACES_ACCESS_KEY_ID:-dev-access-key}
+      - SPACES_SECRET_ACCESS_KEY=${SPACES_SECRET_ACCESS_KEY:-dev-secret-key}
     volumes:
       - .:/app
       - /app/node_modules
     depends_on:
       - postgres
+      - s3
+    networks:
+      - turfbuilder
+    restart: unless-stopped
+
+  # S3-compatible stand-in for DigitalOcean Spaces, for local development.
+  # The app reaches it as http://s3:9090. Presigned links carry that name, so the
+  # browser must resolve it too: add `127.0.0.1 s3` to /etc/hosts. Files are lost
+  # when the container is removed. Point the app at it with these settings:
+  #   spaces.endpoint = http://s3:9090, spaces.region = us-east-1, spaces.bucket = turfbuilder-dev
+  s3:
+    image: adobe/s3mock:4.7.0
+    environment:
+      - COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS=turfbuilder-dev
+    ports:
+      - '9090:9090'
     networks:
       - turfbuilder
     restart: unless-stopped

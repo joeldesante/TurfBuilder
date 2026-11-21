@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: { DATABASE_URL: 'postgresql://test:test@localhost/test' } }));
+vi.mock('$env/dynamic/private', () => ({
+	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
+}));
 
 const m = vi.hoisted(() => ({
 	pool: { query: vi.fn() },
@@ -15,7 +17,10 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/server/database', () => ({ POOL: m.pool }));
-vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: m.requireInfraPermission, canInfra: m.canInfra }));
+vi.mock('$lib/server/permissions', () => ({
+	requireInfraPermission: m.requireInfraPermission,
+	canInfra: m.canInfra
+}));
 vi.mock('$lib/server/mail', () => ({ isMailConfigured: vi.fn(async () => true) }));
 vi.mock('$lib/server/storage', () => ({ isStorageConfigured: vi.fn(async () => false) }));
 vi.mock('./time-series.service', () => ({
@@ -26,9 +31,16 @@ vi.mock('./time-series.service', () => ({
 }));
 vi.mock('./audit.service', () => ({ queryAuditPage: m.queryAuditPage }));
 vi.mock('./email-log.service', () => ({ emailLogTotals: m.emailLogTotals }));
-vi.mock('./system-settings.service', () => ({ getExternalLinks: vi.fn(async () => [{ label: 'Analytics', url: 'https://a' }]) }));
+vi.mock('./system-settings.service', () => ({
+	getExternalLinks: vi.fn(async () => [{ label: 'Analytics', url: 'https://a' }])
+}));
 
-import { getPlatformMetric, getPlatformMetrics, getPlatformOverview, resolveWindow } from './platform-metrics.service';
+import {
+	getPlatformMetric,
+	getPlatformMetrics,
+	getPlatformOverview,
+	resolveWindow
+} from './platform-metrics.service';
 
 const now = new Date('2026-10-20T12:00:00Z');
 const points = [
@@ -71,15 +83,20 @@ describe('metrics', () => {
 
 	it('total accounts runs on from the count before the range', async () => {
 		const { metric } = await getPlatformMetric('u1', 'total_users', '30d', 'day');
-		expect(metric.kind === 'series' && metric.series[0].points.map((p) => p.value)).toEqual([102, 105]);
+		expect(metric.kind === 'series' && metric.series[0].points.map((p) => p.value)).toEqual([
+			102, 105
+		]);
 	});
 
 	it('stickiness is daily over monthly active', async () => {
-		m.rollingActiveUsers.mockImplementation(async (_db: unknown, { windowDays }: { windowDays: number }) =>
-			points.map((p) => ({ ...p, value: windowDays === 1 ? 1 : 4 }))
+		m.rollingActiveUsers.mockImplementation(
+			async (_db: unknown, { windowDays }: { windowDays: number }) =>
+				points.map((p) => ({ ...p, value: windowDays === 1 ? 1 : 4 }))
 		);
 		const { metric } = await getPlatformMetric('u1', 'stickiness', '30d', 'day');
-		expect(metric.kind === 'series' && metric.series[0].points.map((p) => p.value)).toEqual([0.25, 0.25]);
+		expect(metric.kind === 'series' && metric.series[0].points.map((p) => p.value)).toEqual([
+			0.25, 0.25
+		]);
 	});
 
 	it('visits split by whether someone answered', async () => {
@@ -114,7 +131,16 @@ describe('getPlatformOverview', () => {
 				sql.includes('AS new_users')
 					? {
 							rows: [
-								{ users: '50', new_users: '6', new_users_before: '4', orgs: '7', active_orgs: '5', visits: '30', visits_before: '20', failed_documents: '2' }
+								{
+									users: '50',
+									new_users: '6',
+									new_users_before: '4',
+									orgs: '7',
+									active_orgs: '5',
+									visits: '30',
+									visits_before: '20',
+									failed_documents: '2'
+								}
 							]
 						}
 					: { rows: [] }
@@ -132,7 +158,12 @@ describe('getPlatformOverview', () => {
 			organizations: 7,
 			activeOrgs30d: 5,
 			emails7d: { sent: 9, failed: 1 },
-			status: { mailConfigured: true, storageConfigured: false, failedEmails24h: 1, failedDocuments24h: 2 }
+			status: {
+				mailConfigured: true,
+				storageConfigured: false,
+				failedEmails24h: 1,
+				failedDocuments24h: 2
+			}
 		});
 		expect(overview.externalLinks).toHaveLength(1);
 	});

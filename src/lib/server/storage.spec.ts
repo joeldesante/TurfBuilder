@@ -48,6 +48,9 @@ vi.mock('@aws-sdk/client-s3', () => ({
 import { PutObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import {
 	presignPhotoUpload,
+	presignContactImportUpload,
+	presignContactImportDownload,
+	contactImportKey,
 	presignPhotoDownload,
 	presignDocumentDownload,
 	locationPhotoKey,
@@ -60,6 +63,7 @@ import {
 } from './storage';
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const IMPORT = '3f1c2b9e-0000-4000-8000-000000000001';
 
 function stubSettings(rows: { key: string; value: string }[]) {
 	poolQuery.mockResolvedValue({ rows });
@@ -167,6 +171,61 @@ describe('presignPhotoUpload', () => {
 	});
 });
 
+describe('contactImportKey', () => {
+	it('is a csv named for the import, under the org prefix', () => {
+		expect(contactImportKey(ORG, IMPORT)).toBe(`orgs/${ORG}/contact-imports/${IMPORT}.csv`);
+	});
+});
+
+describe('presignContactImportUpload', () => {
+	it('returns the signed url and the generated key', async () => {
+		const result = await presignContactImportUpload(ORG, IMPORT, 2_000);
+
+		expect(result.url).toBe('https://signed.example/put');
+		expect(result.key).toBe(`orgs/${ORG}/contact-imports/${IMPORT}.csv`);
+	});
+
+	it('binds the csv type and the length into the signature', async () => {
+		await presignContactImportUpload(ORG, IMPORT, 2_000);
+
+		expect(PutObjectCommand).toHaveBeenCalledWith(
+			expect.objectContaining({
+				Bucket: 'deice-photos',
+				ContentType: 'text/csv',
+				ContentLength: 2_000
+			})
+		);
+	});
+
+	it('throws when storage is not set up', async () => {
+		stubSettings([]);
+
+		await expect(presignContactImportUpload(ORG, IMPORT, 2_000)).rejects.toBeInstanceOf(
+			StorageNotConfiguredError
+		);
+	});
+});
+
+describe('presignContactImportDownload', () => {
+	it('signs a read of the key', async () => {
+		const url = await presignContactImportDownload(`orgs/${ORG}/contact-imports/${IMPORT}.csv`);
+
+		expect(url).toBe('https://signed.example/put');
+		expect(GetObjectCommand).toHaveBeenCalledWith({
+			Bucket: 'deice-photos',
+			Key: `orgs/${ORG}/contact-imports/${IMPORT}.csv`
+		});
+	});
+
+	it('throws when storage is not set up', async () => {
+		stubSettings([]);
+
+		await expect(presignContactImportDownload('k')).rejects.toBeInstanceOf(
+			StorageNotConfiguredError
+		);
+	});
+});
+
 describe('presignPhotoDownload', () => {
 	it('signs a get for the requested key', async () => {
 		getSignedUrl.mockResolvedValue('https://signed.example/get');
@@ -240,7 +299,10 @@ describe('health checks', () => {
 
 		const [put, del] = send.mock.calls.map((c) => c[0]);
 		expect(put.input.Key).toMatch(/^health\/probe-/);
-		expect(del).toMatchObject({ delete: true, input: { Bucket: 'deice-photos', Key: put.input.Key } });
+		expect(del).toMatchObject({
+			delete: true,
+			input: { Bucket: 'deice-photos', Key: put.input.Key }
+		});
 	});
 
 	it('testStorage fails clearly when storage is not set up', async () => {

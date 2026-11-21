@@ -1,19 +1,20 @@
 import { error } from '@sveltejs/kit';
-import { withOrgTransaction } from '$lib/server/database';
-import { countBucketEntities, findBucketForPage } from '$lib/server/services/buckets.service';
+import { countBucketLocations, getBucketPage } from '$lib/server/services/buckets.service';
+import { logger } from '$lib/server/logger';
 
 export async function load({ params, locals }) {
-	if (!locals.organization) {
-		throw error(401, 'Unauthorized');
-	}
+	if (!locals.user || !locals.organization) throw error(401, 'Unauthorized');
 
-	return withOrgTransaction(locals.organization.id, async (client) => {
-		const bucket = await findBucketForPage(client, locals.organization!.id, params.slug);
-		if (!bucket) throw error(404, 'Bucket not found');
+	const { bucket } = await getBucketPage(locals.user.id, locals.organization.id, params.slug);
 
-		const locations = bucket.filters?.locations;
-		const locationCount = locations ? await countBucketEntities(client, locals.organization!.id, 'locations', locations) : null;
+	// The sidebar badge's count is sent when it is ready rather than awaited: counting a large
+	// bucket takes a moment, and the page should not wait for a number in the sidebar.
+	const locationCount = bucket.filters?.locations
+		? countBucketLocations(locals.user.id, bucket.id).catch((err) => {
+				logger.error({ err, bucketId: bucket.id }, 'Counting bucket locations failed; the badge is left off');
+				return null;
+			})
+		: Promise.resolve(null);
 
-		return { bucket, locationCount };
-	});
+	return { bucket, locationCount };
 }

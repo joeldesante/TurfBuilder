@@ -5,6 +5,11 @@
 	interface Props {
 		/** Whether the loader covers the screen. It fades in when it turns on and out when it turns off. */
 		visible: boolean;
+		/**
+		 * The cover appears at once instead of fading in; it still fades out. For a page that came
+		 * from a full load, where a see-through cover would show the page filling in underneath.
+		 */
+		cutIn?: boolean;
 		width?: number | string;
 		/**
 		 * How long the cover is up before the logo fades in on top of it. Until then it is only a
@@ -29,6 +34,7 @@
 
 	const {
 		visible,
+		cutIn = false,
 		width = 'clamp(120px, 45vw, 180px)',
 		logoDelayMs = 0,
 		logoMinMs = 0,
@@ -96,6 +102,7 @@
 {#if covered}
 	<div
 		class="page-loader fixed inset-0 z-50 flex items-center justify-center p-6 bg-surface"
+		class:page-loader-cut={cutIn}
 		out:fade={{ duration: FADE_MS }}
 	>
 		{#if showLogo}
@@ -120,6 +127,10 @@
 	/* Svelte transitions skip the first render, so the fade-in is plain CSS. */
 	.page-loader {
 		animation: page-loader-in 200ms ease-out;
+	}
+
+	.page-loader-cut {
+		animation: none;
 	}
 
 	@keyframes page-loader-in {

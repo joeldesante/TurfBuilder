@@ -10,6 +10,8 @@ import type {
 	BucketFilters,
 	FilterEntity,
 	ContactMadeValue,
+	ContactSchemaValue,
+	SchemaFieldValue,
 	Filter,
 	FilterGroup,
 	FilterOperation,
@@ -29,7 +31,7 @@ const METERS_PER_MILE = 1609.344;
 
 const ENTITY_VIEWS: Record<FilterEntity, { from: string; alias: string }> = {
 	people: { from: 'universe.v_people', alias: 'vp' },
-	locations: { from: 'universe.v_locations', alias: 'vl' }
+	locations: { from: 'universe.v_contacts', alias: 'vl' }
 };
 
 /** What a handler needs to write SQL for one filter. */
@@ -113,18 +115,64 @@ function unsupported(filter: Filter): Error {
 	return error(400, `The operation "${filter.operation}" is not supported for "${filter.item}"`);
 }
 
-/** Wraps a condition for within / not_within. A record with no position is not within anything. */
-function withinOrNot(filter: Filter, condition: string): string {
-	if (filter.operation === 'within') return `COALESCE(${condition}, false)`;
-	if (filter.operation === 'not_within') return `NOT COALESCE(${condition}, false)`;
+const NUMBER_OPERATORS: Record<string, string> = {
+	equals: '=',
+	not_equals: '<>',
+	greater_than: '>',
+	less_than: '<',
+	greater_than_or_equal: '>=',
+	less_than_or_equal: '<='
+};
+
+/**
+ * A contact of a schema whose field holds a value that compares a given way.
+ * The field is named by id and its value is read from the contact's metadata
+ * under that id. The comparison follows the type of the value sent, and a value
+ * of any other type, or none, never matches, so a field that was removed or
+ * retyped selects nothing rather than raising an error. For "is not", a contact
+ * with no value does match, as it is not equal to anything.
+ */
+function schemaField(filter: Filter, ctx: Context): string {
+	const v = filter.value as SchemaFieldValue;
+	const field = `${ctx.param(v.fieldId)}::text`;
+	const raw = `(${ctx.alias}.metadata ->> ${field})`;
+	const kind = `jsonb_typeof(${ctx.alias}.metadata -> ${field})`;
+	const scope = `${ctx.alias}.schema_id = ${ctx.param(v.schemaId)}::uuid`;
+	const noValue = filter.operation === 'not_equals' ? 'true' : 'false';
+
+	if (typeof v.value === 'number') {
+		const operator = NUMBER_OPERATORS[filter.operation];
+		if (!operator) throw unsupported(filter);
+		return `(${scope} AND CASE WHEN ${kind} = 'number' THEN ${raw}::numeric ${operator} ${ctx.param(v.value)}::numeric ELSE ${noValue} END)`;
+	}
+
+	if (typeof v.value === 'boolean') {
+		if (filter.operation !== 'equals' && filter.operation !== 'not_equals') throw unsupported(filter);
+		const operator = NUMBER_OPERATORS[filter.operation];
+		return `(${scope} AND CASE WHEN ${kind} = 'boolean' THEN ${raw}::boolean ${operator} ${ctx.param(v.value)}::boolean ELSE ${noValue} END)`;
+	}
+
+	return `(${scope} AND ${textCondition(raw, { ...filter, value: String(v.value) }, ctx)})`;
+}
+
+/**
+ * Wraps a spatial condition on `column` for within / not_within. A record with no position is not
+ * within anything. The guard is `column IS NOT NULL AND ...`, never COALESCE(..., false): the
+ * planner cannot see into COALESCE, so it would test every address instead of using the spatial
+ * index (about 1s against 0.4s on 400,000 contacts).
+ */
+function withinOrNot(filter: Filter, column: string, condition: string): string {
+	const within = `(${column} IS NOT NULL AND ${condition})`;
+	if (filter.operation === 'within') return within;
+	if (filter.operation === 'not_within') return `NOT ${within}`;
 	throw unsupported(filter);
 }
 
 /**
  * A subquery over the canvassing attempts at the location being filtered,
- * narrowed by `scope`. Each turf location holds the version of the location
- * that was current when the turf was cut, so attempts are matched to the
- * location through its entity id, which every version shares. Reads
+ * narrowed by `scope`. Each turf door holds the contact version its list
+ * recorded, so attempts are matched to the location through its entity id,
+ * which every version shares. Reads
  * `entity_id` from the entity view alias, so it must sit inside that query.
  */
 function attemptsAt(
@@ -154,7 +202,7 @@ function attemptsAt(
 	return (
 		`SELECT ${select} FROM universe.turf_location_attempt tla` +
 		` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
-				` JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
+		` JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = ${org}` +
 		(joins.length ? ` ${joins.join(' ')}` : '') +
 		` WHERE ${where.join(' AND ')}`
 	);
@@ -205,7 +253,7 @@ function surveyResponse(filter: Filter, ctx: Context): string {
 			` JOIN universe.survey_question sq ON sq.id = sqr.survey_question_id AND sq.org_id = ${org}` +
 			` JOIN universe.turf_location_attempt tla ON tla.id = sqr.turf_location_attempt_id AND tla.org_id = ${org}` +
 			` JOIN universe.turf_location tl ON tl.id = tla.turf_location_id AND tl.org_id = ${org}` +
-						` JOIN universe.org_location tol ON tol.id = tl.org_location_id AND tol.org_id = ${org}` +
+			` JOIN universe.org_contact tol ON tol.id = tl.contact_id AND tol.org_id = ${org}` +
 			` WHERE sqr.org_id = ${org}` +
 			` AND sqr.survey_question_id = ${ctx.param(value.questionId)}::uuid` +
 			` AND tol.entity_id = ${ctx.alias}.entity_id` +
@@ -271,13 +319,17 @@ const HANDLERS: Record<string, Handler> = {
 			const area = f.value as RadiusValue;
 			const point = `ST_SetSRID(ST_MakePoint(${ctx.param(area.longitude)}::float8, ${ctx.param(area.latitude)}::float8), 4326)::geography`;
 			const meters = `${ctx.param(area.radius * METERS_PER_MILE)}::float8`;
-			return withinOrNot(f, `ST_DWithin(${ctx.alias}.coordinates::geography, ${point}, ${meters})`);
+			return withinOrNot(
+				f,
+				`${ctx.alias}.coordinates`,
+				`ST_DWithin(${ctx.alias}.coordinates::geography, ${point}, ${meters})`
+			);
 		}
 	},
 	inside_drawn_region: {
 		build: (f, ctx) => {
 			const region = `ST_SetSRID(ST_GeomFromGeoJSON(${ctx.param(JSON.stringify(f.value))}), 4326)`;
-			return withinOrNot(f, `ST_Intersects(${ctx.alias}.coordinates, ${region})`);
+			return withinOrNot(f, `${ctx.alias}.coordinates`, `ST_Intersects(${ctx.alias}.coordinates, ${region})`);
 		}
 	},
 	contact_made: {
@@ -300,6 +352,18 @@ const HANDLERS: Record<string, Handler> = {
 	},
 	survey_question_response: {
 		build: (f, ctx) => surveyResponse(f, ctx)
+	},
+	contact_schema: {
+		build: (f, ctx) => {
+			if (f.operation !== 'equals' && f.operation !== 'not_equals') throw unsupported(f);
+			const { schemaId } = f.value as ContactSchemaValue;
+			// IS DISTINCT FROM keeps contacts with no schema, which are not of this one.
+			const operator = f.operation === 'equals' ? '=' : 'IS DISTINCT FROM';
+			return `${ctx.alias}.schema_id ${operator} ${ctx.param(schemaId)}::uuid`;
+		}
+	},
+	schema_field: {
+		build: (f, ctx) => schemaField(f, ctx)
 	},
 	location_name: {
 		build: (f, ctx) => textCondition(`${ctx.alias}.name`, f, ctx)
@@ -410,13 +474,13 @@ export const FILTER_COLUMNS = {
 		'name',
 		'address_line_1',
 		'address_line_2',
-		'address_line_3',
 		'city',
 		'state_or_region',
 		'postal_code',
 		'country_code',
 		'coordinates',
-		'photo_keys'
+		'photo_keys',
+		'address_id'
 	],
 	people: ['id', 'source', 'first_name', 'last_name', 'email', 'phone', 'dob']
 } as const satisfies Record<FilterEntity, readonly string[]>;

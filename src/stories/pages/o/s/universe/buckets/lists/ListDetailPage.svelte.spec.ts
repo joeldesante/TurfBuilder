@@ -24,6 +24,7 @@ const baseProps = {
 	orgSlug: 'test-org',
 	bucketName: 'Registered Voters',
 	bucketSlug: 'registered-voters',
+	bucketId: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
 	listHref: '/o/test-org/s/universe/buckets/registered-voters/lists/list-1',
 	list: baseList,
 	entries: [],
@@ -154,7 +155,7 @@ test('renders location rows', async () => {
 	const locationEntries = [
 		{
 			record_id: 'rec-x',
-			record_source: 'org_location',
+			record_source: 'org_contact',
 			entity_id: 'ent-x',
 			name: 'City Hall',
 			address_line_1: '100 Main St',
@@ -236,9 +237,7 @@ test('shows Generate PDF next to View Map when the list has no pdf yet', async (
 	});
 	await expect.element(getByRole('link', { name: 'View Map' })).toBeVisible();
 	await expect.element(getByRole('button', { name: 'Generate PDF' })).toBeVisible();
-	await expect
-		.element(getByRole('button', { name: 'More PDF options' }))
-		.not.toBeInTheDocument();
+	await expect.element(getByRole('button', { name: 'More PDF options' })).not.toBeInTheDocument();
 });
 
 test('shows Download PDF when the list already has one', async () => {
@@ -344,9 +343,7 @@ test('has no options menu when regenerating is not wired up', async () => {
 	});
 
 	await expect.element(getByRole('button', { name: 'Download PDF' })).toBeVisible();
-	await expect
-		.element(getByRole('button', { name: 'More PDF options' }))
-		.not.toBeInTheDocument();
+	await expect.element(getByRole('button', { name: 'More PDF options' })).not.toBeInTheDocument();
 });
 
 test('shows the reason in a toast when the download fails', async () => {
@@ -386,13 +383,21 @@ test('shows a toast when waiting for the pdf times out', async () => {
 
 test('pages through a long list of entries', async () => {
 	const { getByText, getByRole } = render(ListDetailPage, {
-		props: { ...baseProps, entries: peopleEntries, entryCount: 4800, page: 2, pageSize: peopleEntries.length }
+		props: {
+			...baseProps,
+			entries: peopleEntries,
+			entryCount: 4800,
+			page: 2,
+			pageSize: peopleEntries.length
+		}
 	});
 	const n = peopleEntries.length;
 	await expect
 		.element(getByText(`Showing ${n + 1}–${2 * n} of 4,800 people.`).first())
 		.toBeVisible();
-	await expect.element(getByRole('link', { name: 'Next page' }).first()).toHaveAttribute('href', '?page=3');
+	await expect
+		.element(getByRole('link', { name: 'Next page' }).first())
+		.toHaveAttribute('href', '?page=3');
 });
 
 test('counts every entry in the Locations tab, not just this page', async () => {

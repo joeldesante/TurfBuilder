@@ -168,5 +168,25 @@
 		"operationLabels": {"greater_than": "is after", "less_than": "is before", "greater_than_or_equal": "is on or after", "less_than_or_equal": "is on or before"},
 		"valueType": "date",
 		"operations": ["greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"]
+	},
+	{
+		"id": "contact_schema",
+		"name": "Schema",
+		"description": "The kind of contact, as defined by its schema, such as Business or Church.",
+		"category": "meta",
+		"entities": ["locations"],
+		"sentence": "{entity}\nwhose schema {operation} {schema}",
+		"valueType": "contact_schema",
+		"operations": ["equals", "not_equals"]
+	},
+	{
+		"id": "schema_field",
+		"name": "Schema Field",
+		"description": "A field of a contact schema, such as a church's denomination or whether a business is open.",
+		"category": "meta",
+		"entities": ["locations"],
+		"sentence": "{entity}\nin {schema}\nwhose {field} {operation} {value}",
+		"valueType": "schema_field",
+		"operations": ["equals", "not_equals", "contains", "starts_with", "greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal"]
 	}
 ]

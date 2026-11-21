@@ -1,3 +1,4 @@
+import { isPlaceholderEmail } from '$lib/server/utils/placeholder-email';
 import { redirect } from '@sveltejs/kit';
 import { isEmailVerificationDisabled } from '$lib/server/utils/security';
 
@@ -7,7 +8,7 @@ export async function load({ locals }) {
 	}
 
 	// Fake-email users must update their email first
-	if (locals.user.email.endsWith('@fake.com')) {
+	if (isPlaceholderEmail(locals.user.email)) {
 		throw redirect(303, '/auth/update-email');
 	}
 

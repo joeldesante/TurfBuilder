@@ -4,6 +4,7 @@
 	import DatePicker from '$components/data-inputs/date-picker/DatePicker.svelte';
 	import Button from '$components/actions/button/Button.svelte';
 	import SpinnerGap from 'phosphor-svelte/lib/SpinnerGap';
+	import { api } from '$lib/client/api';
 
 	export interface MetricsBucket {
 		id: string;
@@ -19,12 +20,11 @@
 	}
 
 	interface Props {
-		orgSlug: string;
 		buckets: MetricsBucket[];
 		onGenerate: (selection: MetricsWorkflowSelection) => void;
 	}
 
-	const { orgSlug, buckets, onGenerate }: Props = $props();
+	const { buckets, onGenerate }: Props = $props();
 
 	let selectedBucketId = $state('');
 	let selectedSurveyId = $state('');
@@ -40,14 +40,9 @@
 		surveys = [];
 		selectedSurveyId = '';
 		try {
-			const res = await fetch(
-				`/o/${orgSlug}/s/api/surveys?bucketId=${encodeURIComponent(bucketId)}`
+			surveys = await api<{ id: string; name: string }[]>(
+				`/buckets/${encodeURIComponent(bucketId)}/surveys`
 			);
-			if (!res.ok) {
-				surveyError = 'Failed to load surveys.';
-				return;
-			}
-			surveys = await res.json();
 		} catch {
 			surveyError = 'Failed to load surveys.';
 		} finally {

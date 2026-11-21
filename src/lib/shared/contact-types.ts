@@ -2,10 +2,11 @@ import { z } from 'zod';
 
 /**
  * The kinds of contact an organization canvasses. A contact is anything that
- * is canvassed at an address (a business today, a resident later); the kinds
- * differ only in their metadata, so each one is a schema here rather than a
- * table. Adding a kind means adding an entry: validation, display, and later
- * forms and filters all read the same definition.
+ * is canvassed at an address: a person, a place, or a thing. The kinds differ
+ * only in their metadata, so each one is a schema here rather than a table.
+ * Adding a kind (a person with first and last names, say) means adding an
+ * entry: validation, display, and later forms and filters all read the same
+ * definition. Every contact so far is a business, copied from a location.
  *
  * universe.org_contact.type stores the slug and universe.org_contact.metadata
  * the object the schema accepts. The database only checks that metadata is a

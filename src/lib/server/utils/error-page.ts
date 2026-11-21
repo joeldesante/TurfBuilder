@@ -11,7 +11,7 @@ function escapeHtml(text: string): string {
  * that is not migrated. It stands alone: no layout, scripts, or bundled CSS,
  * only the logo from /logos, so it works while the rest of the app cannot.
  */
-export function errorPage(code: ErrorCode): Response {
+export function errorPage(code: ErrorCode, headers: Record<string, string> = {}): Response {
 	const { status, message } = ERROR_CODES[code];
 	const html = `<!doctype html>
 <html lang="en">
@@ -36,6 +36,6 @@ small { margin-top: 1.5rem; opacity: 0.6; }
 </html>`;
 	return new Response(html, {
 		status,
-		headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }
+		headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...headers }
 	});
 }

@@ -51,7 +51,7 @@
 		if (saving || !selectedSurveyId) return;
 		saving = true;
 
-		const response = await fetch(`/o/${org_slug}/s/api/turf/create`, {
+		const response = await fetch(`/api/v1/lists/${storedListId}/turfs`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({

@@ -7,18 +7,41 @@
 		side?: 'top' | 'bottom' | 'left' | 'right';
 		delayDuration?: number;
 		triggerClass?: string;
-		children: Snippet;
+		/** What the tooltip is on. Wrapped in a button that opens the tooltip. */
+		children?: Snippet;
+		/**
+		 * Instead of `children`: renders the element the tooltip is on itself, given the props to
+		 * spread onto it. Use it when that element is a button, which cannot sit inside the button
+		 * `children` is wrapped in.
+		 */
+		trigger?: Snippet<[Record<string, unknown>]>;
 		content?: Snippet;
 	}
 
-	const { text, side = 'bottom', delayDuration = 300, triggerClass = '', children, content }: Props = $props();
+	const {
+		text,
+		side = 'bottom',
+		delayDuration = 300,
+		triggerClass = '',
+		children,
+		trigger,
+		content
+	}: Props = $props();
 </script>
 
 <TooltipPrimitive.Provider {delayDuration}>
 	<TooltipPrimitive.Root>
-		<TooltipPrimitive.Trigger class={triggerClass}>
-			{@render children()}
-		</TooltipPrimitive.Trigger>
+		{#if trigger}
+			<TooltipPrimitive.Trigger>
+				{#snippet child({ props })}
+					{@render trigger(props)}
+				{/snippet}
+			</TooltipPrimitive.Trigger>
+		{:else}
+			<TooltipPrimitive.Trigger class={triggerClass}>
+				{@render children?.()}
+			</TooltipPrimitive.Trigger>
+		{/if}
 		<TooltipPrimitive.Portal>
 			<TooltipPrimitive.Content
 				{side}

@@ -173,3 +173,72 @@ describe('createFilterSource', () => {
 		await expect(createFilterSource('org1').listBuckets()).rejects.toThrow(/Could not reach the server/);
 	});
 });
+
+describe('resolveSentenceNames for schema filters', () => {
+	const SCHEMA = 'a1a1a1a1-a1a1-41a1-81a1-a1a1a1a1a1a1';
+	const FIELD = 'b2b2b2b2-b2b2-42b2-82b2-b2b2b2b2b2b2';
+	const schemas = [
+		{
+			id: SCHEMA,
+			org_id: 'o',
+			schema_name: 'Church',
+			fields: [{ id: FIELD, name: 'Denomination', type: 'text' as const, required: false }],
+			identifier_field_id: null,
+			contact_count: 0,
+			created_at: '',
+			updated_at: ''
+		}
+	];
+
+	it('names the schema of a schema filter', async () => {
+		const source = makeSource({ listSchemas: async () => schemas });
+
+		const names = await resolveSentenceNames(source, {
+			item: 'contact_schema',
+			operation: 'equals',
+			value: { schemaId: SCHEMA }
+		});
+
+		expect(names).toEqual({ schema: 'Church' });
+	});
+
+	it("names the schema and the field's current name, which the id keeps finding after a rename", async () => {
+		const source = makeSource({ listSchemas: async () => schemas });
+
+		const names = await resolveSentenceNames(source, {
+			item: 'schema_field',
+			operation: 'equals',
+			value: { schemaId: SCHEMA, fieldId: FIELD, value: 'Baptist' }
+		});
+
+		expect(names).toEqual({ schema: 'Church', field: 'Denomination' });
+	});
+
+	it('leaves out a schema or field that no longer exists', async () => {
+		const source = makeSource({ listSchemas: async () => schemas });
+
+		const gone = await resolveSentenceNames(source, {
+			item: 'schema_field',
+			operation: 'equals',
+			value: { schemaId: SCHEMA, fieldId: 'b3b3b3b3-b3b3-43b3-83b3-b3b3b3b3b3b3', value: 'x' }
+		});
+		const noSchema = await resolveSentenceNames(source, {
+			item: 'contact_schema',
+			operation: 'equals',
+			value: { schemaId: 'c4c4c4c4-c4c4-44c4-84c4-c4c4c4c4c4c4' }
+		});
+
+		expect(gone).toEqual({ schema: 'Church' });
+		expect(noSchema).toEqual({});
+	});
+
+	it('copes with a source that cannot list schemas', async () => {
+		const names = await resolveSentenceNames(makeSource(), {
+			item: 'contact_schema',
+			operation: 'equals',
+			value: { schemaId: SCHEMA }
+		});
+
+		expect(names).toEqual({});
+	});
+});

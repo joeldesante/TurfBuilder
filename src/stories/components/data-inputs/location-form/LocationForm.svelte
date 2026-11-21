@@ -12,7 +12,7 @@
 		/** Copy shown above the fields, e.g. field instructions for volunteers. */
 		instructions?: string;
 		/** Enables photo attachment. Omit to hide the uploader entirely. */
-		orgSlug?: string;
+		orgId?: string;
 		maxPhotos?: number;
 		onSubmit: (fields: LocationFields) => Promise<void>;
 		onCancel?: () => void;
@@ -41,7 +41,7 @@
 		submitLabel = 'Add location',
 		cancelLabel = 'Cancel',
 		instructions,
-		orgSlug,
+		orgId,
 		maxPhotos = 3,
 		onSubmit,
 		onCancel,
@@ -136,8 +136,8 @@
 		</FormField>
 	</div>
 
-	{#if orgSlug}
-		<PhotoUpload {orgSlug} bind:keys={form.values.photo_keys} max={maxPhotos} />
+	{#if orgId}
+		<PhotoUpload {orgId} bind:keys={form.values.photo_keys} max={maxPhotos} />
 	{/if}
 
 	{#if children}

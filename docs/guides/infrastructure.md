@@ -18,7 +18,6 @@ The panel at `/infra` is for the people who run the instance. Only users with in
 | `orgs.manage` | Suspend, delete, restore, and transfer organizations; remove members |
 | `settings.manage` | Change settings and email templates, read the email log |
 | `audit.read` | Read the audit log |
-| `locations.overture_sync` | Run the Overture data sync |
 
 The setup admin's role holds all of them, including ones added later (a migration grants new keys to the "Infrastructure Administrator" role).
 

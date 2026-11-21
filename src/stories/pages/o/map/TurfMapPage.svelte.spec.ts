@@ -1,74 +1,9 @@
 import { render } from 'vitest-browser-svelte';
 import { expect, test, vi, beforeEach } from 'vitest';
 
-const { mapHandlers, markerInstances, mapInstance } = vi.hoisted(() => ({
-	mapHandlers: {} as Record<string, ((event?: unknown) => void)[]>,
-	markerInstances: [] as { element: HTMLElement; removed: boolean }[],
-	mapInstance: {
-		flyTo: vi.fn(),
-		remove: vi.fn(),
-		addControl: vi.fn(),
-		getCanvas: vi.fn(() => ({ style: {} as CSSStyleDeclaration })),
-		getLayer: vi.fn(() => ({})),
-		getSource: vi.fn(() => ({ setData: vi.fn() })),
-		addSource: vi.fn(),
-		addLayer: vi.fn(),
-		removeLayer: vi.fn(),
-		removeSource: vi.fn()
-	}
-}));
-
-vi.mock('maplibre-gl', () => {
-	// Constructor mocks use function expressions because arrow functions cannot
-	// be called with `new`.
-	const LngLatBounds = vi.fn(function () {
-		const instance = { extend: () => instance };
-		return instance;
-	});
-
-	const Map = vi.fn(function () {
-		return {
-			on: vi.fn((event: string, handler: () => void) => {
-				(mapHandlers[event] ??= []).push(handler);
-			}),
-			off: vi.fn(),
-			once: vi.fn(),
-			setStyle: vi.fn(),
-			fitBounds: vi.fn(),
-			...mapInstance
-		};
-	});
-
-	const Marker = vi.fn(function (options: { element: HTMLElement }) {
-		const record = { element: options.element, removed: false };
-		markerInstances.push(record);
-		const instance = {
-			setLngLat: () => instance,
-			setPopup: () => instance,
-			addTo: () => instance,
-			on: () => instance,
-			getLngLat: () => ({ lng: 0, lat: 0 }),
-			getPopup: () => ({ isOpen: () => false }),
-			togglePopup: vi.fn(),
-			remove: vi.fn(() => {
-				record.removed = true;
-			})
-		};
-		return instance;
-	});
-
-	const Popup = vi.fn(function () {
-		const instance = { setDOMContent: () => instance };
-		return instance;
-	});
-
-	const GeolocateControl = vi.fn(function () {
-		return {};
-	});
-
-	const namespace = { Map, Marker, Popup, GeolocateControl, LngLatBounds };
-	return { ...namespace, default: namespace };
-});
+vi.mock('maplibre-gl', async () =>
+	(await import('$components/__tests__/maplibre-mock')).maplibreMock()
+);
 
 vi.mock('$lib/map-style', () => ({
 	getMapStyle: vi.fn().mockResolvedValue({})
@@ -79,6 +14,11 @@ vi.mock('$lib/theme.svelte', () => ({
 }));
 
 import maplibregl from 'maplibre-gl';
+import {
+	loadMockMap,
+	mockPins,
+	resetMapState
+} from '$components/__tests__/maplibre-mock';
 import TurfMapPage from './TurfMapPage.svelte';
 
 const center = { lat: 39.9526, lng: -75.1652 };
@@ -112,26 +52,18 @@ const locations = [
 	}
 ];
 
-const props = { orgSlug: 'acme', turfId: 'turf-1', locations, center };
+const props = { orgSlug: 'acme', orgId: 'o1', turfId: 'turf-1', locations, center };
 
-function fireMapEvent(event: string) {
-	for (const handler of mapHandlers[event] ?? []) handler();
-}
-
-/** Waits for the map to be constructed, then fires 'load' to draw markers. */
+/** Waits for the map to be constructed, then fires 'load' so the pins are drawn. */
 async function loadMap() {
+	await loadMockMap();
 	await vi.waitFor(() => {
-		if (!mapHandlers['load']) throw new Error('map not initialized yet');
-	});
-	fireMapEvent('load');
-	await vi.waitFor(() => {
-		if (markerInstances.length === 0) throw new Error('markers not drawn yet');
+		if (mockPins().length === 0) throw new Error('pins not drawn yet');
 	});
 }
 
 beforeEach(() => {
-	for (const key of Object.keys(mapHandlers)) delete mapHandlers[key];
-	markerInstances.length = 0;
+	resetMapState();
 	vi.clearAllMocks();
 	vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
 });
@@ -139,7 +71,7 @@ beforeEach(() => {
 test('renders the map container', async () => {
 	const { getByTestId } = render(TurfMapPage, { props });
 
-	await expect.element(getByTestId('locations-map')).toBeInTheDocument();
+	await expect.element(getByTestId('map-view')).toBeInTheDocument();
 });
 
 test('links back to the organization home', async () => {
@@ -161,7 +93,7 @@ test('opens the detail panel when a marker is clicked', async () => {
 	const { getByRole } = render(TurfMapPage, { props });
 	await loadMap();
 
-	markerInstances[0].element.click();
+	mockPins()[0].element.click();
 
 	await expect.element(getByRole('heading', { name: 'Rosa Deli' })).toBeVisible();
 });
@@ -170,7 +102,7 @@ test('shows the street address of the selected location', async () => {
 	const { getByText } = render(TurfMapPage, { props });
 	await loadMap();
 
-	markerInstances[0].element.click();
+	mockPins()[0].element.click();
 
 	await expect.element(getByText('123 Main St')).toBeVisible();
 });
@@ -179,7 +111,7 @@ test('links the selected location to its survey screen', async () => {
 	const { getByRole } = render(TurfMapPage, { props });
 	await loadMap();
 
-	markerInstances[1].element.click();
+	mockPins()[1].element.click();
 
 	await expect
 		.element(getByRole('link', { name: 'Open Location' }))
@@ -190,7 +122,7 @@ test('badges an unvisited location as Unvisited', async () => {
 	const { getByText } = render(TurfMapPage, { props });
 	await loadMap();
 
-	markerInstances[0].element.click();
+	mockPins()[0].element.click();
 
 	await expect.element(getByText('Unvisited')).toBeVisible();
 });
@@ -199,7 +131,7 @@ test('badges a visited location with contact as Contacted', async () => {
 	const { getByText } = render(TurfMapPage, { props });
 	await loadMap();
 
-	markerInstances[1].element.click();
+	mockPins()[1].element.click();
 
 	await expect.element(getByText('Contacted')).toBeVisible();
 });
@@ -209,7 +141,7 @@ test('badges a visited location without contact as No Contact', async () => {
 	const { getByText } = render(TurfMapPage, { props: { ...props, locations: noContact } });
 	await loadMap();
 
-	markerInstances[0].element.click();
+	mockPins()[0].element.click();
 
 	await expect.element(getByText('No Contact')).toBeVisible();
 });
@@ -218,7 +150,7 @@ test('closes the detail panel', async () => {
 	const { getByRole } = render(TurfMapPage, { props });
 	await loadMap();
 
-	markerInstances[0].element.click();
+	mockPins()[0].element.click();
 	await expect.element(getByRole('heading', { name: 'Rosa Deli' })).toBeVisible();
 
 	await getByRole('button', { name: 'close' }).click();
@@ -230,7 +162,7 @@ test('closes the detail panel', async () => {
 test('renders an empty turf without markers', async () => {
 	const { getByTestId } = render(TurfMapPage, { props: { ...props, locations: [] } });
 
-	await expect.element(getByTestId('locations-map')).toBeInTheDocument();
+	await expect.element(getByTestId('map-view')).toBeInTheDocument();
 	expect(maplibregl.Marker).not.toHaveBeenCalled();
 });
 
@@ -264,7 +196,8 @@ test('flies to the user position while tracking', async () => {
 	await getByRole('button', { name: 'Find my location' }).click();
 
 	await expect.element(getByRole('button', { name: 'Stop tracking location' })).toBeVisible();
-	expect(mapInstance.flyTo).toHaveBeenCalledWith(
+	const map = vi.mocked(maplibregl.Map).mock.results[0].value as { flyTo: () => void };
+	expect(map.flyTo).toHaveBeenCalledWith(
 		expect.objectContaining({ center: [-75.2, 39.9] })
 	);
 });

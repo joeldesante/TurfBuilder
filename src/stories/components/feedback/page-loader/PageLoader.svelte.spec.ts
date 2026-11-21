@@ -27,6 +27,19 @@ describe('PageLoader', () => {
 		);
 	});
 
+	it('cuts in without a fade when asked, and still fades out', async () => {
+		const screen = render(PageLoader, { visible: true, cutIn: true });
+		await expect.element(page.getByRole('status')).toBeVisible();
+		const cover = screen.container.querySelector('.page-loader')!;
+		expect(getComputedStyle(cover).animationName).toBe('none');
+		expect(getComputedStyle(cover).opacity).toBe('1');
+
+		await screen.rerender({ visible: false, cutIn: true });
+
+		expect(screen.container.querySelector('.page-loader')).not.toBeNull();
+		await expect.poll(() => screen.container.querySelector('.page-loader')).toBeNull();
+	});
+
 	it('fades out instead of vanishing when it is turned off', async () => {
 		const screen = render(PageLoader, { visible: true });
 		await expect.element(page.getByRole('status')).toBeVisible();

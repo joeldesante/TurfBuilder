@@ -2,7 +2,7 @@ import { render } from 'vitest-browser-svelte';
 import { expect, test, vi, beforeEach } from 'vitest';
 import PhotoUpload from './PhotoUpload.svelte';
 
-const base = { orgSlug: 'acme' };
+const base = { orgId: 'o1' };
 
 /** A 1x1 PNG, enough for createImageBitmap to work on in a real browser. */
 function makeFile(name = 'shopfront.png'): File {
@@ -28,7 +28,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
 	fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-		if (String(url).includes('/uploads/presign')) {
+		if (String(url).includes('/photo-uploads')) {
 			return {
 				ok: true,
 				json: async () => ({ url: 'https://signed.example/put', key: `key-${Math.random()}` })
@@ -45,14 +45,14 @@ test('shows how many photos have been added', async () => {
 	await expect.element(getByText('0 of 3 added')).toBeVisible();
 });
 
-test('renders a thumbnail per key, served through the org read route', async () => {
+test('renders a thumbnail per key, served through the photos endpoint', async () => {
 	const { getByAltText } = render(PhotoUpload, {
 		props: { ...base, keys: ['orgs/o1/locations/a.webp'] }
 	});
 
 	await expect
 		.element(getByAltText('Uploaded photo of the business'))
-		.toHaveAttribute('src', '/o/acme/uploads/orgs/o1/locations/a.webp');
+		.toHaveAttribute('src', '/api/v1/photos/orgs/o1/locations/a.webp');
 });
 
 test('instructs the volunteer what to photograph', async () => {
@@ -88,7 +88,7 @@ test('compresses, uploads, and records the returned key', async () => {
 		expect(props.keys).toHaveLength(1);
 	});
 
-	const presignCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('/uploads/presign'))!;
+	const presignCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('/photo-uploads'))!;
 	const body = JSON.parse((presignCall[1] as RequestInit).body as string);
 	// Re-encoded to webp on the client, whatever the camera produced.
 	expect(body.contentType).toBe('image/webp');
@@ -122,8 +122,8 @@ test('never accepts more than the cap in one selection', async () => {
 
 test('surfaces a presign failure', async () => {
 	fetchMock.mockImplementation(async (url: string) => {
-		if (String(url).includes('/uploads/presign')) {
-			return { ok: false, json: async () => ({ error: 'Object storage is not configured.' }) };
+		if (String(url).includes('/photo-uploads')) {
+			return { ok: false, json: async () => ({ message: 'Object storage is not configured.' }) };
 		}
 		return { ok: true, json: async () => ({}) };
 	});
@@ -136,7 +136,7 @@ test('surfaces a presign failure', async () => {
 
 test('surfaces a failed upload', async () => {
 	fetchMock.mockImplementation(async (url: string) => {
-		if (String(url).includes('/uploads/presign')) {
+		if (String(url).includes('/photo-uploads')) {
 			return { ok: true, json: async () => ({ url: 'https://signed.example/put', key: 'k' }) };
 		}
 		return { ok: false, json: async () => ({}) };

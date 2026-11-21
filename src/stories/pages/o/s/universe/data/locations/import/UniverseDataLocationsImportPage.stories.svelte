@@ -28,15 +28,6 @@
 />
 
 <Story
-	name="Overture"
-	args={{
-		orgSlug: 'demo-org',
-		source: 'overture',
-		onImportOverture: async () => ({ imported: 1204, skipped: 0, errors: [] })
-	}}
-/>
-
-<Story
 	name="With errors"
 	args={{
 		orgSlug: 'demo-org',

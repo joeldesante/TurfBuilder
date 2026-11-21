@@ -53,12 +53,12 @@
 	];
 </script>
 
-<Story name="Default" args={{ orgSlug: 'acme', turfId: 'turf-1', locations, center }} />
+<Story name="Default" args={{ orgSlug: 'acme', orgId: 'o1', turfId: 'turf-1', locations, center }} />
 
 <Story
 	name="Single Location"
-	args={{ orgSlug: 'acme', turfId: 'turf-1', locations: [locations[0]], center }}
+	args={{ orgSlug: 'acme', orgId: 'o1', turfId: 'turf-1', locations: [locations[0]], center }}
 />
 
 <!-- A turf with nothing on it yet: the map falls back to the turf centroid. -->
-<Story name="Empty Turf" args={{ orgSlug: 'acme', turfId: 'turf-1', locations: [], center }} />
+<Story name="Empty Turf" args={{ orgSlug: 'acme', orgId: 'o1', turfId: 'turf-1', locations: [], center }} />

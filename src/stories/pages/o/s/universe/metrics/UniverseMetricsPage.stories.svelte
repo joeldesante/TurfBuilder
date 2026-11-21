@@ -14,4 +14,4 @@
 	];
 </script>
 
-<Story name="Default" args={{ orgSlug: 'demo-org', buckets: sampleBuckets }} />
+<Story name="Default" args={{ buckets: sampleBuckets }} />

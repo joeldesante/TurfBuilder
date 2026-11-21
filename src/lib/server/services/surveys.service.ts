@@ -9,6 +9,7 @@ export interface Survey {
 	bucket_id: string;
 	name: string;
 	description: string | null;
+	updated_at: string;
 }
 
 export interface SurveyInput {
@@ -38,9 +39,8 @@ export interface SurveyQuestion {
 // staff check as buckets.
 const PERMISSION = 'system.access';
 
-const SURVEY_COLUMNS = 'id, bucket_id, name, description';
-const QUESTION_COLUMNS =
-	'id, survey_id, question_text, question_type, order_index, choices';
+const SURVEY_COLUMNS = 'id, bucket_id, name, description, updated_at';
+const QUESTION_COLUMNS = 'id, survey_id, question_text, question_type, order_index, choices';
 
 async function requireStaff(client: PoolClient, userId: string, orgId: string) {
 	if (!(await canOrg(client, userId, orgId, PERMISSION))) throw error(403, 'Forbidden');
@@ -178,10 +178,10 @@ export async function deleteSurvey(userId: string, surveyId: string): Promise<vo
 		);
 		if (turfs.rowCount) throw error(409, 'A turf uses this survey');
 
-		const result = await client.query(
-			`DELETE FROM universe.survey WHERE id = $1 AND org_id = $2`,
-			[surveyId, orgId]
-		);
+		const result = await client.query(`DELETE FROM universe.survey WHERE id = $1 AND org_id = $2`, [
+			surveyId,
+			orgId
+		]);
 		if (result.rowCount === 0) throw error(404, 'Survey not found');
 	});
 }

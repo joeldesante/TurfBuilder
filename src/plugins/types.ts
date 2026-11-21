@@ -1,11 +1,13 @@
-import type { PoolClient } from 'pg';
 import type { Component } from 'svelte';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { SidebarNavEntry } from '$components/layout/fragments/sidebar/types';
 
+/**
+ * What a plugin's hooks and API handlers are told about the request. Plugins
+ * get no database handle: like routes, they read and change data through the
+ * services in $lib/server/services.
+ */
 export interface PluginContext {
-	/** Execute queries within the org-scoped RLS transaction. Do not use POOL directly. */
-	db: <T>(fn: (client: PoolClient) => Promise<T>) => Promise<T>;
 	orgId: string;
 	userId: string;
 	userRole: NonNullable<App.Locals['organization']>['role'];
@@ -35,15 +37,9 @@ export interface PluginManifest {
 	/** Volunteer-facing page components keyed by path segment. Served at /o/[org_slug]/plugins/[slug]/[...path] */
 	volunteerPages?: Record<string, Component<any>>;
 	/** Server-side data loader for plugin pages */
-	serverLoad?: (
-		path: string,
-		event: RequestEvent
-	) => Promise<Record<string, unknown>>;
+	serverLoad?: (path: string, event: RequestEvent) => Promise<Record<string, unknown>>;
 	/** API route handlers — key format: 'METHOD:path' e.g. 'GET:status', 'POST:import' */
-	apiHandlers?: Record<
-		string,
-		(event: RequestEvent, ctx: PluginContext) => Promise<Response>
-	>;
+	apiHandlers?: Record<string, (event: RequestEvent, ctx: PluginContext) => Promise<Response>>;
 	hooks?: PluginHooks;
 	/** Optional Zod schema for the config JSONB column (used to render config form in UI) */
 	configSchema?: import('zod').ZodObject<any>;

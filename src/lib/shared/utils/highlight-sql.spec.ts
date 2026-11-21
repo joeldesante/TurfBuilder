@@ -48,6 +48,6 @@ describe('highlightSql', () => {
 	});
 
 	test('leaves identifiers with digits in them plain', () => {
-		expect(runs('FROM universe.v_locations2 vl', 'number')).toEqual([]);
+		expect(runs('FROM universe.v_contacts2 vl', 'number')).toEqual([]);
 	});
 });

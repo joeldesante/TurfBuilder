@@ -71,5 +71,21 @@ inside the default trigger, which is a button too. |
 | `groups` | `InfraNavGroup[]` | **required** | The infra pages and external tools the admin can open. |
 | `currentOrg` | `{ id: string; name: string; } | null | undefined` | `null` | The organization being viewed, for a shortcut to its infra page. |
 | `open` | `boolean | undefined` | `$bindable(false)` |  |
+| `besideFab` | `boolean | undefined` | `false` | Phones only: sit to the left of a floating action button in the bottom right corner
+(the organization picker's +) instead of underneath it. |
+
+---
+
+## UserMenu
+
+**Import:** `$components/actions/user-menu/UserMenu.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `name` | `string | undefined` | — | The user's name; its first letters fill the avatar, as in the staff sidebar. |
+| `email` | `string` | **required** | Shown at the top of the menu so a wrong account is easy to spot. |
+| `onsignout` | `() => void | Promise<void>` | **required** |  |
 
 ---

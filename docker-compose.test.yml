@@ -62,6 +62,9 @@ services:
       # s3mock accepts any credentials; these are test-only placeholders.
       - SPACES_ACCESS_KEY_ID=e2e-access-key
       - SPACES_SECRET_ACCESS_KEY=e2e-secret-key
+      # Maps in generated PDFs use a local stub style with no tiles (served by
+      # maptiles below), so tests never depend on tiles.openfreemap.org.
+      - MAP_STYLE_URL=http://maptiles/styles/server
     command: sh -c "npm install && npm run dev:nohmr -- --host 0.0.0.0"
     volumes:
       - .:/app
@@ -70,6 +73,10 @@ services:
       postgres:
         condition: service_healthy
       s3:
+        condition: service_started
+      mailpit:
+        condition: service_started
+      maptiles:
         condition: service_started
     networks:
       - turfbuilder
@@ -82,6 +89,24 @@ services:
     image: adobe/s3mock:4.7.0
     ports:
       - '9090:9090'
+    networks:
+      - turfbuilder
+
+  # Catches all outgoing mail. The setup project points the app's SMTP
+  # transport at mailpit:1025; tests read messages through the API on 8025.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+    networks:
+      - turfbuilder
+
+  # Serves the stub map style (e2e/fixtures/map) to the app's PDF renderer.
+  maptiles:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./e2e/fixtures/map:/usr/share/nginx/html:ro
     networks:
       - turfbuilder
 

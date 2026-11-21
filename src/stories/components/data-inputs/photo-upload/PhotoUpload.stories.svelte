@@ -5,7 +5,7 @@
 	const { Story } = defineMeta({
 		title: 'Components/Data Inputs/PhotoUpload',
 		component: PhotoUpload,
-		args: { orgSlug: 'acme' }
+		args: { orgId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }
 	});
 </script>
 

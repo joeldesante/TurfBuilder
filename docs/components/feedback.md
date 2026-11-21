@@ -41,6 +41,12 @@
 
 ---
 
+## LayerDialog
+
+**Import:** `$components/feedback/layer-dialog/LayerDialog.svelte`
+
+---
+
 ## Loading
 
 **Import:** `$components/feedback/loading/Loading.svelte`
@@ -66,6 +72,8 @@ Left unset it follows the operating system's reduced motion setting; true or fal
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `visible` | `boolean` | **required** | Whether the loader covers the screen. It fades in when it turns on and out when it turns off. |
+| `cutIn` | `boolean | undefined` | `false` | The cover appears at once instead of fading in; it still fades out. For a page that came
+from a full load, where a see-through cover would show the page filling in underneath. |
 | `width` | `string | number | undefined` | `'clamp(120px, 45vw, 180px)'` |  |
 | `logoDelayMs` | `number | undefined` | `0` | How long the cover is up before the logo fades in on top of it. Until then it is only a
 plain fade, so a quick load is a soft dip instead of a flash of logo. 0 shows the logo
@@ -76,6 +84,24 @@ Does not apply when the logo never appeared. 0 turns it off. |
 | `slowMessageDelayMs` | `number | undefined` | `0` | After the cover has been up this long, a short message fades in under the logo saying the
 server is slow. 0 means never. |
 | `slowMessage` | `string | undefined` | `'This is taking a little longer than usual.\nThanks for your patience.'` | Shown under the logo. A line break (\n) starts a new line. |
+
+---
+
+## QrCodeDialog
+
+A modal that shows a QR code for a link and lets the person download it as a PNG.
+
+**Import:** `$components/feedback/qr-code-dialog/QrCodeDialog.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `open` | `boolean` | **required** |  |
+| `value` | `string` | **required** | What the QR code holds, such as an invite URL. |
+| `title` | `string | undefined` | `'QR code'` |  |
+| `filename` | `string | undefined` | `'qr-code.png'` | Names the downloaded file. |
+| `onClose` | `() => void` | **required** |  |
 
 ---
 
@@ -106,7 +132,7 @@ through.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `position` | `import("/Volumes/Storage/Development/TurfBuilder/node_modules/svelte-sonner/d...` | `'bottom-right'` | Where the stack of toasts sits on screen. |
+| `position` | `import("/Users/joeldesante/Development/TurfBuilder/node_modules/svelte-sonner...` | `'bottom-right'` | Where the stack of toasts sits on screen. |
 | `duration` | `number | undefined` | `6000` | How long a toast stays up, in milliseconds. |
 
 ---
@@ -123,7 +149,10 @@ through.
 | `side` | `"top" | "bottom" | "left" | "right" | undefined` | `'bottom'` |  |
 | `delayDuration` | `number | undefined` | `300` |  |
 | `triggerClass` | `string | undefined` | `''` |  |
-| `children` | `Snippet<[]>` | **required** |  |
+| `children` | `Snippet<[]> | undefined` | — | What the tooltip is on. Wrapped in a button that opens the tooltip. |
+| `trigger` | `Snippet<[Record<string, unknown>]> | undefined` | — | Instead of `children`: renders the element the tooltip is on itself, given the props to
+spread onto it. Use it when that element is a button, which cannot sit inside the button
+`children` is wrapped in. |
 | `content` | `Snippet<[]> | undefined` | — |  |
 
 ---

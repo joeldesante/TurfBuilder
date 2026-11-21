@@ -31,7 +31,9 @@
 	import Badge from '$components/data-display/badge/Badge.svelte';
 	import Avatar from '$components/data-display/avatar/Avatar.svelte';
 	import Button from '$components/actions/button/Button.svelte';
-	import DropdownMenu, { type DropdownMenuEntry } from '$components/actions/dropdown-menu/DropdownMenu.svelte';
+	import DropdownMenu, {
+		type DropdownMenuEntry
+	} from '$components/actions/dropdown-menu/DropdownMenu.svelte';
 	import ConfirmDialog from '$components/feedback/confirm-dialog/ConfirmDialog.svelte';
 	import FormField from '$components/data-inputs/form-field/FormField.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
@@ -39,6 +41,9 @@
 	import Select from '$components/data-inputs/select/Select.svelte';
 	import Switch from '$components/data-inputs/switch/Switch.svelte';
 	import Pagination from '$components/data-display/pagination/Pagination.svelte';
+	import DataTable, {
+		type DataTableColumn
+	} from '$components/data-display/data-table/DataTable.svelte';
 	import ActivityFeed from '$components/data-display/activity-feed/ActivityFeed.svelte';
 	import AuditLogTable from '$components/data-display/audit-log-table/AuditLogTable.svelte';
 	import EmailLogTable from '$components/data-display/email-log-table/EmailLogTable.svelte';
@@ -46,7 +51,11 @@
 	import { formatDate, formatDateTime, formatDaysAgo } from '$lib/shared/utils/format-date';
 	import { describeUserAgent } from '$lib/shared/utils/user-agent';
 	import type { Page } from '$lib/shared/utils/pagination';
-	import type { PlatformUserDetail, UserMembership, UserSession } from '$lib/shared/types/platform-users';
+	import type {
+		PlatformUserDetail,
+		UserMembership,
+		UserSession
+	} from '$lib/shared/types/platform-users';
 	import type { ActivityEntry, EmailLogEntry } from '$lib/shared/types/activity';
 	import type { AuditEntry } from '$lib/shared/types/audit';
 
@@ -84,13 +93,21 @@
 
 	const canManage = $derived(permissions.includes('users.manage') && !user.deleted);
 	const canImpersonate = $derived(
-		permissions.includes('users.impersonate') && !user.deleted && !user.isInfraAdmin && user.id !== currentUserId
+		permissions.includes('users.impersonate') &&
+			!user.deleted &&
+			!user.isInfraAdmin &&
+			user.id !== currentUserId
 	);
 	const isSelf = $derived(user.id === currentUserId);
 
 	const tabs = $derived([
 		{ id: 'overview', label: 'Overview', href: '?tab=overview' },
-		{ id: 'organizations', label: 'Organizations', href: '?tab=organizations', count: memberships.length },
+		{
+			id: 'organizations',
+			label: 'Organizations',
+			href: '?tab=organizations',
+			count: memberships.length
+		},
 		{ id: 'sessions', label: 'Sessions', href: '?tab=sessions', count: sessions.length },
 		{ id: 'activity', label: 'Activity', href: '?tab=activity' },
 		{ id: 'emails', label: 'Emails', href: '?tab=emails' },
@@ -180,7 +197,12 @@
 		return changes;
 	}
 
-	const SUSPEND_DAYS: Record<string, number | null> = { '1': 1, '7': 7, '30': 30, indefinite: null };
+	const SUSPEND_DAYS: Record<string, number | null> = {
+		'1': 1,
+		'7': 7,
+		'30': 30,
+		indefinite: null
+	};
 
 	function suspendInput(): SuspendUserInput {
 		const days = SUSPEND_DAYS[suspendFor];
@@ -194,16 +216,30 @@
 		(<(DropdownMenuEntry | null)[]>[
 			canManage ? { label: 'Edit details', onclick: () => open('edit') } : null,
 			canManage ? { label: 'Send password reset', onclick: () => open('reset') } : null,
-			canManage && !user.emailVerified ? { label: 'Resend verification email', onclick: () => open('verification') } : null,
-			canManage && user.twoFactorEnabled ? { label: 'Turn off two-factor sign-in', onclick: () => open('two-factor') } : null,
-			canManage && sessions.length > 0 ? { label: 'Sign out everywhere', onclick: () => open('revoke') } : null,
+			canManage && !user.emailVerified
+				? { label: 'Resend verification email', onclick: () => open('verification') }
+				: null,
+			canManage && user.twoFactorEnabled
+				? { label: 'Turn off two-factor sign-in', onclick: () => open('two-factor') }
+				: null,
+			canManage && sessions.length > 0
+				? { label: 'Sign out everywhere', onclick: () => open('revoke') }
+				: null,
 			canImpersonate ? { label: 'Impersonate', onclick: () => open('impersonate') } : null,
 			canManage && !isSelf ? { separator: true as const } : null,
 			canManage && !isSelf && !user.suspended && !user.isInfraAdmin
 				? { label: 'Suspend', variant: 'destructive' as const, onclick: () => open('suspend') }
 				: null,
-			canManage && user.suspended ? { label: 'Lift suspension', onclick: () => open('unsuspend') } : null,
-			canManage && !isSelf ? { label: 'Delete account', variant: 'destructive' as const, onclick: () => open('delete') } : null
+			canManage && user.suspended
+				? { label: 'Lift suspension', onclick: () => open('unsuspend') }
+				: null,
+			canManage && !isSelf
+				? {
+						label: 'Delete account',
+						variant: 'destructive' as const,
+						onclick: () => open('delete')
+					}
+				: null
 		]).filter((entry): entry is DropdownMenuEntry => entry !== null)
 	);
 
@@ -212,7 +248,45 @@
 	}
 
 	const signInLabel: Record<string, string> = { credential: 'Email and password' };
+
+	const membershipColumns: DataTableColumn<UserMembership>[] = [
+		{ id: 'organization', header: 'Organization', cell: organizationCell },
+		{ id: 'role', header: 'Role', cell: roleCell },
+		{
+			id: 'joined',
+			header: 'Joined',
+			hideBelow: 'sm',
+			nowrap: true,
+			class: 'text-on-surface-subtle',
+			cell: joinedCell
+		},
+		{
+			id: 'lastActive',
+			header: 'Last active there',
+			nowrap: true,
+			class: 'text-on-surface-subtle',
+			cell: lastActiveCell
+		}
+	];
 </script>
+
+{#snippet organizationCell({ row: m }: { row: UserMembership })}
+	<a href={`/infra/orgs/${m.organizationId}`} class="font-medium">{m.name}</a>
+	{#if m.suspended}<Badge size="sm" variant="error">Suspended</Badge>{/if}
+	{#if m.deleted}<Badge size="sm" variant="error">Deleted</Badge>{/if}
+{/snippet}
+
+{#snippet roleCell({ row: m }: { row: UserMembership })}
+	{m.roleName ?? 'Member'}{m.memberRole.includes('owner') ? ', owner' : ''}
+{/snippet}
+
+{#snippet joinedCell({ row: m }: { row: UserMembership })}
+	{formatDate(m.joinedAt)}
+{/snippet}
+
+{#snippet lastActiveCell({ row: m }: { row: UserMembership })}
+	{formatDaysAgo(m.lastActiveDay)}
+{/snippet}
 
 <PageHeader
 	title={user.name}
@@ -244,15 +318,21 @@
 					<Badge size="sm" variant="warning">Email not verified</Badge>
 				{/if}
 				{#if user.twoFactorEnabled}<Badge size="sm">Two-factor on</Badge>{/if}
-				{#each user.infraRoles as role (role.id)}<Badge size="sm" variant="info">{role.name}</Badge>{/each}
+				{#each user.infraRoles as role (role.id)}<Badge size="sm" variant="info">{role.name}</Badge
+					>{/each}
 			</div>
 		</div>
 	</section>
 
 	{#if user.suspended}
-		<div class="rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container" role="status">
+		<div
+			class="rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container"
+			role="status"
+		>
 			<p class="font-medium">
-				Suspended {user.suspendedUntil ? `until ${formatDateTime(user.suspendedUntil)}` : 'until lifted'}.
+				Suspended {user.suspendedUntil
+					? `until ${formatDateTime(user.suspendedUntil)}`
+					: 'until lifted'}.
 			</p>
 			{#if user.suspendedReason}<p class="mt-1">{user.suspendedReason}</p>{/if}
 		</div>
@@ -291,46 +371,33 @@
 			</div>
 			<div class="sm:col-span-2">
 				<dt class="text-sm text-on-surface-subtle">Infrastructure roles</dt>
-				<dd class="text-on-surface">{user.infraRoles.length ? user.infraRoles.map((r) => r.name).join(', ') : 'None'}</dd>
+				<dd class="text-on-surface">
+					{user.infraRoles.length ? user.infraRoles.map((r) => r.name).join(', ') : 'None'}
+				</dd>
 			</div>
 		</dl>
 		{@render activityChart?.()}
 	{:else if tab === 'organizations'}
 		{#if memberships.length === 0}
-			<p class="py-8 text-center text-sm text-on-surface-subtle">Not a member of any organization.</p>
+			<p class="py-8 text-center text-sm text-on-surface-subtle">
+				Not a member of any organization.
+			</p>
 		{:else}
-			<div class="overflow-x-auto rounded-xl border border-outline-subtle">
-				<table class="w-full text-sm">
-					<thead class="text-left text-on-surface-subtle">
-						<tr class="border-b border-outline-subtle">
-							<th scope="col" class="px-4 py-2 font-medium">Organization</th>
-							<th scope="col" class="px-4 py-2 font-medium">Role</th>
-							<th scope="col" class="hidden px-4 py-2 font-medium sm:table-cell">Joined</th>
-							<th scope="col" class="px-4 py-2 font-medium">Last active there</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each memberships as m (m.memberId)}
-							<tr class="border-b border-outline-subtle last:border-0">
-								<td class="px-4 py-2.5">
-									<a href={`/infra/orgs/${m.organizationId}`} class="font-medium">{m.name}</a>
-									{#if m.suspended}<Badge size="sm" variant="error">Suspended</Badge>{/if}
-									{#if m.deleted}<Badge size="sm" variant="error">Deleted</Badge>{/if}
-								</td>
-								<td class="px-4 py-2.5">
-									{m.roleName ?? 'Member'}{m.memberRole.includes('owner') ? ', owner' : ''}
-								</td>
-								<td class="hidden whitespace-nowrap px-4 py-2.5 text-on-surface-subtle sm:table-cell">{formatDate(m.joinedAt)}</td>
-								<td class="whitespace-nowrap px-4 py-2.5 text-on-surface-subtle">{formatDaysAgo(m.lastActiveDay)}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+			<DataTable
+				data={memberships}
+				columns={membershipColumns}
+				getRowId={(m) => m.memberId}
+				label="Organizations"
+			/>
 		{/if}
 	{:else if tab === 'sessions'}
 		{#if sessionError}
-			<p class="rounded-lg bg-error-container px-4 py-2 text-sm text-on-error-container" role="alert">{sessionError}</p>
+			<p
+				class="rounded-lg bg-error-container px-4 py-2 text-sm text-on-error-container"
+				role="alert"
+			>
+				{sessionError}
+			</p>
 		{/if}
 		{#if sessions.length === 0}
 			<p class="py-8 text-center text-sm text-on-surface-subtle">Not signed in anywhere.</p>
@@ -341,14 +408,23 @@
 						<div class="min-w-0">
 							<p class="font-medium text-on-surface">
 								{describeUserAgent(s.userAgent)}
-								{#if s.impersonatedBy}<Badge size="sm" variant="warning">Impersonated by {s.impersonatedBy.name}</Badge>{/if}
+								{#if s.impersonatedBy}<Badge size="sm" variant="warning"
+										>Impersonated by {s.impersonatedBy.name}</Badge
+									>{/if}
 							</p>
 							<p class="text-xs text-on-surface-subtle">
-								{s.ipAddress ?? 'Unknown address'}. Last used {formatDateTime(s.updatedAt)}. Ends {formatDate(s.expiresAt)}.
+								{s.ipAddress ?? 'Unknown address'}. Last used {formatDateTime(s.updatedAt)}. Ends {formatDate(
+									s.expiresAt
+								)}.
 							</p>
 						</div>
 						{#if canManage}
-							<Button size="sm" variant="outline" loading={endingSession === s.id} onclick={() => endSession(s.id)}>
+							<Button
+								size="sm"
+								variant="outline"
+								loading={endingSession === s.id}
+								onclick={() => endSession(s.id)}
+							>
 								End session
 							</Button>
 						{/if}
@@ -358,23 +434,53 @@
 		{/if}
 	{:else if tab === 'activity'}
 		<div class="rounded-xl border border-outline-subtle">
-			<ActivityFeed items={activity?.items ?? []} showUser={false} orgHref={(id) => `/infra/orgs/${id}`} />
+			<ActivityFeed
+				items={activity?.items ?? []}
+				showUser={false}
+				orgHref={(id) => `/infra/orgs/${id}`}
+			/>
 			{#if activity}
-				<Pagination page={activity.page} totalCount={activity.totalCount} pageSize={activity.pageSize} noun="events" href={pageHref} />
+				<Pagination
+					page={activity.page}
+					totalCount={activity.totalCount}
+					pageSize={activity.pageSize}
+					noun="events"
+					href={pageHref}
+				/>
 			{/if}
 		</div>
 	{:else if tab === 'emails'}
 		<div class="rounded-xl border border-outline-subtle">
-			<EmailLogTable items={emails?.items ?? []} showRecipient={false} emptyText="No emails sent to this address." />
+			<EmailLogTable
+				items={emails?.items ?? []}
+				showRecipient={false}
+				emptyText="No emails sent to this address."
+			/>
 			{#if emails}
-				<Pagination page={emails.page} totalCount={emails.totalCount} pageSize={emails.pageSize} noun="emails" href={pageHref} />
+				<Pagination
+					page={emails.page}
+					totalCount={emails.totalCount}
+					pageSize={emails.pageSize}
+					noun="emails"
+					href={pageHref}
+				/>
 			{/if}
 		</div>
 	{:else if tab === 'audit'}
 		<div class="rounded-xl border border-outline-subtle">
-			<AuditLogTable items={audit?.items ?? []} showTarget={false} emptyText="No admin has changed this account." />
+			<AuditLogTable
+				items={audit?.items ?? []}
+				showTarget={false}
+				emptyText="No admin has changed this account."
+			/>
 			{#if audit}
-				<Pagination page={audit.page} totalCount={audit.totalCount} pageSize={audit.pageSize} noun="changes" href={pageHref} />
+				<Pagination
+					page={audit.page}
+					totalCount={audit.totalCount}
+					pageSize={audit.pageSize}
+					noun="changes"
+					href={pageHref}
+				/>
 			{/if}
 		</div>
 	{/if}
@@ -406,10 +512,21 @@
 			errors={editForm.errors.email ?? []}
 			dirty={!!editForm.touched.email}
 		>
-			<TextInput bind:value={editForm.values.email} type="email" onfocusout={() => editForm.touch('email')} />
+			<TextInput
+				bind:value={editForm.values.email}
+				type="email"
+				onfocusout={() => editForm.touch('email')}
+			/>
 		</FormField>
-		<FormField label="Username" errors={editForm.errors.username ?? []} dirty={!!editForm.touched.username}>
-			<TextInput bind:value={editForm.values.username} onfocusout={() => editForm.touch('username')} />
+		<FormField
+			label="Username"
+			errors={editForm.errors.username ?? []}
+			dirty={!!editForm.touched.username}
+		>
+			<TextInput
+				bind:value={editForm.values.username}
+				onfocusout={() => editForm.touch('username')}
+			/>
 		</FormField>
 		<Switch
 			id="edit-email-verified"

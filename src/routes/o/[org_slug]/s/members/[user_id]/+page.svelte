@@ -2,21 +2,16 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import MemberDetailPage from '$pages/o/s/members/MemberDetailPage.svelte';
+	import { api } from '$lib/client/api';
 
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug || '');
-	const userId = $derived($page.params.user_id);
 
 	async function handleSetPermission(permissionId: string, value: boolean | null) {
-		const res = await fetch(`/o/${orgSlug}/s/api/members/${userId}/permissions`, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ permission_id: permissionId, value })
-		});
-		if (!res.ok) {
-			const body = await res.json().catch(() => ({}));
-			throw new Error(body.error ?? 'Failed to save permission.');
-		}
+		const path = `/members/${data.member_id}/permissions/${permissionId}`;
+		await (value === null
+			? api(path, { method: 'DELETE' })
+			: api(path, { method: 'PUT', body: { value } }));
 		await invalidateAll();
 	}
 </script>

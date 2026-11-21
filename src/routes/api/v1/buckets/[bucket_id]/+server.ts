@@ -3,7 +3,12 @@ import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { parseId, requireUser } from '$lib/server/list-access';
 import { bucketFiltersSchema } from '$lib/shared/schemas/filters';
-import { getBucket, replaceBucket, updateBucket } from '$lib/server/services/buckets.service';
+import {
+	deleteBucket,
+	getBucket,
+	replaceBucket,
+	updateBucket
+} from '$lib/server/services/buckets.service';
 import { analytics } from '$lib/server/analytics';
 
 const slugSchema = z
@@ -82,4 +87,20 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	});
 
 	return json(bucket);
+};
+
+/**
+ * Deletes a bucket. The bucket is marked deleted, not removed: it disappears from every list and its pages answer 404, while its lists, surveys, scripts, and turfs stay as they are. Its slug can be used again.
+ *
+ * @auth staff
+ * @returns 204. 400 for an invalid id, 401 when signed out, 403 without staff access, 404 when it is not in the caller's organizations or is already deleted
+ */
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+	const userId = requireUser(locals);
+	const bucketId = parseId(params.bucket_id, 'bucket');
+
+	await deleteBucket(userId, bucketId);
+	analytics.capture(userId, 'bucket_deleted', { bucket_id: bucketId });
+
+	return new Response(null, { status: 204 });
 };

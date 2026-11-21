@@ -2,8 +2,8 @@ import { getAuth } from '$lib/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
 import { redirect, error, isHttpError, isRedirect, type Handle } from '@sveltejs/kit';
-import { POOL, withOrgTransaction } from '$lib/server/database';
-import { resolveOrgPermissions, resolveInfraPermissions } from '$lib/server/permissions';
+import { resolveInfraPermissions } from '$lib/server/permissions';
+import { resolveRequestOrganization } from '$lib/server/services/request-organization.service';
 import { getAllSettings, NotReadyError } from '$lib/server/settings';
 import { errorPage } from '$lib/server/utils/error-page';
 import { touchActiveDay } from '$lib/server/services/activity.service';
@@ -12,6 +12,8 @@ import { logger } from '$lib/server/logger';
 import { startRuntimeMetrics } from '$lib/server/runtime-metrics';
 import { analytics, configureAnalytics } from '$lib/server/analytics';
 import { applyTelemetry } from '$lib/server/telemetry';
+import { isMaintenanceMode } from '$lib/server/utils/maintenance';
+import { isPlaceholderEmail } from '$lib/server/utils/placeholder-email';
 
 if (!building) startRuntimeMetrics();
 
@@ -32,7 +34,14 @@ export function handleError({ error: err, event, status, message }) {
 
 const handleRequest: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
-	const isAuthRoute = pathname.startsWith('/auth');
+	// The auth pages and better-auth's own endpoints, which those pages call.
+	const isAuthRoute = pathname.startsWith('/auth') || pathname.startsWith('/api/auth/');
+
+	// Maintenance mode answers before anything touches the database: no settings
+	// read, no session lookup, no activity write, no sign-in.
+	if (!building && isMaintenanceMode()) {
+		return errorPage('MAINTENANCE', { 'retry-after': '300' });
+	}
 
 	if (!building) {
 		let loaded: Awaited<ReturnType<typeof getAllSettings>>;
@@ -41,7 +50,10 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 		} catch (e) {
 			// Not migrated, not set up, or no database: answer with a page that says which.
 			if (e instanceof NotReadyError) {
-				logger.warn({ err: e.cause, code: e.code }, 'The app is not ready, so it answered with an error page');
+				logger.warn(
+					{ err: e.cause, code: e.code },
+					'The app is not ready, so it answered with an error page'
+				);
 				return errorPage(e.code);
 			}
 			throw e;
@@ -73,7 +85,8 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 		event.locals.session = session.session;
 		event.locals.user = session.user;
 
-		const impersonatedBy = (session.session as { impersonatedBy?: string | null }).impersonatedBy ?? null;
+		const impersonatedBy =
+			(session.session as { impersonatedBy?: string | null }).impersonatedBy ?? null;
 
 		// An impersonation session is the target user, so it never carries infra
 		// access: the infra panel is closed to it and the infra services answer 403.
@@ -86,16 +99,23 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 				throw error(403, 'Stop impersonating to use the infrastructure panel.');
 			}
 			if (!['GET', 'HEAD', 'OPTIONS'].includes(event.request.method)) {
-				await audit(impersonatedBy, 'impersonation.request', { type: 'user', id: session.user.id }, {
-					method: event.request.method,
-					path: pathname
-				}).catch((e) => logger.error({ err: e }, '[audit] Could not record an impersonated request'));
+				await audit(
+					impersonatedBy,
+					'impersonation.request',
+					{ type: 'user', id: session.user.id },
+					{
+						method: event.request.method,
+						path: pathname
+					}
+				).catch((e) =>
+					logger.error({ err: e }, '[audit] Could not record an impersonated request')
+				);
 			}
 		}
 
 		// Users with fake emails must set a real one before doing anything else.
-		const isFakeEmail = session.user.email.endsWith('@fake.com');
-		if (isFakeEmail && !isAuthRoute && pathname !== '/auth/update-email') {
+		const isFakeEmail = isPlaceholderEmail(session.user.email);
+		if (isFakeEmail && !isAuthRoute) {
 			throw redirect(303, '/auth/update-email');
 		}
 	}
@@ -105,61 +125,10 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 	if (orgRouteMatch && session?.user) {
 		const slug = orgRouteMatch[1];
 
-		// A deleted org is treated as one that does not exist.
-		const orgRow = await POOL.query(
-			`SELECT id, name, slug, suspended_at FROM auth.organization WHERE slug = $1 AND deleted_at IS NULL`,
-			[slug]
-		);
-
-		if (orgRow.rows.length > 0) {
-			const org = orgRow.rows[0];
-
-			if (org.suspended_at && !event.locals.infrastructure?.permissions.includes('access')) {
-				throw error(403, 'This organization has been suspended. Contact support for help.');
-			}
-
-			const resolved = await withOrgTransaction(org.id, async (client) => {
-				const memberCheck = await client.query(
-					`SELECT 1 FROM auth.member WHERE organization_id = $1 AND user_id = $2`,
-					[org.id, session.user.id]
-				);
-				if (memberCheck.rowCount === 0) return null;
-
-				const roleResult = await client.query(
-					`SELECT pr.id, pr.name
-					 FROM user_role_membership urm
-					 JOIN permission_role pr ON pr.id = urm.role_id
-					 WHERE urm.user_id = $1
-					   AND pr.organization_id = $2
-					   AND pr.scope = 'organization'
-					 ORDER BY pr.weight ASC
-					 LIMIT 1`,
-					[session.user.id, org.id]
-				);
-
-				const permissions = await resolveOrgPermissions(client, session.user.id, org.id);
-
-				return {
-					role: roleResult.rows[0] ?? null,
-					permissions
-				};
-			});
-
-			if (resolved !== null) {
-				event.locals.organization = {
-					id: org.id,
-					name: org.name,
-					slug: org.slug,
-					role: resolved?.role
-						? {
-								id: resolved.role.id,
-								name: resolved.role.name,
-							}
-						: undefined,
-					permissions: resolved.permissions
-				};
-			}
-		}
+		const organization = await resolveRequestOrganization(session.user.id, slug, {
+			infraAccess: event.locals.infrastructure?.permissions.includes('access') ?? false
+		});
+		if (organization) event.locals.organization = organization;
 	}
 
 	if (session?.user && !event.locals.impersonatedBy) {

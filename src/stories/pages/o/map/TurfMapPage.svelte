@@ -23,6 +23,8 @@
 
 	export interface Props {
 		orgSlug: string;
+		/** The organization photos are uploaded to. */
+		orgId: string;
 		turfId: string;
 		locations: TurfLocation[];
 		center: { lat: number; lng: number };
@@ -43,9 +45,9 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
 	import GpsIcon from 'phosphor-svelte/lib/Gps';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
-	import LocationsMap, {
+	import MapView, {
 		type MapLocation
-	} from '$components/data-display/locations-map/LocationsMap.svelte';
+	} from '$components/data-display/map-view/MapView.svelte';
 	import { type Variant } from '$components/data-display/map-marker/MapMarker.svelte';
 	import Badge from '$components/data-display/badge/Badge.svelte';
 	import Button from '$components/actions/button/Button.svelte';
@@ -59,6 +61,7 @@
 
 	const {
 		orgSlug,
+		orgId,
 		turfId,
 		locations,
 		center,
@@ -99,7 +102,7 @@
 		hostile: { label: 'Hostile', variant: 'location-hostile' }
 	};
 
-	let mapRef = $state<ReturnType<typeof LocationsMap> | undefined>();
+	let mapRef = $state<ReturnType<typeof MapView> | undefined>();
 	let selectedLocationId = $state<string | null>(null);
 
 	type GeolocateState = 'idle' | 'locating' | 'tracking' | 'error';
@@ -278,7 +281,7 @@
 	}
 
 	async function pollStatuses() {
-		const res = await fetch(`/o/${orgSlug}/map/${turfId}/status`);
+		const res = await fetch(`/api/v1/turfs/${turfId}/doors`);
 		if (!res.ok) return;
 		const updates: Array<{ id: string; visited: boolean; contact_made: boolean | null }> =
 			await res.json();
@@ -362,7 +365,7 @@
 	</div>
 {/if}
 
-<LocationsMap
+<MapView
 	bind:this={mapRef}
 	bind:selectedLocationId
 	locations={mapLocations}
@@ -399,7 +402,7 @@
 						country_code: editing.country
 					}}
 					coordinates={{ latitude: editing.latitude, longitude: editing.longitude }}
-					{orgSlug}
+					{orgId}
 					submitLabel="Save changes"
 					onSubmit={handleEdit}
 					onCancel={() => (editing = null)}
@@ -408,7 +411,7 @@
 		{:else if draft}
 			<LocationForm
 				coordinates={draft}
-				{orgSlug}
+				{orgId}
 				submitLabel="Add business"
 				instructions="Photograph the business name and address so an organizer can check the details."
 				onSubmit={handleSuggest}
@@ -457,7 +460,7 @@
 					latitude: correcting.latitude,
 					longitude: correcting.longitude
 				}}
-				{orgSlug}
+				{orgId}
 				submitLabel="Send correction"
 				onSubmit={handleCorrection}
 				onCancel={cancelCorrection}

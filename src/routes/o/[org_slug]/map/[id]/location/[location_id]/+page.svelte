@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { api } from '$lib/client/api';
 	import SurveyScreen from '$pages/o/map/location/SurveyScreen.svelte';
 
 	const { data } = $props();
@@ -24,7 +25,7 @@
 		question_type: string;
 		question_text: string;
 		choices: string[];
-		order_index: string;
+		order_index: number;
 	}
 
 	interface ServerResponse {
@@ -42,7 +43,7 @@
 			type: q.question_type as QuestionType,
 			text: q.question_text,
 			choices: q.choices,
-			index: parseInt(q.order_index),
+			index: Number(q.order_index),
 			response:
 				data.responses.find((r: ServerResponse) => r.survey_question_id === q.id)?.response_value ||
 				''
@@ -53,13 +54,10 @@
 		if (!contactStatus) return;
 		loading = true;
 		try {
-			const r = await fetch($page.url.pathname, {
+			await api(`/doors/${$page.params.location_id}/visits`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ contactStatus, attemptNote, questions })
+				body: { contactStatus, attemptNote, questions }
 			});
-
-			if (!r.ok) throw new Error('Failed to save.');
 
 			goto(`/o/${orgSlug}/map/${data.turfId}`);
 		} catch (e) {

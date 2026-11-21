@@ -7,6 +7,8 @@
 	import Dropdown from '$components/data-inputs/dropdown/Dropdown.svelte';
 	import TextInput from '$components/data-inputs/text-input/TextInput.svelte';
 	import ContactMadePicker from '$components/universe/contact-made-picker/ContactMadePicker.svelte';
+	import ContactSchemaPicker from '$components/universe/contact-schema-picker/ContactSchemaPicker.svelte';
+	import SchemaFieldPicker from '$components/universe/schema-field-picker/SchemaFieldPicker.svelte';
 	import FilterSentence from '$components/universe/filter-sentence/FilterSentence.svelte';
 	import PolygonPickerModal from '$components/universe/polygon-picker-modal/PolygonPickerModal.svelte';
 	import RadiusPickerModal from '$components/universe/radius-picker-modal/RadiusPickerModal.svelte';
@@ -18,11 +20,14 @@
 	import XIcon from 'phosphor-svelte/lib/X';
 	import { filterSchema } from '$lib/shared/schemas/filters';
 	import type { FilterRegistryEntry } from '$lib/shared/types/filter-registry';
+	import type { ContactSchemaFieldType } from '$lib/shared/types/contact-schemas';
 	import type { Filter } from '$lib/shared/types/filters';
 	import { describeFilter } from '$lib/shared/utils/filter-sentence';
 	import {
 		asCalendarDate,
 		asContactMade,
+		asContactSchema,
+		asSchemaField,
 		asPolygon,
 		asRadius,
 		asSurveyResponse
@@ -64,8 +69,39 @@
 	/** What is missing or wrong, in words, or null when the filter can be saved. */
 	const problem = $derived(check.success ? null : (check.error.issues[0]?.message ?? 'Finish this filter'));
 
+	// How a schema field can be compared depends on its type: text is not greater than
+	// another text, and true/false has no "contains". Until a field is chosen, only
+	// "is" and "is not" fit all of them.
+	const FIELD_OPERATIONS: Record<ContactSchemaFieldType | 'none', Filter['operation'][]> = {
+		none: ['equals', 'not_equals'],
+		text: ['equals', 'not_equals', 'contains', 'starts_with'],
+		number: [
+			'equals',
+			'not_equals',
+			'greater_than',
+			'less_than',
+			'greater_than_or_equal',
+			'less_than_or_equal'
+		],
+		boolean: ['equals', 'not_equals']
+	};
+	let fieldType = $state<ContactSchemaFieldType | null>(null);
+
+	const allowedOperations = $derived(
+		definition.valueType === 'schema_field'
+			? definition.operations.filter((o) => FIELD_OPERATIONS[fieldType ?? 'none'].includes(o))
+			: definition.operations
+	);
+
+	// A new field type can rule out the condition that was chosen.
+	$effect(() => {
+		if (definition.valueType === 'schema_field' && !allowedOperations.includes(draft.operation)) {
+			draft = { ...draft, operation: 'equals' };
+		}
+	});
+
 	const operationItems = $derived(
-		definition.operations.map((operation) => ({
+		allowedOperations.map((operation) => ({
 			value: operation,
 			label: definition.operationLabels?.[operation] ?? FILTER_OPERATION_LABELS[operation]
 		}))
@@ -240,6 +276,29 @@
 							/>
 						{:else}
 							<span class="text-sm text-on-surface-subtle">Survey choices are unavailable here.</span>
+						{/if}
+					{:else if definition.valueType === 'contact_schema'}
+						<span class="text-sm font-medium text-on-surface">Schema</span>
+						{#if filterSource}
+							<ContactSchemaPicker
+								source={filterSource}
+								value={asContactSchema(draft.value)}
+								onchange={(next) => setValue(next)}
+							/>
+						{:else}
+							<span class="text-sm text-on-surface-subtle">Schemas are unavailable here.</span>
+						{/if}
+					{:else if definition.valueType === 'schema_field'}
+						<span class="text-sm font-medium text-on-surface">Schema field</span>
+						{#if filterSource}
+							<SchemaFieldPicker
+								source={filterSource}
+								value={asSchemaField(draft.value)}
+								onchange={(next) => setValue(next)}
+								ontypechange={(type) => (fieldType = type)}
+							/>
+						{:else}
+							<span class="text-sm text-on-surface-subtle">Schemas are unavailable here.</span>
 						{/if}
 					{:else if definition.valueType === 'contact_made'}
 						<span class="text-sm font-medium text-on-surface">Attempts</span>

@@ -1,5 +1,8 @@
 <script lang="ts">
 	import PageHeader from '$components/layout/fragments/page-header/PageHeader.svelte';
+	import DataTable, {
+		type DataTableColumn
+	} from '$components/data-display/data-table/DataTable.svelte';
 
 	// --- Draft types (UI state, all values are strings) ---
 
@@ -43,13 +46,43 @@
 	}
 
 	interface Props {
-		orgSlug: string;
 		tableSchemas?: import('$lib/server/services/query-builder.service').TableSchema[];
 	}
 
-	const { orgSlug, tableSchemas = [] }: Props = $props();
+	const { tableSchemas = [] }: Props = $props();
 
 	let showSchema = $state(false);
+
+	type SchemaColumn =
+		import('$lib/server/services/query-builder.service').TableSchema['columns'][number];
+
+	/** The schema browser lists each table's columns with their type and whether they can be empty. */
+	const schemaColumnColumns: DataTableColumn<SchemaColumn>[] = [
+		{ id: 'name', header: 'column', accessorKey: 'name', class: 'font-mono text-xs' },
+		{
+			id: 'type',
+			header: 'type',
+			accessorKey: 'type',
+			class: 'font-mono text-xs text-on-surface-subtle'
+		},
+		{
+			id: 'nullable',
+			header: 'nullable',
+			accessorFn: (col) => (col.nullable ? 'yes' : 'no'),
+			class: 'font-mono text-xs text-on-surface-subtle'
+		}
+	];
+
+	/** A result has whatever columns the query selected, so its columns are built from the field names. */
+	function resultColumns(fields: string[]): DataTableColumn<Record<string, unknown>>[] {
+		return fields.map((field) => ({
+			id: field,
+			header: field,
+			accessorFn: (row) => row[field],
+			nowrap: true,
+			class: 'font-mono text-xs'
+		}));
+	}
 
 	const OPERATORS = ['=', '!=', '<', '>', '<=', '>=', 'LIKE', 'ILIKE', 'IN', 'BETWEEN'];
 	const JOIN_TYPES = ['INNER', 'LEFT', 'RIGHT', 'FULL'] as const;
@@ -109,16 +142,38 @@
 		if (node.type === 'condition') {
 			if (!node.column) return null;
 			if (node.op === 'IN') {
-				const values = node.value.split(',').map((v) => v.trim()).filter(Boolean);
+				const values = node.value
+					.split(',')
+					.map((v) => v.trim())
+					.filter(Boolean);
 				if (values.length === 0) return null;
-				return { type: 'condition', column: node.column, op: node.op, negate: node.negate, value: values };
+				return {
+					type: 'condition',
+					column: node.column,
+					op: node.op,
+					negate: node.negate,
+					value: values
+				};
 			}
 			if (node.op === 'BETWEEN') {
 				if (!node.value || !node.value2) return null;
-				return { type: 'condition', column: node.column, op: node.op, negate: node.negate, value: node.value, value2: node.value2 };
+				return {
+					type: 'condition',
+					column: node.column,
+					op: node.op,
+					negate: node.negate,
+					value: node.value,
+					value2: node.value2
+				};
 			}
 			if (!node.value) return null;
-			return { type: 'condition', column: node.column, op: node.op, negate: node.negate, value: node.value };
+			return {
+				type: 'condition',
+				column: node.column,
+				op: node.op,
+				negate: node.negate,
+				value: node.value
+			};
 		}
 		const children = node.children.map(serializeNode).filter(Boolean);
 		if (children.length === 0) return null;
@@ -148,7 +203,7 @@
 					};
 				})
 			};
-			const res = await fetch(`/o/${orgSlug}/s/api/query`, {
+			const res = await fetch(`/api/v1/queries`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
@@ -167,8 +222,7 @@
 	}
 
 	let canRun = $derived(
-		queries.length > 0 &&
-			queries.every((q) => q.from.trim().length > 0 && q.select.length > 0)
+		queries.length > 0 && queries.every((q) => q.from.trim().length > 0 && q.select.length > 0)
 	);
 
 	// --- SQL preview (mirrors server logic, no DB access) ---
@@ -178,10 +232,11 @@
 			const i = paramIdx.v;
 			let sql: string;
 			if (node.op === 'IN') {
-				const values = node.value.split(',').map((v) => v.trim()).filter(Boolean);
-				const placeholders = values.length > 0
-					? values.map((_, j) => `$${i + j}`).join(', ')
-					: '?';
+				const values = node.value
+					.split(',')
+					.map((v) => v.trim())
+					.filter(Boolean);
+				const placeholders = values.length > 0 ? values.map((_, j) => `$${i + j}`).join(', ') : '?';
 				sql = `${node.column || '<col>'} IN (${placeholders})`;
 				paramIdx.v += Math.max(values.length, 1);
 			} else if (node.op === 'BETWEEN') {
@@ -279,7 +334,7 @@
 {/snippet}
 
 {#snippet groupBlock(group: WhereGroupDraft, depth: number, onRemove?: () => void)}
-	<div class="{depth > 0 ? 'border border-outline/50 rounded-md p-2 bg-surface' : ''}">
+	<div class={depth > 0 ? 'border border-outline/50 rounded-md p-2 bg-surface' : ''}>
 		<div class="flex flex-wrap gap-2 items-center {group.children.length > 0 ? 'mb-2' : ''}">
 			<select
 				class="rounded-md border border-outline bg-surface px-2 py-1.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
@@ -316,7 +371,9 @@
 					{#if child.type === 'condition'}
 						{@render conditionRow(child as WhereConditionDraft, () => group.children.splice(ci, 1))}
 					{:else}
-						{@render groupBlock(child as WhereGroupDraft, depth + 1, () => group.children.splice(ci, 1))}
+						{@render groupBlock(child as WhereGroupDraft, depth + 1, () =>
+							group.children.splice(ci, 1)
+						)}
 					{/if}
 				{/each}
 			</div>
@@ -324,10 +381,12 @@
 	</div>
 {/snippet}
 
-<div class="p-6 space-y-6 max-w-4xl">
+<div class="p-6 space-y-6">
 	{#each queries as query, qi}
 		<div class="rounded-lg border border-outline bg-surface-container-low overflow-hidden">
-			<div class="flex items-center justify-between px-4 py-3 border-b border-outline bg-surface-container">
+			<div
+				class="flex items-center justify-between px-4 py-3 border-b border-outline bg-surface-container"
+			>
 				<span class="text-sm font-medium text-on-surface">Query {qi + 1}</span>
 				{#if queries.length > 1}
 					<button class="text-xs text-error hover:underline" onclick={() => removeQuery(qi)}>
@@ -490,43 +549,42 @@
 	</div>
 
 	{#if showSql}
-		<pre class="rounded-lg border border-outline bg-surface-container-low px-4 py-3 text-xs font-mono text-on-surface whitespace-pre-wrap overflow-x-auto">{previewSql}</pre>
+		<pre
+			class="rounded-lg border border-outline bg-surface-container-low px-4 py-3 text-xs font-mono text-on-surface whitespace-pre-wrap overflow-x-auto">{previewSql}</pre>
 	{/if}
 
 	{#if showSchema}
 		<div class="rounded-lg border border-outline overflow-hidden">
 			<div class="px-4 py-3 bg-surface-container border-b border-outline">
 				<p class="text-sm font-medium text-on-surface">Schema Browser</p>
-				<p class="text-xs text-on-surface-subtle mt-0.5">{tableSchemas.length} tables across {[...new Set(tableSchemas.map(t => t.schema))].join(', ')} schemas</p>
+				<p class="text-xs text-on-surface-subtle mt-0.5">
+					{tableSchemas.length} tables across {[...new Set(tableSchemas.map((t) => t.schema))].join(
+						', '
+					)} schemas
+				</p>
 			</div>
 			<div class="divide-y divide-outline">
 				{#each tableSchemas as table}
 					<details class="group">
-						<summary class="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-surface-container-low list-none">
+						<summary
+							class="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-surface-container-low list-none"
+						>
 							<div class="flex items-center gap-2">
-								<span class="text-xs font-mono text-on-surface-subtle">{table.schema}.</span><span class="text-sm font-mono font-medium text-on-surface">{table.name}</span>
+								<span class="text-xs font-mono text-on-surface-subtle">{table.schema}.</span><span
+									class="text-sm font-mono font-medium text-on-surface">{table.name}</span
+								>
 							</div>
 							<span class="text-xs text-on-surface-subtle">{table.columns.length} cols</span>
 						</summary>
 						<div class="px-4 pb-3 pt-1 bg-surface-container-low">
-							<table class="w-full text-xs font-mono">
-								<thead>
-									<tr class="text-left text-on-surface-subtle">
-										<th class="pb-1 font-medium pr-6">column</th>
-										<th class="pb-1 font-medium pr-6">type</th>
-										<th class="pb-1 font-medium">nullable</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-outline/50">
-									{#each table.columns as col}
-										<tr>
-											<td class="py-1 pr-6 text-on-surface">{col.name}</td>
-											<td class="py-1 pr-6 text-on-surface-subtle">{col.type}</td>
-											<td class="py-1 text-on-surface-subtle">{col.nullable ? 'yes' : 'no'}</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
+							<DataTable
+								data={table.columns}
+								columns={schemaColumnColumns}
+								getRowId={(col) => col.name}
+								label="Columns of {table.schema}.{table.name}"
+								bordered={false}
+								class="bg-transparent"
+							/>
 						</div>
 					</details>
 				{/each}
@@ -554,32 +612,12 @@
 							No rows returned.
 						</div>
 					{:else}
-						<div class="rounded-lg border border-outline overflow-x-auto">
-							<table class="w-full text-sm">
-								<thead class="bg-surface-container border-b border-outline">
-									<tr>
-										{#each result.fields as field}
-											<th
-												class="px-4 py-2 text-left text-xs font-medium text-on-surface-subtle font-mono whitespace-nowrap"
-											>
-												{field}
-											</th>
-										{/each}
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-outline">
-									{#each result.rows as row}
-										<tr class="hover:bg-surface-container-low">
-											{#each result.fields as field}
-												<td class="px-4 py-2 text-xs font-mono text-on-surface whitespace-nowrap">
-													{row[field] ?? ''}
-												</td>
-											{/each}
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+						<DataTable
+							data={result.rows}
+							columns={resultColumns(result.fields)}
+							getRowId={(_row, index) => String(index)}
+							label="Result {i + 1}"
+						/>
 					{/if}
 				</div>
 			{/each}

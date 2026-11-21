@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Popover } from 'bits-ui';
 	import WrenchIcon from 'phosphor-svelte/lib/Wrench';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
@@ -21,6 +22,91 @@
 
 	let { groups, currentOrg = null, open = $bindable(false), besideFab = false }: Props = $props();
 
+	const STORAGE_KEY = 'infra-quick-menu-position';
+	/** Pixels the pointer must travel before a press counts as a drag instead of a click. */
+	const DRAG_THRESHOLD = 4;
+
+	let wrapper: HTMLDivElement;
+	/** Where the admin dragged the button (top left corner, px). Null keeps it in its corner. */
+	let position = $state<{ x: number; y: number } | null>(null);
+	let drag: { startX: number; startY: number; originX: number; originY: number; moved: boolean } | null =
+		null;
+	let justDragged = false;
+
+	function clamp(pos: { x: number; y: number }) {
+		const width = wrapper?.offsetWidth ?? 44;
+		const height = wrapper?.offsetHeight ?? 44;
+		return {
+			x: Math.min(Math.max(0, pos.x), Math.max(0, window.innerWidth - width)),
+			y: Math.min(Math.max(0, pos.y), Math.max(0, window.innerHeight - height))
+		};
+	}
+
+	function save() {
+		try {
+			if (position) localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
+		} catch {
+			// Storage can be blocked; the button just resets next visit.
+		}
+	}
+
+	onMount(() => {
+		try {
+			const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
+			if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+				position = clamp(saved);
+			}
+		} catch {
+			// Nothing saved or unreadable: stay in the corner.
+		}
+	});
+
+	function onpointerdown(event: PointerEvent) {
+		if (event.button !== 0) return;
+		const rect = wrapper.getBoundingClientRect();
+		drag = {
+			startX: event.clientX,
+			startY: event.clientY,
+			originX: rect.left,
+			originY: rect.top,
+			moved: false
+		};
+	}
+
+	function onpointermove(event: PointerEvent) {
+		if (!drag) return;
+		const dx = event.clientX - drag.startX;
+		const dy = event.clientY - drag.startY;
+		if (!drag.moved) {
+			if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+			drag.moved = true;
+			open = false;
+			wrapper.setPointerCapture(event.pointerId);
+		}
+		position = clamp({ x: drag.originX + dx, y: drag.originY + dy });
+	}
+
+	function onpointerup() {
+		if (drag?.moved) {
+			justDragged = true;
+			// The click that follows the release must not toggle the menu.
+			setTimeout(() => (justDragged = false), 0);
+			save();
+		}
+		drag = null;
+	}
+
+	function onclickcapture(event: MouseEvent) {
+		if (justDragged) {
+			event.stopPropagation();
+			event.preventDefault();
+		}
+	}
+
+	function onresize() {
+		if (position) position = clamp(position);
+	}
+
 	let query = $state('');
 	const trimmed = $derived(query.trim());
 
@@ -41,15 +127,23 @@
 		'flex items-center gap-2 h-9 px-3 rounded-md text-sm text-on-surface no-underline outline-none hover:bg-surface-container-high focus-visible:bg-surface-container-high [&>svg]:size-4 [&>svg]:shrink-0';
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onresize} />
 
 <div
+	bind:this={wrapper}
+	{onpointerdown}
+	{onpointermove}
+	{onpointerup}
+	onpointercancel={onpointerup}
+	{onclickcapture}
 	class={[
-		'fixed z-40 print:hidden',
+		'fixed z-40 touch-none print:hidden',
 		// 1rem gutter + the 3.5rem button + 0.75rem gap; bottom lines the centres up.
-		besideFab && 'max-md:right-[calc(5.25rem+env(safe-area-inset-right))]! max-md:bottom-[calc(1.875rem+env(safe-area-inset-bottom))]!'
+		besideFab && !position && 'max-md:right-[calc(5.25rem+env(safe-area-inset-right))]! max-md:bottom-[calc(1.875rem+env(safe-area-inset-bottom))]!'
 	]}
-	style="right: calc(1rem + env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom));"
+	style={position
+		? `left: ${position.x}px; top: ${position.y}px;`
+		: 'right: calc(1rem + env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom));'}
 >
 	<Popover.Root bind:open onOpenChange={(next) => !next && (query = '')}>
 		<Popover.Trigger

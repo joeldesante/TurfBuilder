@@ -1,29 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({
-	env: { DATABASE_URL: 'postgresql://test:test@localhost/test' }
-}));
-
-// Hoisted so the mock factory, which vitest lifts above this file's consts,
-// can still reach it.
-const { mockClient } = vi.hoisted(() => ({
-	mockClient: { query: vi.fn(), release: vi.fn() }
-}));
-
-// A function expression, not an arrow: the Pool mock is called with `new`.
-vi.mock('pg', () => ({
-	Pool: vi.fn(function () {
-		return {
-			connect: vi.fn().mockResolvedValue(mockClient),
-			on: vi.fn(),
-			end: vi.fn()
-		};
-	})
-}));
+const { listRoles } = vi.hoisted(() => ({ listRoles: vi.fn() }));
+vi.mock('$lib/server/services/roles.service', () => ({ listRoles }));
 
 import { load } from './+page.server';
 
-// withOrgTransaction rejects anything that is not a valid UUID.
 const ORG_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
 // can() reads the permissions hooks.server.ts resolved onto locals.organization.
@@ -39,37 +20,22 @@ const memberLocals = {
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	mockClient.query.mockResolvedValue({ rows: [] });
+	listRoles.mockResolvedValue([]);
 });
 
 describe('settings/roles page load', () => {
-	it('throws 403 without role.read', async () => {
-		await expect(load({ locals: memberLocals } as any)).rejects.toMatchObject({ status: 403 });
+	it('throws 403 without role.read and reads nothing', async () => {
+		await expect(load({ locals: memberLocals } as never)).rejects.toMatchObject({ status: 403 });
+		expect(listRoles).not.toHaveBeenCalled();
 	});
 
-	it('returns roles array with role.read', async () => {
-		const roles = [
-			{ id: 'r1', name: 'Owner', is_owner: true, is_default: false, permissions: null }
-		];
-		// withOrgTransaction calls BEGIN, SET LOCAL, then the SELECT, then COMMIT, then RESET
-		mockClient.query
-			.mockResolvedValueOnce({ rows: [] }) // BEGIN
-			.mockResolvedValueOnce({ rows: [] }) // SET LOCAL
-			.mockResolvedValueOnce({ rows: roles }) // SELECT
-			.mockResolvedValueOnce({ rows: [] }) // COMMIT
-			.mockResolvedValueOnce({ rows: [] }); // RESET
+	it("returns the organization's roles", async () => {
+		const roles = [{ id: 'r1', name: 'Admin', is_default: false, weight: 0, permissions: [] }];
+		listRoles.mockResolvedValue(roles);
 
-		const result = await load({ locals: ownerLocals } as any);
+		const result = await load({ locals: ownerLocals } as never);
+
 		expect(result.roles).toEqual(roles);
-	});
-
-	it('returns empty roles array when no roles exist', async () => {
-		const result = await load({ locals: ownerLocals } as any);
-		expect(result.roles).toEqual([]);
-	});
-
-	it('releases the db client', async () => {
-		await load({ locals: ownerLocals } as any);
-		expect(mockClient.release).toHaveBeenCalledTimes(1);
+		expect(listRoles).toHaveBeenCalledWith('u1', ORG_ID);
 	});
 });

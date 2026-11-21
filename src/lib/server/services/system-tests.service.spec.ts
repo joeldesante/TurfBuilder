@@ -14,8 +14,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/server/database', () => ({ POOL: mocks.pool }));
-vi.mock('$lib/server/permissions', () => ({ requireInfraPermission: mocks.requireInfraPermission }));
-vi.mock('$lib/server/mail', () => ({ deliverEmail: mocks.deliverEmail, isMailConfigured: mocks.isMailConfigured }));
+vi.mock('$lib/server/permissions', () => ({
+	requireInfraPermission: mocks.requireInfraPermission
+}));
+vi.mock('$lib/server/mail', () => ({
+	deliverEmail: mocks.deliverEmail,
+	isMailConfigured: mocks.isMailConfigured
+}));
 vi.mock('$lib/server/storage', () => ({
 	testStorage: mocks.testStorage,
 	StorageNotConfiguredError: class StorageNotConfiguredError extends Error {
@@ -41,8 +46,18 @@ beforeEach(() => {
 describe('sendTestMail', () => {
 	it('sends to the admin and audits it', async () => {
 		expect(await sendTestMail(ADMIN)).toEqual({ to: 'grace@example.com' });
-		expect(mocks.deliverEmail).toHaveBeenCalledWith('grace@example.com', 'system.test', 'Test email', expect.any(String));
-		expect(mocks.audit).toHaveBeenCalledWith(ADMIN, 'mail.test', { type: 'system' }, { to: 'grace@example.com' });
+		expect(mocks.deliverEmail).toHaveBeenCalledWith(
+			'grace@example.com',
+			'system.test',
+			'Test email',
+			expect.any(String)
+		);
+		expect(mocks.audit).toHaveBeenCalledWith(
+			ADMIN,
+			'mail.test',
+			{ type: 'system' },
+			{ to: 'grace@example.com' }
+		);
 	});
 
 	it('answers 409 when mail is not set up', async () => {

@@ -21,6 +21,7 @@
 		disabled?: boolean;
 		loop?: boolean;
 		rovingFocus?: boolean;
+		hideLabel?: boolean;
 		class?: string;
 		[key: string]: unknown;
 	}
@@ -38,6 +39,7 @@
 		disabled?: boolean;
 		loop?: boolean;
 		rovingFocus?: boolean;
+		hideLabel?: boolean;
 		class?: string;
 		[key: string]: unknown;
 	}
@@ -57,6 +59,7 @@
 		disabled = false,
 		loop = true,
 		rovingFocus = true,
+		hideLabel = false,
 		class: className = '',
 		...restProps
 	}: Props = $props();
@@ -98,7 +101,7 @@
 	{disabled}
 	{...restProps}
 >
-	<legend class="text-sm font-medium text-on-surface mb-1.5">
+	<legend class={hideLabel ? 'sr-only' : 'text-sm font-medium text-on-surface mb-1.5'}>
 		{label}
 		{#if requirement === 'required'}
 			<span class="text-error text-xs font-normal">*</span>

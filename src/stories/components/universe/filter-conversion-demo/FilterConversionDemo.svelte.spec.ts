@@ -14,7 +14,7 @@ test('converts the first example and shows each step', async () => {
 test('shows the converted filter in the editor as a sentence', async () => {
 	const { getByText } = render(FilterConversionDemo);
 
-	await expect.element(getByText(/Locations whose city is Austin/)).toBeVisible();
+	await expect.element(getByText(/Contacts whose city is Austin/)).toBeVisible();
 });
 
 test('shows "none of these" as the "at least one condition is false" it was stored as', async () => {
@@ -24,7 +24,7 @@ test('shows "none of these" as the "at least one condition is false" it was stor
 	await getByRole('option', { name: /None of these/ }).click();
 
 	await expect.element(getByLabelText('Converted filters')).toHaveTextContent('"not": true');
-	await expect.element(getByRole('button', { name: 'Group operator' })).toHaveTextContent('Locations where at least one condition below is false');
+	await expect.element(getByRole('button', { name: 'Group operator' })).toHaveTextContent('Contacts where at least one condition below is false');
 });
 
 test('shows a result for each kind of record the bucket includes', async () => {

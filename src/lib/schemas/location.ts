@@ -24,10 +24,13 @@ export const LocationFieldsSchema = z.object({
 
 /**
  * Partial form used by PATCH handlers. Version rows carry the whole record, so
- * a partial patch must be merged over the current version before insert — see
- * createLocationVersion in $lib/server/locations.
+ * a partial patch is merged over the current version before insert (see
+ * mergeLocationFields in $lib/server/services/locations.service). photo_keys
+ * has no default here: a patch that leaves it out keeps the photos.
  */
-export const LocationPatchSchema = LocationFieldsSchema.partial();
+export const LocationPatchSchema = LocationFieldsSchema.extend({
+	photo_keys: z.array(z.string().max(255)).max(3)
+}).partial();
 
 export type LocationFields = z.infer<typeof LocationFieldsSchema>;
 export type LocationPatch = z.infer<typeof LocationPatchSchema>;

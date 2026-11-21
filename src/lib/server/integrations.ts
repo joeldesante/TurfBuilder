@@ -23,13 +23,6 @@ function svgLogo(abbr: string, bg: string, fg = '#fff'): string {
 
 export const INTEGRATIONS: IntegrationDef[] = [
 	{
-		id: 'overture_maps',
-		name: 'Overture Maps Foundation',
-		description: 'Import high-quality open map data including buildings, addresses, and places from the Overture Maps dataset.',
-		logoUrl: svgLogo('OM', '#1b3a6b'),
-		permanent: true
-	},
-	{
 		id: 'google_sheets',
 		name: 'Google Sheets',
 		description: 'Import people and location data directly from Google Sheets.',

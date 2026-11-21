@@ -11,7 +11,7 @@
 <Story
 	name="With Parameters"
 	args={{
-		sql: 'SELECT vl.id, vl.source FROM universe.v_locations vl WHERE (lower(vl.city) = lower($1) AND vl.postal_code ILIKE $2)',
+		sql: 'SELECT vl.id, vl.source FROM universe.v_contacts vl WHERE (lower(vl.city) = lower($1) AND vl.postal_code ILIKE $2)',
 		params: ['Austin', '787%']
 	}}
 />

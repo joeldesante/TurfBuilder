@@ -88,6 +88,8 @@
 	const orgName = $derived((page.data as { organization?: { name: string } }).organization?.name);
 
 	const historyKey = $derived(orgSlug ? `search_history:${orgSlug}` : null);
+	/** The org layout's data carries the organization; the search endpoint is keyed by its id. */
+	const orgId = $derived((page.data as { organization?: { id?: string } }).organization?.id);
 
 	let history = $state<HistoryItem[]>([]);
 
@@ -116,13 +118,13 @@
 	$effect(() => {
 		clearTimeout(debounceTimer);
 		const q = query;
-		if (!orgSlug || q.length < 2) {
+		if (!orgId || q.length < 2) {
 			results = null;
 			return;
 		}
 		debounceTimer = setTimeout(async () => {
 			loading = true;
-			const res = await fetch(`/o/${orgSlug}/s/api/search?q=${encodeURIComponent(q)}`);
+			const res = await fetch(`/api/v1/organizations/${orgId}/search?q=${encodeURIComponent(q)}`);
 			if (res.ok) results = await res.json();
 			loading = false;
 		}, 300);

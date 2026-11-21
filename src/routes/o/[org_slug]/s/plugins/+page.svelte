@@ -1,15 +1,13 @@
 <script lang="ts">
 	import PluginsPage from '$pages/o/s/plugins/PluginsPage.svelte';
+	import { api } from '$lib/client/api';
 
 	const { data } = $props();
 
 	async function handleToggle(slug: string, enabled: boolean) {
-		const endpoint = enabled ? 'install' : 'uninstall';
-		const res = await fetch(
-			`/o/${data.organization.slug}/s/api/plugins/${slug}/${endpoint}`,
-			{ method: 'POST' }
-		);
-		if (!res.ok) throw new Error(await res.text());
+		await api(`/organizations/${data.organization.id}/plugins/${encodeURIComponent(slug)}`, {
+			method: enabled ? 'PUT' : 'DELETE'
+		});
 		// Reload to reflect the change in nav and plugin list
 		location.reload();
 	}

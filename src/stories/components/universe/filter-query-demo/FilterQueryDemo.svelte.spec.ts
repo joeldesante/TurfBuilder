@@ -28,7 +28,7 @@ test('matches everything for an empty tree', async () => {
 
 	await expect
 		.element(getByLabelText('Generated SQL'))
-		.toHaveTextContent('SELECT vl.id, vl.source FROM universe.v_locations vl');
+		.toHaveTextContent('SELECT vl.id, vl.source FROM universe.v_contacts vl');
 });
 
 test('says why an incomplete filter cannot be compiled', async () => {

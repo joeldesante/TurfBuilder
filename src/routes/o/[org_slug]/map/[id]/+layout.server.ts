@@ -1,23 +1,11 @@
-import { redirect, error } from '@sveltejs/kit';
-import { withOrgTransaction } from '$lib/server/database.js';
+import { error, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { requireTurfMembership } from '$lib/server/services/canvass.service';
 
 export async function load({ locals, params }) {
-	if (!locals.user) {
-		throw redirect(303, '/auth/signin');
-	}
+	if (!locals.user) throw redirect(303, '/auth/signin');
+	if (!z.uuid().safeParse(params.id).success) throw error(404, 'Turf not found.');
 
-	const turfId = params.id;
-	const orgId = locals.organization!.id;
-	const userId = locals.user.id;
-
-	return withOrgTransaction(orgId, async (client) => {
-		const membership = await client.query(
-			`SELECT id FROM universe.turf_user WHERE turf_id = $1 AND user_id = $2 AND org_id = $3`,
-			[turfId, userId, orgId]
-		);
-
-		if (membership.rows.length === 0) {
-			throw error(403, 'You have not been added to this turf');
-		}
-	});
+	// 403 unless the caller joined this turf.
+	await requireTurfMembership(locals.user.id, params.id);
 }

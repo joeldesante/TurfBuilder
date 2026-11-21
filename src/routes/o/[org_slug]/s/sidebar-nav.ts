@@ -4,9 +4,10 @@ import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 import PersonSimpleWalkIcon from 'phosphor-svelte/lib/PersonSimpleWalk';
 import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 import MapPinIcon from 'phosphor-svelte/lib/MapPinIcon';
-import MapPinAreaIcon from 'phosphor-svelte/lib/MapPinArea';
+import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifold';
 import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 import ShieldIcon from 'phosphor-svelte/lib/Shield';
+import ListChecksIcon from 'phosphor-svelte/lib/ListChecks';
 // import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
 import GlobeIcon from 'phosphor-svelte/lib/Globe';
 // import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
@@ -18,6 +19,7 @@ import ScrollIcon from 'phosphor-svelte/lib/ScrollIcon';
 import ListBulletsIcon from 'phosphor-svelte/lib/ListBullets';
 import FunnelIcon from 'phosphor-svelte/lib/Funnel';
 import DatabaseIcon from 'phosphor-svelte/lib/Database';
+import GearIcon from 'phosphor-svelte/lib/Gear';
 // import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
 import ChartPieSliceIcon from 'phosphor-svelte/lib/ChartPieSlice';
 
@@ -79,6 +81,14 @@ export function buildBucketNav(
 				icon: FilesIcon,
 				items: [{ label: 'Lists', href: `${base}/lists`, icon: ListBulletsIcon }]
 			}
+		},
+		{
+			kind: 'section',
+			section: {
+				label: 'Manage',
+				icon: GearIcon,
+				items: [{ label: 'Settings', href: `${base}/settings`, icon: GearIcon }]
+			}
 		}
 	];
 }
@@ -113,7 +123,9 @@ export function buildStaffNav(
 						items: [
 							...buckets.map((b) => ({
 								label: b.name,
-								href: `/o/${orgSlug}/s/universe/buckets/${b.slug}`,
+								// Straight to Locations when the bucket has them, which is where the bucket's own
+								// address redirects; skipping the redirect saves loading the bucket twice.
+								href: `/o/${orgSlug}/s/universe/buckets/${b.slug}${b.filter?.locations.enabled ? '/locations' : ''}`,
 								icon: CircleIcon
 							})),
 							{
@@ -127,16 +139,20 @@ export function buildStaffNav(
 						label: 'Data',
 						icon: DatabaseIcon,
 						items: [
-							{ label: 'People', href: `/o/${orgSlug}/s/universe/data/people`, icon: UsersIcon },
 							{
-								label: 'Locations',
-								href: `/o/${orgSlug}/s/universe/data/locations`,
-								icon: MapPinIcon
+								label: 'Contacts',
+								href: `/o/${orgSlug}/s/universe/data/contacts`,
+								icon: UsersIcon
 							},
 							{
-								label: 'Pending Locations',
-								href: `/o/${orgSlug}/s/universe/data/locations/suggestions`,
-								icon: MapPinAreaIcon
+								label: 'Contact schemas',
+								href: `/o/${orgSlug}/s/universe/data/contact-schemas`,
+								icon: ListChecksIcon
+							},
+							{
+								label: 'Map Editor',
+								href: `/o/${orgSlug}/s/universe/data/map-editor`,
+								icon: MapTrifoldIcon
 							}
 						]
 					},

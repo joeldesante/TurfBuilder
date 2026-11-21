@@ -17,30 +17,6 @@
 
 ---
 
-## ActivityMap
-
-**Import:** `$components/data-display/activity-map/ActivityMap.svelte`
-
----
-
-## AdaptiveDataGrid
-
-**Import:** `$components/data-display/adaptive-datagrid/AdaptiveDataGrid.svelte`
-
-**Props**
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `columns` | `Column[]` | **required** |  |
-| `data` | `Record<string, unknown>[]` | **required** |  |
-| `readonly` | `boolean | undefined` | `false` |  |
-| `loading` | `boolean | undefined` | `false` |  |
-| `onchange` | `((rowIndex: number, key: string, value: string) => void) | undefined` | — |  |
-| `oncolumnadd` | `((col: Column) => void) | undefined` | — |  |
-| `onloadmore` | `(() => void) | undefined` | — |  |
-
----
-
 ## AuditLogTable
 
 **Import:** `$components/data-display/audit-log-table/AuditLogTable.svelte`
@@ -300,9 +276,24 @@ Small pill label for status, categories, and location visit states.
 
 ---
 
-## LocationsMap
+## GeometryBadge
 
-**Import:** `$components/data-display/locations-map/LocationsMap.svelte`
+A small tag saying whether a map layer is made of shapes (polygons), lines or points.
+
+**Import:** `$components/data-display/geometry-badge/GeometryBadge.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `kind` | `GeometryKind` | **required** |  |
+| `count` | `number | undefined` | — | How many there are, shown after the name. |
+
+---
+
+## MapLayerToggles
+
+**Import:** `$components/data-display/map-layer-toggles/MapLayerToggles.svelte`
 
 ---
 
@@ -334,6 +325,45 @@ Small pill label for status, categories, and location visit states.
 
 ---
 
+## MapView
+
+**Import:** `$components/data-display/map-view/MapView.svelte`
+
+---
+
+## OfficialBadge
+
+**Import:** `$components/data-display/official-badge/OfficialBadge.svelte`
+
+---
+
+## PageJumper
+
+A small row of page buttons for jumping around a long list. At most
+`visible` buttons show; with more pages than that, the row is a carousel
+that slides to keep the current page in the middle (or at the edge when
+it is near the start or end). Chevrons either side step one page at a time,
+and hovering a page says where it jumps to.
+
+**Import:** `$components/data-display/page-jumper/PageJumper.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `pageCount` | `number` | **required** | How many pages there are. Nothing shows for fewer than two. |
+| `current` | `number` | **required** | The selected page, counting from 0. |
+| `onSelect` | `(page: number) => void` | **required** | Called with the page (from 0) that was chosen. |
+| `startOf` | `(page: number) => number` | **required** | The position a page jumps to, named in its tooltip ("Jump to 1,000"). The button shows the
+page number. The first page is called "Top" instead, whatever position it names. |
+| `visible` | `number | undefined` | `5` | How many buttons show at once. |
+| `size` | `"default" | "large" | undefined` | `'default'` | `large` makes every button a finger-sized 44px target with bigger numbers, for touch
+screens. |
+| `label` | `string | undefined` | `'Jump to a section'` | Names the group for screen readers. |
+| `class` | `string | undefined` | `''` |  |
+
+---
+
 ## Pagination
 
 **Import:** `$components/data-display/pagination/Pagination.svelte`
@@ -354,6 +384,24 @@ Small pill label for status, categories, and location visit states.
 ## Qrcode
 
 **Import:** `$components/data-display/qrcode/Qrcode.svelte`
+
+---
+
+## SourceBadge
+
+A small tag saying where a map layer comes from: the service that listed it, and the
+publisher when given. With `href` it is a link to the dataset's own page, opened in a
+new tab, so the data can be checked at its source.
+
+**Import:** `$components/data-display/source-badge/SourceBadge.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `provider` | `CatalogueProvider` | **required** |  |
+| `publisher` | `string | undefined` | — | The agency, city or organization that publishes it. |
+| `href` | `string | null | undefined` | `null` | The dataset's page at its source. |
 
 ---
 
@@ -388,5 +436,51 @@ Small pill label for status, categories, and location visit states.
 | `trend` | `TimePoint[] | undefined` | — | A small trend under the value. |
 | `hint` | `string | undefined` | — | Extra context under the value. |
 | `href` | `string | undefined` | — | Makes the tile a link, such as to the full chart. |
+
+---
+
+## VirtualDataGrid
+
+A read-only grid for very large files. TanStack Table builds the columns
+and cells, but only for the rows in view: the scroll area is as tall as
+every row would be, and the rows near the viewport are drawn at their
+place in it. Rows load in pages as they are scrolled to, so a file of
+hundreds of thousands of rows never sits in the DOM, or in memory, all at once.
+
+Browsers cap how tall a scrolling area can be, and some stop at 2^24 pixels (16,777,216),
+which is only 372,827 rows at the standard row height; rows past that could never be
+reached. So the scroll area is held to `MAX_SCROLL_HEIGHT`, and when the file is taller
+than that the scrollbar maps proportionally onto the whole file: the top is the first row,
+the bottom is the last row, and each pixel of scrolling moves a little more than a pixel
+of rows. A file that fits scrolls one to one, as before.
+
+Pages of rows already loaded are kept so scrolling back is instant, up to `cachedPages` of
+them: past that the ones farthest from the view are dropped, so memory stays flat however
+far through the file someone scrolls.
+
+Create a new grid for a new file (`{#key}`).
+
+**Import:** `$components/data-display/virtual-data-grid/VirtualDataGrid.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `columns` | `string[]` | **required** | The column headers, in order. |
+| `totalRows` | `number` | **required** | How many rows the file has, excluding the header. |
+| `loadRows` | `(offset: number, limit: number) => Promise<string[][]>` | **required** | Returns `limit` rows starting at row `offset` (fewer at the end of the
+file), each as long as `columns`. A rejection shows a retry button, so
+it is not shown to the user. |
+| `pageSize` | `number | undefined` | `200` | Rows requested at a time. |
+| `cachedPages` | `number | undefined` | `100` | Pages of rows kept after they are loaded. Beyond this the pages farthest from the view are
+dropped, and loaded again if scrolled back to. Never fewer than the pages in view. |
+| `height` | `string | undefined` | `'28rem'` | Height of the scrolling area. |
+| `fill` | `boolean | undefined` | `false` | Fill the height of the container instead of using `height`. The container needs a height
+of its own to fill; the grid is never shorter than 16rem. |
+| `pageJumper` | `boolean | undefined` | `false` | Float a row of page buttons in the bottom left corner that jump to that part of the file
+and follow the scroll. For very long files. |
+| `jumpSize` | `number | undefined` | `1000` | Rows per page button when the grid opens: 10, 100, 1000, 10000, 100000 or 1000000. A small
+dropdown beside the buttons changes it. |
+| `class` | `string | undefined` | `''` |  |
 
 ---

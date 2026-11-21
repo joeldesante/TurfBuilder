@@ -6,7 +6,6 @@ export const INFRA_PERMISSIONS = [
 	'orgs.manage',
 	'settings.manage',
 	'audit.read',
-	'locations.overture_sync'
 ] as const;
 
 export type InfraPermission = (typeof INFRA_PERMISSIONS)[number];

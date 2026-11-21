@@ -14,7 +14,7 @@ const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
-	{ ignores: ['tools/**'] },
+	{ ignores: ['tools/**', 'functions/**'] },
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
@@ -26,6 +26,42 @@ export default defineConfig(
 			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
 			// see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
 			'no-undef': 'off'
+		}
+	},
+	{
+		// Only services touch the database. Routes, hooks, plugins, pages and
+		// browser code call a service in $lib/server/services, which checks
+		// access, opens the transaction and hides the tables, so storage can
+		// change without touching callers. contacts and addresses are internal
+		// building blocks for other services and take a client, so they are off
+		// limits here too.
+		files: [
+			'src/routes/**',
+			'src/hooks.server.ts',
+			'src/plugins/**',
+			'src/stories/**',
+			'src/lib/client/**'
+		],
+		ignores: ['**/*.spec.ts'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					paths: [{ name: 'pg', message: 'Call a service in $lib/server/services instead.' }],
+					patterns: [
+						{
+							group: [
+								'$lib/server/database',
+								'$lib/server/database.*',
+								'$lib/server/services/contacts.service*',
+								'$lib/server/services/addresses.service*'
+							],
+							message:
+								'Only services touch the database. Call a service in $lib/server/services instead.'
+						}
+					]
+				}
+			]
 		}
 	},
 	{

@@ -1,6 +1,5 @@
-import { withOrgTransaction } from '$lib/server/database';
 import { getActivePlugins } from '$lib/server/plugins';
-import type { PluginHooks } from '$plugins/types';
+import type { PluginContext, PluginHooks } from '$plugins/types';
 
 /**
  * Fire a lifecycle hook across all active plugins for an org.
@@ -17,13 +16,9 @@ export async function fireHook<K extends keyof PluginHooks>(
 	const plugins = await getActivePlugins(orgId);
 	await Promise.allSettled(
 		plugins.map(({ manifest, config }) => {
-			const hook = manifest.hooks?.[hookName] as
-				| ((...a: unknown[]) => Promise<void>)
-				| undefined;
+			const hook = manifest.hooks?.[hookName] as ((...a: unknown[]) => Promise<void>) | undefined;
 			if (!hook) return;
-			const ctx = {
-				db: <T>(fn: (client: import('pg').PoolClient) => Promise<T>) =>
-					withOrgTransaction(orgId, fn),
+			const ctx: PluginContext = {
 				orgId,
 				userId,
 				userRole,

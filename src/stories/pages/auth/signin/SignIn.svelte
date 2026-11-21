@@ -47,57 +47,133 @@
 			throw new Error(response.error.message);
 		}
 
+		// Two-factor accounts are not signed in yet: better-auth asks for a code first.
+		if ((response.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect) {
+			needsCode = true;
+			return;
+		}
+
 		// Cover the page now, before the redirect, so the next page loads in under the fade.
 		await navigateWithLoader(redirectTo);
 	});
+
+	/** Set once the password is right for an account with two-factor on. */
+	let needsCode = $state(false);
+	/** A backup code instead of the authenticator app's. */
+	let useBackupCode = $state(false);
+
+	const codeSchema = z.object({
+		code: z.string().trim().min(1, 'Enter the code')
+	});
+
+	const codeForm = new Form(codeSchema, async ({ code }) => {
+		const { error } = useBackupCode
+			? await authClient.twoFactor.verifyBackupCode({ code })
+			: await authClient.twoFactor.verifyTotp({ code });
+		if (error) throw new Error(error.message ?? 'That code did not work. Try again.');
+
+		await navigateWithLoader(redirectTo);
+	});
+
+	function switchCode() {
+		useBackupCode = !useBackupCode;
+		codeForm.reset();
+	}
 </script>
 
 <AuthLayout>
 	{#snippet children()}
-		<form
-			onsubmit={(e) => { e.preventDefault(); form.submit(); }}
-			class="w-full max-w-sm gap-6 flex flex-col"
-		>
-			<div class="space-y-3">
+		{#if needsCode}
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					codeForm.submit();
+				}}
+				class="w-full max-w-sm gap-6 flex flex-col"
+			>
+				<div class="space-y-2">
+					<h1 class="text-2xl">Two-factor authentication</h1>
+					<p class="text-sm">
+						{useBackupCode
+							? 'Enter one of the backup codes you saved when you turned on two-factor.'
+							: 'Enter the 6-digit code from your authenticator app.'}
+					</p>
+				</div>
+
 				<FormField
-					label="Email or Username"
-					id="identifier"
-					errors={form.touched.identifier ? (form.errors.identifier ?? []) : []}
-					dirty={form.touched.identifier}
+					label={useBackupCode ? 'Backup code' : 'Authentication code'}
+					id="code"
+					errors={codeForm.touched.code ? (codeForm.errors.code ?? []) : []}
+					dirty={codeForm.touched.code}
 				>
 					<TextInput
-						bind:value={form.values.identifier}
-						autocomplete="username"
-						onfocusout={() => form.touch('identifier')}
+						bind:value={codeForm.values.code}
+						autocomplete="one-time-code"
+						inputmode={useBackupCode ? 'text' : 'numeric'}
+						onfocusout={() => codeForm.touch('code')}
 					/>
 				</FormField>
 
-				<FormField
-					label="Password"
-					id="password"
-					errors={form.touched.password ? (form.errors.password ?? []) : []}
-					dirty={form.touched.password}
-				>
-					{#snippet labelAction()}
-						<a href="/auth/forgot-password" class="text-sm text-primary"> Forgot password? </a>
-					{/snippet}
-					<TextInput
-						bind:value={form.values.password}
-						type="password"
-						autocomplete="current-password"
-						onfocusout={() => form.touch('password')}
-					/>
-				</FormField>
-			</div>
+				<Button type="submit" loading={codeForm.submitting}>
+					{codeForm.submitting ? 'Verifying…' : 'Verify'}
+				</Button>
 
-			<Button type="submit" loading={form.submitting}>
-				{form.submitting ? 'Signing in…' : 'Sign In'}
-			</Button>
+				<!-- Always rendered: the message clears when the field loses focus, and a
+				     collapsing line would move the centered form under the pointer, losing the click. -->
+				<p class="text-error min-h-6" aria-live="polite">{codeForm.errorMessage}</p>
 
-			{#if form.errorMessage}
-				<p class="text-error">{form.errorMessage}</p>
-			{/if}
-		</form>
+				<button type="button" class="text-sm text-primary self-start" onclick={switchCode}>
+					{useBackupCode ? 'Use your authenticator app instead' : 'Use a backup code instead'}
+				</button>
+			</form>
+		{:else}
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					form.submit();
+				}}
+				class="w-full max-w-sm gap-6 flex flex-col"
+			>
+				<div class="space-y-3">
+					<FormField
+						label="Email or Username"
+						id="identifier"
+						errors={form.touched.identifier ? (form.errors.identifier ?? []) : []}
+						dirty={form.touched.identifier}
+					>
+						<TextInput
+							bind:value={form.values.identifier}
+							autocomplete="username"
+							onfocusout={() => form.touch('identifier')}
+						/>
+					</FormField>
+
+					<FormField
+						label="Password"
+						id="password"
+						errors={form.touched.password ? (form.errors.password ?? []) : []}
+						dirty={form.touched.password}
+					>
+						{#snippet labelAction()}
+							<a href="/auth/forgot-password" class="text-sm text-primary"> Forgot password? </a>
+						{/snippet}
+						<TextInput
+							bind:value={form.values.password}
+							type="password"
+							autocomplete="current-password"
+							onfocusout={() => form.touch('password')}
+						/>
+					</FormField>
+				</div>
+
+				<Button type="submit" loading={form.submitting}>
+					{form.submitting ? 'Signing in…' : 'Sign In'}
+				</Button>
+
+				<!-- Always rendered, so clearing it on focusout does not move the button mid-click. -->
+				<p class="text-error min-h-6" aria-live="polite">{form.errorMessage}</p>
+			</form>
+		{/if}
 	{/snippet}
 	{#snippet footer()}
 		<p class="text-sm">Don't have an account? <a href={signupHref}>Sign up</a></p>

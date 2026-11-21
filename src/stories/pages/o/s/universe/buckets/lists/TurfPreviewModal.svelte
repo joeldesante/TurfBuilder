@@ -31,12 +31,11 @@
 	interface Props {
 		turfId: string;
 		turfCode: string;
-		orgSlug: string;
 		open: boolean;
 		onClose: () => void;
 	}
 
-	const { turfId, turfCode, orgSlug, open, onClose }: Props = $props();
+	const { turfId, turfCode, open, onClose }: Props = $props();
 
 	let mapContainer: HTMLDivElement | undefined = $state();
 	let map: maplibregl.Map | undefined;
@@ -178,10 +177,10 @@
 		loading = true;
 		error = null;
 		try {
-			const res = await fetch(`/o/${orgSlug}/s/api/turfs/${turfId}/preview`);
+			const res = await fetch(`/api/v1/turfs/${turfId}`);
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
-				error = body.error ?? `Failed to load turf (${res.status})`;
+				error = body.message ?? `Failed to load turf (${res.status})`;
 				return;
 			}
 			const data: { turf: { bounds: string | null }; locations: LocationPreview[] } = await res.json();

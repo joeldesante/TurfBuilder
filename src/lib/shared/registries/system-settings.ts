@@ -57,9 +57,14 @@ export const SETTING_GROUPS: { id: SettingGroup; label: string; description: str
 	{
 		id: 'telemetry',
 		label: 'Telemetry',
-		description: 'Where traces and server logs are exported over OpenTelemetry (OTLP). Empty turns each one off.'
+		description:
+			'Where traces and server logs are exported over OpenTelemetry (OTLP). Empty turns each one off.'
 	},
-	{ id: 'links', label: 'External tools', description: 'Links to tools outside the app, shown in the infra menus.' }
+	{
+		id: 'links',
+		label: 'External tools',
+		description: 'Links to tools outside the app, shown in the infra menus.'
+	}
 ];
 
 const httpUrl = z
@@ -110,14 +115,20 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 		defaultValue: 'http://localhost:5173',
 		schema: z
 			.string()
-			.refine(
-				(value) => {
-					const lines = value.split('\n').map((line) => line.trim()).filter(Boolean);
-					return lines.length > 0 && lines.every((line) => httpUrl.safeParse(line).success);
-				},
-				'Enter at least one full http or https address, one per line.'
-			)
-			.transform((value) => value.split('\n').map((line) => line.trim()).filter(Boolean).join('\n')),
+			.refine((value) => {
+				const lines = value
+					.split('\n')
+					.map((line) => line.trim())
+					.filter(Boolean);
+				return lines.length > 0 && lines.every((line) => httpUrl.safeParse(line).success);
+			}, 'Enter at least one full http or https address, one per line.')
+			.transform((value) =>
+				value
+					.split('\n')
+					.map((line) => line.trim())
+					.filter(Boolean)
+					.join('\n')
+			),
 		requiresRestart: true
 	},
 	{
@@ -151,16 +162,17 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 		key: 'mail.transport',
 		group: 'email',
 		label: 'Transport',
-		help: 'Direct delivers from this server. Amazon SES reads its credentials from AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.',
+		help: 'Direct delivers from this server. Amazon SES reads its credentials from AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. SMTP relays through the server below, signing in with MAIL_SMTP_USER and MAIL_SMTP_PASSWORD when they are set.',
 		input: {
 			kind: 'select',
 			options: [
 				{ value: 'direct', label: 'Direct' },
-				{ value: 'ses', label: 'Amazon SES' }
+				{ value: 'ses', label: 'Amazon SES' },
+				{ value: 'smtp', label: 'SMTP server' }
 			]
 		},
 		defaultValue: 'direct',
-		schema: z.enum(['direct', 'ses'], 'Choose a transport.')
+		schema: z.enum(['direct', 'ses', 'smtp'], 'Choose a transport.')
 	},
 	{
 		key: 'mail.domain',
@@ -174,7 +186,10 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 			z
 				.string()
 				.trim()
-				.regex(/^(?=.{1,253}$)([a-z0-9-]+\.)+[a-z]{2,}$/i, 'Enter a domain such as mail.example.com.')
+				.regex(
+					/^(?=.{1,253}$)([a-z0-9-]+\.)+[a-z]{2,}$/i,
+					'Enter a domain such as mail.example.com.'
+				)
 		])
 	},
 	{
@@ -184,7 +199,53 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 		help: 'Only used with Amazon SES.',
 		input: { kind: 'text', placeholder: 'us-east-1' },
 		defaultValue: '',
-		schema: z.union([z.literal(''), z.string().trim().regex(/^[a-z]{2}-[a-z]+-\d$/, 'Enter a region such as us-east-1.')])
+		schema: z.union([
+			z.literal(''),
+			z
+				.string()
+				.trim()
+				.regex(/^[a-z]{2}-[a-z]+-\d$/, 'Enter a region such as us-east-1.')
+		])
+	},
+	{
+		key: 'mail.smtp.host',
+		group: 'email',
+		label: 'SMTP host',
+		help: 'Only used with SMTP.',
+		input: { kind: 'text', placeholder: 'smtp.example.com' },
+		defaultValue: '',
+		schema: z.union([
+			z.literal(''),
+			z
+				.string()
+				.trim()
+				.regex(/^[a-z0-9.-]{1,253}$/i, 'Enter a host name such as smtp.example.com.')
+		])
+	},
+	{
+		key: 'mail.smtp.port',
+		group: 'email',
+		label: 'SMTP port',
+		help: 'Only used with SMTP. Usually 587, or 465 with TLS on connect.',
+		input: { kind: 'number', min: 1, max: 65535 },
+		defaultValue: '587',
+		schema: z
+			.string()
+			.trim()
+			.regex(/^\d+$/, 'Enter a port number.')
+			.refine(
+				(value) => Number(value) >= 1 && Number(value) <= 65535,
+				'Enter a port from 1 to 65535.'
+			)
+	},
+	{
+		key: 'mail.smtp.secure',
+		group: 'email',
+		label: 'TLS on connect',
+		help: 'Only used with SMTP. On for port 465; off upgrades with STARTTLS when the server offers it.',
+		input: { kind: 'boolean' },
+		defaultValue: 'false',
+		schema: booleanText
 	},
 	{
 		key: 'spaces.endpoint',
@@ -211,7 +272,13 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 		help: 'Where location photos and generated PDFs are stored.',
 		input: { kind: 'text' },
 		defaultValue: '',
-		schema: z.union([z.literal(''), z.string().trim().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, 'Enter a valid bucket name.')])
+		schema: z.union([
+			z.literal(''),
+			z
+				.string()
+				.trim()
+				.regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, 'Enter a valid bucket name.')
+		])
 	},
 	{
 		key: 'activity.retention_days',
@@ -259,7 +326,10 @@ export const SYSTEM_SETTINGS: SettingDefinition[] = [
 		defaultValue: '',
 		schema: z.union([
 			z.literal(''),
-			z.string().trim().regex(/^phc_[A-Za-z0-9_-]+$/, 'Enter a project token starting with phc_.')
+			z
+				.string()
+				.trim()
+				.regex(/^phc_[A-Za-z0-9_-]+$/, 'Enter a project token starting with phc_.')
 		])
 	},
 	{
@@ -317,7 +387,9 @@ export const SETTINGS_BY_KEY = new Map(SYSTEM_SETTINGS.map((setting) => [setting
  */
 export function parseSettingsUpdate(
 	body: unknown
-): { success: true; data: Record<string, string> } | { success: false; errors: Record<string, string> } {
+):
+	| { success: true; data: Record<string, string> }
+	| { success: false; errors: Record<string, string> } {
 	if (typeof body !== 'object' || body === null || Array.isArray(body)) {
 		return { success: false, errors: { _: 'Send an object of setting keys and values.' } };
 	}

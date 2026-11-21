@@ -2,36 +2,26 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import RoleDetailPage from '$pages/o/s/settings/roles/RoleDetailPage.svelte';
+	import { toast } from 'svelte-sonner';
+	import { api, errorMessage } from '$lib/client/api';
 
 	const { data } = $props();
 	const orgSlug = $derived($page.params.org_slug);
-	const roleId = $derived($page.params.id);
 
 	async function handleSavePermissions(permissions: string[]) {
-		const res = await fetch(`/o/${orgSlug}/s/api/roles/${roleId}/permissions`, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ permissions })
-		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to save permissions.');
+		try {
+			await api(`/roles/${data.role.id}/permissions`, { method: 'PUT', body: { permissions } });
+		} catch (e) {
+			toast.error(errorMessage(e, 'The permissions could not be saved.'));
+			// Put the switches back to what is saved.
+			await invalidateAll();
 		}
 	}
 
 	async function handleSaveName(name: string) {
-		const res = await fetch(`/o/${orgSlug}/s/api/roles/${roleId}`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name })
-		});
-		if (!res.ok) {
-			const body = await res.json();
-			throw new Error(body.error ?? 'Failed to save role.');
-		}
+		await api(`/roles/${data.role.id}`, { method: 'PATCH', body: { name } });
 		await invalidateAll();
 	}
-
 </script>
 
 <svelte:head>

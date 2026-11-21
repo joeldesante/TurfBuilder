@@ -1,5 +1,6 @@
-import z from "zod";
-import { POOL } from "$lib/server/database";
+import z from 'zod';
+import { POOL } from '$lib/server/database';
+import { requireInfraPermission } from '$lib/server/permissions';
 
 // --- Join type ---
 
@@ -13,14 +14,36 @@ export type JoinNode = {
 	};
 };
 
+// Table, column, and operator names are written into the SQL as they are, so
+// each must be a plain identifier from this short list of shapes; anything
+// else is refused before a query is built. Values always go in as parameters.
+
+/** A table in one of the schemas the query builder shows: `universe.turf`. */
+const TABLE = /^(universe|public)\.[a-z_][a-z0-9_]*$/;
+/** A column, optionally qualified (`turf.code`, `universe.turf.code`), or `*` / `turf.*`. */
+const COLUMN = /^(\*|([a-z_][a-z0-9_]*\.){0,2}([a-z_][a-z0-9_]*|\*))$/;
+const COMPARISONS = ['=', '!=', '<', '>', '<=', '>='] as const;
+const CONDITIONS = [
+	...COMPARISONS,
+	'LIKE',
+	'ILIKE',
+	'IN',
+	'BETWEEN',
+	'IS NULL',
+	'IS NOT NULL'
+] as const;
+
+const tableName = z.string().regex(TABLE, 'Unknown table.');
+const columnName = z.string().regex(COLUMN, 'Invalid column.');
+
 const JoinSchema: z.ZodType<JoinNode> = z.object({
 	type: z.enum(['INNER', 'LEFT', 'RIGHT', 'FULL']),
-	table: z.string().nonempty(),
+	table: tableName,
 	on: z.object({
-		leftColumn: z.string().nonempty(),
-		op: z.string().nonempty(),
-		rightColumn: z.string().nonempty(),
-	}),
+		leftColumn: columnName,
+		op: z.enum(COMPARISONS),
+		rightColumn: columnName
+	})
 });
 
 // --- WHERE tree types ---
@@ -31,7 +54,7 @@ export type ConditionNode = {
 	op: string;
 	negate: boolean;
 	value?: any;
-	value2?: any;  // BETWEEN upper bound
+	value2?: any; // BETWEEN upper bound
 };
 
 export type GroupNode = {
@@ -55,11 +78,11 @@ export type SingleQuery = {
 
 const ConditionNodeSchema: z.ZodType<ConditionNode> = z.object({
 	type: z.literal('condition'),
-	column: z.string().nonempty(),
-	op: z.string().nonempty(),
+	column: columnName,
+	op: z.enum(CONDITIONS),
 	negate: z.boolean().default(false),
 	value: z.any().optional(),
-	value2: z.any().optional(),
+	value2: z.any().optional()
 });
 
 const GroupNodeSchema: z.ZodType<GroupNode> = z.lazy(() =>
@@ -67,17 +90,20 @@ const GroupNodeSchema: z.ZodType<GroupNode> = z.lazy(() =>
 		type: z.literal('group'),
 		connector: z.enum(['AND', 'OR']),
 		negate: z.boolean().default(false),
-		children: z.array(z.union([ConditionNodeSchema, GroupNodeSchema])),
+		children: z.array(z.union([ConditionNodeSchema, GroupNodeSchema]))
 	})
 );
 
 const QueriesSchema = z.object({
-	queries: z.object({
-		select: z.string().nonempty().array().min(1),
-		from: z.string().nonempty(),
-		joins: JoinSchema.array().optional(),
-		where: GroupNodeSchema.optional(),
-	}).array().min(1)
+	queries: z
+		.object({
+			select: columnName.array().min(1),
+			from: tableName,
+			joins: JoinSchema.array().optional(),
+			where: GroupNodeSchema.optional()
+		})
+		.array()
+		.min(1)
 });
 
 export type Queries = z.infer<typeof QueriesSchema>;
@@ -114,9 +140,7 @@ export function buildWhereNode(node: WhereNode, params: any[]): string {
 	}
 
 	// group node
-	const parts = node.children
-		.map(child => buildWhereNode(child, params))
-		.filter(Boolean);
+	const parts = node.children.map((child) => buildWhereNode(child, params)).filter(Boolean);
 
 	if (parts.length === 0) return '';
 
@@ -149,12 +173,26 @@ export function schemaToSqlQuery(schema: Queries): SqlQuery[] {
 	});
 }
 
-export async function runQueries(queries: Queries) {
+/**
+ * Runs raw read queries across every organization's rows, so only infra
+ * admins may (403 for anyone else). 400 for a malformed query.
+ */
+export async function runQueries(userId: string, queries: Queries) {
+	await requireInfraPermission(userId, 'access');
+	const parsed = QueriesSchema.safeParse(queries);
+	if (!parsed.success) throw new QueryError(parsed.error.issues[0]?.message ?? 'Invalid query.');
 	const sqlQueries = schemaToSqlQuery(queries);
-	const results = await Promise.all(
-		sqlQueries.map(q => POOL.query(q.query, q.parameters))
-	);
+	const results = await Promise.all(sqlQueries.map((q) => POOL.query(q.query, q.parameters)));
 	return results;
+}
+
+/** A query the builder refused; the message is safe to show. */
+export class QueryError extends Error {}
+
+/** The tables and columns the query builder offers. Infra admins only. */
+export async function getQueryBuilderSchemas(userId: string): Promise<TableSchema[]> {
+	await requireInfraPermission(userId, 'access');
+	return getTableSchemas(['universe', 'public']);
 }
 
 export interface ColumnSchema {

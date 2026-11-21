@@ -1,0 +1,22 @@
+# DigitalOcean Functions project. Deploy from this folder with:
+#   doctl serverless deploy .
+# Values come from functions/.env (see .env.example), which doctl reads at deploy time.
+parameters: {}
+environment: {}
+packages:
+  - name: imports
+    functions:
+      - name: import-contacts
+        runtime: nodejs:20
+        limits:
+          timeout: 600000
+          memory: 512
+        environment:
+          DATABASE_URL: ${DATABASE_URL}
+          SPACES_ACCESS_KEY_ID: ${SPACES_ACCESS_KEY_ID}
+          SPACES_SECRET_ACCESS_KEY: ${SPACES_SECRET_ACCESS_KEY}
+          SPACES_ENDPOINT: ${SPACES_ENDPOINT}
+          SPACES_REGION: ${SPACES_REGION}
+          SPACES_BUCKET: ${SPACES_BUCKET}
+          IMPORT_BATCH_SIZE: ${IMPORT_BATCH_SIZE}
+          IMPORT_PACE_RATIO: ${IMPORT_PACE_RATIO}

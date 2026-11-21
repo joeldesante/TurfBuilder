@@ -186,6 +186,47 @@
 
 ---
 
+## ReorderList
+
+A row or column of items that can be dragged into a new order, by mouse or
+by touch, with the other items sliding out of the way. This is the one
+place reordering is built, so every reorderable list moves the same way.
+
+**Import:** `$components/layout/reorder-list/ReorderList.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `ids` | `string[]` | **required** | The item ids in their saved order. |
+| `onReorder` | `((ids: string[]) => void | Promise<void>) | undefined` | — | Called once when a drag ends with a different order. If it rejects, the
+items go back to `ids`. Without it the items cannot be dragged. |
+| `axis` | `"x" | "y" | undefined` | `'x'` | Which way the items lay out. |
+| `as` | `"ul" | "ol" | "div" | undefined` | `'ul'` | Tag of the list. |
+| `itemAs` | `"div" | "li" | undefined` | `'li'` | Tag of each item. |
+| `class` | `string | undefined` | `''` |  |
+| `itemClass` | `((id: string, dragging: boolean) => string) | undefined` | — | Extra classes for an item; `dragging` is true while it is held. |
+| `itemProps` | `((id: string) => Record<string, unknown>) | undefined` | — | Extra attributes for an item, such as `role` or `aria-selected`. |
+| `item` | `Snippet<[id: string, dragging: boolean]>` | **required** | The content of one item. |
+
+---
+
+## SnippetHost
+
+Renders one snippet with one argument. Lets imperative code, such as a map
+popup that `mount()`s its own content, show a snippet a parent passed in.
+
+**Import:** `$components/layout/snippet-host/SnippetHost.svelte`
+
+**Props**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `snippet` | `Snippet<[T]>` | **required** |  |
+| `arg` | `T` | **required** |  |
+
+---
+
 ## TabBar
 
 **Import:** `$components/layout/tab-bar/TabBar.svelte`
@@ -214,6 +255,7 @@
 | `tabs` | `Tab[]` | **required** |  |
 | `active` | `string` | **required** | The id of the tab being shown. |
 | `label` | `string` | **required** | Names the tab list for screen readers. |
+| `onSelect` | `((id: string) => void) | undefined` | — | Called with the tab's id when a tab without an `href` is pressed. |
 | `class` | `string | undefined` | `''` |  |
 
 ---

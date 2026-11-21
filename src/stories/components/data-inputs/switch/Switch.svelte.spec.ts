@@ -17,6 +17,16 @@ describe('Switch', () => {
 			await expect.element(label).toBeVisible();
 		});
 
+		it('is named by its label, even without an id or a form field around it', async () => {
+			const screen = render(Switch, {
+				children: createChildrenSnippet('Enable notifications')
+			});
+
+			await expect
+				.element(screen.getByRole('switch', { name: 'Enable notifications' }))
+				.toBeVisible();
+		});
+
 		it('renders switch without label when no children', async () => {
 			const screen = render(Switch);
 

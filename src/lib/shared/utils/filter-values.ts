@@ -1,6 +1,12 @@
 import { parseDate } from '@internationalized/date';
 import type { DateValue } from '@internationalized/date';
-import type { ContactMadeValue, RadiusValue, SurveyResponseValue } from '../types/filters';
+import type {
+	ContactMadeValue,
+	ContactSchemaValue,
+	RadiusValue,
+	SchemaFieldValue,
+	SurveyResponseValue
+} from '../types/filters';
 import { defaultContactMade } from './filter-registry';
 
 /**
@@ -39,6 +45,30 @@ export function asSurveyResponse(value: unknown): SurveyResponseValue | null {
 		surveyId: typeof value.surveyId === 'string' ? value.surveyId : '',
 		questionId: typeof value.questionId === 'string' ? value.questionId : '',
 		response: typeof value.response === 'string' ? value.response : ''
+	};
+}
+
+/** The schema a schema filter names, or null until one is chosen. */
+export function asContactSchema(value: unknown): ContactSchemaValue | null {
+	return isObject(value) && typeof value.schemaId === 'string' && value.schemaId
+		? { schemaId: value.schemaId }
+		: null;
+}
+
+/**
+ * A schema field filter's choice, or null until a schema is picked. The field
+ * and the value below it read as not chosen yet.
+ */
+export function asSchemaField(value: unknown): SchemaFieldValue | null {
+	if (!isObject(value) || typeof value.schemaId !== 'string' || !value.schemaId) return null;
+	const compared = value.value;
+	return {
+		schemaId: value.schemaId,
+		fieldId: typeof value.fieldId === 'string' ? value.fieldId : '',
+		value:
+			typeof compared === 'string' || typeof compared === 'number' || typeof compared === 'boolean'
+				? compared
+				: null
 	};
 }
 

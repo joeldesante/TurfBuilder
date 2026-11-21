@@ -42,7 +42,9 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	requireInfraPermission.mockResolvedValue(undefined);
 	pool.query.mockImplementation((sql: string) =>
-		Promise.resolve(sql.includes('COUNT(*)') ? { rows: [{ count: '1' }] } : { rows: [row], rowCount: 1 })
+		Promise.resolve(
+			sql.includes('COUNT(*)') ? { rows: [{ count: '1' }] } : { rows: [row], rowCount: 1 }
+		)
 	);
 });
 
@@ -52,7 +54,15 @@ describe('audit', () => {
 
 		const [sql, params] = pool.query.mock.calls[0];
 		expect(flat(sql)).toContain('INSERT INTO infra_audit_log');
-		expect(params).toEqual(['u1', 'user.suspend', 'user', 'u2', '{"reason":"spam"}', '203.0.113.9', 'Spec Browser']);
+		expect(params).toEqual([
+			'u1',
+			'user.suspend',
+			'user',
+			'u2',
+			'{"reason":"spam"}',
+			'203.0.113.9',
+			'Spec Browser'
+		]);
 	});
 
 	it('throws when it cannot record, so a change is never reported without a record', async () => {
@@ -66,16 +76,26 @@ describe('queryAuditPage', () => {
 		const page = await queryAuditPage({}, 1);
 
 		expect(page).toMatchObject({ totalCount: 1, page: 1, pageSize: 100 });
-		expect(page.items[0]).toMatchObject({ id: '7', actorName: 'Ada', targetId: 'u2', createdAt: '2026-10-01T12:00:00.000Z' });
+		expect(page.items[0]).toMatchObject({
+			id: '7',
+			actorName: 'Ada',
+			targetId: 'u2',
+			createdAt: '2026-10-01T12:00:00.000Z'
+		});
 		const list = pool.query.mock.calls.find((c) => flat(c[0]).includes('ORDER BY'));
 		expect(flat(list?.[0])).toContain('ORDER BY l.created_at DESC, l.id DESC');
 	});
 
 	it('filters with parameters, never interpolated values', async () => {
-		await queryAuditPage({ action: "x'; DROP TABLE x; --", targetType: 'user', from: '2026-01-01' }, 1);
+		await queryAuditPage(
+			{ action: "x'; DROP TABLE x; --", targetType: 'user', from: '2026-01-01' },
+			1
+		);
 
 		const [sql, params] = pool.query.mock.calls[0];
-		expect(flat(sql)).toContain('WHERE l.action = $1 AND l.target_type = $2 AND l.created_at >= $3::date');
+		expect(flat(sql)).toContain(
+			'WHERE l.action = $1 AND l.target_type = $2 AND l.created_at >= $3::date'
+		);
 		expect(params).toEqual(["x'; DROP TABLE x; --", 'user', '2026-01-01']);
 	});
 });
@@ -92,7 +112,9 @@ describe('access', () => {
 	});
 
 	it('nothing is read when the check fails', async () => {
-		requireInfraPermission.mockRejectedValue(Object.assign(new Error('Forbidden'), { status: 403 }));
+		requireInfraPermission.mockRejectedValue(
+			Object.assign(new Error('Forbidden'), { status: 403 })
+		);
 
 		await expect(listAuditEvents('u1', {}, 1)).rejects.toMatchObject({ status: 403 });
 		expect(pool.query).not.toHaveBeenCalled();

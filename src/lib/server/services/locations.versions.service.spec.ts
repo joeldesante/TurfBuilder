@@ -16,8 +16,11 @@ vi.mock('$env/dynamic/private', () => ({
 
 const ORG = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const ENTITY = 'b1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const OLD_VERSION = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const NEW_VERSION = 'd1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const OLD_CONTACT = 'c1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const NEW_CONTACT = 'd1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const ADDRESS_ENTITY = 'f1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const OLD_ADDRESS = 'a2b2c3d4-e5f6-7890-abcd-ef1234567890';
+const NEW_ADDRESS = 'a3b2c3d4-e5f6-7890-abcd-ef1234567890';
 const USER = 'e1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
 const fields: LocationFields = {
@@ -34,6 +37,38 @@ const fields: LocationFields = {
 	photo_keys: []
 };
 
+/** The live location as lockLocation reads it: Rosa Deli at 123 Main St. */
+const LOCKED_ROW = {
+	contact_id: OLD_CONTACT,
+	type: 'business',
+	metadata: { name: 'Rosa Deli' },
+	photo_keys: [],
+	address_id: OLD_ADDRESS,
+	address_entity_id: ADDRESS_ENTITY,
+	premises_name: null,
+	premises_number: '123',
+	thoroughfare_name: 'Main',
+	thoroughfare_type: 'St',
+	thoroughfare_pre_qualifier: null,
+	thoroughfare_post_qualifier: null,
+	dependent_locality: null,
+	locality: 'Philadelphia',
+	region: 'PA',
+	postcode: '19104',
+	country_code: 'US',
+	unit_type: null,
+	unit_identifier: null,
+	floor: null,
+	name: 'Rosa Deli',
+	address_line_1: '123 Main St',
+	address_line_2: null,
+	city: 'Philadelphia',
+	state_or_region: 'PA',
+	postal_code: '19104',
+	latitude: 39.9526,
+	longitude: -75.1652
+};
+
 const query = vi.fn();
 const client = { query } as unknown as PoolClient;
 
@@ -48,192 +83,216 @@ function find(fragment: string): { sql: string; params: unknown[] } | undefined 
 	return { sql: issued()[idx], params: query.mock.calls[idx][1] as unknown[] };
 }
 
+/**
+ * Answers queries by what they do. `live` is whether the location has a live
+ * version; `shared` whether another live contact is at its address.
+ */
+function database({ live = true, shared = false } = {}) {
+	query.mockImplementation(async (raw: string) => {
+		const sql = raw.replace(/\s+/g, ' ');
+		if (sql.includes('GROUP BY country_code')) return { rows: [{ country_code: 'US' }] };
+		if (sql.includes('INSERT INTO universe.org_entity')) return { rows: [{ id: ENTITY }] };
+		if (sql.includes('INSERT INTO universe.org_address')) return { rows: [{ id: NEW_ADDRESS }] };
+		if (sql.includes('UPDATE universe.org_address')) return { rows: [{ id: OLD_ADDRESS }] };
+		if (sql.includes('SELECT 1 FROM universe.org_address')) return { rows: [{}] };
+		if (sql.includes('INSERT INTO universe.org_contact')) return { rows: [{ id: NEW_CONTACT }] };
+		if (sql.includes('UPDATE universe.org_contact')) {
+			return { rows: live ? [{ id: OLD_CONTACT }] : [] };
+		}
+		if (sql.includes('FOR UPDATE OF c, a')) return { rows: live ? [LOCKED_ROW] : [] };
+		if (sql.includes('entity_id <> $3'))
+			return { rows: shared ? [{}] : [], rowCount: shared ? 1 : 0 };
+		if (sql.includes('SELECT 1 FROM universe.org_contact')) return { rows: [], rowCount: 0 };
+		return { rows: [] };
+	});
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
-	query.mockResolvedValue({ rows: [] });
+	database();
 });
 
 describe('insertLocation', () => {
-	beforeEach(() => {
-		query
-			.mockResolvedValueOnce({ rows: [{ id: ENTITY }] })
-			.mockResolvedValueOnce({ rows: [{ id: NEW_VERSION }] });
-	});
-
-	it('creates the identity row before the version row', async () => {
-		await insertLocation(client, ORG, fields, USER, 'manual');
-		const sql = issued();
-		expect(sql[0]).toContain('INSERT INTO universe.org_entity');
-		expect(sql[1]).toContain('INSERT INTO universe.org_location');
-	});
-
-	it('returns both the entity id and the first version id', async () => {
+	it('creates the address, then a business contact at it', async () => {
 		const result = await insertLocation(client, ORG, fields, USER, 'manual');
-		expect(result).toEqual({ entityId: ENTITY, versionId: NEW_VERSION });
+
+		expect(result).toEqual({ entityId: ENTITY, versionId: NEW_CONTACT, addressId: NEW_ADDRESS });
+		const order = issued();
+		const address = order.findIndex((q) => q.includes('INSERT INTO universe.org_address'));
+		const contact = order.findIndex((q) => q.includes('INSERT INTO universe.org_contact'));
+		expect(address).toBeGreaterThan(-1);
+		expect(contact).toBeGreaterThan(address);
 	});
 
-	it('leaves type_id to the set_entity_type trigger', async () => {
+	it('maps the flat fields onto the address columns', async () => {
 		await insertLocation(client, ORG, fields, USER, 'manual');
-		expect(issued()[0]).not.toContain('type_id');
+
+		const params = find('INSERT INTO universe.org_address')!.params;
+		// premises_number, thoroughfare_name, thoroughfare_type, locality, region, postcode, country
+		expect(params[3]).toBe('123');
+		expect(params[4]).toBe('Main');
+		expect(params[5]).toBe('St');
+		expect(params[9]).toBe('Philadelphia');
+		expect(params[10]).toBe('PA');
+		expect(params[11]).toBe('19104');
+		expect(params[12]).toBe('US');
+		// The point is longitude then latitude.
+		expect(params[16]).toBe(-75.1652);
+		expect(params[17]).toBe(39.9526);
 	});
 
-	it('builds the point as longitude-then-latitude', async () => {
+	it('names the contact in its metadata', async () => {
 		await insertLocation(client, ORG, fields, USER, 'manual');
-		const insert = find('INSERT INTO universe.org_location')!;
-		expect(insert.sql).toContain('ST_SetSRID(ST_MakePoint($11::float8, $12::float8), 4326)');
-		expect(insert.params[10]).toBe(fields.longitude);
-		expect(insert.params[11]).toBe(fields.latitude);
+
+		const params = find('INSERT INTO universe.org_contact')!.params;
+		expect(params[2]).toBe('business');
+		expect(JSON.parse(params[4] as string)).toEqual({ name: 'Rosa Deli' });
+	});
+
+	it('records a source ref on the contact entity', async () => {
+		await insertLocation(client, ORG, fields, USER, 'import', 'row-7');
+
+		const entity = query.mock.calls.filter((c) =>
+			String(c[0]).includes('INSERT INTO universe.org_entity (org_id, source_ref)')
+		);
+		expect(entity.at(-1)![1]).toEqual([ORG, 'row-7']);
+	});
+
+	it('writes nothing to org_location', async () => {
+		await insertLocation(client, ORG, fields, USER, 'manual');
+
+		expect(issued().some((q) => q.includes('org_location'))).toBe(false);
 	});
 });
 
 describe('createLocationVersion', () => {
-	beforeEach(() => {
-		query
-			.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] })
-			.mockResolvedValueOnce({ rows: [{ id: NEW_VERSION }] })
-			.mockResolvedValue({ rows: [] });
+	it('versions only the contact when the address is unchanged', async () => {
+		const result = await createLocationVersion(
+			client,
+			ORG,
+			ENTITY,
+			{ ...fields, name: 'Rosa Market' },
+			USER,
+			'manual'
+		);
+
+		expect(result).toEqual({
+			entityId: ENTITY,
+			versionId: NEW_CONTACT,
+			addressId: OLD_ADDRESS,
+			oldVersionId: OLD_CONTACT
+		});
+		expect(find('INSERT INTO universe.org_address')).toBeUndefined();
+		const contact = find('INSERT INTO universe.org_contact')!.params;
+		expect(JSON.parse(contact[4] as string)).toEqual({ name: 'Rosa Market' });
 	});
 
-	it('closes the current version before inserting the successor', async () => {
-		await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-		const sql = issued();
-		expect(sql[0]).toContain('SET valid_to = now()');
-		expect(sql[0]).toContain('valid_to IS NULL');
-		expect(sql[1]).toContain('INSERT INTO universe.org_location');
+	it('versions the address when it changed and nothing else is there', async () => {
+		const result = await createLocationVersion(
+			client,
+			ORG,
+			ENTITY,
+			{ ...fields, latitude: 39.95 },
+			USER,
+			'manual'
+		);
+
+		expect(result?.addressId).toBe(NEW_ADDRESS);
+		expect(find('UPDATE universe.org_address SET valid_to = now()')).toBeDefined();
 	});
 
-	it('repoints turf_location from the old version to the new one', async () => {
-		await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-		const update = find('UPDATE universe.turf_location');
-		expect(update).toBeDefined();
-		expect(update!.params).toEqual([NEW_VERSION, OLD_VERSION, ORG]);
+	it('moves to a new address rather than moving one other contacts are at', async () => {
+		database({ shared: true });
+
+		await createLocationVersion(
+			client,
+			ORG,
+			ENTITY,
+			{ ...fields, address_line_1: '9 Pine St' },
+			USER,
+			'manual'
+		);
+
+		expect(find('UPDATE universe.org_address')).toBeUndefined();
+		expect(find('INSERT INTO universe.org_entity (org_id, source_ref)')).toBeDefined();
 	});
 
-	it('scopes the turf_location repoint to the org', async () => {
-		await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-		expect(find('UPDATE universe.turf_location')!.sql).toContain('org_id = $3');
+	it('leaves lists and turfs alone', async () => {
+		await createLocationVersion(
+			client,
+			ORG,
+			ENTITY,
+			{ ...fields, latitude: 39.95 },
+			USER,
+			'manual'
+		);
+
+		expect(issued().some((q) => q.includes('turf_location') || q.includes('list_entry'))).toBe(
+			false
+		);
 	});
 
-	it('repoints list_entry from the old version to the new one', async () => {
-		await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-		const update = find('UPDATE universe.list_entry');
-		expect(update).toBeDefined();
-		expect(update!.params).toEqual([NEW_VERSION, OLD_VERSION, ORG]);
-	});
+	it('returns null when the location has no live version', async () => {
+		database({ live: false });
 
-	// list_entry has no org_id column and no RLS policy, so joining
-	// universe.list is the only thing keeping this update inside the tenant.
-	it('scopes the list_entry repoint via a join to universe.list', async () => {
-		await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-		const sql = find('UPDATE universe.list_entry')!.sql;
-		expect(sql).toContain('FROM universe.list l');
-		expect(sql).toContain('l.id = le.list_id');
-		expect(sql).toContain('l.org_id = $3');
-	});
-
-	it('only repoints org_location entries, not person entries', async () => {
-		await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-		expect(find('UPDATE universe.list_entry')!.sql).toContain("le.record_source = 'org_location'");
-	});
-
-	it('returns both version ids', async () => {
-		const result = await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-		expect(result).toEqual({ oldVersionId: OLD_VERSION, newVersionId: NEW_VERSION });
-	});
-
-	it('skips both repoints when there was no live version to supersede', async () => {
-		// mockReset, not clearAllMocks: the latter leaves the queue of
-		// mockResolvedValueOnce values from beforeEach in place.
-		query.mockReset();
-		query
-			.mockResolvedValueOnce({ rows: [] })
-			.mockResolvedValueOnce({ rows: [{ id: NEW_VERSION }] })
-			.mockResolvedValue({ rows: [] });
-
-		const result = await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual');
-
-		expect(result.oldVersionId).toBeNull();
-		expect(find('UPDATE universe.turf_location')).toBeUndefined();
-		expect(find('UPDATE universe.list_entry')).toBeUndefined();
+		expect(await createLocationVersion(client, ORG, ENTITY, fields, USER, 'manual')).toBeNull();
+		expect(find('INSERT INTO universe.org_contact')).toBeUndefined();
 	});
 });
 
 describe('softDeleteLocation', () => {
-	it('closes the current version and inserts no successor', async () => {
-		query.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] });
-		await softDeleteLocation(client, ORG, ENTITY);
-		const sql = issued();
-		expect(sql[0]).toContain('SET valid_to = now()');
-		expect(sql.some((q) => q.includes('INSERT INTO universe.org_location'))).toBe(false);
-	});
+	it('closes the contact and its address when nothing else is there', async () => {
+		expect(await softDeleteLocation(client, ORG, ENTITY)).toBe(OLD_CONTACT);
 
-	// turf_location_attempt and survey_question_response cascade off
-	// turf_location, so removing it would destroy canvassing history.
-	it('leaves turf_location rows in place', async () => {
-		query.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] });
-		await softDeleteLocation(client, ORG, ENTITY);
-		expect(find('UPDATE universe.turf_location')).toBeUndefined();
-		expect(issued().some((q) => q.includes('DELETE'))).toBe(false);
-	});
-
-	it('returns the closed version id', async () => {
-		query.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] });
-		await expect(softDeleteLocation(client, ORG, ENTITY)).resolves.toBe(OLD_VERSION);
+		expect(find('UPDATE universe.org_contact SET valid_to = now()')!.params).toEqual([ENTITY, ORG]);
+		expect(find('UPDATE universe.org_address SET valid_to = now()')!.params).toEqual([
+			ADDRESS_ENTITY,
+			ORG
+		]);
+		expect(find('INSERT INTO')).toBeUndefined();
 	});
 
 	it('returns null when there was no live version', async () => {
-		query.mockResolvedValueOnce({ rows: [] });
-		await expect(softDeleteLocation(client, ORG, ENTITY)).resolves.toBeNull();
+		database({ live: false });
+
+		expect(await softDeleteLocation(client, ORG, ENTITY)).toBeNull();
 	});
 });
 
 describe('readCurrentVersion', () => {
-	it('reads only the live version and locks it', async () => {
-		query.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] });
-		await readCurrentVersion(client, ORG, ENTITY);
-		const sql = issued()[0];
-		expect(sql).toContain('ol.valid_to IS NULL');
-		expect(sql).toContain('FOR UPDATE');
+	it('reads the live contact at its live address, locked, in the flat shape', async () => {
+		const current = await readCurrentVersion(client, ORG, ENTITY);
+
+		expect(current).toMatchObject({
+			id: OLD_CONTACT,
+			entity_id: ENTITY,
+			name: 'Rosa Deli',
+			address_line_1: '123 Main St',
+			city: 'Philadelphia',
+			latitude: 39.9526
+		});
+		const read = find('FOR UPDATE OF c, a')!;
+		expect(read.sql).toContain('c.valid_to IS NULL');
+		expect(read.sql).toContain('a.valid_to IS NULL');
+		expect(read.params).toEqual([ENTITY, ORG]);
 	});
 
-	it('projects coordinates back to latitude and longitude', async () => {
-		query.mockResolvedValueOnce({ rows: [{ id: OLD_VERSION }] });
-		await readCurrentVersion(client, ORG, ENTITY);
-		const sql = issued()[0];
-		expect(sql).toContain('ST_Y(ol.coordinates) AS latitude');
-		expect(sql).toContain('ST_X(ol.coordinates) AS longitude');
-	});
+	it('returns null when the location is gone', async () => {
+		database({ live: false });
 
-	it('returns null for an entity outside the org', async () => {
-		query.mockResolvedValueOnce({ rows: [] });
-		await expect(readCurrentVersion(client, ORG, ENTITY)).resolves.toBeNull();
+		expect(await readCurrentVersion(client, ORG, ENTITY)).toBeNull();
 	});
 });
 
 describe('mergeLocationFields', () => {
-	const current: CurrentVersion = { id: OLD_VERSION, entity_id: ENTITY, ...fields };
+	const current: CurrentVersion = { ...fields, id: OLD_CONTACT, entity_id: ENTITY };
 
-	it('keeps current values for keys absent from the patch', () => {
-		const merged = mergeLocationFields(current, { name: 'Rosa Deli & Grocery' });
-		expect(merged.name).toBe('Rosa Deli & Grocery');
-		expect(merged.address_line_1).toBe('123 Main St');
-		expect(merged.city).toBe('Philadelphia');
-		expect(merged.latitude).toBe(fields.latitude);
-	});
+	it('keeps fields the patch leaves out and clears fields it sends as null', () => {
+		const merged = mergeLocationFields(current, { name: 'Other', postal_code: null });
 
-	it('clears a field explicitly patched to null', () => {
-		const merged = mergeLocationFields(current, { address_line_2: null, postal_code: null });
-		expect(merged.address_line_2).toBeNull();
+		expect(merged.name).toBe('Other');
 		expect(merged.postal_code).toBeNull();
-	});
-
-	it('produces a complete field set from an empty patch', () => {
-		expect(mergeLocationFields(current, {})).toEqual(fields);
-	});
-
-	it('moves coordinates when both are patched', () => {
-		const merged = mergeLocationFields(current, { latitude: 40.1, longitude: -75.9 });
-		expect(merged.latitude).toBe(40.1);
-		expect(merged.longitude).toBe(-75.9);
+		expect(merged.city).toBe('Philadelphia');
+		expect(merged).not.toHaveProperty('id');
 	});
 });

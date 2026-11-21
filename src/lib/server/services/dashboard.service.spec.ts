@@ -29,7 +29,7 @@ describe('getDashboardProgress', () => {
 		await getDashboardProgress(client as never, ORG, null);
 
 		const [sql, params] = client.query.mock.calls[0];
-		expect(flat(sql)).toContain('SELECT entity_id FROM universe.v_locations');
+		expect(flat(sql)).toContain('SELECT entity_id FROM universe.v_contacts');
 		expect(params).toEqual([ORG, null, null]);
 	});
 
@@ -38,7 +38,7 @@ describe('getDashboardProgress', () => {
 
 		const [sql, params] = client.query.mock.calls[0];
 		expect(flat(sql)).toContain(
-			'SELECT vl.entity_id FROM universe.v_locations vl WHERE (lower(vl.city) = lower($1))'
+			'SELECT vl.entity_id FROM universe.v_contacts vl WHERE (lower(vl.city) = lower($1))'
 		);
 		// The filter's own parameters come first; the org, bucket and range follow them.
 		expect(params).toEqual(['Austin', ORG, BUCKET, null]);
@@ -53,7 +53,7 @@ describe('getDashboardProgress', () => {
 		});
 
 		const [sql, params] = client.query.mock.calls[0];
-		expect(flat(sql)).toContain('SELECT vl.entity_id FROM universe.v_locations vl)');
+		expect(flat(sql)).toContain('SELECT vl.entity_id FROM universe.v_contacts vl)');
 		expect(params).toEqual([ORG, BUCKET, null]);
 	});
 
@@ -87,7 +87,7 @@ describe('getDashboardPoints', () => {
 
 		const [sql, params] = client.query.mock.calls[0];
 		expect(flat(sql)).toContain(
-			'SELECT vl.entity_id, vl.name, vl.address_line_1, vl.city, vl.coordinates FROM universe.v_locations vl'
+			'SELECT vl.entity_id, vl.name, vl.address_line_1, vl.city, vl.coordinates FROM universe.v_contacts vl'
 		);
 		// The row limit is the last parameter, after the filter's and the scope's.
 		expect(params).toEqual(['Austin', ORG, BUCKET, null, 5000]);
@@ -95,7 +95,9 @@ describe('getDashboardPoints', () => {
 	});
 
 	it('returns no points for a bucket that does not include locations', async () => {
-		expect(await getDashboardPoints(client as never, ORG, { id: BUCKET, filters: filters(null) })).toEqual([]);
+		expect(
+			await getDashboardPoints(client as never, ORG, { id: BUCKET, filters: filters(null) })
+		).toEqual([]);
 		expect(client.query).not.toHaveBeenCalled();
 	});
 });

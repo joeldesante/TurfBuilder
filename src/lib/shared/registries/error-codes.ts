@@ -15,6 +15,10 @@ export const ERROR_CODES = {
 	DATABASE_UNREACHABLE: {
 		status: 503,
 		message: 'Could not connect to the database.'
+	},
+	MAINTENANCE: {
+		status: 503,
+		message: 'TurfBuilder is down for scheduled maintenance. Please check back soon.'
 	}
 } as const;
 

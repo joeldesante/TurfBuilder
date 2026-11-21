@@ -8,17 +8,19 @@
 	import DatePicker from '$components/data-inputs/date-picker/DatePicker.svelte';
 	import XIcon from 'phosphor-svelte/lib/X';
 	import SpinnerGap from 'phosphor-svelte/lib/SpinnerGap';
+	import { api, errorMessage } from '$lib/client/api';
 
 	interface Props {
 		open: boolean;
 		orgSlug: string;
 		bucketSlug: string;
+		bucketId: string;
 		listId: string;
 		listName: string;
 		onClose: () => void;
 	}
 
-	const { open, orgSlug, bucketSlug, listId, listName, onClose }: Props = $props();
+	const { open, orgSlug, bucketSlug, bucketId, listId, listName, onClose }: Props = $props();
 
 	let surveys: { id: string; name: string }[] = $state([]);
 	let scripts: { id: string; name: string }[] = $state([]);
@@ -34,27 +36,20 @@
 		loading = true;
 		error = null;
 		try {
-			const [surveysRes, scriptsRes] = await Promise.all([
-				fetch(`/o/${orgSlug}/s/api/surveys?bucketSlug=${encodeURIComponent(bucketSlug)}`),
-				fetch(`/o/${orgSlug}/s/api/scripts?bucket=${encodeURIComponent(bucketSlug)}`)
+			type Named = { id: string; name: string };
+			// A turf can be cut without a script, so failing to load them is not fatal.
+			const [loadedSurveys, loadedScripts] = await Promise.all([
+				api<Named[]>(`/buckets/${bucketId}/surveys`),
+				api<Named[]>(`/buckets/${bucketId}/scripts`).catch(() => [] as Named[])
 			]);
 
-			if (!surveysRes.ok) {
-				const body = await surveysRes.json().catch(() => ({}));
-				error = body.error ?? `Failed to load surveys (${surveysRes.status})`;
-				return;
-			}
-			surveys = await surveysRes.json();
+			surveys = loadedSurveys;
+			scripts = loadedScripts;
 			if (surveys.length === 0) {
 				error = 'No surveys available. Create a survey first before cutting turfs.';
-				return;
 			}
-
-			if (scriptsRes.ok) {
-				scripts = await scriptsRes.json();
-			}
-		} catch {
-			error = 'Failed to load data.';
+		} catch (e) {
+			error = errorMessage(e, 'Failed to load data.');
 		} finally {
 			loading = false;
 		}
@@ -91,7 +86,12 @@
 	]);
 </script>
 
-<Dialog.Root {open} onOpenChange={(v) => { if (!v) onClose(); }}>
+<Dialog.Root
+	{open}
+	onOpenChange={(v) => {
+		if (!v) onClose();
+	}}
+>
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-50 bg-black/50" />
 		<Dialog.Content
@@ -121,11 +121,14 @@
 			{:else}
 				<div class="space-y-4">
 					<p class="text-sm text-on-surface-subtle">
-						Configure the turfs you're about to cut from <span class="font-medium">{listName}</span>.
+						Configure the turfs you're about to cut from <span class="font-medium">{listName}</span
+						>.
 					</p>
 
 					<div class="space-y-2">
-						<label for="survey-select" class="block text-sm font-medium text-on-surface">Survey</label>
+						<label for="survey-select" class="block text-sm font-medium text-on-surface"
+							>Survey</label
+						>
 						<Select
 							id="survey-select"
 							bind:value={selectedSurveyId}
@@ -135,7 +138,9 @@
 					</div>
 
 					<div class="space-y-2">
-						<label for="script-select" class="block text-sm font-medium text-on-surface">Script <span class="font-normal text-on-surface-subtle">(optional)</span></label>
+						<label for="script-select" class="block text-sm font-medium text-on-surface"
+							>Script <span class="font-normal text-on-surface-subtle">(optional)</span></label
+						>
 						<Select
 							id="script-select"
 							bind:value={selectedScriptId}
@@ -151,11 +156,7 @@
 
 					<div class="flex gap-2 pt-4">
 						<Button variant="outline" onclick={onClose} class="flex-1">Cancel</Button>
-						<Button
-							onclick={handleProceed}
-							disabled={!selectedSurveyId}
-							class="flex-1"
-						>
+						<Button onclick={handleProceed} disabled={!selectedSurveyId} class="flex-1">
 							Proceed to Map
 						</Button>
 					</div>

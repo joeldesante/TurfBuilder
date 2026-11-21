@@ -51,3 +51,22 @@
 		pageSize: 100
 	}}
 />
+
+<Story
+	name="Map"
+	parameters={{ layout: 'fullscreen' }}
+	args={{
+		bucketName: 'Downtown District',
+		enabled: true,
+		locations: [],
+		view: 'map',
+		markers: Array.from({ length: 1500 }, (_, i) => ({
+			id: `m${i}`,
+			name: `Location ${i + 1}`,
+			address_line_1: `${100 + i} Main St`,
+			city: 'Philadelphia',
+			latitude: 40.0 + Math.sin(i * 12.9898) * 0.05,
+			longitude: -75.17 + Math.cos(i * 78.233) * 0.07
+		}))
+	}}
+/>
