@@ -52,6 +52,8 @@ services:
       - DATABASE_URL=postgres://postgres:db_password@postgres:5432/postgres
       - BETTER_AUTH_SECRET=ODiDH4PwSD2KxDoVu7jVfkxooICq5m1P # DO NOT USE IN PRODUCTION! THIS SECRET IS PUBLIC AND ONLY FOR DEV USE!
       - BETTER_AUTH_URL=http://localhost:5173
+      # The functions dev server (npm run dev) runs on the host, not in this container.
+      - FUNCTIONS_API_URL=http://host.docker.internal:3233
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       # Object storage comes from the s3 service below unless .env sets real keys.
